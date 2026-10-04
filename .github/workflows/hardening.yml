@@ -1,9 +1,10 @@
-# The two gates of the implementation protocol that `verify` does not run.
+# The three gates of the implementation protocol that `verify` does not run.
 #
-# They are jobs of their own because neither belongs in the convergence node. `pnpm verify` is
+# They are jobs of their own because none belongs in the convergence node. `pnpm verify` is
 # what a person runs before each PR, and it must stay a few minutes long:
 #
 #   - `secrets` needs the whole history and a binary that is not in the lockfile.
+#   - `audit` asks the registry, so its answer changes with no change in the repo.
 #   - `mutation` takes minutes for one file and much longer for many. It runs on the files a PR
 #     changes, not on the tree.
 #
@@ -39,6 +40,18 @@ jobs:
           tar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks
 
       - run: ./gitleaks git --no-banner --redact .
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+
+      # Every dependency of the lockfile, of both packages, against the advisories the registry
+      # knows today. It needs no install. A finding is fixed by an update inside the declared
+      # range, or by an override in `pnpm-workspace.yaml` with its reason. On the day this job
+      # entered, the lockfile had 55 findings in the development tools and none in what ships.
+      - run: pnpm audit
 
   mutation:
     # Only a PR has a base to compare with.

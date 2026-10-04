@@ -33,6 +33,7 @@ Each of these needs a living instance:
 - property tests;
 - complexity;
 - a secrets scan over the whole history, blocking from its first run;
+- an audit of every dependency against the known advisories;
 - behavior in a real browser;
 - the kernel of the protocol, with its own tests;
 - a build.
@@ -43,8 +44,6 @@ Declared not applicable, each with its reason:
 - **Race detection.** The product has one thread.
 - **Reference tables and a metrics baseline.** Every gate of this repo is absolute. None compares
   with a stored number.
-
-Open, and a decision for the person: **a dependency audit**. Report it. Do not add one.
 
 ## Phase 2: prove each instance
 
@@ -64,6 +63,8 @@ configs that judge a run are not written by a run.
 - Pin each tool to an exact version. Never install a floating latest.
 - A secret that the scan finds is an incident: rotate it now. Never add it to an allowlist to turn
   the job green.
+- An advisory is fixed by an update inside the declared range, or by an override with its reason.
+  Update only the packages on the path of the advisory: a wide update also moves what ships.
 - If the environment forbids an install, stop with a named blocker and the exact command to run.
   Leave no half-written config.
 
