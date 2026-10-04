@@ -5,7 +5,7 @@ import type { CodeIndex } from '../symbols.ts';
 
 /**
  * Sobre strings fijos y NO sobre los archivos del repo: si estos tests leyeran
- * `src/`, agregar un export rompería el build (misma decisión que `specs.test.ts`).
+ * `src/`, agregar un export rompería el build.
  */
 
 const MUSIC = `import { CHROMATIC as NOTAS } from './constants/music.constants.ts';

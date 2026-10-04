@@ -158,7 +158,7 @@ function resolveSpecifier(from: string, file: string): string | null {
 
 /**
  * Exports e imports de UN modulo. Pura sobre el texto: los tests le pasan un
- * string fijo, asi que editar `src/` no los rompe (misma decision que `specs.ts`).
+ * string fijo, asi que editar `src/` no los rompe.
  *
  * `file` es la ruta relativa al repo y se usa tal cual en la salida y como base
  * para resolver los specifiers.

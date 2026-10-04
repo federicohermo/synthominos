@@ -31,14 +31,6 @@ dist-ssr
 # llevaria puestos.
 .claude/worktrees/
 
-# Los specs viven en GitHub Issues desde el spec 034: el mapa es `specs/mapa.json`, y
-# el directorio de aca es una CACHE que se reconstruye con
-# `node .claude/scripts/hidratar-specs.mjs`. Lo que queda trackeado son cuatro archivos y
-# ninguno es un spec: el `README.md` con la convencion, el mapa — que ademas trae el nombre
-# historico de cada carpeta, porque NO se deriva del titulo del issue (7 de 35 no) — y los
-# dos gates de `specs/__tests__/`, que miran esos dos.
-specs/[0-9]*/
-
 # La CLI de Vercel escribe aca al linkear el proyecto, y su `project.json` lleva el
 # `projectId` y el `orgId`: son de la cuenta y no del repo, asi que commitearlos ataria
 # el clone de cualquier otro a este proyecto de Vercel.

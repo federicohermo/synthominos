@@ -1,16 +1,10 @@
 import { test, describe } from 'node:test';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { tools } from '../tools/index.ts';
 import { describePiece } from '../tools/describePiece.ts';
 import { checkInvariants, pieceOf } from '../tools/checkInvariants.ts';
 import { simulateBoard, nombreDeHz } from '../tools/simulateBoard.ts';
 import { findSymbol } from '../tools/findSymbol.ts';
-import { crearSpecStatus, specStatus } from '../tools/specStatus.ts';
-import { SPECS_DIR } from '../tools/specsDir.ts';
-import { crearSpecWrite } from '../tools/specWrite.ts';
 import { PIECE_KEYS } from '../pieces.ts';
 import { routeBetween } from '../../../src/domain/board.ts';
 import { SHAPES, CELLS_PER_PIECE } from '../../../src/domain/constants/pieces.constants.ts';
@@ -71,17 +65,10 @@ describe('el registro', () => {
     }
   });
 
-  test('spec_write es la unica que escribe', () => {
-    // La afirmacion que `CLAUDE.md` hace en prosa, verificada. Se mide sobre el
-    // registro entero y no sobre `spec_write` sola: asi falla tanto si alguien la
-    // marca de solo lectura como si anota una segunda tool que escribe.
-    const escriben = tools.filter(t => t.annotations?.readOnlyHint === false);
-    assert.deepEqual(escriben.map(t => t.name), ['spec_write']);
-    // Marca casillas y agrega texto: no borra ni sobrescribe.
-    assert.equal(escriben[0].annotations?.destructiveHint, false);
-    // Y no afirma `idempotentHint`, que seria falso: `marcar` falla si la tarea
-    // ya estaba marcada, o sea que llamarla dos veces es un error y no un no-op.
-    assert.equal(escriben[0].annotations?.idempotentHint, undefined);
+  test('ninguna escribe', () => {
+    // El server ejecuta el dominio y lo lee: no tiene nada que escribir. La unica que
+    // escribia era `spec_write`, y se fue con el registro de specs numerados.
+    assert.deepEqual(tools.filter(t => t.annotations?.readOnlyHint !== true).map(t => t.name), []);
   });
 
   test('un argumento invalido no llega al handler', () => {
@@ -777,13 +764,11 @@ describe('simulate_board', () => {
 });
 
 /**
- * Las dos tools que leen el disco, y las unicas cuyo `run` no tenia un solo test.
+ * La tool que lee el disco corre sobre el repo REAL: un `src/` de mentira verificaria
+ * el parser contra un dialecto inventado.
  *
- * Se las corre sobre el repo REAL a proposito —es lo que hacen en produccion, y
- * montar un `src/` de mentira verificaria el parser contra un dialecto inventado—
- * pero se afirma la FORMA y las invariantes de la respuesta, nunca su contenido:
- * un simbolo nuevo o un spec nuevo no tienen que poner el build en rojo. Es la
- * misma linea que ya traza el docblock de `specs.test.ts`, aplicada al otro lado.
+ * Se afirma la FORMA y las invariantes de la respuesta, nunca su contenido: un simbolo
+ * nuevo no tiene que poner el build en rojo.
  */
 describe('find_symbol', () => {
   test('sin `name` devuelve el outline entero, y los contadores son los del mapa que viaja', () => {
@@ -846,54 +831,6 @@ describe('find_symbol', () => {
   });
 });
 
-/**
- * El registro real, leido aca en dos lineas.
- *
- * En dos lineas y no con un helper compartido con
- * `specs/__tests__/specs-convencion.test.ts`, por la misma razon que alla: un helper
- * compartido entre tests es codigo sin tests.
- *
- * No hace falta detectar ningun **regimen**: la carpeta de un spec puede estar o no,
- * pero `mapa.json` esta trackeado y esta siempre, asi que la tool responde las mismas
- * entradas hidratado o no. Lo unico que cambia con la hidratacion es si viene `tareas`.
- */
-const MAPA_REAL = JSON.parse(readFileSync(join(SPECS_DIR, 'mapa.json'), 'utf8')) as Record<string, unknown>;
-const IDS_REALES = Object.keys(MAPA_REAL).sort();
-
-describe('spec_status', () => {
-  test('responde sobre el registro real, hidratado o no', () => {
-    const r = call(specStatus, {});
-    const specs = r.specs as { id: string; dir: string; notas: string[] }[];
-    const totales = r.totales as Record<string, number>;
-
-    // La red anti-vacio, y es UNA sola. Sacarla no es opcion —`[]` pasa todas las
-    // aserciones de abajo, que es el «fallar en verde» que el 034 vino a cerrar— y no
-    // hace falta partirla por regimen: `mapa.json` esta trackeado, asi que la respuesta
-    // no depende de la hidratacion. Sin hidratar corre la CI, y un worktree recien
-    // creado tambien.
-    assert.ok(IDS_REALES.length > 20, 'el mapa tiene entradas que mirar');
-    assert.deepEqual(specs.map(s => s.id), IDS_REALES);
-    assert.equal(totales.specs, specs.length);
-
-    // Y lo unico que la hidratacion cambia: sin carpeta no hay `tareas`, y se DICE. El
-    // oraculo son las carpetas leidas del disco sin pasar por la tool, o sea que las
-    // dos ramas quedan afirmadas aunque hoy corra una sola.
-    const enDisco = new Set(readdirSync(SPECS_DIR, { withFileTypes: true })
-      .filter(e => e.isDirectory() && /^\d+-/.test(e.name))
-      .map(e => e.name.slice(0, 3)));
-    const sinHidratar = specs.filter(s => !enDisco.has(s.id));
-    assert.equal(totales.sinHidratar ?? 0, sinHidratar.length, `${enDisco.size} carpetas en disco`);
-    for (const s of sinHidratar) assert.match(s.notas[0], /^sin hidratar/);
-
-    // Los totales se derivan de los estados que aparecen, sin lista propia: la suma
-    // de las clases tiene que dar el total, o hay un spec contado dos veces.
-    const porEstado = Object.entries(totales).filter(([k]) => k !== 'specs' && k !== 'sinHidratar');
-    assert.equal(porEstado.reduce((n, [, v]) => n + v, 0), specs.length);
-
-    for (const s of specs) assert.match(s.dir, /^\d+-/);
-  });
-});
-
 describe('simulate_board — el tablero deja de ser 10x6 (spec 031)', () => {
   test('sin `dims` contesta sobre el tablero de siempre', () => {
     // La compatibilidad que el AC12 pide: una consulta escrita antes del 031 no dice
@@ -933,286 +870,3 @@ describe('simulate_board — el tablero deja de ser 10x6 (spec 031)', () => {
   });
 });
 
-/**
- * Las dos tools de `specs/` se testean contra un registro FABRICADO y no contra el de
- * verdad.
- *
- * No es prolijidad: `spec_write` escribe, y correrla sobre `specs/` dejaría el repo
- * distinto después de cada `pnpm verify`.
- *
- * Es también lo que hace alcanzables las dos ramas que el registro real no
- * tiene: un spec sin `tasks.md` (los 33 lo tienen) y una escritura que falla.
- */
-describe('spec_status y spec_write — sobre un registro fabricado', () => {
-  const TAREAS = [
-    '# Tareas — Fixture',
-    '',
-    '## Paso 1',
-    '- [ ] T001 Tocar `src/domain/music.ts` y `music.test.ts:12`',
-    '- [x] T002 El ancho pasa de 63 → **71**',
-    '',
-    '## Seguimiento (no bloquea)',
-    '- [ ] T010 Deuda anotada',
-    '',
-  ].join('\r\n');
-
-  /**
-   * Un `specs/` desechable con los cuatro estados en los que un spec puede llegar:
-   * completo, sin `tasks.md`, **sin hidratar** y con la carpeta bajo un nombre viejo.
-   *
-   * Los dos últimos son los que el registro real no tiene y los que costaron un bug:
-   * `readSpecStatus` devuelve todo el mapa desde el 035, así que un spec sin carpeta es
-   * lo NORMAL en un worktree recién creado, y una caché con el slug del título eran 7
-   * de los 35.
-   */
-  function registro(): string {
-    const raiz = mkdtempSync(join(tmpdir(), 'spec-write-'));
-    writeFileSync(join(raiz, 'mapa.json'), JSON.stringify({
-      '001': { issue: 1, carpeta: '001-completo', fecha: '2026-08-23', estado: 'Propuesto', titulo: 'Spec 001 — El completo' },
-      '002': { issue: 2, carpeta: '002-sin-tasks', fecha: '2026-08-23', estado: 'Propuesto', titulo: 'Spec 002 — El vacío' },
-      '003': { issue: 3, carpeta: '003-sin-hidratar', fecha: '2026-08-23', estado: 'Propuesto', titulo: 'Spec 003 — El que no bajó' },
-      '004': { issue: 4, carpeta: '004-nombre-del-mapa', fecha: '2026-08-23', estado: 'Propuesto', titulo: 'Spec 004 — El del slug viejo' },
-    }), 'utf8');
-    mkdirSync(join(raiz, '001-completo'));
-    writeFileSync(join(raiz, '001-completo', 'tasks.md'), TAREAS, 'utf8');
-    mkdirSync(join(raiz, '002-sin-tasks'));
-    // Del 003 no hay carpeta: es el spec que vive en el issue y nadie hidrató.
-    mkdirSync(join(raiz, '004-slug-viejo'));
-    writeFileSync(join(raiz, '004-slug-viejo', 'tasks.md'), TAREAS, 'utf8');
-    return raiz;
-  }
-
-  /** Corre `fn` con un registro nuevo y lo borra pase lo que pase. */
-  function con(fn: (raiz: string, status: ToolDef, write: ToolDef) => void): void {
-    const raiz = registro();
-    try {
-      fn(raiz, crearSpecStatus(raiz), crearSpecWrite(raiz));
-    } finally {
-      rmSync(raiz, { recursive: true, force: true });
-    }
-  }
-
-  /** Lo que `spec_write` devuelve cuando falla: texto plano con `isError`. */
-  function motivo(tool: ToolDef, args: unknown): string {
-    const r = tool.run(args);
-    assert.equal(r.isError, true, 'una escritura que no escribió tiene que decirlo con isError');
-    const first = r.content?.[0];
-    assert.ok(first !== undefined && first.type === 'text');
-    return first.text;
-  }
-
-  test('sin `spec` vienen todos y las citas NO viajan', () => {
-    // Medido sobre los 33 specs del repo real al 2026-08-23: las citas eran
-    // 84.097 bytes contra los 29.742 que la respuesta ya pesaba, para una lectura
-    // que siempre es sobre UN spec. La fecha va porque los dos numeros se
-    // movieron: hoy los mide la nota, y el test de abajo verifica que los mida
-    // del lado correcto.
-    con((_raiz, status) => {
-      const r = call(status, {});
-      const specs = r.specs as { dir: string; enDisco: string | null; tareas: { citas?: unknown[]; cruces: unknown[] } | null }[];
-      assert.deepEqual(specs.map(s => s.dir),
-        ['001-completo', '002-sin-tasks', '003-sin-hidratar', '004-nombre-del-mapa']);
-      // `dir` viene del mapa siempre; `enDisco` dice qué hay de verdad. Son distintos
-      // en los dos casos que importan: el que no está y el que está con otro nombre.
-      assert.deepEqual(specs.map(s => s.enDisco),
-        ['001-completo', '002-sin-tasks', null, '004-slug-viejo']);
-      assert.equal(specs[0].tareas?.citas, undefined);
-      // Los cruces sí: son 7 en todo el repo y es la lectura que necesita ver
-      // los specs de a varios para servir de algo.
-      assert.deepEqual(specs[0].tareas?.cruces, [{ tarea: 'T002', de: '63', a: '71' }]);
-      assert.ok(typeof r.nota === 'string' && r.nota.includes('citas'));
-      // Y un spec sin tasks.md no rompe el recorte.
-      assert.equal(specs[1].tareas, null);
-    });
-  });
-
-  /** Los tres numeros que la nota dice, sacados del texto que le llega al cliente. */
-  function medidas(nota: string): { pesan: number; respuesta: number; factor: number } {
-    const m = /son ([\d.]+) bytes contra los ([\d.]+) de esta respuesta, o sea ([\d,]+)x/.exec(nota);
-    assert.ok(m !== null, `la nota tiene que traer los dos pesos y el factor, y dice: ${nota}`);
-    return {
-      pesan: Number(m[1].replaceAll('.', '')),
-      respuesta: Number(m[2].replaceAll('.', '')),
-      factor: Number(m[3].replace(',', '.')),
-    };
-  }
-
-  /**
-   * Un registro de un spec con DOS tareas hechas que nombran `citas` archivos cada
-   * una, mas una pendiente que no nombra ninguno.
-   *
-   * Las dos decisiones del fixture son las que hacen al test:
-   *
-   * - las citas cuelgan de tareas `[x]`, asi que no salen en `proxima` y el texto
-   *   que las trae no viaja en la respuesta acotada;
-   * - la CANTIDAD de tareas no cambia entre registros —solo cuantos archivos
-   *   nombra cada una—, asi que `hechas`, `total` y `pendientes` se serializan con
-   *   los mismos digitos.
-   *
-   * Juntas dejan la respuesta sin citas byte a byte identica, de modo que subir
-   * `citas` mueve UN solo numero de los dos. Es lo que convierte al test en una
-   * medicion de la relacion en vez de una comparacion contra un valor esperado,
-   * que es el bug que este spec arregla.
-   */
-  function registroDeCitas(citas: number): string {
-    const raiz = mkdtempSync(join(tmpdir(), 'spec-nota-'));
-    writeFileSync(join(raiz, 'mapa.json'), JSON.stringify({
-      '001': { issue: 1, carpeta: '001-pesado', fecha: '2026-08-24', estado: 'Propuesto', titulo: 'Spec 001 — El pesado' },
-    }), 'utf8');
-    mkdirSync(join(raiz, '001-pesado'));
-    const archivos = Array.from({ length: citas }, (_, i) => `\`src/domain/archivo-${i}.ts\``).join(' ');
-    writeFileSync(join(raiz, '001-pesado', 'tasks.md'), [
-      '# Tareas — Fixture', '', '## Paso 1',
-      `- [x] T001 Toca ${archivos}`,
-      `- [x] T002 Toca ${archivos}`,
-      '- [ ] T003 La pendiente, sin citar nada', '',
-    ].join('\r\n'), 'utf8');
-    return raiz;
-  }
-
-  /** Corre `fn` sobre un registro de N citas y lo borra pase lo que pase. */
-  function conCitas(citas: number, fn: (m: ReturnType<typeof medidas>) => void): void {
-    const raiz = registroDeCitas(citas);
-    try {
-      const r = call(crearSpecStatus(raiz), {});
-      assert.ok(typeof r.nota === 'string');
-      fn(medidas(r.nota));
-    } finally {
-      rmSync(raiz, { recursive: true, force: true });
-    }
-  }
-
-  test('la nota mide ESTA consulta: el peso de las citas acompaña, el de la respuesta no', () => {
-    // Se verifica la RELACION y no un valor esperado. Un numero esperado seria otra
-    // constante escrita a mano que envejece con el repo — exactamente lo que la nota
-    // hacia hasta el spec 041, cuando decia 84.097 contra 29.742 y median 89.987
-    // contra 16.528.
-    conCitas(1, (poco) => {
-      conCitas(20, (mucho) => {
-        // Solo las citas engordan: la respuesta acotada de los dos registros es la
-        // misma, porque las tareas que citan estan hechas y no salen en `proxima`.
-        assert.ok(mucho.pesan > poco.pesan,
-          `mas citas tienen que pesar mas: ${mucho.pesan} contra ${poco.pesan}`);
-        assert.equal(mucho.respuesta, poco.respuesta,
-          'la respuesta sin citas no cambia, asi que los dos numeros no estan cruzados');
-        // La resta del lado correcto: invertirla da un peso negativo y un factor < 1,
-        // y las dos cosas pasarian igual el test de arriba (spec 041, T042).
-        assert.ok(poco.pesan > 0, 'las citas pesan algo, no menos que nada');
-        assert.ok(mucho.factor > poco.factor && poco.factor > 1,
-          `el factor sube con las citas y nunca baja de 1: ${poco.factor} → ${mucho.factor}`);
-      });
-    });
-    // Y es la DIFERENCIA, no el total con citas: un spec que no nombra ni un
-    // archivo deja `citas: []`, que pesa una decena de bytes contra los cientos
-    // de la respuesta. Sin esta linea, reportar el total entero pasa las cuatro
-    // aserciones de arriba —sigue creciendo y sigue siendo mayor que cero—.
-    conCitas(0, (nada) => {
-      assert.ok(nada.pesan < nada.respuesta,
-        `sin citas que traer, el numero tiene que ser chico: ${nada.pesan} contra ${nada.respuesta}`);
-    });
-  });
-
-  test('con `spec` viene ese solo, con sus citas', () => {
-    con((_raiz, status) => {
-      const r = call(status, { spec: '1' });
-      const specs = r.specs as { dir: string; tareas: { citas: unknown[] } }[];
-      assert.equal(specs.length, 1);
-      assert.equal(specs[0].dir, '001-completo');
-      assert.deepEqual(specs[0].tareas.citas, [
-        { tarea: 'T001', archivo: 'src/domain/music.ts', linea: null },
-        { tarea: 'T001', archivo: 'music.test.ts', linea: 12 },
-      ]);
-      // Los totales siguen siendo los de todos: el recorte es de la lista, no
-      // del contexto.
-      assert.equal((r.totales as Record<string, number>).specs, 4);
-    });
-  });
-
-  test('un spec que no existe se dice, no se contesta con la lista vacía a secas', () => {
-    con((_raiz, status) => {
-      const r = call(status, { spec: '999' });
-      assert.deepEqual(r.specs, []);
-      assert.ok(typeof r.nota === 'string' && r.nota.includes('999'));
-    });
-  });
-
-  test('`marcar` escribe en el archivo y devuelve dónde', () => {
-    con((raiz, status, write) => {
-      const r = call(write, { op: 'marcar', spec: '001-completo', tarea: 'T001' });
-      assert.equal(r.tarea, 'T001');
-      assert.equal(r.linea, 4);
-      assert.equal(r.archivo, 'specs/001-completo/tasks.md');
-
-      const md = readFileSync(join(raiz, '001-completo', 'tasks.md'), 'utf8');
-      assert.ok(md.includes('- [x] T001 Tocar'));
-      assert.ok(!/[^\r]\n/.test(md), 'el CRLF del archivo sobrevive a la escritura');
-
-      // Y `spec_status` lo ve: es la vuelta entera de la indirección.
-      const specs = call(status, { spec: '001-completo' }).specs as { tareas: { hechas: number } }[];
-      assert.equal(specs[0].tareas.hechas, 2);
-    });
-  });
-
-  test('una sola operación, y la que se fue FALLA en vez de ser ignorada', () => {
-    // AC3 del spec 033: el schema es el que impide que esta tool se convierta en un
-    // editor de texto y devuelva el formato a manos de quien llama.
-    //
-    // Y desde el 042 el caso que de verdad puede llegar no es un `op` inventado sino
-    // `"seguimiento"`, que era válido hasta ayer y que una skill vieja puede seguir
-    // mandando. Que el enum haya quedado con UN solo valor es lo que hace que eso
-    // explote con error de schema en vez de escribir en otro lado o no hacer nada.
-    con((_raiz, _status, write) => {
-      assert.throws(() => write.run({ op: 'seguimiento', spec: '1', texto: 'x' }));
-      assert.throws(() => write.run({ op: 'borrar', spec: '1' }));
-    });
-  });
-
-  test('lo que no se pudo escribir FALLA, y el motivo dice qué pasó', () => {
-    con((_raiz, _status, write) => {
-      assert.match(motivo(write, { op: 'marcar', spec: '999', tarea: 'T001' }), /coincide con "999"/);
-      assert.match(motivo(write, { op: 'marcar', spec: '002-sin-tasks', tarea: 'T001' }), /no tiene tasks\.md/);
-      assert.match(motivo(write, { op: 'marcar', spec: '1', tarea: 'T900' }), /No hay ninguna tarea T900/);
-      assert.match(motivo(write, { op: 'marcar', spec: '1', tarea: 'T002' }), /ya estaba marcada/);
-    });
-  });
-
-  test('escribe en la carpeta que ESTÁ, no en la que el mapa nombra', () => {
-    // El bug que cierra, y el peor de los tres porque no era un mensaje malo sino un
-    // crash: `spec_write` armaba la ruta con `dir` —el nombre del mapa— mientras
-    // `readSpecStatus` había leído el `tasks.md` de la carpeta real. En los 7 specs con
-    // la caché vieja eso es un `readFileSync` sobre algo que no existe, y no hay
-    // `try/catch` ni acá ni en `defineTool`: la tool moría con un ENOENT crudo, justo
-    // en el caso que la nota «cache vieja, volver a hidratar» describe.
-    con((raiz, _status, write) => {
-      const r = call(write, { op: 'marcar', spec: '004', tarea: 'T001' });
-
-      assert.equal(r.archivo, 'specs/004-slug-viejo/tasks.md');
-      assert.ok(readFileSync(join(raiz, '004-slug-viejo', 'tasks.md'), 'utf8').includes('- [x] T001 Tocar'));
-    });
-  });
-
-  test('un spec SIN hidratar dice eso, y no que le falta el tasks.md', () => {
-    // Son dos cosas distintas y decir la segunda por la primera manda a escribir de
-    // nuevo un archivo que existe —en el issue—. Desde el 035 `readSpecStatus` devuelve
-    // todos los specs del mapa, así que en un worktree recién creado este es el caso
-    // normal y no una rareza: el mensaje tiene que traer el remedio.
-    con((_raiz, _status, write) => {
-      const texto = motivo(write, { op: 'marcar', spec: '003', tarea: 'T001' });
-
-      assert.match(texto, /no está hidratado/);
-      assert.match(texto, /issue #3/);
-      assert.match(texto, /hidratar-specs\.mjs 003/);
-      assert.doesNotMatch(texto, /no tiene tasks\.md/);
-    });
-  });
-
-  test('una escritura que falla no toca el archivo', () => {
-    // Es la mitad que un `isError` sin esto no garantiza: decir que falló y
-    // haber escrito igual sería peor que cualquiera de las dos cosas sola.
-    con((raiz, _status, write) => {
-      const antes = readFileSync(join(raiz, '001-completo', 'tasks.md'), 'utf8');
-      motivo(write, { op: 'marcar', spec: '1', tarea: 'T002' });
-      assert.equal(readFileSync(join(raiz, '001-completo', 'tasks.md'), 'utf8'), antes);
-    });
-  });
-});

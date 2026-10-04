@@ -1,27 +1,39 @@
 # Ramas
 
-Desde el 2026-08-26 este repositorio tiene **dos ramas con roles distintos**. Antes tenía una sola con
-los dos trabajos: `main` era donde el trabajo aterrizaba y también lo que se publicaba, y no había
-ningún gate — el único ruleset era `avoid-deletion`, sin un solo `required_status_checks`, así que
-`pnpm verify` en rojo no impedía mergear nada.
-
-Este archivo dice qué hace cada rama, qué las protege, y las tres cosas que parecen olvidos y no lo
-son.
+Este repositorio tiene **dos ramas compartidas con roles distintos**, y ramas de trabajo cuyo prefijo
+dice qué clase de cambio son. Este archivo dice qué hace cada una, qué las protege, y qué hacer cuando
+el hook te frena.
 
 ## Los dos roles
 
 | Rama | Rol | Quién le escribe |
 |---|---|---|
-| `staging` | **Integración**, y la **default** del repositorio | cada PR de una rama `feature/<NNN>-<kebab>`, y `mapa.yml` |
+| `staging` | **Integración**, y la **default** del repositorio | cada PR de una rama de trabajo, y los commits `hotfix:` |
 | `main` | **Release**: es la rama de producción del deploy | sólo un PR de promoción desde `staging` |
 
 La rama de producción del proveedor de deploy se declara **explícitamente** en `main`, y no se hereda
 de la default. La configuración del build vive en [`deploy.md`](./deploy.md), que es su archivo; acá
 sólo importa qué rama publica.
 
-Una rama de trabajo se llama `feature/<NNN>-<kebab>` con el `NNN` de su spec, sale de `staging` y
-vuelve a `staging` por PR. Ninguna de las dos ramas de este archivo se edita a mano: el gate del spec
-037 lo bloquea, y abajo está qué hacer cuando te frena.
+Los PR se mergean con merge commit. Un squash deja en `main` un commit que no está en `staging`, y la
+promoción siguiente vuelve a proponer todo como conflicto.
+
+## Las ramas de trabajo
+
+Una rama de trabajo sale de `staging` y vuelve a `staging` por PR. Su prefijo dice qué clase de cambio
+es, y es lo único que el hook mira:
+
+| Prefijo | Qué cambia | Toca `src/` |
+|---|---|---|
+| `feature/` | lo que el instrumento hace: crea o modifica una capacidad, y su spec es el primer commit | sí |
+| `bugfix/` | un bug; lleva spec sólo si el bug era una regla sin escribir | sí |
+| `refactor/` | la forma del código sin cambiar lo que hace | sí |
+| `improvement/` | UI, arte, audio o rendimiento, sin cambiar una regla | sí |
+| `harness/` | el harness: hooks, skills, reglas, CI | no |
+| `docs/` | documentación | no |
+
+**Un hotfix no es una rama**: es un commit directo en `staging` cuyo mensaje empieza con `hotfix:`.
+El hook deja escribir el producto desde `staging` por eso.
 
 ## El ruleset
 
@@ -38,40 +50,9 @@ El id se escribe acá porque es lo que hace falta para desarmarlo
 (`gh api -X DELETE repos/federicohermo/pentomino-games/rulesets/21477023`), y un gate que no se sabe
 desarmar se desarma mal: a los manotazos, o borrando la rama.
 
-`staging` **no tiene ruleset**, y eso es parte del diseño: es adonde `mapa.yml` pushea, y el bot no
-puede pasar por un PR (ver abajo).
-
-### Por qué `required_status_checks` nombra sólo a `verify`
-
-Parece que falta `derivar`, el job de `mapa.yml`, y no falta. Ese workflow corre con
-`on: push[staging]` y **nunca sobre un PR**, así que exigirlo como check dejaría todos los PR
-esperando un check que no va a llegar nunca. `verify` sí corre sobre `pull_request`, y es el nodo de
-convergencia del repo.
-
-### Por qué el bot del mapa no tiene bypass
-
-No es una decisión de política: es que **la plataforma no lo permite**, y las dos salidas obvias están
-cerradas. Las dos se midieron intentándolas el 2026-08-26.
-
-**El bypass por integración no existe en un repositorio personal.** Al crear el ruleset con
-`bypass_actors: [{ actor_id: 15368, actor_type: "Integration" }]` —15368 es el id de la app GitHub
-Actions— la API responde:
-
-```text
-422 Validation Failed
-"Actor GitHub Actions integration must be part of the ruleset source or owner organization"
-```
-
-La única familia de bypass disponible acá es `RepositoryRole`, o sea admin, y eso no sirve: **los
-agentes actúan con el usuario del dueño**, así que un bypass de admin es un bypass para el agente y el
-ruleset se vuelve un recordatorio.
-
-**Y un PR creado con `GITHUB_TOKEN` no dispara workflows.** Es comportamiento documentado de Actions, y
-es lo que mata la otra salida —«que el bot abra un PR en vez de pushear»—: `verify` nunca correría
-sobre ese PR, el check requerido nunca se satisfaría, y el PR quedaría abierto para siempre.
-
-Las dos juntas dejan una sola salida, que es la que se tomó: **el bot no se exime ni pide permiso, se
-muda a una rama que no tiene reglas.** Por eso `mapa.yml` corre sobre `staging`.
+`staging` **no tiene ruleset**: es adonde va un `hotfix:`, y el bypass que haría falta para un actor
+que no sea el dueño no existe en un repositorio personal (la API responde `422` a un bypass por
+integración, medido el 2026-08-26).
 
 ### Por qué la rama default es `staging` y no la productiva
 
@@ -80,61 +61,56 @@ lo que da un `clone` fresco, y cuál rama toma el proveedor de deploy como produ
 
 El argumento es asimétrico, y por eso no hay empate:
 
-- Con `main` de default, el error es **silencioso y grave**: una rama de feature aterriza directo en la
+- Con `main` de default, el error es **silencioso y grave**: una rama de trabajo aterriza directo en la
   rama de release. El ruleset no lo impide —sólo exige `verify` en verde, no una rama de origen— así
   que la integración se saltea sin que nada avise.
 - Con `staging` de default, el error es **visible e inofensivo**: un PR de promoción que apunta a
   `staging` no rompe nada y se retargetea en dos clics.
 
-El costo del cambio es concreto y ya está pago: la rama de producción del deploy hay que fijarla a
-mano en `main`, o se publica la rama de integración.
+## Las dos copias que la maquinaria tiene del modelo
 
-## Las tres copias que la maquinaria tiene del modelo
-
-El modelo está escrito en tres lugares del árbol además de acá, y ninguno puede leer a los otros: dos
-son YAML que GitHub Actions parsea antes de que exista un proceso donde correr código, y el tercero es
-un script que corre como hook de permisos. Lo que cada uno declara:
+El modelo está escrito en dos lugares del árbol además de acá, y ninguno puede leer al otro: uno es
+YAML que GitHub Actions parsea antes de que exista un proceso donde correr código, y el otro es el
+núcleo del hook que corre en cada edición. Lo que cada uno declara:
 
 | Dónde | Qué declara | Ramas |
 |---|---|---|
 | `.github/workflows/verify.yml` | `on.push.branches` | `staging`, `main` |
-| `.github/workflows/mapa.yml` | `on.push.branches` | `staging` |
-| `.claude/scripts/gate-de-spec.mjs` | `RAMAS_COMPARTIDAS` | `main`, `staging` |
+| `.agents/scripts/policy.ts` | `INTEGRATION_BRANCH` y `RELEASE_BRANCH` | `staging`, `main` |
 
-`verify` corre sobre las dos porque la rama que se publica no puede ser la única sin corrida propia.
-`mapa.yml` corre sólo sobre `staging` por el bypass que no existe. Y `RAMAS_COMPARTIDAS` nombra a las
-dos porque las dos reciben trabajo de otros: **es el mismo conjunto que verifica `verify`**, y no por
+`verify` corre sobre las dos porque la rama que se publica no puede ser la única sin corrida propia, y
+el hook nombra a las dos porque las dos reciben trabajo de otros: **es el mismo conjunto**, y no por
 casualidad — una rama compartida sin corrida propia es exactamente el agujero que este modelo cierra.
 
-Que las tres digan lo mismo que este documento lo verifica
-[`__tests__/ramas-sincronizadas.test.ts`](../../__tests__/ramas-sincronizadas.test.ts), con el molde
-de los otros gates de sincronización del repo: lee del disco, compara texto, y corre sin red.
+Que las dos digan lo mismo que este documento lo verifica
+[`__tests__/ramas-sincronizadas.test.ts`](../../__tests__/ramas-sincronizadas.test.ts): lee del disco,
+compara texto, y corre sin red.
 
-## Cuando el gate del 037 te frena
+## Cuando el hook te frena
 
-El hook del spec 037 bloquea editar `src/`, `mcp-server/src/` o `docs/` desde una rama que no nombre un
-spec, y `main` y `staging` son las dos que nombra explícitamente. Si te frenó, el problema es **dónde
-estás parado**, no cómo se llama la rama — y la salida nunca es renombrar la rama de integración:
+`.agents/scripts/hook.ts` corre antes de cada edición, en Claude Code y en Codex. Bloquea escribir
+`src/` o `mcp-server/src/` desde una rama cuyo prefijo no sea uno de los cuatro del producto, y desde
+`main`. El mensaje dice cuál es el problema; las salidas son dos:
 
 ```bash
-git checkout staging && git pull
-git checkout -b feature/<NNN>-<descripcion-kebab>
-node .claude/scripts/hidratar-specs.mjs <NNN>
+git switch staging && git pull
+git switch -c feature/<descripcion-kebab>   # o bugfix/, refactor/, improvement/
 ```
 
-El `NNN` sale de la fila del spec en [`specs/mapa.json`](../../specs/mapa.json), que `spec-create` ya
-escribió: abrir el spec y decidir implementarlo son dos decisiones distintas, y la rama la abre el
-implementador.
+o, si es un arreglo de una línea que no merece rama, commitearlo en `staging` con `hotfix:`.
 
-Si el cambio de verdad no necesita spec —un typo, un bump de versión, revertir el commit anterior— la
-rama igual no puede ser `main` ni `staging`.
+El mismo hook rechaza abrir un worktree de este repo fuera de `.claude/worktrees/`, que es la única
+carpeta que barre `node .agents/scripts/clean-worktrees.ts`. Los worktrees que abre la app de Codex
+viven en `~/.codex/worktrees/` y los limpia ella: el hook no los ve y el limpiador no los toca.
+
+Si el hook no puede leer algo —git no contesta, el payload no se entiende— deja pasar y lo avisa. Lo
+que protege es una convención, no un secreto.
 
 ## Qué no verifica nadie
 
 **Que el ruleset siga puesto.** Vive en la configuración de GitHub, no en el repositorio, y leerlo
-cuesta una llamada de red: los tests de este repo corren sin red a propósito, que es la misma razón por
-la que `estado` y `titulo` están copiados en `specs/mapa.json`. El gate cruza las copias que están en
-el árbol y **declara** que ésta no la mira.
+cuesta una llamada de red: los tests de este repo corren sin red a propósito. El gate cruza las copias
+que están en el árbol y **declara** que ésta no la mira.
 
 Si alguien borra el ruleset, nada del repositorio se pone en rojo. Comprobarlo es una llamada:
 

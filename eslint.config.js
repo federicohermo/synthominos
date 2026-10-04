@@ -123,52 +123,6 @@ const ZONAS = [
  * Un `export { x }` sin `from` tiene `source: null`, asi que el atributo no matchea y no
  * dispara. Un `import(variable)` tampoco: sin `source.value` no hay string que juzgar.
  */
-/**
- * Las reglas del preset de Markdown que cazan un error de RENDERIZADO: las que hacen que
- * GitHub muestre algo distinto de lo que el autor escribio. Ninguna es de estilo.
- *
- * Existen como lista con nombre porque el carril de los specs congelados las **reenciende
- * una por una** despues de apagar el preset entero, y no al reves. La diferencia no es
- * cosmetica: en flat config un override REEMPLAZA, asi que una lista por exclusion dejaria
- * entrar sola cualquier regla nueva que el preset agregue en una version futura — y eso
- * seria un `pnpm lint` en rojo sobre 29 specs cerrados, que la Desviacion 2 de
- * `specs/README.md` prohibe reescribir. Es la misma forma que `REGLAS_DEL_REPO`, y por el
- * mismo motivo.
- */
-const RENDERIZADO = {
-  // La que encontro el bug: una fila con mas celdas de las que declara el encabezado
-  // pierde las de mas AL RENDERIZAR, en silencio. `specs/027/research.md:112` descartaba
-  // su tercera columna por dos barras sin escapar.
-  'markdown/table-column-count': 'error',
-  // `#Titulo` sin espacio no es un encabezado: sale como texto plano.
-  'markdown/no-missing-atx-heading-space': 'error',
-  // `(texto)[url]` esta dado vuelta y no renderiza como enlace.
-  'markdown/no-reversed-media-syntax': 'error',
-  // `** texto **` con espacios adentro no renderiza en negrita.
-  'markdown/no-space-in-emphasis': 'error',
-  // Un enlace o una imagen sin destino no llevan a ningun lado.
-  'markdown/no-empty-links': 'error',
-  'markdown/no-empty-images': 'error',
-  'markdown/no-empty-definitions': 'error',
-  // De dos definiciones con la misma etiqueta, la segunda se ignora sin avisar.
-  'markdown/no-duplicate-definitions': 'error',
-  // Una URL que parece una referencia se resuelve como referencia y apunta a otro lado.
-  'markdown/no-reference-like-urls': 'error',
-  'markdown/no-invalid-label-refs': 'error',
-}
-
-/**
- * Todas las reglas del preset de Markdown, en `off`. Se deriva del preset —y no de una
- * lista escrita a mano— justamente para que una regla que `@eslint/markdown` agregue en una
- * version futura entre APAGADA en el carril de los specs congelados, en vez de entrar sola
- * y poner en rojo 29 specs que no se pueden reescribir.
- */
-const PRESET_MARKDOWN_APAGADO = Object.fromEntries(
-  markdown.configs.recommended
-    .flatMap((c) => Object.keys(c.rules ?? {}))
-    .map((regla) => [regla, 'off']),
-)
-
 const NODOS_CON_RUTA = ['ImportDeclaration', 'ImportExpression', 'ExportNamedDeclaration', 'ExportAllDeclaration']
 
 /**
@@ -801,11 +755,8 @@ export default tseslint.config([
   },
 
   {
-    // CARRIL A — la documentacion viva: `CLAUDE.md`, `README.md`, `DESIGN.md`, `docs/**`,
-    // `.claude/**`, `mcp-server/**` y los tres registros de `specs/`. Preset completo.
-    //
-    // Puede cumplir una regla de estilo porque se mantiene al dia por definicion, que es
-    // justo lo contrario de un spec mergeado. El carril B de abajo la acota.
+    // Todo `.md` del repo: la documentacion, las reglas, los skills y los specs por
+    // capacidad. Preset completo: cada uno se mantiene al dia, asi que puede cumplirlo.
     //
     // **El `extends` va con el OBJETO y no con el string `'markdown/recommended'`**, y no
     // es preferencia: este archivo se arma con `tseslint.config()`, que tira ante un string
@@ -824,49 +775,13 @@ export default tseslint.config([
     },
     extends: [markdown.configs.recommended],
     rules: {
-      // Apagada en los DOS carriles, y no porque moleste: en este repo **no puede
-      // acertar**. Lo que dispara la regla es el formato de tarea que `specs/README.md`
-      // documenta —el `[P]` de cada `- [ ] T012 [P] texto`—, que para Markdown es una
-      // referencia de etiqueta sin definir. Medido en su momento: 341 hallazgos, 191 de
-      // `[P]`, 131 de `[M]` y el resto prosa entre corchetes.
-      //
-      // **El `[M]` de esa cuenta es historico desde el spec 039**, que lo saco del
-      // formato: `specs/README.md` ya no lo documenta y ningun spec nuevo lo escribe, y
-      // eso lo verifica `specs/__tests__/specs-convencion.test.ts`. Pero los que ya
-      // estan escritos no se tocan —Desviacion 2, y hoy son **137 en 35 specs**— asi que
-      // siguen disparando la regla. El `[P]`, que es la mayoria, sigue vivo. O sea que
-      // la regla se queda apagada por el mismo motivo de siempre y no por inercia.
-      'markdown/no-missing-label-refs': 'off',
-
-      // Tambien apagada, y esta con un motivo mas fuerte: **arreglar lo que marca lo
-      // rompe de verdad**. Su slugger no coincide con el de GitHub sobre un encabezado
+      // Apagada porque **arreglar lo que marca lo rompe de verdad**. Su slugger no coincide con el de GitHub sobre un encabezado
       // con backticks y guion bajo, asi que declara roto el unico enlace de
       // `docs/guides/mcp-domain.md` que apunta a `#find_symbol`, que en GitHub resuelve.
       // Lo que si se verifica —enlaces y anclas, con el slugger correcto— es
       // `docs/__tests__/enlaces-resueltos.test.ts`, que ademas cubre los enlaces a OTRO
       // archivo, que esta regla no mira.
       'markdown/no-missing-link-fragments': 'off',
-    },
-  },
-
-  {
-    // CARRIL B — los specs congelados. Apaga el preset entero y reenciende POR NOMBRE solo
-    // las reglas de renderizado.
-    //
-    // El motivo es la Desviacion 2 de `specs/README.md`: «un spec mergeado no se reescribe;
-    // aca son ADR: registro de que se decidio y con que evidencia, con fecha». El preset
-    // completo sobre `specs/` da 483 hallazgos, y aplicarlo obligaria a reescribir 29 specs
-    // cerrados para satisfacer una regla de estilo. Un error de RENDERIZADO es otra cosa:
-    // no reescribe una decision, destapa contenido que hoy GitHub descarta.
-    //
-    // El glob es `specs/[0-9]*` y no `specs/**`: el `README.md` de ahi es documentacion
-    // viva y se queda en el carril A, igual que los gates de `specs/__tests__/`.
-    files: ['specs/[0-9]*/**/*.md'],
-    rules: {
-      // Apagar el preset se deriva del preset y no de una lista escrita a mano, para que
-      // una regla nueva en una version futura entre apagada en vez de entrar sola.
-      ...PRESET_MARKDOWN_APAGADO,
-      ...RENDERIZADO,
     },
   },
 ])

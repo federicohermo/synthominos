@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 /**
  * El modelo de dos ramas —`staging` integra y es la default, `main` es release—, en los
- * cuatro lugares del arbol donde el repo lo escribe. Tres son maquinaria y el cuarto es
+ * tres lugares del arbol donde el repo lo escribe. Dos son maquinaria y el tercero es
  * la prosa que la explica.
  *
  * Sigue el molde de los otros gates de sincronizacion que ya existen:
@@ -12,23 +12,20 @@ import { readFileSync } from 'node:fs';
  * `docs/__tests__/mapa-de-directorios.test.ts` el mapa de directorios contra los archivos
  * reales. Los tres leen del disco, comparan texto y corren sin red.
  *
- * Las copias son INEVITABLES. Dos son YAML que GitHub Actions parsea antes de que exista
- * un proceso donde correr codigo, y el tercero es un script que corre como hook de
- * permisos: ninguno de los tres puede importar una constante del otro, y el documento lo
- * lee una persona.
+ * Las copias son INEVITABLES. Una es YAML que GitHub Actions parsea antes de que exista
+ * un proceso donde correr codigo, y la otra es el nucleo del hook de permisos: ninguna de
+ * las dos puede importar una constante de la otra, y el documento lo lee una persona.
  *
  * ## Que NO mira este gate, y por que
  *
  * **El ruleset.** `main-solo-por-pr-verde` (id 21477023) es lo que de verdad impide
  * mergear en rojo, y es la unica copia del modelo que este archivo no cruza: vive en la
  * configuracion de GitHub y no en el arbol, asi que leerlo cuesta una llamada de red. Los
- * tests de este repo corren sin red a proposito — es la misma razon por la que `estado` y
- * `titulo` estan copiados en `specs/mapa.json`.
+ * tests de este repo corren sin red a proposito.
  *
  * Se declara en vez de intentarse. Un gate que promete mas de lo que verifica es peor que
- * uno acotado que lo dice, y el repo ya tiene el precedente: el tercer bloque del gate del
- * spec 038 se saltea DECLARANDOLO. Si algun dia se quiere cubrir, el lugar es un paso de
- * la Action y no un test: ahi hay red y hay token.
+ * uno acotado que lo dice. Si algun dia se quiere cubrir, el lugar es un paso de la Action
+ * y no un test: ahi hay red y hay token.
  *
  * ## Por que el YAML se extrae con un patron y no con un parser
  *
@@ -54,8 +51,8 @@ const leer = (ruta: string) => readFileSync(new URL(ruta, raiz), 'utf8');
  *
  * Falla en vez de devolver `undefined` por el mismo motivo que sus hermanos: los valores
  * se comparan entre si, y dos ausencias serian dos `undefined` iguales — la igualdad se
- * cumpliria vacia y el test pasaria sin haber mirado nada. Con un `RAMAS_COMPARTIDAS`
- * renombrado eso significaria declarar sincronizado un modelo que ya no existe.
+ * cumpliria vacia y el test pasaria sin haber mirado nada. Con una constante del hook
+ * renombrada eso significaria declarar sincronizado un modelo que ya no existe.
  */
 const extraer = (texto: string, patron: RegExp, donde: string) => {
   const m = patron.exec(texto);
@@ -72,7 +69,7 @@ const conjunto = (ramas: string[]) => [...ramas].sort();
 
 /**
  * `on.push.branches` de un workflow. El patron pide que `branches:` sea la linea siguiente
- * a `push:`, que es como estan escritos los dos: un comentario metido en el medio lo rompe,
+ * a `push:`, que es como esta escrito: un comentario metido en el medio lo rompe,
  * y esa fragilidad es la del docblock de arriba.
  */
 const ramasDelWorkflow = (texto: string, donde: string) =>
@@ -81,8 +78,7 @@ const ramasDelWorkflow = (texto: string, donde: string) =>
     .map((rama) => rama.trim());
 
 const verify = leer('.github/workflows/verify.yml');
-const mapa = leer('.github/workflows/mapa.yml');
-const gate = leer('.claude/scripts/gate-de-spec.mjs');
+const politica = leer('.agents/scripts/policy.ts');
 const doc = leer('docs/infra/ramas.md');
 
 /** La celda «Ramas» de la fila que el documento le dedica a un archivo. */
@@ -92,39 +88,27 @@ const ramasSegunElDoc = (archivo: string) => {
 };
 
 const RAMAS_VERIFY = ramasDelWorkflow(verify, '.github/workflows/verify.yml');
-const RAMAS_MAPA = ramasDelWorkflow(mapa, '.github/workflows/mapa.yml');
-const COMPARTIDAS = entrecomillados(
-  extraer(
-    gate,
-    /^const RAMAS_COMPARTIDAS = \[([^\]]*)\];/m,
-    '.claude/scripts/gate-de-spec.mjs, `RAMAS_COMPARTIDAS`',
-  ),
+/** Las dos ramas que el hook nombra: la de integracion y la de entrega. */
+const COMPARTIDAS = ['INTEGRATION_BRANCH', 'RELEASE_BRANCH'].map((nombre) =>
+  extraer(politica, new RegExp(`^export const ${nombre} = '([^']+)';`, 'm'), `.agents/scripts/policy.ts, \`${nombre}\``),
 );
 
 describe('el modelo de dos ramas dice lo mismo en la maquinaria y en el documento', () => {
-  it('las tres copias de la maquinaria se leyeron y no estan vacias', () => {
+  it('las dos copias de la maquinaria se leyeron y no estan vacias', () => {
     // Si un patron matcheara vacio, las comparaciones de abajo cruzarian listas vacias
     // entre si y declararian sincronizado un repo que no miraron. Es el mismo «fallar en
     // verde» que el `--filter "{.}"` de `verify`, aca con otra cara.
-    const vacia = [RAMAS_VERIFY, RAMAS_MAPA, COMPARTIDAS].map((ramas) => ramas.length === 0);
+    const vacia = [RAMAS_VERIFY, COMPARTIDAS].map((ramas) => ramas.length === 0);
 
-    expect(vacia, 'un patron que matchea vacio cruza listas vacias y da verde').toEqual([
-      false,
-      false,
-      false,
-    ]);
+    expect(vacia, 'un patron que matchea vacio cruza listas vacias y da verde').toEqual([false, false]);
   });
 
   it('`verify.yml` corre sobre las ramas que el documento dice', () => {
     expect(conjunto(RAMAS_VERIFY)).toEqual(conjunto(ramasSegunElDoc('.github/workflows/verify.yml')));
   });
 
-  it('`mapa.yml` corre sobre las ramas que el documento dice', () => {
-    expect(conjunto(RAMAS_MAPA)).toEqual(conjunto(ramasSegunElDoc('.github/workflows/mapa.yml')));
-  });
-
-  it('`RAMAS_COMPARTIDAS` nombra las ramas que el documento dice', () => {
-    expect(conjunto(COMPARTIDAS)).toEqual(conjunto(ramasSegunElDoc('.claude/scripts/gate-de-spec.mjs')));
+  it('el hook nombra las ramas que el documento dice', () => {
+    expect(conjunto(COMPARTIDAS)).toEqual(conjunto(ramasSegunElDoc('.agents/scripts/policy.ts')));
   });
 
   it('toda rama compartida tiene corrida propia de `verify`', () => {
@@ -132,14 +116,6 @@ describe('el modelo de dos ramas dice lo mismo en la maquinaria y en el document
     // sostener. Una rama que recibe trabajo de otros y que `verify` no mira es exactamente
     // el agujero que el ruleset cierra sobre `main`.
     expect(conjunto(COMPARTIDAS)).toEqual(conjunto(RAMAS_VERIFY));
-  });
-
-  it('`mapa.yml` escribe sobre una rama compartida y sobre una sola', () => {
-    // El bot pushea directo porque el bypass por integracion no existe en un repo
-    // personal (el 422 esta en `docs/infra/ramas.md`). Que sea UNA es lo que hace que esa
-    // rama pueda no tener ruleset sin abrirle la puerta a la de release.
-    expect(RAMAS_MAPA).toEqual(['staging']);
-    expect(COMPARTIDAS).toContain('staging');
   });
 
   it('el documento nombra los dos roles', () => {
@@ -163,7 +139,7 @@ describe('el gate se falsifica desde el propio test, sin mutar un archivo del re
   // las dos falsificaciones de abajo viven acá y se corren en cada `pnpm verify`.
 
   it('`extraer` tira nombrando el archivo cuando el patron no matchea', () => {
-    // AC3. Renombrar `RAMAS_COMPARTIDAS` a mano produce este mismo error.
+    // AC3. Renombrar `INTEGRATION_BRANCH` a mano produce este mismo error.
     expect(() => extraer('', /(no matchea nada)/, 'un archivo inventado')).toThrow(
       'No se encontro el modelo de ramas en un archivo inventado',
     );
