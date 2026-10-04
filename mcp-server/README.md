@@ -69,7 +69,7 @@ Un import sin extensión dentro de `src/<capability>/domain/` rompe este server 
 resuelve igual: el error sería invisible del lado del navegador. Lo ataja `pnpm mcp:test`.
 
 **El tsconfig incluye `DOM` en `lib` aunque el server nunca toque el DOM.** Typechequea la cadena
-`playback/audio/scheduler.ts → playback/audio/voice.ts`, que declara `BaseAudioContext`, `AudioNode` y `OscillatorType`.
+`playback/scheduler.ts → playback/voice.ts`, que declara `BaseAudioContext`, `AudioNode` y `OscillatorType`.
 Sin `DOM` son 8 errores TS2304. En runtime nada de eso existe: los tipos se borran y `collectHits` es
 aritmética.
 

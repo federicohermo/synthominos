@@ -229,7 +229,7 @@ function cambiados() {
     // lee como «no pude decidir» y deja pasar. O sea que un turno que borra un solo `.md`
     // dejaba de verificar TODO lo demas, callado y en verde. Medido sobre este repo: con
     // `docs/guides/troubleshooting.md` borrado, un `enum` recien escrito en
-    // `src/pieces/domain/transform.ts` salio con exit 0. Y borrar no es raro aca: la convencion es
+    // `src/pieces/transform.ts` salio con exit 0. Y borrar no es raro aca: la convencion es
     // que los borrados van en su propio commit, o sea en su propio turno.
     .filter((f) => existsSync(path.join(RAIZ, f)));
 }

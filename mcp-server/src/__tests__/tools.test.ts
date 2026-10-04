@@ -6,13 +6,13 @@ import { checkInvariants, pieceOf } from '../tools/checkInvariants.ts';
 import { simulateBoard, nombreDeHz } from '../tools/simulateBoard.ts';
 import { findSymbol } from '../tools/findSymbol.ts';
 import { PIECE_KEYS } from '../pieces.ts';
-import { routeBetween } from '../../../src/circuit/domain/routing.ts';
-import { SHAPES, CELLS_PER_PIECE } from '../../../src/pieces/domain/pieces.constants.ts';
-import { NOTES_PER_PIECE, REGIMEN } from '../../../src/musical-model/domain/music.constants.ts';
-import type { Cell } from '../../../src/pieces/domain/transform.types.ts';
-import type { PlacedPiece } from '../../../src/board-editing/domain/board.types.ts';
+import { routeBetween } from '../../../src/circuit/routing.ts';
+import { SHAPES, CELLS_PER_PIECE } from '../../../src/pieces/pieces.constants.ts';
+import { NOTES_PER_PIECE, REGIMEN } from '../../../src/musical-model/music.constants.ts';
+import type { Cell } from '../../../src/pieces/transform.types.ts';
+import type { PlacedPiece } from '../../../src/board-editing/board.types.ts';
 import type { ToolDef } from '../tools/types.ts';
-import { GRID_DEFAULT } from '../../../src/board-editing/domain/board.constants.ts';
+import { GRID_DEFAULT } from '../../../src/board-editing/board.constants.ts';
 
 /**
  * Estos tests miran el FORMATO de las respuestas, que es lo unico que el server
@@ -696,7 +696,7 @@ describe('simulate_board', () => {
 
   test('AC-PLY-024 — una pieza muteada reporta sus clicks y no su arpegio', () => {
     // La tool es una fachada sobre `buildSequence`, asi que esto no verifica la regla
-    // del muteo —eso vive en `src/circuit/domain/__tests__/sequence.test.ts`— sino que la
+    // del muteo —eso vive en `src/circuit/__tests__/sequence.test.ts`— sino que la
     // fachada la deje pasar entera: sin `muted` en el schema, la entrada se caia en
     // silencio y la respuesta describia otro tablero.
     // Un ciclo y no los dos del default: asi los conteos de `onsets` se leen contra el
@@ -801,7 +801,7 @@ describe('find_symbol', () => {
 
     const hit = matches.find(m => m.name === 'notesForRotation');
     assert.ok(hit, 'el simbolo tiene que estar');
-    assert.equal(hit.file, 'src/musical-model/domain/music.ts');
+    assert.equal(hit.file, 'src/musical-model/music.ts');
     // La arista que justifica indexar `mcp-server/` como solo-grafo: sin ella
     // `usedBy` sub-reporta y la tool queda mas pobre que el grep que reemplaza.
     assert.ok(

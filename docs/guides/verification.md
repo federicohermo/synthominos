@@ -187,7 +187,7 @@ The split is not by layer. It is by what the test needs:
   - `.claude/scripts/__tests__/`: the `Stop` hook above.
 - **`browser`**: real Chromium, through Playwright, for `*.browser.test.tsx` files. It exists
   because jsdom cannot do the job. `Spectrum.tsx` needs a 2D canvas, `createLinearGradient`,
-  `ResizeObserver`, `matchMedia` and a `getBoundingClientRect` with numbers. `playback/audio/engine.ts` needs
+  `ResizeObserver`, `matchMedia` and a `getBoundingClientRect` with numbers. `playback/engine.ts` needs
   `new AudioContext()` and `window.setInterval`. Coverage with jsdom needs a mock of exactly the
   code under test. That is coverage without verification.
 

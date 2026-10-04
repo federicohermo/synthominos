@@ -1,17 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { page, userEvent } from 'vitest/browser';
-import { SHAPES, ANCHOR_INDEX } from '../pieces/domain/pieces.constants.ts';
-import { grillaPara } from '../board-fit/ui/grid-fit.ts';
-import { MAX_PIEZAS } from '../board-editing/domain/board.constants.ts';
-import { REGIMEN } from '../musical-model/domain/music.constants.ts';
-import { DEFAULT_BPM } from '../playback/audio/engine.constants.ts';
-import { arpeggioFor } from '../musical-model/domain/music.ts';
-import { cellsAt } from '../board-editing/domain/board.ts';
-import { rotateN, reflect } from '../pieces/domain/transform.ts';
-import type { PieceKey } from '../pieces/domain/pieces.types.ts';
+import { SHAPES, ANCHOR_INDEX } from '../pieces/pieces.constants.ts';
+import { grillaPara } from '../board-fit/grid-fit.ts';
+import { MAX_PIEZAS } from '../board-editing/board.constants.ts';
+import { REGIMEN } from '../musical-model/music.constants.ts';
+import { DEFAULT_BPM } from '../playback/engine.constants.ts';
+import { arpeggioFor } from '../musical-model/music.ts';
+import { cellsAt } from '../board-editing/placement.ts';
+import { rotateN, reflect } from '../pieces/transform.ts';
+import type { PieceKey } from '../pieces/pieces.types.ts';
 import type { ReactNode } from 'react';
-import type { PropsDeOrientacion } from '../panels/ui/panel.types.ts';
+import type { PropsDeOrientacion } from '../panels/panel.types.ts';
 
 /**
  * El shell, entero y en un navegador.
@@ -45,7 +45,7 @@ const motor = vi.hoisted(() => {
     cycleGeneration: () => 0,
   };
 });
-vi.mock('../playback/audio/engine.ts', () => motor);
+vi.mock('../playback/engine.ts', () => motor);
 
 /**
  * Cuantas veces se EJECUTA el panel de las doce miniaturas (AC6 y AC7).
@@ -78,8 +78,8 @@ vi.mock('../playback/audio/engine.ts', () => motor);
  * pone en cero antes de montar.
  */
 const panel = vi.hoisted(() => ({ ejecuciones: 0 }));
-vi.mock('../panels/ui/OrientationPanel.tsx', async (importActual) => {
-  const real = await importActual<typeof import('../panels/ui/OrientationPanel.tsx')>();
+vi.mock('../panels/OrientationPanel.tsx', async (importActual) => {
+  const real = await importActual<typeof import('../panels/OrientationPanel.tsx')>();
   const { memo } = await import('react');
   const memoizado = (c: unknown): c is { type: (props: { orientacion: PropsDeOrientacion }) => ReactNode } =>
     typeof c === 'object' && c !== null && 'type' in c && typeof c.type === 'function';

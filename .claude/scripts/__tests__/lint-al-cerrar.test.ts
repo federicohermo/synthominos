@@ -164,7 +164,7 @@ describe('bloquea el cierre cuando hay un hallazgo', () => {
     // modificados, y ESLint sobre una ruta que no existe sale con status 2 —«No files
     // matching the pattern»—, que el hook lee como «no pude decidir» y deja pasar. Antes del
     // filtro por `existsSync`, borrar `docs/guides/troubleshooting.md` en el repo real hacia
-    // que un `enum` recien escrito en `src/pieces/domain/transform.ts` saliera con exit 0. Y borrar
+    // que un `enum` recien escrito en `src/pieces/transform.ts` saliera con exit 0. Y borrar
     // no es raro aca: la convencion es que los borrados van en su propio commit.
     rmSync(join(repo, 'src/limpio.ts'));
     writeFileSync(join(repo, 'src/nuevo.ts'), 'export enum Malo { a }\n');

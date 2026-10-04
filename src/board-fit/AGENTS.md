@@ -4,5 +4,4 @@
 
 The contract of this folder is [`specs/board-fit/board-fit.md`](../../specs/board-fit/board-fit.md), `CAP-FIT`. Read it before a change
 to what this capability does. A test title cites each criterion it verifies: `AC-FIT-###`.
-
-The rules of each layer are in [`src/AGENTS.md`](../AGENTS.md).
+The rules for all of `src/` are in [`src/AGENTS.md`](../AGENTS.md).

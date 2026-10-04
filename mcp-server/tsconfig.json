@@ -5,7 +5,7 @@
   "compilerOptions": {
     "target": "ES2023",
     // `DOM` es contraintuitivo y por eso está escrito: el server no toca el DOM,
-    // pero typechequea la cadena `playback/audio/scheduler.ts → playback/audio/voice.ts`, que
+    // pero typechequea la cadena `playback/scheduler.ts → playback/voice.ts`, que
     // declara `BaseAudioContext`, `AudioNode` y `OscillatorType`. Sin `DOM` son
     // 8 errores TS2304. En runtime nada de eso existe: los tipos se borran y
     // `collectHits` es aritmética.

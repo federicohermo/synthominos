@@ -1,10 +1,10 @@
-import { GRID_MIN, GRID_DEFAULT, MAX_PIEZAS } from '../../../src/board-editing/domain/board.constants.ts';
-import { CROSS_COST } from '../../../src/circuit/domain/routing.constants.ts';
-import { CELLS_PER_PIECE } from '../../../src/pieces/domain/pieces.constants.ts';
-import { NOTES_PER_PIECE, DEFAULT_OCTAVE, DEFAULT_REGIMEN } from '../../../src/musical-model/domain/music.constants.ts';
-import { PASOS_MAX } from '../../../src/circuit/domain/sequence.constants.ts';
-import { DEFAULT_BPM, MASTER_GAIN, FFT_SIZE } from '../../../src/playback/audio/engine.constants.ts';
-import { LOOKAHEAD, TICK_MS } from '../../../src/playback/audio/scheduler.constants.ts';
+import { GRID_MIN, GRID_DEFAULT, MAX_PIEZAS } from '../../../src/board-editing/board.constants.ts';
+import { CROSS_COST } from '../../../src/circuit/routing.constants.ts';
+import { CELLS_PER_PIECE } from '../../../src/pieces/pieces.constants.ts';
+import { NOTES_PER_PIECE, DEFAULT_OCTAVE, DEFAULT_REGIMEN } from '../../../src/musical-model/music.constants.ts';
+import { PASOS_MAX } from '../../../src/circuit/sequence.constants.ts';
+import { DEFAULT_BPM, MASTER_GAIN, FFT_SIZE } from '../../../src/playback/engine.constants.ts';
+import { LOOKAHEAD, TICK_MS } from '../../../src/playback/scheduler.constants.ts';
 import { jsonResource, type ResourceDef } from './types.ts';
 
 /**
@@ -26,31 +26,31 @@ import { jsonResource, type ResourceDef } from './types.ts';
  */
 const POR_ARCHIVO = [
   {
-    archivo: 'src/board-editing/domain/board.constants.ts',
+    archivo: 'src/board-editing/board.constants.ts',
     constantes: { GRID_MIN, GRID_DEFAULT, MAX_PIEZAS },
   },
   {
-    archivo: 'src/circuit/domain/routing.constants.ts',
+    archivo: 'src/circuit/routing.constants.ts',
     constantes: { CROSS_COST },
   },
   {
-    archivo: 'src/pieces/domain/pieces.constants.ts',
+    archivo: 'src/pieces/pieces.constants.ts',
     constantes: { CELLS_PER_PIECE },
   },
   {
-    archivo: 'src/musical-model/domain/music.constants.ts',
+    archivo: 'src/musical-model/music.constants.ts',
     constantes: { NOTES_PER_PIECE, DEFAULT_OCTAVE, DEFAULT_REGIMEN },
   },
   {
-    archivo: 'src/circuit/domain/sequence.constants.ts',
+    archivo: 'src/circuit/sequence.constants.ts',
     constantes: { PASOS_MAX },
   },
   {
-    archivo: 'src/playback/audio/engine.constants.ts',
+    archivo: 'src/playback/engine.constants.ts',
     constantes: { DEFAULT_BPM, MASTER_GAIN, FFT_SIZE },
   },
   {
-    archivo: 'src/playback/audio/scheduler.constants.ts',
+    archivo: 'src/playback/scheduler.constants.ts',
     constantes: { LOOKAHEAD, TICK_MS },
   },
 ];

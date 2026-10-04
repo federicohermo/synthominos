@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import { defineTool, json } from './types.ts';
 import { PIECE_KEYS } from '../pieces.ts';
-import { checkAll } from '../../../src/pieces/domain/invariants.ts';
+import { checkAll } from '../../../src/pieces/invariants.ts';
 
 /**
  * Los chequeos del modelo, corridos de verdad.
  *
  * Es la tool mas chica del spec justamente porque **toda la logica ya vive en
- * `src/pieces/domain/invariants.ts`**: aca no hay ni un chequeo escrito, solo el formato
+ * `src/pieces/invariants.ts`**: aca no hay ni un chequeo escrito, solo el formato
  * de la respuesta.
  *
  * Itera sobre lo que devuelve `checkAll()` y no sobre una lista propia, y eso se
@@ -71,7 +71,7 @@ export const checkInvariants = defineTool({
     'el modelo musical, y otra vez después: el invariante más peligroso del repo —que la celda del ' +
     'índice k siga siendo la misma celda lógica después de transformar— se rompe SIN producir ' +
     'ningún error visible, y lo único que lo delata es este chequeo. Ejecuta checkAll() de ' +
-    'src/pieces/domain/invariants.ts; no reimplementa ninguna verificación.',
+    'src/pieces/invariants.ts; no reimplementa ninguna verificación.',
   inputSchema,
   run: ({ piece }) => {
     const checks = checkAll();

@@ -20,8 +20,8 @@ export const FORBIDDEN = ['spec.md', 'research.md', 'plan.md', 'tasks.md'] as co
 const FIELDS = ['schema_version', 'capability_id', 'status', 'owner', 'provenance'] as const;
 /** The folders of `src/` that belong to no capability: the shell. */
 export const SHELL = ['__tests__', 'styles'] as const;
-/** The layer folders a capability folder may hold. */
-export const LAYERS = ['domain', 'audio', 'ui'] as const;
+/** The one subfolder a capability folder may hold. Its code sits flat next to it. */
+export const TESTS = '__tests__';
 const AC = /\bAC-[A-Z]{3}-\d{3}\b/g;
 
 interface Spec {
@@ -96,8 +96,9 @@ export function citedIds(text: string): Set<string> {
 }
 
 /**
- * The findings on the code folders. Each capability owns `src/<capability>/`, and its files live
- * in a layer folder. The link goes both ways: a folder needs a contract, a contract needs code.
+ * The findings on the code folders. Each capability owns `src/<capability>/`, flat: its files sit
+ * at the top, and only its tests go one folder down. The link goes both ways: a folder needs a
+ * contract, a contract needs code.
  */
 function folderFindings(corpus: readonly Spec[], sources: readonly string[]): string[] {
   const findings: string[] = [];
@@ -109,8 +110,8 @@ function folderFindings(corpus: readonly Spec[], sources: readonly string[]): st
     folders.add(parts[1]);
     if (parts.length === 3 && parts[2] === 'AGENTS.md') continue;
     withCode.add(parts[1]);
-    if (parts.length < 4 || !(LAYERS as readonly string[]).includes(parts[2])) {
-      findings.push(`${file}: lies outside a layer folder of its capability (${LAYERS.join('/, ')}/)`);
+    if (parts.length > 3 && parts[2] !== TESTS) {
+      findings.push(`${file}: lies in a subfolder; a capability is flat, with only ${TESTS}/ below it`);
     }
   }
   const live = corpus.filter(s => s.status !== 'superseded').map(s => s.file.split('/')[1]);

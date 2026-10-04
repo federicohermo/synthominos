@@ -82,24 +82,21 @@ function ruleSection(rule: string, dir: string): string {
 export const CONTRACT = /^specs\/([^_/][^/]*)\/\1\.md$/;
 
 /**
- * The `AGENTS.md` of the code folder of a capability: a pointer to its contract, not a copy.
- * A superseded contract has no folder, so it gets no pointer.
+ * The opening of the `AGENTS.md` of a capability folder: a pointer to its contract, not a copy.
+ * A superseded contract has no folder, so it gets none.
  */
-export function contractPointer(capability: string, spec: string): string | null {
+export function contractSection(capability: string, spec: string): string | null {
   const field = (name: string) => new RegExp(`^${name}:\\s*(\\S+)`, 'm').exec(spec)?.[1] ?? '';
   if (field('status') === 'superseded') return null;
   const title = /^# (.+)$/m.exec(ruleBody(spec))?.[1] ?? capability;
   const id = field('capability_id');
   const file = `specs/${capability}/${capability}.md`;
   return [
-    `${GENERATED_MARK} from \`${file}\`. Edit the source. -->`,
-    '',
     `# ${title}`,
     '',
     `The contract of this folder is [\`${file}\`](../../${file}), \`${id}\`. Read it before a change`,
     `to what this capability does. A test title cites each criterion it verifies: \`AC-${id.slice(4)}-###\`.`,
-    '',
-    'The rules of each layer are in [`src/AGENTS.md`](../AGENTS.md).',
+    'The rules for all of `src/` are in [`src/AGENTS.md`](../AGENTS.md).',
     '',
   ].join('\n');
 }
@@ -144,30 +141,30 @@ export function planCopies(canonical: Tree): Plan {
     }
   }
 
-  const byFolder = new Map<string, [string, string][]>();
-  for (const [p, text] of source) {
-    if (!p.startsWith('.agents/rules/') || !p.endsWith('.md')) continue;
-    for (const dir of ruleFolders(text)) {
-      if (dir === '') {
-        problems.push(`${p}: applies to the repo root, whose AGENTS.md is written by hand`);
-        continue;
-      }
-      byFolder.set(dir, [...(byFolder.get(dir) ?? []), [p, text]]);
-    }
-  }
-  for (const [dir, rules] of byFolder) {
-    rules.sort(([a], [b]) => a.localeCompare(b));
-    const header = `${GENERATED_MARK} from ${rules.map(([r]) => `\`${r}\``).join(', ')}. Edit the source. -->\n\n`;
-    files.set(`${dir}/AGENTS.md`, header + rules.map(([, text]) => ruleSection(text, dir)).join('\n'));
-  }
-
+  // One `AGENTS.md` per folder: the contract of the capability that owns it, then each rule that
+  // covers it, in the order of their paths.
+  const byFolder = new Map<string, { sources: string[]; sections: string[] }>();
+  const add = (dir: string, from: string, section: string) => {
+    const folder = byFolder.get(dir) ?? { sources: [], sections: [] };
+    folder.sources.push(from);
+    folder.sections.push(section);
+    byFolder.set(dir, folder);
+  };
   for (const [p, text] of source) {
     const capability = CONTRACT.exec(p)?.[1];
-    const pointer = capability === undefined ? null : contractPointer(capability, text);
-    if (pointer === null) continue;
-    const file = `src/${capability}/AGENTS.md`;
-    if (files.has(file)) problems.push(`${file}: a rule and the contract of \`${capability}\` both write it`);
-    files.set(file, pointer);
+    const section = capability === undefined ? null : contractSection(capability, text);
+    if (section !== null) add(`src/${capability}`, p, section);
+  }
+  const rules = [...source].filter(([p]) => p.startsWith('.agents/rules/') && p.endsWith('.md'));
+  for (const [p, text] of rules.sort(([a], [b]) => a.localeCompare(b))) {
+    for (const dir of ruleFolders(text)) {
+      if (dir === '') problems.push(`${p}: applies to the repo root, whose AGENTS.md is written by hand`);
+      else add(dir, p, ruleSection(text, dir));
+    }
+  }
+  for (const [dir, { sources, sections }] of byFolder) {
+    const header = `${GENERATED_MARK} from ${sources.map(s => `\`${s}\``).join(', ')}. Edit the source. -->\n\n`;
+    files.set(`${dir}/AGENTS.md`, header + sections.join('\n'));
   }
   return { files, problems };
 }

@@ -1,31 +1,31 @@
 import { useMemo, useState, useRef, useCallback } from "react";
-import { playNow } from "./playback/audio/engine.ts";
-import { DEFAULT_BPM } from "./playback/audio/engine.constants.ts";
-import { rotateN, reflect } from "./pieces/domain/transform.ts";
-import { arpeggioFor } from "./musical-model/domain/music.ts";
-import { cabeEn, cellsAt, isValid, occupantAt } from "./board-editing/domain/board.ts";
-import { buildSequence } from "./circuit/domain/sequence.ts";
-import { SHAPES, ANCHOR_INDEX } from "./pieces/domain/pieces.constants.ts";
-import { MAX_PIEZAS } from "./board-editing/domain/board.constants.ts";
-import { DEFAULT_REGIMEN } from "./musical-model/domain/music.constants.ts";
-import type { Cell } from "./pieces/domain/transform.types.ts";
-import type { PieceKey } from "./pieces/domain/pieces.types.ts";
-import type { PlacedPiece } from "./board-editing/domain/board.types.ts";
-import type { RegimenDeRotacion } from "./musical-model/domain/music.types.ts";
-import PiecePalette from "./panels/ui/PiecePalette.tsx";
-import Board from "./board-editing/ui/Board.tsx";
-import Spectrum from "./spectrum/ui/Spectrum.tsx";
-import { alternarTransporte } from "./playback/ui/engine-bridge.ts";
-import { MOTOR, frenarTransporte, reiniciarRecorrido, useMotorSincronizado } from "./playback/ui/use-engine.ts";
-import { useAtajosDeTeclado, useRuedaRota } from "./board-editing/ui/use-input.ts";
-import { useGrilla } from "./board-fit/ui/use-grid.ts";
+import { playNow } from "./playback/engine.ts";
+import { DEFAULT_BPM } from "./playback/engine.constants.ts";
+import { rotateN, reflect } from "./pieces/transform.ts";
+import { arpeggioFor } from "./musical-model/music.ts";
+import { cabeEn, cellsAt, isValid, occupantAt } from "./board-editing/placement.ts";
+import { buildSequence } from "./circuit/sequence.ts";
+import { SHAPES, ANCHOR_INDEX } from "./pieces/pieces.constants.ts";
+import { MAX_PIEZAS } from "./board-editing/board.constants.ts";
+import { DEFAULT_REGIMEN } from "./musical-model/music.constants.ts";
+import type { Cell } from "./pieces/transform.types.ts";
+import type { PieceKey } from "./pieces/pieces.types.ts";
+import type { PlacedPiece } from "./board-editing/board.types.ts";
+import type { RegimenDeRotacion } from "./musical-model/music.types.ts";
+import PiecePalette from "./panels/PiecePalette.tsx";
+import Board from "./board-editing/Board.tsx";
+import Spectrum from "./spectrum/Spectrum.tsx";
+import { alternarTransporte } from "./playback/engine-bridge.ts";
+import { MOTOR, frenarTransporte, reiniciarRecorrido, useMotorSincronizado } from "./playback/use-engine.ts";
+import { useAtajosDeTeclado, useRuedaRota } from "./board-editing/use-input.ts";
+import { useGrilla } from "./board-fit/use-grid.ts";
 import {
   rotacionPorRueda, siguienteRotacion, reflejaElContextMenu, accionDeClick, esLaPiezaEnLaMano,
-} from "./board-editing/ui/input.ts";
-import { anuncioDeEdicion } from "./accessibility/ui/cell-name.ts";
-import { EDICION } from "./board-editing/ui/input.constants.ts";
-import { ORIENTACION_INICIAL, ORIENTACIONES_INICIALES } from "./pieces/ui/orientation.constants.ts";
-import type { MemoriaDeOrientacion, Orientacion } from "./pieces/ui/orientation.types.ts";
+} from "./board-editing/input.ts";
+import { anuncioDeEdicion } from "./accessibility/cell-name.ts";
+import { EDICION } from "./board-editing/input.constants.ts";
+import { ORIENTACION_INICIAL, ORIENTACIONES_INICIALES } from "./pieces/orientation.constants.ts";
+import type { MemoriaDeOrientacion, Orientacion } from "./pieces/orientation.types.ts";
 
 /**
  * Pentomino Music — prototipo de instrumento, no un juego con reglas de resolucion.
@@ -41,8 +41,8 @@ import type { MemoriaDeOrientacion, Orientacion } from "./pieces/ui/orientation.
  * Este archivo es el shell: estado, derivados, handlers y la composicion — y CERO
  * efectos. La geometria, la musica y las reglas del tablero viven en
  * `src/<capability>/domain/`; el sonido en `src/<capability>/audio/`; el JSX, en los componentes de
- * `src/<capability>/ui/`; y el puente con el motor, en `playback/ui/use-engine.ts` (los cuatro
- * de reconciliacion) y `board-editing/ui/use-input.ts` (los dos de entrada).
+ * `src/<capability>/ui/`; y el puente con el motor, en `playback/use-engine.ts` (los cuatro
+ * de reconciliacion) y `board-editing/use-input.ts` (los dos de entrada).
  *
  * Que los seis salieran de aca no fue prolijidad: en un `.tsx`
  * `react-refresh/only-export-components` prohibe exportar cualquier cosa que no sea el
@@ -183,7 +183,7 @@ export default function App() {
   // `fixed` fuera de `Board`, asi que colgada del tablero sus cajas —medidas en celdas— no
   // resolverian `var(--cell)`.
   //
-  // El efecto que la escribe vive en `board-fit/ui/use-grid.ts` y no aca: desde el spec
+  // El efecto que la escribe vive en `board-fit/use-grid.ts` y no aca: desde el spec
   // 022 este shell **no declara un solo `useEffect`**, y un listener de `resize` es
   // exactamente el caso que `.claude/rules/ui.md` ya resuelve —el listener global vive en
   // un hook de `ui/`, con el `ref` creado en el shell—. El precedente literal es
@@ -269,13 +269,13 @@ export default function App() {
   const secuencia = useMemo(() => buildSequence(visibles, regimen, dims), [visibles, regimen, dims]);
 
   // El arpegio de la pieza SELECCIONADA, para el panel y para el click de colocacion.
-  // La derivacion vive en `musical-model/domain/music.ts` y no aca: las piezas ya colocadas la piden
+  // La derivacion vive en `musical-model/music.ts` y no aca: las piezas ya colocadas la piden
   // por su cuenta —`buildSequence`, para el motor— y tener dos copias de la regla era
   // justo lo que hacia falta cuando `PlacedPiece` guardaba sus notas.
   const noteSet = useMemo(() => arpeggioFor(selected, rotation, mirror, regimen), [selected, rotation, mirror, regimen]);
 
   // Los cuatro efectos de reconciliación que mantienen al motor mirando este mismo
-  // tablero viven en `playback/ui/use-engine.ts`, y la llamada va ACÁ y no
+  // tablero viven en `playback/use-engine.ts`, y la llamada va ACÁ y no
   // arriba con el resto del cableado: `secuencia` es un `const`, así que llamarlo antes
   // de su `useMemo` la leería en su zona muerta temporal y tiraría un `ReferenceError`
   // en el primer render. Sigue estando ANTES de los dos hooks de entrada, que es donde
@@ -377,7 +377,7 @@ export default function App() {
   // 100 ms del lookahead más la cola del arpegio ya agendado.
   //
   // Y ese párrafo vale para UNA de las dos colas. La otra —la de dibujo, en
-  // `playback/ui/route-source.ts`— avanza sólo cuando el motor cierra un ciclo, o sea
+  // `playback/route-source.ts`— avanza sólo cuando el motor cierra un ciclo, o sea
   // nunca con el reloj parado: sin reiniciarla, el velo de las piezas borradas
   // se sigue dibujando sobre un tablero vacío hasta el próximo Play. Las
   // dos se reinician juntas o vuelve el bug, y las dos entran por `use-engine.ts`, que
@@ -408,7 +408,7 @@ export default function App() {
   }, [playing]);
 
   // ── Entrada directa ──────────────────────────────────────────────────
-  // Los dos efectos viven en `board-editing/ui/use-input.ts`, y reciben CALLBACKS y no
+  // Los dos efectos viven en `board-editing/use-input.ts`, y reciben CALLBACKS y no
   // setters: por eso, cuando la orientación dejó de ser dos `useState` y pasó a ser una
   // ranura por pieza, lo que cambió fue este bloque y no el hook.
   //

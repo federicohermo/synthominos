@@ -49,12 +49,12 @@ const GRUPO_REACT = {
  * is covered.
  */
 const DOMAIN_MODULES = {
-  transform: './src/pieces/domain/transform.ts',
-  board: './src/board-editing/domain/board.ts',
-  routing: './src/circuit/domain/routing.ts',
-  music: './src/musical-model/domain/music.ts',
-  sequence: './src/circuit/domain/sequence.ts',
-  invariants: './src/pieces/domain/invariants.ts',
+  transform: './src/pieces/transform.ts',
+  board: './src/board-editing/placement.ts',
+  routing: './src/circuit/routing.ts',
+  music: './src/musical-model/music.ts',
+  sequence: './src/circuit/sequence.ts',
+  invariants: './src/pieces/invariants.ts',
 }
 const DOMAIN_DIRECTION = {
   transform: ['board', 'routing', 'music', 'sequence', 'invariants'],
@@ -115,7 +115,7 @@ const ZONAS = [
 /**
  * Los cuatro nodos que nombran un modulo por su ruta. Se listan los cuatro y no solo
  * `ImportDeclaration` porque las otras tres formas **existen hoy en el repo** —un
- * `export ... from` en `playback/ui/engine.types.ts` y cuatro `import()` en los tests
+ * `export ... from` en `playback/engine.types.ts` y cuatro `import()` en los tests
  * que reimportan con `vi.resetModules()`— y una regla que cubre una sola de ellas es
  * exactamente la red que este spec vino a borrar: pasa en verde y se lee como completa.
  *
@@ -207,14 +207,14 @@ const REGLAS_DEL_REPO = [
  *
  * El selector mira `Literal`, `ArrayExpression` y `TemplateLiteral`, y NO `ObjectExpression`
  * ni `NewExpression`. Tampoco es una concesion: el spec 022 dejo escrito por que `MOTOR`
- * (`playback/ui/use-engine.ts`) y `RUTA_VACIA` (`playback/ui/route-source.ts`) viven en su
+ * (`playback/use-engine.ts`) y `RUTA_VACIA` (`playback/route-source.ts`) viven en su
  * modulo y no en `constants/` — no son valores fijos sino cableado de funciones, y mandarlos
  * a `constants/` obligaria a esa carpeta —que hoy solo tiene datos— a importar el singleton
  * del `AudioContext`. La regla escrita apunta al numero magico; ensancharla a todo objeto
  * declararia deuda donde el repo ya decidio lo contrario, con el porque al lado.
  *
  * Y `kind='const'` no es decorativo: sin el, el selector engancha el estado mutable de modulo
- * —`let ctx: AudioContext | null = null` en `playback/audio/engine.ts`— que no es una constante ni por
+ * —`let ctx: AudioContext | null = null` en `playback/engine.ts`— que no es una constante ni por
  * asomo. Medido: 21 hallazgos sin el ancla, 2 con el.
  */
 const INITS_FIJOS = ['Literal', 'ArrayExpression', 'TemplateLiteral']
@@ -400,8 +400,8 @@ export default tseslint.config([
       // `disallowTypeAnnotations: false` deja pasar `typeof import('./x.ts')`, que es otra
       // cosa y no la que la regla existe para atrapar. Son dos usos y los dos estan en
       // tests que reimportan el modulo con `vi.resetModules()` / `vi.doMock`
-      // (`playback/ui/__tests__/route-source.test.ts:28` y
-      // `pieces/domain/__tests__/invariants.test.ts:114`): ahi `typeof import(...)` es la forma
+      // (`playback/__tests__/route-source.test.ts:28` y
+      // `pieces/__tests__/invariants.test.ts:114`): ahi `typeof import(...)` es la forma
       // idiomatica de nombrar el tipo de un modulo que el archivo justamente NO quiere
       // tener importado. Con `verbatimModuleSyntax` las dos formas se borran igual, asi que
       // reescribirlas cambiaria la intencion sin cambiar el runtime.
@@ -487,7 +487,7 @@ export default tseslint.config([
     //                      handler esta en un descendiente de esa grilla. El `if`
     //                      alternativo seria una rama inalcanzable, y el umbral 100 no
     //                      deja cubrirla.
-    files: ['src/main.tsx', 'src/pieces/domain/invariants.ts', 'src/board-editing/ui/Board.tsx'],
+    files: ['src/main.tsx', 'src/pieces/invariants.ts', 'src/board-editing/Board.tsx'],
     rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
   },
 
@@ -597,7 +597,7 @@ export default tseslint.config([
     // Las dos son la regla generica chocando contra una decision que el repo tomo, midio y
     // escribio. Si alguna de las dos construcciones cambia, la exencion deja de aplicar por
     // su propio argumento.
-    files: ['src/board-editing/ui/Board.tsx'],
+    files: ['src/board-editing/Board.tsx'],
     rules: {
       'jsx-a11y/interactive-supports-focus': 'off',
       'jsx-a11y/no-static-element-interactions': 'off',
@@ -678,7 +678,7 @@ export default tseslint.config([
     //
     // Repite `REGLAS_DEL_REPO` por el mismo trap de flat config, y omite `REGLA_EFECTOS`:
     // eso es exactamente lo que exime.
-    files: ['src/playback/ui/Playhead.tsx', 'src/spectrum/ui/Spectrum.tsx'],
+    files: ['src/playback/Playhead.tsx', 'src/spectrum/Spectrum.tsx'],
     rules: {
       'no-restricted-syntax': ['error', ...REGLAS_DEL_REPO],
     },

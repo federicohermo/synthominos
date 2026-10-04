@@ -1,14 +1,13 @@
 ---
 paths:
-  - "src/*/audio/**/*.ts"
-  - "src/spectrum/ui/Spectrum.tsx"
-  - "src/playback/ui/Playhead.tsx"
+  - "src/playback/**"
+  - "src/spectrum/**"
 ---
 
 # Capa de audio
 
 Motor propio sobre Web Audio, sin librerías: `voice.ts` (síntesis), `scheduler.ts` (lookahead),
-`engine.ts` (singletons y la API que consume la UI) y `spectrum.ts` (mapeo bins→barras). Habla números
+`engine.ts` (singletons y la API que consume la UI) y `spectrum-bars.ts` (mapeo bins→barras). Habla números
 MIDI y **no conoce el dominio**.
 
 El porqué de cada decisión, con las mediciones que la respaldan, está en
@@ -49,13 +48,13 @@ El porqué de cada decisión, con las mediciones que la respaldan, está en
   (`routeBetween`) puede cruzar una celda ocupada, y esa celda **suena su nota** —una floritura más
   corta y más suave que la nota de pieza—; ese cruce con altura **no se apaga con
   `setClicksAudible`**: es modelo, no mezcla (D6 del spec 011).
-- **El motor distingue tres clases de evento, no dos.** `HIT` (`playback/audio/scheduler.constants.ts`)
-  pasa de dos a tres claves, y el union `Hit` (`playback/audio/scheduler.types.ts`) gana una tercera rama
+- **El motor distingue tres clases de evento, no dos.** `HIT` (`playback/scheduler.constants.ts`)
+  pasa de dos a tres claves, y el union `Hit` (`playback/scheduler.types.ts`) gana una tercera rama
   con su propio `hz` —no un `hz?: number` sobre la rama del click—. La construye `collectHits` en
-  `playback/audio/scheduler.ts`; `engine.ts` solo la despacha. La `Sequence` sigue sin llevar `Cell` ni ningún
+  `playback/scheduler.ts`; `engine.ts` solo la despacha. La `Sequence` sigue sin llevar `Cell` ni ningún
   otro tipo de `domain/` —ni con `import type`—, pero desde el spec 011 **ya no es cierto que para
   sonar alcance con contar clicks**: `clicks` es `{ offset: number; note?: number }[]`.
-  `proyectarAlMotor` (`playback/ui/engine-bridge.ts`) sigue llevando `buildSequence(placed, regimen)`
+  `proyectarAlMotor` (`playback/engine-bridge.ts`) sigue llevando `buildSequence(placed, regimen)`
   a esa versión antes de que `use-engine.ts` la pase a `setSequence`. Es D7/D8 del spec 009 más la
   ampliación del 011, y lo verifica `pnpm lint` con el override de capa.
 - **El swap de secuencia al cerrar el ciclo (spec 009) tiene la misma trampa que `startClock`.** Al
@@ -65,7 +64,7 @@ El porqué de cada decisión, con las mediciones que la respaldan, está en
 - **El `AnalyserNode` va en serie** entre el master y el destino, y es transparente al audio.
   `readSpectrum()` devuelve `null` en reposo —eso es información, no falla— y reusa el buffer entre
   llamadas: quien lo guarde va a verlo cambiar por debajo. El mapeo bins→barras vive aparte, en
-  `spectrum.ts`, porque **`AnalyserNode` no rinde nada útil en `OfflineAudioContext`**: es lo testeable,
+  `spectrum-bars.ts`, porque **`AnalyserNode` no rinde nada útil en `OfflineAudioContext`**: es lo testeable,
   y por eso está separado del nodo.
 - **La cabeza lectora (spec 010) es el segundo consumidor del motor por fuera de React.** Su superficie
   son dos exports de `engine.ts`: `playheadOffset(): number | null` (lee del singleton y de la secuencia
@@ -75,8 +74,8 @@ El porqué de cada decisión, con las mediciones que la respaldan, está en
   defensiva:** el swap se decide dentro del lookahead y deja `origin` en el borde, que todavía es futuro,
   así que sin ella la cabeza contesta la cola del ciclo nuevo —el offset MÁXIMO— mientras suena la vieja.
   La aritmética vive aparte, en
-  `playback/audio/playhead.ts` (`offsetAt`, módulo euclídeo, `null` y nunca `NaN` en los tres degradados), por el
-  mismo motivo que `spectrum.ts`. Lo que no hay que romper: la posición está **compensada por la
+  `playback/playhead-offset.ts` (`offsetAt`, módulo euclídeo, `null` y nunca `NaN` en los tres degradados), por el
+  mismo motivo que `spectrum-bars.ts`. Lo que no hay que romper: la posición está **compensada por la
   latencia de salida** (`outputLatency` → `baseLatency` → `0`) o la cabeza queda sistemáticamente
   adelantada, y `outputLatency` no es opcional en `lib.dom.d.ts` pese a que Firefox no lo implementa —la
   lectura se tipa `number | undefined` a mano porque el repo prohíbe `any` y `@ts-ignore`. Detalle en

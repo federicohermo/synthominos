@@ -53,13 +53,13 @@ for `domain/` and `audio/`, and the global-state packages for all of `src/`. It 
 `typescript-eslint` variant and not the core one, because that variant also sees `import type`. A
 careless refactor uses `import type` to slip through.
 
-**The domain modules have a direction too, and the linter verifies it.** Without it, a `board.ts`
+**The domain modules have a direction too, and the linter verifies it.** Without it, a `placement.ts`
 that imports `sequence.ts` passes lint in silence. The modules live in different capabilities, so
 `DOMAIN_MODULES` and `DOMAIN_DIRECTION` in `eslint.config.js` write it module by module, in three
 levels:
 
 - `transform.ts` (pieces) at the bottom.
-- `board.ts` (board-editing), `routing.ts` (circuit) and `music.ts` (musical-model) above it.
+- `placement.ts` (board-editing), `routing.ts` (circuit) and `music.ts` (musical-model) above it.
   `music.ts` **does not know the other two**: the board rules and the musical model are orthogonal,
   and that is a property of the instrument.
 - `sequence.ts` (circuit) and `invariants.ts` (pieces) as leaves that do not import each other.
@@ -77,7 +77,7 @@ import graph holds that invariant, not a comment. This is what makes the audio t
 
 **Modules contain behavior. Data, types and fixed values live in the folder of their role.** A layer
 `.ts` file has functions and nothing else. The file repeats the module name with the role suffix:
-`Cell` is not in `types/index.ts`, it is in `pieces/domain/transform.types.ts`, the contract of the
+`Cell` is not in `types/index.ts`, it is in `pieces/transform.types.ts`, the contract of the
 module `transform.ts`.
 
 | Role | Folder | File |
@@ -159,7 +159,7 @@ go there with their first file.
     evaluate "re-export", so a ban on the name gives three false positives.
   - A barrel that re-exports by hand (`export { a } from './a.ts'`) stays outside. This doc states
     it: half a net, written as half a net, is honest.
-- **An explicit extension on every local import**: `./pieces/domain/transform.ts`, not `./domain/transform`.
+- **An explicit extension on every local import**: `./pieces/transform.ts`, not `./domain/transform`.
   It reduces resolution work, and above all **raw node requires it** (`ERR_MODULE_NOT_FOUND`). That
   is what lets node load `domain/` without a build.
   - Warning: a missing extension **does not break the app**, because Vite resolves it anyway. The
@@ -198,7 +198,7 @@ comment.
 A `!` is a small `any`: it tells the compiler to be quiet **without a reason**.
 `@typescript-eslint/no-non-null-assertion` is at `error`.
 
-**Before you write one, try a `const`.** The `!` in `playback/audio/engine.ts` existed only because
+**Before you write one, try a `const`.** The `!` in `playback/engine.ts` existed only because
 TypeScript loses the narrowing inside the closure of a `forEach` when the variable is a module `let`.
 A local `const` removed it, with no fight against the compiler.
 
@@ -208,8 +208,8 @@ written next to them:
 | File | Why the compiler cannot see it |
 |---|---|
 | `src/main.tsx` | The Vite idiom on a `#root` that `index.html` itself guarantees |
-| `src/pieces/domain/invariants.ts` | The `queue.shift()!` of a BFS, inside a `while` that already guarantees a non-empty queue |
-| `src/board-editing/ui/Board.tsx` | The `[role="grid"]` ancestor exists by construction: the handler lives in a descendant of that grid. The alternative `if` is an unreachable branch, and the 100 threshold does not let it be covered |
+| `src/pieces/invariants.ts` | The `queue.shift()!` of a BFS, inside a `while` that already guarantees a non-empty queue |
+| `src/board-editing/Board.tsx` | The `[role="grid"]` ancestor exists by construction: the handler lives in a descendant of that grid. The alternative `if` is an unreachable branch, and the 100 threshold does not let it be covered |
 
 **In tests the rule does not apply**, and it is off there. A `!` on a `find` or a `querySelector`
 that the test itself just set up makes the test **fail** if the node is missing. There are 102, on
@@ -237,9 +237,9 @@ no comment of the repo. A comment that needs them names the mechanism instead of
 ### Domain types
 
 ```ts
-// pieces/domain/transform.types.ts
+// pieces/transform.types.ts
 export type Cell = [number, number];       // [x, y], y grows downward
-// pieces/domain/pieces.types.ts
+// pieces/pieces.types.ts
 export type PieceKey = 'F' | 'I' | … ;     // declared explicitly, not derived
 ```
 
@@ -259,14 +259,14 @@ The replacement for any closed set puts its two halves in the role folders. This
 for the rotation:
 
 ```ts
-// pieces/ui/orientation.constants.ts  — the value
+// pieces/orientation.constants.ts  — the value
 export const ROTACION = { cero: 0, noventa: 1, ciento_ochenta: 2, doscientos_setenta: 3 } as const;
-// pieces/ui/orientation.types.ts          — the type
+// pieces/orientation.types.ts          — the type
 export type Rotacion = (typeof ROTACION)[keyof typeof ROTACION];
 ```
 
-The other closed sets are `ACCION` and `EDICION` (`board-editing/ui/input.constants.ts`),
-`MARCA` (`route.constants.ts`) and `REGIMEN` (`musical-model/domain/music.constants.ts`).
+The other closed sets are `ACCION` and `EDICION` (`board-editing/input.constants.ts`),
+`MARCA` (`route.constants.ts`) and `REGIMEN` (`musical-model/music.constants.ts`).
 
 ### The language of identifiers
 
@@ -290,7 +290,7 @@ engine API. A name that comes from outside keeps the language of its origin.
 
 ### The array order is an invariant
 
-`rotate90`, `normalize` and `reflect` (in `pieces/domain/transform.ts`) are a `map` over the cells: **the cell
+`rotate90`, `normalize` and `reflect` (in `pieces/transform.ts`) are a `map` over the cells: **the cell
 at index `k` stays the same logical cell after the transform.**
 
 Three things depend on that:
@@ -304,7 +304,7 @@ Three things depend on that:
 A change that filters, sorts or regroups cells inside those functions breaks piece placement **in
 silence**.
 
-`checkArrayOrder()` in `pieces/domain/invariants.ts` verifies the order on the 96 combinations. Its own
+`checkArrayOrder()` in `pieces/invariants.ts` verifies the order on the 96 combinations. Its own
 test checks that the check **goes red** when a transform reorders.
 
 If you need to transform cells another way, write a new function. Do not change these.
@@ -550,7 +550,7 @@ of the board cells does. Do not nest ternaries.
 
 **A value that comes from a constant goes through an inline style, not a class.** Tailwind scans the
 source: an interpolated class (`w-[${CELL_PX}px]`) is never generated, so the number is written twice
-again. The board cells read the custom property `--cell`. `board-fit/ui/use-grid.ts` writes it on the
+again. The board cells read the custom property `--cell`. `board-fit/use-grid.ts` writes it on the
 root container from the measured viewport. The inline style is still the path:
 `width: calc(var(--cell) * 1)`. And there is one more reason: the browser resolves a custom property
 on each element. So a window resize moves the cells, the veil and the playhead **with no React

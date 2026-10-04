@@ -8,7 +8,7 @@ nothing tied a capability to its code. An agent that edited `src/domain/sequence
 tell from the tree that `specs/circuit/circuit.md` governs it.
 
 **Decision: each capability owns `src/<capability>/`, with the name of its contract, and its layers
-are subfolders.** `src/circuit/domain/sequence.ts` is the code of `specs/circuit/circuit.md`. The
+are subfolders.** `src/circuit/sequence.ts` is the code of `specs/circuit/circuit.md`. The
 shell (`App.tsx`, `main.tsx`, `styles/`, the app-level tests) stays at the root of `src/`. This is
 the package-by-feature rule of the
 [spec-anchored agentic development](https://github.com/w00fx/spec-anchored-agentic-development)
@@ -27,7 +27,7 @@ What holds the link:
 
 Where a file goes: to the capability whose criteria its tests cite. `board.ts` held two
 capabilities, so it was split: the rules of placement stay in `board-editing/`, and the graph the
-circuit walks moves to `circuit/domain/routing.ts`.
+circuit walks moves to `circuit/routing.ts`.
 
 The cost, measured when the decision landed: four pairs of capabilities import each other
 (accessibility ↔ board-editing, board-editing ↔ board-fit, board-editing ↔ playback,

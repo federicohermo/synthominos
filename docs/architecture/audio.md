@@ -24,10 +24,10 @@ inserción: el `AnalyserNode` del
 | **`voice.ts`** | `midiToHz`, `scheduleVoice`, `scheduleClick` | por parámetro |
 | **`scheduler.ts`** | `collectHits` — qué suena y cuándo — y `collectWindow` — la vuelta entera, con el swap al cierre de ciclo | por parámetro |
 | **`engine.ts`** | singletons, `playNow`, `startClock`, `setSequence`, `playheadOffset`, `cycleGeneration` | **es** el dueño del singleton |
-| **`spectrum.ts`** | `binsToBars` — de bins de la FFT a alturas de barra | no lo toca: es puro |
-| **`playhead.ts`** | `offsetAt` — la aritmética del offset de la cabeza lectora | no lo toca: es puro |
+| **`spectrum-bars.ts`** | `binsToBars` — de bins de la FFT a alturas de barra | no lo toca: es puro |
+| **`playhead-offset.ts`** | `offsetAt` — la aritmética del offset de la cabeza lectora | no lo toca: es puro |
 
-Los tres primeros son el motor; `spectrum.ts` y `playhead.ts` son los mapeos puros que se separaron del
+Los tres primeros son el motor; `spectrum-bars.ts` y `playhead-offset.ts` son los mapeos puros que se separaron del
 singleton para poder testearlos — [más abajo](#por-qué-el-mapeo-binsbarras-vive-aparte) y
 [más abajo](#la-cabeza-lectora).
 
@@ -146,12 +146,12 @@ de secuencia al cerrar un ciclo — ver [más abajo](#el-swap-en-el-cierre-de-ci
 
 ## El recorrido en el scheduler
 
-`circuit/domain/sequence.ts` arma el circuito y los offsets; el motor no recalcula ni reordena nada, solo lee
+`circuit/sequence.ts` arma el circuito y los offsets; el motor no recalcula ni reordena nada, solo lee
 lo que le entregan. El shell llama a `buildSequence(placed, regimen)` en un `useMemo` y
-`proyectarAlMotor` (`playback/ui/engine-bridge.ts`) lo lleva a la `Sequence` del motor, que **no lleva celdas**:
+`proyectarAlMotor` (`playback/engine-bridge.ts`) lo lleva a la `Sequence` del motor, que **no lleva celdas**:
 
 ```ts
-// playback/audio/scheduler.types.ts
+// playback/scheduler.types.ts
 export interface Sequence {
   steps: { offset: number; notes: number[] }[];   // sin pieceId: el motor no tiene a quién devolvérselo
   clicks: { offset: number; note?: number }[];     // sin cell, pero desde el spec 011 SÍ con altura
@@ -208,7 +208,7 @@ más fina y su propio cambio.
 
 Un salto de `d` celdas entre la salida de una pieza y la entrada de la siguiente produce `d − 1`
 eventos intermedios, uno por celda del camino que devuelve `routeBetween(a, b, placed)`
-(`board-editing/domain/board.ts`). Sobre celda **vacía** suena una **campana de altura fija** de 50 ms a volumen
+(`board-editing/placement.ts`). Sobre celda **vacía** suena una **campana de altura fija** de 50 ms a volumen
 bajo (`CLICK_MIDI`, `CLICK_VELOCITY`, `CLICK_SECONDS` en `audio/*.constants.ts`) — `scheduleClick` en
 `voice.ts` es la otra forma de sonido de la capa, aparte de `scheduleVoice`.
 
@@ -257,13 +257,13 @@ obstáculos: medido, entre el 71 % y el 88 % de los tramos pisaban una pieza, y 
 12 piezas caían ahí los 21 clicks del ciclo. Esquivar las piezas dejó de ser "un spec propio" —así lo
 anotaba el 009 en su tabla de riesgos— y es exactamente lo que hace el 011: `routeBetween` no es un
 BFS que rodea a cualquier costo, es un camino de **costo mínimo** con peso 1 en celda vacía y
-`CROSS_COST = 5` (`board-editing/domain/board.constants.ts`) en celda ocupada, así que
+`CROSS_COST = 5` (`board-editing/board.constants.ts`) en celda ocupada, así que
 rodea cuando el rodeo sale barato y cruza —sonando la nota— cuando rodear cuesta más caro. El
 interruptor de clicks queda, pero ya no es la única mitigación: la mitigación de fondo es el peso.
 
 **Desde el spec 015 ese interruptor arranca en `false`** —los clicks nacen apagados, y el default vive
 en dos lugares que tienen que decir lo mismo: el `useState` de `App.tsx` y `clicksAudible` en
-`engine.ts`, que el efecto de `playback/ui/use-engine.ts` pisa al montar—. El argumento del 009 no se
+`engine.ts`, que el efecto de `playback/use-engine.ts` pisa al montar—. El argumento del 009 no se
 negó: sin clicks un salto largo es un silencio mudo, y
 apagarlos apaga el 44 % de los eventos de un tablero chico. Lo que cambió es quién decide. Por eso el
 `T070` del 011, que proponía **borrar** el botón, quedó cerrado con un "no": con el default dado vuelta
@@ -278,7 +278,7 @@ está cerrado: AC11 del 011 lo deja abierto a confirmarse escuchando, y moverlo 
 
 ## Reconciliación de loops
 
-Un único `useEffect` —en `playback/ui/use-engine.ts` desde el spec 022, en `App.tsx` hasta ahí— observa
+Un único `useEffect` —en `playback/use-engine.ts` desde el spec 022, en `App.tsx` hasta ahí— observa
 `[secuencia, placed]` y le entrega al motor la secuencia donde debe estar. Los handlers solo cambian
 estado.
 
@@ -289,7 +289,7 @@ useEffect(() => {
 }, [secuencia, placed]);
 ```
 
-La proyección vive en `playback/ui/engine-bridge.ts` desde el spec 022 y **no se escribe a mano
+La proyección vive en `playback/engine-bridge.ts` desde el spec 022 y **no se escribe a mano
 acá**. Antes este snippet la mostraba inline, y con la forma corta:
 
 ```ts
@@ -310,7 +310,7 @@ Dos cosas del snippet que no son detalle:
 
 - **`playing` no está en las dependencias**, y salió a propósito con el spec 009. La secuencia es
   función del **tablero**, no del transporte: quien corta o arranca el sonido es `togglePlay`, que desde
-  el spec 022 pasa por la pura `alternarTransporte` de `playback/ui/engine-bridge.ts`. El `clearJobs()` + `if (!playing) return` de antes era la forma vieja de
+  el spec 022 pasa por la pura `alternarTransporte` de `playback/engine-bridge.ts`. El `clearJobs()` + `if (!playing) return` de antes era la forma vieja de
   lograr lo mismo desde acá; con una sola llamada a `setSequence` deja de hacer falta, y colocar o
   quitar con el transporte parado igual deja la secuencia lista para cuando arranque.
 - **Es una proyección, no una traducción.** `offset` y `notes` viajan tal cual; lo que se cae es
@@ -319,7 +319,7 @@ Dos cosas del snippet que no son detalle:
   pierden: siguen en `placed`.
 
 Antes este efecto iteraba piezas y armaba un job por cada una; hoy es **una sola llamada**:
-`buildSequence` (`circuit/domain/sequence.ts`) arma el circuito entero —orden, offsets y clicks— de una vez, y
+`buildSequence` (`circuit/sequence.ts`) arma el circuito entero —orden, offsets y clicks— de una vez, y
 el puente entre las dos capas es una sola pura, `proyectarAlMotor`. Que sea una pura y no dos
 bloques de efecto es del spec 022: hasta ahí el mismo cruce estaba escrito dos veces —el efecto de
 reconciliación y el de desmontaje—, con un comentario que ya admitía que escribirlo distinto invitaría a
@@ -441,7 +441,7 @@ guarde va a verlo cambiar por debajo; el consumidor previsto lo lee y lo descart
 
 ### Por qué el mapeo bins→barras vive aparte
 
-En `src/spectrum/audio/spectrum.ts`, y no dentro del nodo ni del componente, por una restricción medida:
+En `src/spectrum/spectrum-bars.ts`, y no dentro del nodo ni del componente, por una restricción medida:
 **`AnalyserNode` no rinde nada útil en un `OfflineAudioContext`**. El render offline corre más rápido
 que tiempo real y no tiene cuadros; `getByteFrequencyData` devuelve el estado del último bloque
 procesado. Los tests del estilo "renderizar y afirmar sobre el espectro" que sí funcionan para la
@@ -459,7 +459,7 @@ Dos decisiones dentro del mapeo:
 - **Pico por banda, no promedio.** Promediar una banda ancha aplana los transitorios, que es justo lo
   que hay que ver en un instrumento percusivo.
 
-El canvas (`src/spectrum/ui/Spectrum.tsx`) dibuja imperativamente dentro de `requestAnimationFrame` y
+El canvas (`src/spectrum/Spectrum.tsx`) dibuja imperativamente dentro de `requestAnimationFrame` y
 **no pasa por estado de React**: 60 renders por segundo para pintar barras competirían con el
 re-render del tablero. React monta el `<canvas>` y arranca/frena el loop; nada más.
 
@@ -474,11 +474,11 @@ sin contexto, con la secuencia vacía y mientras la activa **todavía no empezó
 exactamente como `readSpectrum()` devuelve `null` en reposo.
 `cycleGeneration` es un contador de swaps de ciclo: es el único observador del instante exacto en que la
 secuencia pendiente reemplaza a la activa (ver [el swap en el cierre de
-ciclo](#el-swap-en-el-cierre-de-ciclo)), y `playback/ui/route-source.ts` lo usa para saber cuándo cambiar
+ciclo](#el-swap-en-el-cierre-de-ciclo)), y `playback/route-source.ts` lo usa para saber cuándo cambiar
 de tablero.
 
-**La aritmética vive en `playback/audio/playhead.ts`, aparte de `engine.ts`, por el mismo motivo que
-`spectrum.ts`:** lo testeable va separado del singleton, que en los tests no existe. `offsetAt(now,
+**La aritmética vive en `playback/playhead-offset.ts`, aparte de `engine.ts`, por el mismo motivo que
+`spectrum-bars.ts`:** lo testeable va separado del singleton, que en los tests no existe. `offsetAt(now,
 origin, intervalSeconds, cycleIntervals)` calcula `floor((now − origin) / intervalo) mod ciclo` en
 **módulo euclídeo**, y devuelve `null` —nunca `NaN`— en tres degradados: ciclo 0 (tablero vacío, se
 alcanza con solo apretar play), `t` anterior al `origin` (el `%` de JS conserva el signo del dividendo) y
@@ -494,7 +494,7 @@ lectura se tipa como `number | undefined` de forma explícita.
 **Por qué no pasa por estado de React, con el número exacto:** el intervalo dura entre 0,25 s (60 bpm) y
 0,094 s (160 bpm), o sea 4 a 10,6 actualizaciones por segundo. Llevar eso a `useState` re-renderizaría 60
 celdas más la paleta y la lista, diez veces por segundo, para mover un resaltado — es exactamente lo que
-`Spectrum.tsx` ya evita (ver [arriba](#análisis-de-la-señal)). `playback/ui/Playhead.tsx` compara la
+`Spectrum.tsx` ya evita (ver [arriba](#análisis-de-la-señal)). `playback/Playhead.tsx` compara la
 celda calculada contra la anterior y solo escribe el estilo **cuando cambió**: 60 lecturas por segundo,
 ~10 escrituras. Y la cabeza **salta, no se desliza**: el instrumento está cuantizado a la grilla de
 intervalos, y un movimiento continuo sugeriría una continuidad que no existe.
@@ -523,7 +523,7 @@ no está y la nueva todavía no empezó, así que cualquier celda que se dibujar
 del scheduler que lo causa queda clavado en `scheduler.test.ts` («el swap deja `origin` en el FUTURO»),
 que es la parte testeable — la lectura del reloj no lo es.
 
-`playback/ui/route-source.ts` es el singleton de módulo que espeja el
+`playback/route-source.ts` es el singleton de módulo que espeja el
 par `active`/`pending` del motor pero con la `Sequence` del **dominio**, que es la única que lleva
 celdas: el motor tiene el par pero su `Sequence` no puede ver `Cell` (ver
 [arriba](#el-recorrido-en-el-scheduler)), y la UI tiene las celdas pero solo del tablero de *ahora*, o
@@ -535,7 +535,7 @@ recorrería el circuito nuevo mientras suena el viejo. El swap está atado a `cy
 cuando `cycleGeneration()` sube, y ese contador lo mueve `tick()`, o sea el reloj. Con el transporte
 parado el par queda congelado y `encolar` igual recomputa el velo leyéndolo: tras un `Reset` quedaba
 dibujado el velo de piezas que ya no están, sobre un tablero vacío, hasta el próximo Play. La llama el
-`Reset` del shell a través de `reiniciarRecorrido()` de `playback/ui/use-engine.ts` —el mismo módulo por
+`Reset` del shell a través de `reiniciarRecorrido()` de `playback/use-engine.ts` —el mismo módulo por
 el que sale `frenarTransporte()`—, porque las dos colas se reinician por el mismo camino o vuelve la
 asimetría que **era** el bug: el párrafo de `App.tsx` que dice que «Reset es una orden explícita de
 volver a cero, no una edición del tablero» estaba escrito sólo para el motor.
@@ -554,7 +554,7 @@ corte](https://github.com/federicohermo/pentomino-games/issues/71)).
 ### En tests: `OfflineAudioContext`
 
 Renderiza a un `AudioBuffer` en memoria, más rápido que tiempo real y de forma determinística. Los
-helpers están en `src/playback/audio/__tests__/test-context.ts`:
+helpers están en `src/playback/__tests__/test-context.ts`:
 
 | Helper | Para qué |
 |---|---|

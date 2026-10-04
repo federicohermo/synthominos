@@ -1,14 +1,17 @@
 ---
 paths:
-  - "src/*/domain/**/*.ts"
+  - "src/pieces/**"
+  - "src/musical-model/**"
+  - "src/circuit/**"
+  - "src/board-editing/placement.ts"
 ---
 
 # Capa de dominio
 
 Pure: no React, no Web Audio, no DOM. Each capability has its own `domain/` folder:
-`pieces/domain/transform.ts` (geometry) and `invariants.ts` (the checks),
-`board-editing/domain/board.ts` (the rules of placement), `musical-model/domain/music.ts` (the
-musical model), and `circuit/domain/routing.ts` (the graph of the board) and `sequence.ts` (the
+`pieces/transform.ts` (geometry) and `invariants.ts` (the checks),
+`board-editing/placement.ts` (the rules of placement), `musical-model/music.ts` (the
+musical model), and `circuit/routing.ts` (the graph of the board) and `sequence.ts` (the
 circuit and the cycle offsets). The data of a module lives next to it in `<module>.constants.ts`,
 and its types in `<module>.types.ts`.
 
@@ -48,7 +51,7 @@ elige el arpegio —*qué* notas con `escala`, *por dónde arranca* con `orden`�
 una. El régimen no toca el mapeo: es el mismo en los dos.
 
 **Desde el spec 012 el arpegio RECORRE la pieza**, sin pasar nunca por encima de una celda propia. El
-orden lo da `pathThroughCells` (`pieces/domain/transform.ts`, Held-Karp de camino abierto) y el orden angular
+orden lo da `pathThroughCells` (`pieces/transform.ts`, Held-Karp de camino abierto) y el orden angular
 del 007 —hoy `angularRank`— quedó como desempate: elige por qué punta se entra. El paso preferido es en
 cruz; en las cuatro piezas que no admiten recorrido ortogonal (`F`, `T`, `Y`, `X`: su grafo de celdas es
 un árbol con un nodo de 3 o 4 vecinos) se **tolera** uno en diagonal. La implementación usa **dos
@@ -86,10 +89,10 @@ esté**: el instrumento se toca de memoria o no se toca.
 **El tablero se repliega sobre sí mismo**: `(0,0)` y la esquina opuesta son adyacentes (una costura extra sobre la
 grilla, spec 009), y el orden de reproducción sale de un circuito exacto (Held-Karp) sobre esas
 distancias. Desde el spec 011 la distancia entre dos celdas **ya no es función solo de esas dos
-celdas**: `routeBetween(a, b, placed, dims)` (`circuit/domain/routing.ts`) reemplaza a `cellDistance` y `pathBetween`
+celdas**: `routeBetween(a, b, placed, dims)` (`circuit/routing.ts`) reemplaza a `cellDistance` y `pathBetween`
 —los dos dejaron de existir, junto con `bestRoute` y el const-object `ROUTE`— y devuelve
 `{ path, steps, cost, crossed }` en una sola llamada: el camino de costo mínimo sobre las celdas del tablero,
-con las intermedias ocupadas pagando `CROSS_COST` (`circuit/domain/routing.constants.ts`) en vez de
+con las intermedias ocupadas pagando `CROSS_COST` (`circuit/routing.constants.ts`) en vez de
 las dos puntas.
 
 **El tamaño del tablero es un parámetro, no una constante** (spec 031). `GRID_W`/`GRID_H` y `SEAM` se
@@ -119,7 +122,7 @@ de 5 piezas. El test `el ORDEN DE COLOCACION no cambia lo que suena` lo fija con
 colocación, pero sí depende de qué otras piezas están en el tablero al trazar el camino entre dos
 puertas. Es geometría y no reloj de pared: el mismo
 tablero suena siempre igual, porque `buildSequence` es aritmética pura sobre enteros. Hoy se lee
-también: el spec 010 agrega una cabeza lectora (`playback/ui/Playhead.tsx`) que recorre el tablero celda
+también: el spec 010 agrega una cabeza lectora (`playback/Playhead.tsx`) que recorre el tablero celda
 por celda leyendo `playheadOffset()` del motor — detalle en
 [docs/architecture/audio.md](../../docs/architecture/audio.md#la-cabeza-lectora).
 

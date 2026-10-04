@@ -159,7 +159,7 @@ src/
 │
 ├── board-editing/                # place, remove, mute, and the gestures that do it
 │   ├── domain/
-│   │   ├── board.ts              # cellsAt · isValid · cabeEn · occupantAt · occupantCellIndex
+│   │   ├── placement.ts              # cellsAt · isValid · cabeEn · occupantAt · occupantCellIndex
 │   │   ├── board.types.ts        #   PlacedPiece · Dims
 │   │   └── board.constants.ts    #   GRID_MIN · GRID_DEFAULT · MAX_PIEZAS
 │   │                             #   (the board size is a parameter)
@@ -213,7 +213,7 @@ src/
 │   │   ├── scheduler.ts          # collectHits · collectWindow (the swap at the cycle end) ·
 │   │   │                         #   barDuration · intervalDuration
 │   │   ├── engine.ts             # singletons and the API the UI consumes
-│   │   ├── playhead.ts           # offsetAt: the offset arithmetic of the playhead
+│   │   ├── playhead-offset.ts           # offsetAt: the offset arithmetic of the playhead
 │   │   ├── voice.types.ts · scheduler.types.ts
 │   │   ├── voice.constants.ts    #   the envelope, the three velocities and the click
 │   │   ├── scheduler.constants.ts #  LOOKAHEAD · TICK_MS · the subdivision · HIT
@@ -238,7 +238,7 @@ src/
 │
 ├── spectrum/                     # the signal on screen
 │   ├── audio/
-│   │   └── spectrum.ts           # pure mapping from FFT bins to bar heights
+│   │   └── spectrum-bars.ts           # pure mapping from FFT bins to bar heights
 │   └── ui/
 │       ├── Spectrum.tsx          # spectrum canvas: rAF + HiDPI, no props
 │       ├── spectrum-loop.ts      # the loop outside the .tsx: drawBars, drawIdle and iniciarEspectro
@@ -328,7 +328,7 @@ the test needs:
   - `.agents/scripts/__tests__/`: one per harness module. They also enter coverage.
 - **`browser`**: real Chromium, through Playwright, over `src/**/__tests__/*.browser.test.tsx`. There
   are 12: the six components, `App.tsx`, the accessibility-tree gate, the three hooks and
-  `playback/audio/engine.ts`. They render with `vitest-browser-react`. The `setupFiles` (`browser-setup.ts`)
+  `playback/engine.ts`. They render with `vitest-browser-react`. The `setupFiles` (`browser-setup.ts`)
   imports the stylesheet **once**. Without it, `z-10` is in the `className` and `getComputedStyle`
   returns `auto`: a layout test passes or fails for the wrong reason, in silence.
 
@@ -352,7 +352,7 @@ with `@types/jest`, `postcss` and `autoprefixer`, because none had a consumer. T
 for them (the transport button says what the clock does, not what it was asked) closed another way:
 the handler moved to a pure function (`engine-bridge.ts`) that receives the engine as a parameter.
 
-`pieces/ui/__tests__/palette.test.ts` tests constants, runs in the `node` project and mounts
+`pieces/__tests__/palette.test.ts` tests constants, runs in the `node` project and mounts
 nothing. The logic does not live in the components either: the derivation from `(x, y)` to the note
 name that `Board` shows is in the `domain/` layers (`occupantCellIndex` · `degreeByCellIndex` ·
 `playOrderByCellIndex` · `notesForRotation` · `midiName`), and the `.tsx` only indexes the result.
@@ -365,7 +365,7 @@ The pure domain functions were right; there was no test between the pure functio
 
 `route-source.test.ts` shows where the seam is: `route-source.ts` is **not** a component. It is the
 module singleton that mirrors the active/pending pair of the engine, so it has its own logic and its
-test mounts nothing. It mocks `playback/audio/engine.ts` with `vi.mock`, because it only uses
+test mounts nothing. It mocks `playback/engine.ts` with `vi.mock`, because it only uses
 `cycleGeneration()`, a number. Importing the real engine would pull in the `AudioContext` singleton
 to read a counter. The state belongs to the module, so each case imports it again after
 `vi.resetModules()`. Without that, the test order would be part of the oracle.
@@ -400,7 +400,7 @@ holds functions; its data, types and fixed values sit next to it in `<module>.co
 | test helper | `<capability>/<layer>/__tests__/` | descriptive name (`test-context.ts`) |
 | component | `src/<capability>/ui/` | `PascalCase.tsx`, **single export** |
 | new UI state | `useState` inside `App()` | there is no global state, and none is needed |
-| audio effect | `playback/ui/use-engine.ts`, next to the other four | see [audio.md](./audio.md) |
+| audio effect | `playback/use-engine.ts`, next to the other four | see [audio.md](./audio.md) |
 | hook that wires a module | next to the module | `use-<module>.ts`, kebab-case like the rest |
 | asset referenced by URL | `public/` | copied without processing |
 | architecture documentation | `docs/architecture/` | |

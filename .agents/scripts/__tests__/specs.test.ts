@@ -22,7 +22,7 @@ const ac = (n: number) => ['AC', 'ABC', String(n).padStart(3, '0')].join('-');
  * folder link intact.
  */
 const run = (specs: readonly SourceFile[], tests: readonly SourceFile[]) =>
-  audit(specs, tests, specs.flatMap(s => /^specs\/([^_/][^/]*)\/\1\.md$/.exec(s.path)?.slice(1).map(c => `src/${c}/domain/x.ts`) ?? []));
+  audit(specs, tests, specs.flatMap(s => /^specs\/([^_/][^/]*)\/\1\.md$/.exec(s.path)?.slice(1).map(c => `src/${c}/x.ts`) ?? []));
 
 describe('audit: shape', () => {
   it('a valid draft spec with no tests only reports', () => {
@@ -118,19 +118,20 @@ describe('audit: the code folder of each contract', () => {
   const alpha = spec('alpha', 'ABC', 'draft', BASE);
   const beta = spec('beta', 'BET', 'draft', BASE.replaceAll('ABC', 'BET'));
 
-  it('code in a layer folder passes, and so do the pointer, the shell and the files outside src/', () => {
+  it('flat code and its tests pass, and so do the pointer, the shell and the files outside src/', () => {
     const sources = [
-      'src/alpha/AGENTS.md', 'src/alpha/domain/a.ts', 'src/alpha/ui/__tests__/b.test.ts', 'src/alpha/audio/c.ts',
+      'src/alpha/AGENTS.md', 'src/alpha/a.ts', 'src/alpha/B.tsx', 'src/alpha/__tests__/b.test.ts',
+      'src/alpha/__tests__/__screenshots__/b.png',
       'src/App.tsx', 'src/styles/index.css', 'src/__tests__/d.browser.test.tsx', 'docs/x.md',
     ];
     expect(audit([alpha], [], sources).findings).toEqual([]);
   });
 
-  it('a file outside a layer, a folder with no contract and a contract with no code are red', () => {
-    const sources = ['src/alpha/a.ts', 'src/alpha/lib/b.ts', 'src/delta/domain/c.ts', 'src/beta/AGENTS.md'];
+  it('a file in a subfolder, a folder with no contract and a contract with no code are red', () => {
+    const sources = ['src/alpha/a.ts', 'src/alpha/lib/b.ts', 'src/alpha/ui/c/d.ts', 'src/delta/c.ts', 'src/beta/AGENTS.md'];
     expect(audit([alpha, beta], [], sources).findings).toEqual([
-      'src/alpha/a.ts: lies outside a layer folder of its capability (domain/, audio/, ui/)',
-      'src/alpha/lib/b.ts: lies outside a layer folder of its capability (domain/, audio/, ui/)',
+      'src/alpha/lib/b.ts: lies in a subfolder; a capability is flat, with only __tests__/ below it',
+      'src/alpha/ui/c/d.ts: lies in a subfolder; a capability is flat, with only __tests__/ below it',
       'src/delta/: no contract has its name; write specs/delta/delta.md',
       'specs/beta/beta.md: has no code in src/beta/',
     ]);
@@ -139,7 +140,7 @@ describe('audit: the code folder of each contract', () => {
   it('a superseded contract needs no code, and a folder left with its name is red', () => {
     const gone = spec('gamma', 'GAM', 'superseded', BASE.replaceAll('ABC', 'GAM'));
     expect(audit([gone], [], []).findings).toEqual([]);
-    expect(audit([gone], [], ['src/gamma/domain/a.ts']).findings).toEqual([
+    expect(audit([gone], [], ['src/gamma/a.ts']).findings).toEqual([
       'src/gamma/: no contract has its name; write specs/gamma/gamma.md',
     ]);
   });

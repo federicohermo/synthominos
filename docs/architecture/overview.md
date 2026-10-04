@@ -70,7 +70,7 @@ Los que había son ahora **dos archivos** de `ui/`, y el corte es el que la list
   de sostenerse por adyacencia.
 
 La **proyección** del `Sequence` del dominio al del motor es una pura, `proyectarAlMotor` en
-`playback/ui/engine-bridge.ts`: es el único módulo del repo que puede importar los dos tipos `Sequence`, y estaba
+`playback/engine-bridge.ts`: es el único módulo del repo que puede importar los dos tipos `Sequence`, y estaba
 escrita dos veces adentro del shell.
 
 ## Las cuatro capas
@@ -82,7 +82,7 @@ Sin React, sin audio, sin DOM. Determinísticas y testeables en aislamiento.
 | Módulo | Símbolos | Responsabilidad |
 |---|---|---|
 | `transform.ts` | `rotate90`, `normalize`, `rotateN`, `reflect`, `centroid`, `angleFromCentroid`, `pathThroughCells` | Transformaciones de un `Cell[]`, el centroide con el ángulo de cada celda a su alrededor, y el camino que recorre una forma celda vecina a celda vecina |
-| `board.ts` (board-editing) | `cellsAt`, `isValid`, `cabeEn`, `occupantAt`, `occupantCellIndex` | The rules of placement: where a piece lands, whether a move is legal, whether a piece fits whole in the board of now, and which cell of a piece falls on `(x, y)`. The board size arrives as a parameter |
+| `placement.ts` (board-editing) | `cellsAt`, `isValid`, `cabeEn`, `occupantAt`, `occupantCellIndex` | The rules of placement: where a piece lands, whether a move is legal, whether a piece fits whole in the board of now, and which cell of a piece falls on `(x, y)`. The board size arrives as a parameter |
 | `routing.ts` (circuit) | `costuraDe`, `routeBetween`, `rutador` | The graph the circuit walks: the seam that joins `(0,0)` with the opposite corner, and the cheapest route between two cells, where an occupied cell costs `CROSS_COST`. `rutador` is the cached entry that `buildSequence` uses |
 | `music.ts` | `midiFor`, `midiName`, `notesForRotation`, `arpeggioFor`, `degreeByCellIndex`, `angularRank` | De pieza + rotación a cinco notas MIDI, y de la forma a qué celda lleva cuál. `arpeggioFor` es la derivación completa —tónica, escala y retrógrado—, y la única fuente del arpegio de una pieza colocada. `angularRank` es el orden angular del spec 007, que desde el 012 solo desempata la dirección del camino |
 | `sequence.ts` | `buildSequence`, `cellsByPlayOrder`, `gates`, `noteAtCell` | El circuito que visita las piezas colocadas (Held-Karp sobre `routeBetween`) y los offsets del ciclo — orden, silencios y clicks. Las otras tres son las derivaciones celda↔nota que el circuito necesita y que no pueden vivir escondidas en su único consumidor: el orden de reproducción, las dos puertas de una pieza y qué nota suena en una celda (la que da su altura al cruce del spec 011) |
@@ -125,7 +125,7 @@ de claves `"x,y"`**: el índice de cada celda es lo que la conecta con su grado,
 ### 3. Audio — el motor y sus singletons
 
 `voice.ts` (síntesis), `scheduler.ts` (lookahead), `engine.ts` (singletons y la API que consume la UI)
-y `spectrum.ts` (el mapeo puro de bins a barras, separado del `AnalyserNode` para poder testearlo).
+y `spectrum-bars.ts` (el mapeo puro de bins a barras, separado del `AnalyserNode` para poder testearlo).
 El `AudioContext` es un singleton de módulo —uno por pestaña, no uno por componente— y vive **solo** en
 `engine.ts`: los otros dos lo reciben por parámetro y no importan `engine.ts`, así que el invariante que
 los hace testeables lo sostiene el grafo de imports. Detalle en [audio.md](./audio.md).
@@ -151,7 +151,7 @@ El [spec 001](https://github.com/federicohermo/pentomino-games/issues/63) reusa 
 mapeo celda↔nota. **Es un invariante del que ya depende código en producción**: romperlo (por ejemplo,
 haciendo que `normalize` filtre u ordene celdas) rompe la colocación de piezas de forma silenciosa.
 
-Desde el spec 005 hay una red: `checkArrayOrder()` de `pieces/domain/invariants.ts` lo verifica sobre las 96
+Desde el spec 005 hay una red: `checkArrayOrder()` de `pieces/invariants.ts` lo verifica sobre las 96
 combinaciones, y su test comprueba que el chequeo efectivamente **da rojo** si una transformación
 reordena.
 
@@ -161,7 +161,7 @@ Los loops de audio no se agendan ni cancelan desde los handlers. Un único `useE
 `[secuencia, placed]` y le entrega al motor la secuencia del recorrido con `setSequence`. `playing` no
 está en las dependencias: la secuencia es función del tablero y no del transporte.
 
-Ese efecto **no vive en el shell**: desde el spec 022 está en `playback/ui/use-engine.ts` con los otros
+Ese efecto **no vive en el shell**: desde el spec 022 está en `playback/use-engine.ts` con los otros
 tres de reconciliación, y `App.tsx` sigue sin declarar un solo `useEffect` —el 021 le agregó un hook más,
 `use-grid.ts`, y lo puso donde van todos: en `ui/`— (ver [Qué vive dónde](#qué-vive-dónde)). Lo
 que se queda en el shell es la **derivación** —`secuencia` es un `useMemo` sobre

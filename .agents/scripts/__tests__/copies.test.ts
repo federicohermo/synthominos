@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { COPIES, GENERATED_MARK, contractPointer, differences, planCopies, realDisk, rebaseLinks, ruleFolders, sync, type Disk, type Tree } from '../copies.ts';
+import { COPIES, GENERATED_MARK, contractSection, differences, planCopies, realDisk, rebaseLinks, ruleFolders, sync, type Disk, type Tree } from '../copies.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -27,7 +27,7 @@ function fakeDisk(initial: Tree) {
 describe('ruleFolders: the static prefix of each glob, minimal cover', () => {
   it.each([
     [['src/audio/**/*.ts', 'src/components/Spectrum.tsx'], ['src/audio', 'src/components']],
-    [['src/*/audio/**/*.ts', 'src/spectrum/ui/Spectrum.tsx'], ['src']],
+    [['src/playback/**', 'src/spectrum/Spectrum.tsx', 'src/**/*.tsx'], ['src']],
     [['src/**/*.{ts,tsx}', 'src/components/**/*.tsx', 'mcp-server/src/**/*.ts'], ['mcp-server/src', 'src']],
     [['specs/**'], ['specs']],
     [['README.md'], ['']],
@@ -89,7 +89,7 @@ describe('planCopies', () => {
     expect(agents).toContain('> Applies to `src/App.tsx`.\n\n# A');
   });
 
-  it('writes the pointer of each contract into its code folder, and reports a rule that writes there too', () => {
+  it('opens the AGENTS.md of a capability folder with its contract, then the rules that cover it', () => {
     const contract = (code: string) => `---\ncapability_id: CAP-${code}\nstatus: draft\n---\n\n# Capability: ${code}\n`;
     const plan = planCopies(new Map([
       ...sources(),
@@ -99,9 +99,13 @@ describe('planCopies', () => {
       ['specs/alpha/notes.md', 'a companion file'],
       ['.agents/rules/b.md', rule(['src/beta/**'], '# B\n')],
     ]));
-    expect(plan.files.get('src/alpha/AGENTS.md')).toBe(contractPointer('alpha', contract('ALP')));
-    expect([...plan.files.keys()].filter(f => f.startsWith('src/'))).toEqual(['src/beta/AGENTS.md', 'src/alpha/AGENTS.md']);
-    expect(plan.problems).toEqual(['src/beta/AGENTS.md: a rule and the contract of `beta` both write it']);
+    expect(plan.files.get('src/alpha/AGENTS.md')).toBe(
+      `${GENERATED_MARK} from \`specs/alpha/alpha.md\`. Edit the source. -->\n\n${contractSection('alpha', contract('ALP'))}`);
+    const beta = plan.files.get('src/beta/AGENTS.md') ?? '';
+    expect(beta.startsWith(`${GENERATED_MARK} from \`specs/beta/beta.md\`, \`.agents/rules/b.md\`.`)).toBe(true);
+    expect(beta.indexOf('# Capability: BET')).toBeLessThan(beta.indexOf('# B'));
+    expect([...plan.files.keys()].filter(f => f.startsWith('src/')).sort()).toEqual(['src/alpha/AGENTS.md', 'src/beta/AGENTS.md']);
+    expect(plan.problems).toEqual([]);
   });
 
   it('reports a missing source, a reach into another skill, an undeclared copy and a root rule', () => {
@@ -122,22 +126,21 @@ describe('planCopies', () => {
   });
 });
 
-describe('contractPointer', () => {
+describe('contractSection', () => {
   const contract = (status: string) =>
     `---\nschema_version: 1\n# a note\ncapability_id: CAP-ABC\nstatus: ${status}\n---\n\n# Capability: alpha beta\n\nbody\n`;
 
   it('points the code folder at its contract, with its title and its code', () => {
-    const pointer = contractPointer('alpha', contract('draft')) ?? '';
-    expect(pointer.startsWith(`${GENERATED_MARK} from \`specs/alpha/alpha.md\`.`)).toBe(true);
-    expect(pointer).toContain('\n# Capability: alpha beta\n');
-    expect(pointer).toContain('[`specs/alpha/alpha.md`](../../specs/alpha/alpha.md), `CAP-ABC`');
-    expect(pointer).toContain('`AC-ABC-###`');
-    expect(pointer).toContain('[`src/AGENTS.md`](../AGENTS.md)');
+    const section = contractSection('alpha', contract('draft')) ?? '';
+    expect(section.startsWith('# Capability: alpha beta\n')).toBe(true);
+    expect(section).toContain('[`specs/alpha/alpha.md`](../../specs/alpha/alpha.md), `CAP-ABC`');
+    expect(section).toContain('`AC-ABC-###`');
+    expect(section).toContain('[`src/AGENTS.md`](../AGENTS.md)');
   });
 
-  it('a superseded contract gets no pointer, and a contract with no title uses the folder name', () => {
-    expect(contractPointer('alpha', contract('superseded'))).toBeNull();
-    expect(contractPointer('alpha', 'no frontmatter, no title')).toContain('\n# alpha\n');
+  it('a superseded contract gets no section, and a contract with no title uses the folder name', () => {
+    expect(contractSection('alpha', contract('superseded'))).toBeNull();
+    expect(contractSection('alpha', 'no frontmatter, no title')).toContain('# alpha\n');
   });
 });
 
