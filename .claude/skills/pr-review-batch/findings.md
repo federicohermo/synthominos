@@ -64,7 +64,7 @@ Run two probes, in this order:
    claims. Count again with a narrow pathspec: a count over `src` that also takes
    `mcp-server/src/` is the classic wrong number.
 2. **Find the twin of the paragraph the PR did update.** A change here is stated in several
-   places: `CLAUDE.md`, `docs/`, `.claude/rules/`, the skills. Grep the key of the change (the
+   places: `AGENTS.md`, `docs/`, `.agents/rules/`, the skills. Grep the key of the change (the
    file name, the old figure) across them.
 
 A comment or doc that contradicts the code next to it is 🔴, not 🟡. `CLAUDE.md` loads in every

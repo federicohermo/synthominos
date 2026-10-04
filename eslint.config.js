@@ -386,9 +386,9 @@ export default tseslint.config([
       // arranque sin una corrida completa sobre la que amortizarlo. O sea que el sobrecosto
       // se paga por turno, no una vez por PR.
       //
-      // Si algun dia se enciende igual, el cambio NO es una linea: `CLAUDE.md` y
-      // `docs/guides/verificacion.md` dicen «23,7 s en paralelo contra 41,2 s en serie» y
-      // `lint` es el nodo largo de ese paralelo, asi que las dos frases dejan de ser ciertas.
+      // Si algun dia se enciende igual, el cambio NO es una linea:
+      // `docs/guides/verification.md` da 23,7 s en paralelo contra 41,2 s en serie, y
+      // `lint` es el nodo largo de ese paralelo, asi que esa medicion deja de ser cierta.
 
       // Los tres tsconfig tienen `verbatimModuleSyntax: true`, o sea que importar un tipo
       // sin `type` ROMPE EL BUILD en vez de avisar. La regla es autofixable: el error deja
@@ -578,7 +578,7 @@ export default tseslint.config([
     // a proposito**: implementa *roving tabindex*, o sea que la celda del cursor lleva
     // `tabIndex={0}` y las otras `-1` (`Board.tsx:184`), y el foco se mueve con las flechas.
     // Un contenedor focusable MAS celdas focusables daria 61 paradas de tabulacion donde el
-    // patron correcto pide una, y es literalmente lo que `.claude/rules/ui.md` documenta:
+    // patron correcto pide una, y es literalmente lo que `.agents/rules/ui.md` documenta:
     // «una region compuesta es UNA parada de tabulacion, y adentro se mueve con las flechas».
     //
     // **(b) `no-static-element-interactions`** — `Board.tsx:311`, el envoltorio posicionado
@@ -781,8 +781,8 @@ export default tseslint.config([
     extends: [markdown.configs.recommended],
     rules: {
       // Apagada porque **arreglar lo que marca lo rompe de verdad**. Su slugger no coincide con el de GitHub sobre un encabezado
-      // con backticks y guion bajo, asi que declara roto el unico enlace de
-      // `docs/guides/mcp-domain.md` que apunta a `#find_symbol`, que en GitHub resuelve.
+      // con backticks y guion bajo: un enlace a `#find_symbol`, que en GitHub resuelve, sale
+      // roto.
       // Lo que si se verifica —enlaces y anclas, con el slugger correcto— es
       // `docs/__tests__/enlaces-resueltos.test.ts`, que ademas cubre los enlaces a OTRO
       // archivo, que esta regla no mira.

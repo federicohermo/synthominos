@@ -1,16 +1,16 @@
-# Inicio Rápido
+# Quickstart
 
-## Requisitos Previos
+## Prerequisites
 
-- **Node ≥ 20.19 o ≥ 22.12.** No es una recomendación: Vite 7 lo declara en `engines`
-  (`^20.19.0 || >=22.12.0`) y con Node 18 el build falla.
-- **Node ≥ 22.18 si además se quiere el MCP server**, que corre TypeScript sin compilar. Es un piso más
-  alto y **solo para el tooling**: con Node 20 el server no arranca y la app, el build y el deploy
-  siguen igual.
-- **pnpm** (el repo versiona `pnpm-lock.yaml`). La versión está fijada en `packageManager` dentro del
-  `package.json`; con Corepack activado (`corepack enable pnpm`) no hace falta instalarlo a mano.
+- **Node ≥ 20.19 or ≥ 22.12.** This is a requirement, not advice. Vite 7 declares it in `engines`
+  (`^20.19.0 || >=22.12.0`), and the build fails on Node 18.
+- **Node ≥ 22.18 for the tooling.** The MCP server and the harness scripts in `.agents/scripts/` run
+  TypeScript without a build. On Node 20 they do not start. The app, the build and the deploy do not
+  change.
+- **pnpm.** The repo tracks `pnpm-lock.yaml`. `packageManager` in `package.json` pins the version.
+  With Corepack on (`corepack enable pnpm`), you do not install pnpm by hand.
 
-## Instalación
+## Install
 
 ```bash
 pnpm install
@@ -18,194 +18,179 @@ pnpm exec playwright install chromium
 pnpm dev
 ```
 
-Desde la raíz del repo: no hay subdirectorio de app.
+Run the commands from the repo root. The app has no subfolder.
 
-**El segundo comando hace falta una sola vez, y no se puede saltear si vas a correr los tests.** Es
-para el **clone local**: en CI lo hace el workflow del spec 023, con `--with-deps` porque el runner de
-Ubuntu tampoco trae las librerías de sistema que Chromium pide.
-Desde el spec 029 los tests de `src/` son dos proyectos de Vitest y uno corre en un Chromium de
-verdad —es la única forma de cubrir el canvas del espectro y el `AudioContext` del motor—. El binario
-del navegador **no está en el lockfile**, así que `pnpm install` no lo trae y `pnpm verify` falla con
-un error de Playwright hasta que se lo instala. Ocupa ~700 MB en la caché del usuario
-(`%LOCALAPPDATA%\ms-playwright` en Windows, `~/.cache/ms-playwright` en Linux) y se comparte entre
-todos los repos de la máquina.
+**You need the second command once, and the tests do not run without it.** It is for a **local
+clone**. In CI, the workflow runs it with `--with-deps`, because the Ubuntu runner does not have the
+system libraries that Chromium needs.
 
-El dev server queda en `http://localhost:5173`. Para fijar otro puerto:
+The tests are two Vitest projects, and one runs in a real Chromium. It is the only way to cover the
+spectrum canvas and the engine `AudioContext`. The browser binary **is not in the lockfile**. So
+`pnpm install` does not get it, and `pnpm verify` fails with a Playwright error until you install it.
+It takes ~700 MB in the user cache (`%LOCALAPPDATA%\ms-playwright` on Windows,
+`~/.cache/ms-playwright` on Linux). All repos on the machine share it.
+
+The dev server listens on `http://localhost:5173`. To set a different port:
 
 ```bash
 pnpm exec vite --port 5199 --strictPort
 ```
 
-`--strictPort` hace que falle si el puerto está ocupado, en vez de saltar en silencio al siguiente —
-útil cuando algo tiene que estar en un puerto conocido.
+With `--strictPort`, Vite fails when the port is busy. Without it, Vite silently moves to the next
+port. Use it when something must be on a known port.
 
-**No hay variables de entorno que configurar.** La app es enteramente cliente.
+**There are no environment variables to set.** The app runs entirely in the client.
 
-### Los specs no vienen en el clone
+The capability contracts (`specs/<capability>/<capability>.md`) are tracked in git. A clone gets
+all of them, and `rg` finds them with no extra flag.
 
-Desde el spec 034 cada spec **es un issue** y `specs/[0-9]*/` está en el `.gitignore`, así que a un
-clone nuevo llegan **4** archivos de `specs/` —`README.md`, `mapa.json` y los dos gates de
-`__tests__/`— y no 136. Ninguno es un spec: el directorio es una **caché**, y se trae:
-
-```bash
-node .claude/scripts/hidratar-specs.mjs           # los que están en vuelo y falten
-node .claude/scripts/hidratar-specs.mjs 021       # o uno solo, esté como esté
-node .claude/scripts/hidratar-specs.mjs --todos   # los 42, cerrados incluidos
-```
-
-**El default trae sólo los que siguen en vuelo** (spec 038): el caso normal es querer el spec que se
-está implementando, no los 42. Para leer uno ya cerrado va su `<NNN>`, y para lo que mira el árbol
-entero —la prueba fuerte del 034, o un `pnpm verify` que quiera ejercitar de verdad los gates de
-`specs/`— va `--todos`, porque esos gates corren `runIf(HIDRATADOS > 0)` y con el default pasarían
-habiendo mirado un solo spec. Las tres formas dicen cuántas saltearon y por qué.
-
-Necesita [`gh`](https://cli.github.com/) autenticado, y hay que correrlo **en cada worktree**:
-`git worktree add` hace checkout de lo trackeado, y un archivo ignorado no viaja. No hace falta para
-`pnpm verify` —los gates saben en qué régimen están (spec 034) y no exigen las carpetas—, sí para
-leer o auditar un spec. El mapa spec↔issue es la columna del enlace de
-[`specs/mapa.json`](../../specs/mapa.json).
-
-**Buscar dentro de los specs necesita `--no-ignore`.** Leerlos no: `.gitignore` es cosa de git y no
-del sistema de archivos. Pero ripgrep lo respeta, así que `rg "lo que sea" specs/` devuelve cero
-resultados **sin decir que no miró**.
-
-## Comandos
+## Commands
 
 ```bash
-pnpm dev            # Dev server con HMR
+pnpm dev            # Dev server with HMR
 pnpm build          # tsc -b && vite build → dist/
 pnpm lint           # ESLint
-pnpm preview        # Sirve dist/ como lo haría producción
-pnpm test           # Vitest: los dos proyectos, sin instrumentar
-pnpm coverage       # Vitest con coverage y umbral 100 en las cuatro métricas
-pnpm suite          # test y después coverage, que es lo que corre verify
-pnpm verify         # lint ‖ typecheck ‖ suite ‖ mcp:test — el nodo de convergencia
-pnpm mcp:test       # MCP server: typecheck + node --test, con umbral 100
-pnpm mcp:typecheck  # MCP server: solo tsc
+pnpm preview        # Serves dist/ the way production does
+pnpm test           # Vitest: the two projects, without instrumentation
+pnpm coverage       # Vitest with coverage, threshold 100 on all four metrics
+pnpm suite          # test, then coverage: this is what verify runs
+pnpm verify         # lint ‖ typecheck ‖ suite ‖ mcp:test: the convergence node
+pnpm mcp:test       # MCP server: typecheck + node --test, threshold 100
+pnpm mcp:typecheck  # MCP server: tsc only
 ```
 
-`pnpm install` desde la raíz instala los **dos** paquetes del workspace: la app y `mcp-server/`. No hay
-que entrar a la carpeta ni pasar prefijos.
+`pnpm install` from the root installs **both** workspace packages: the app and `mcp-server/`. You do
+not enter the folder or pass a prefix.
 
-`pnpm build` corre el typecheck **antes** del bundle. Un error de tipos rompe el build aunque el
-código funcione en dev, donde Vite no typechequea.
+`pnpm build` runs the typecheck **before** the bundle. A type error breaks the build even when the
+code works in dev, because Vite does not typecheck.
 
-Para verificar tipos sin buildear:
+To check types without a build:
 
 ```bash
 pnpm exec tsc -b --noEmit
 ```
 
-## Cómo se toca
+## How to play it
 
-De los cuatro gestos que gobiernan la pieza **por colocar**, los de rotar y reflejar son desde el
-spec 019 la **única** vía: los botones que hacían lo mismo eran el camino lento al mismo lugar y se
-borraron —elegir la pieza sí conserva su segunda vía, las doce miniaturas—. El panel se
-queda como quien **muestra** el estado, y por eso los atajos siguen descubriéndose solos: se rota con
-la rueda y la línea de orientación de la paleta pasa de `0°` a `90°`. Ese lector no es decorativo —es
-la mitad del trabajo que hacían los botones—: la miniatura no puede decir la orientación entera, y en
-29 de las 96 combinaciones dos orientaciones se ven idénticas y suenan distinto (la `X` rotada cuatro
-veces es el caso extremo: cuatro arpegios, una sola forma).
+Four gestures control the piece **to place**. Rotate and reflect have **no other path**. The buttons
+that did the same thing were the slow path to the same place, so they were deleted. Select keeps its
+second path: the twelve thumbnails.
 
-| Gesto | Qué hace | Dónde escucha |
+The panel **shows** the state, so the shortcuts stay discoverable. Turn the wheel, and the
+orientation line of the palette goes from `0°` to `90°`. That readout is not decoration: it does
+half the work the buttons did. A thumbnail cannot show the full orientation. In 29 of the 96
+combinations, two orientations look identical and sound different. The `X` is the extreme case: four
+rotations, four arpeggios, one shape.
+
+| Gesture | What it does | Where it listens |
 |---|---|---|
-| Rueda abajo / arriba | Rotación `+90°` / `−90°` | Solo sobre el tablero |
-| `Shift` (tap) | Rotación `+90°` | Toda la ventana, al **soltar** |
-| Botón derecho | Alterna la reflexión | Solo sobre el tablero |
-| `Ctrl` (tap) | Alterna la reflexión | Toda la ventana, al **soltar** |
-| Barra espaciadora | Play / pausa | Toda la ventana |
-| `F I L N P T U V W X Y Z` | Selecciona esa pieza | Toda la ventana, al **apretar** |
-| Click en una celda | Coloca la pieza y la escucha | El tablero |
+| Wheel down / up | Rotation `+90°` / `−90°` | Only over the board |
+| `Shift` (tap) | Rotation `+90°` | The whole window, on **release** |
+| Right button | Toggles the reflection | Only over the board |
+| `Ctrl` (tap) | Toggles the reflection | The whole window, on **release** |
+| Space bar | Play / pause | The whole window |
+| `F I L N P T U V W X Y Z` | Selects that piece | The whole window, on **press** |
+| Click on a cell | Places the piece and plays it | The board |
 
-Tres cosas que parecen bugs y no lo son:
+Three things look like bugs and are not:
 
-- **Con el cursor sobre el tablero la página no scrollea.** Es el precio de que la rueda rote sin
-  scrollear a la vez, que sería peor que no rotar. Queda toda la paleta, el panel de señal y el margen
-  para scrollear, y es el trato que hace cualquier mapa embebido.
-- **`Ctrl`+rueda hace el zoom del navegador y no rota**, y `Ctrl`+C no da vuelta la reflexión. Los
-  modificadores actúan al **soltar** y solo si mientras estuvieron abajo no llegó otra tecla ni la
-  rueda: un gesto del sistema le gana a uno nuestro.
-- **Con el botón de Play enfocado, la barra activa ese botón** — y con el foco sobre `↺`, vacía el
-  tablero. Es el comportamiento nativo, y es el correcto: el foco dice qué control está armado.
+- **With the cursor over the board, the page does not scroll.** This is the cost of a wheel that
+  rotates without a scroll at the same time, which is worse than no rotation. The palette, the
+  signal panel and the margin still scroll. Every embedded map makes the same deal.
+- **`Ctrl`+wheel zooms the browser and does not rotate**, and `Ctrl`+C does not toggle the
+  reflection. A modifier acts on **release**, and only if no other key and no wheel event came while
+  it was down. A system gesture wins over ours.
+- **With the Play button focused, the space bar activates that button.** With the focus on `↺`, it
+  clears the board. This is the native behavior, and it is correct: the focus says which control is
+  armed.
 
-Desde el spec 026 **el tablero también se toca con el teclado**, y es **una** parada de tabulación:
-un `Tab` entra y otro lo pasa de largo. Adentro se mueve con las flechas —`Home` y `End` van a los
-extremos de su fila—, `Enter` y la barra hacen lo mismo que un click, y `Alt`+ellos lo mismo que
-`Alt`+click. La celda enfocada **es** el cursor, así que el fantasma y la nota son los mismos que con
-el mouse. Con una celda enfocada la barra deja de alternar el transporte —la usa el tablero para
-colocar— pero `Shift` y `Ctrl` siguen rotando y reflejando: el tablero se lleva la barra, el `Enter` y
-las flechas, y nada más.
+**The board also takes the keyboard**, and it is **one** tab stop. One `Tab` enters it and the next
+one leaves it. Inside, the arrows move the focus, and `Home` and `End` go to the ends of the row.
+`Enter` and the space bar do the same as a click, and `Alt` plus either does the same as `Alt`+click.
+The focused cell **is** the cursor, so the ghost and the note are the same as with the mouse. With a
+cell focused, the space bar does not toggle the transport: the board uses it to place. `Shift` and
+`Ctrl` still rotate and reflect. The board takes the space bar, `Enter` and the arrows, and nothing
+else.
 
-## Flujos de trabajo típicos
+## Typical workflows
 
-### Agregar una pieza o cambiar una forma
+### Add a piece or change a shape
 
-1. Editar `SHAPES` en `src/domain/constants/pieces.constants.ts`. Las coordenadas son `[x, y]` con `y`
-   creciendo **hacia abajo**.
-2. Si se agrega una pieza, agregarla a `PieceKey` en `domain/types/pieces.types.ts` y actualizar
-   `BASE_MAP` (su tónica, en `music.constants.ts`) y `ANCHOR_INDEX` (su celda de agarre, como índice
-   dentro del array de celdas). Los tres son `Record<PieceKey, …>`, así que olvidarse de uno **no
-   compila**.
-3. Verificar que la celda de agarre elegida sea una celda **central**: es la que queda bajo el cursor, y
-   si cae en un hueco del bounding box la colocación se siente rota.
+1. Edit `SHAPES` in `src/domain/constants/pieces.constants.ts`. Coordinates are `[x, y]`, and `y`
+   grows **down**.
+2. To add a piece, add it to `PieceKey` in `domain/types/pieces.types.ts`. Then update `BASE_MAP`
+   (its tonic, in `music.constants.ts`) and `ANCHOR_INDEX` (its grab cell, as an index into the cell
+   array). All three are `Record<PieceKey, …>`, so a missing entry **does not compile**.
+3. Make sure the grab cell is a **central** cell. It is the cell under the cursor. If it falls in a
+   hole of the bounding box, placement feels broken.
 
-### Cambiar cómo suena algo
+### Change how something sounds
 
-Para el **timbre**, `DEFAULT_VOICE` en `src/audio/constants/voice.constants.ts` (ADSR y tipo de onda): alcanza con tocarlo
-ahí, porque los dos caminos de reproducción pasan por `scheduleVoice()`. Agregar un test de envolvente
-si se cambia la forma.
+For the **timbre**, edit `DEFAULT_VOICE` in `src/audio/constants/voice.constants.ts` (ADSR and
+waveform). One edit is enough, because both playback paths go through `scheduleVoice()`. If you change
+the envelope shape, add an envelope test.
 
-Para el **espaciado del arpegio**, una sola definición usada en dos lugares: `intervalDuration(bpm)` la
-fija, y tanto `playNotes()` (el disparo al colocar) como `collectHits()` (el loop) la consumen. Tocar la
-definición alcanza para los dos. Detalle en
-[audio.md](../architecture/audio.md#los-dos-caminos-de-reproducción).
+For the **arpeggio spacing**, one definition serves two places. `intervalDuration(bpm)` sets it, and
+both `playNotes()` (the trigger on placement) and `collectHits()` (the loop) read it. One edit covers
+both. Detail in [audio.md](../architecture/audio.md#los-dos-caminos-de-reproducción).
 
-**No romper la inyección del contexto**: `scheduleVoice` y `collectHits` reciben el `AudioContext` por
-parámetro. Si empiezan a tomarlo del singleton, dejan de ser testeables.
+**Do not break the context injection.** `scheduleVoice` and `collectHits` receive the `AudioContext`
+as a parameter. If they take it from the singleton, you cannot test them.
 
-### Verificar audio sin oírlo
+### Check audio without listening
 
-En tests, `OfflineAudioContext` renderiza determinísticamente y permite afirmar sobre frecuencia,
-envolvente e instantes. En el navegador, `sequenceInfo()` —pasos, clicks mudos, cruces con altura y
-largo del ciclo de la secuencia activa— y el conteo de osciladores. Recetas en
+In tests, `OfflineAudioContext` renders deterministically, and a test can assert frequency, envelope
+and onsets. In the browser, use `sequenceInfo()` (steps, silent clicks, crossings with pitch, and
+cycle length of the active sequence) and the oscillator count. Recipes in
 [audio.md](../architecture/audio.md#cómo-verificar-el-audio).
 
-### Preguntarle al modelo en vez de simularlo
+### Ask the model instead of simulating it
 
-Antes de derivar a mano qué notas suenan, qué forma queda o qué onsets produce un tablero, están las
-tools del MCP server: `describe_piece`, `simulate_board`, `check_invariants` y `spec_status`. Ejecutan
-las funciones puras reales, así que responden lo que el código hace hoy. Catálogo y recetas en
-[mcp-domain.md](./mcp-domain.md).
+Before you derive by hand which notes sound, which shape results or which onsets a board makes, ask
+the MCP server tools: `describe_piece`, `simulate_board`, `check_invariants` and `find_symbol`. The
+first three run the real pure functions, so they answer what the code does today. Catalog and
+recipes in [mcp-domain.md](./mcp-domain.md).
 
-### Antes de un cambio grande
+### Before a change
 
-Escribir los cuatro archivos y publicarlo como issue con `node .claude/scripts/publicar-spec.mjs`,
-que le escribe su entrada en [`specs/mapa.json`](../../specs/mapa.json) —lo único del spec que se
-commitea— y recién ahí sacar la rama de feature. Ver [specs/README.md](../../specs/README.md).
+An issue is not a spec. The issue is the disposable plan of one change, in the
+[task-brief](../../.github/ISSUE_TEMPLATE/task-brief.md) format, and its PR closes it. The spec is
+the durable contract of one capability. An issue touches a spec only if it changes what the
+instrument does.
 
-## Verificación antes de un PR
+1. **Interview** when anything is assumed: skill `shape`. It writes nothing.
+2. **Write the issue**: skill `to-issue`.
+3. **Write the spec** only when the change creates, modifies or deletes behavior: skill `to-spec`.
+   It is the first commit of the `feature/` branch, or of `bugfix/` if the bug was an unwritten rule.
+4. **Implement**: skill `implement-feature`, test first.
+
+The contract rules are in [`.agents/rules/specs.md`](../../.agents/rules/specs.md). The branch
+prefixes, and what the hook blocks, are in [branches.md](../infra/branches.md).
+
+## Checks before a PR
 
 ```bash
-pnpm verify                 # lint ‖ typecheck ‖ suite ‖ mcp:test — los cuatro, en paralelo
-pnpm build                  # build completo
-pnpm preview                # y probarlo a mano
+pnpm verify                 # lint ‖ typecheck ‖ suite ‖ mcp:test: all four, in parallel
+pnpm build                  # full build
+pnpm preview                # and try it by hand
 ```
 
-`pnpm verify` es el nodo de convergencia y reemplaza a correr los cuatro a mano: un nodo rojo devuelve
-exit 1. Medido con caché caliente, 41,2 s en serie contra 23,7 s en paralelo.
+`pnpm verify` is the convergence node, and it replaces a manual run of the four. A red node returns
+exit 1. Measured with a warm cache: 41.2 s in series against 23.7 s in parallel.
 
-**Y ya no depende de que te acuerdes.** Desde el spec 023, `.github/workflows/verify.yml` corre ese
-mismo comando sobre cada `pull_request` y cada push a `main`. Corre el script y no la lista de nodos:
-así el YAML no se entera cuando la forma de `verify` cambia —el 029 le cambió `test` por `suite` y una
-lista habría seguido en verde sin el gate de coverage—. Correrlo local sigue valiendo la pena: es más
-rápido enterarse acá que en el PR.
+**It does not depend on your memory.** `.github/workflows/verify.yml` runs the same command on each
+`pull_request` and on each push to `staging` and `main`. It runs the script, not a list of nodes, so
+the YAML does not need a change when the shape of `verify` changes. When `test` became `suite`, a
+list would have stayed green without the coverage gate. A local run is still worth it: you learn
+faster here than in the PR.
 
-`pnpm mcp:test` no es opcional al tocar `src/domain/` o `src/audio/`: el server importa esos módulos con
-node crudo, y un import sin extensión **no** rompe el build de la app. Desde el spec 030 ese caso lo
-ataja antes `pnpm lint`, sobre el repo entero; `mcp:test` sigue siendo el que verifica que los módulos
-*carguen* de verdad con node.
+`pnpm mcp:test` is not optional when you touch `src/domain/` or `src/audio/`. The server imports
+those modules with plain node, and an import without an extension **does not** break the app build.
+`pnpm lint` catches that case first, on the whole repo. `mcp:test` still checks that the modules
+really *load* in node.
 
-Los tests corren en **dos proyectos**: los `*.test.ts` en Node contra `node-web-audio-api`, y los
-`*.browser.test.tsx` en un Chromium de verdad por Playwright. En jsdom no corre ninguno. **Chromium no
-está en el lockfile**: un clone nuevo necesita `pnpm exec playwright install chromium` antes del primer
+The tests run in **two projects**: `*.test.ts` in Node against `node-web-audio-api`, and
+`*.browser.test.tsx` in a real Chromium through Playwright. None runs in jsdom. **Chromium is not in
+the lockfile**: a fresh clone needs `pnpm exec playwright install chromium` before the first
 `verify`.

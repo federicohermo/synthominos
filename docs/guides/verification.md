@@ -1,249 +1,230 @@
-# Verificación
+# Verification
 
-Todo lo que `pnpm verify` hace y por qué tiene la forma que tiene. Es el detalle que
-[`CLAUDE.md`](../../CLAUDE.md) resume en cinco líneas: allá vive la afirmación y el número medido,
-acá el razonamiento que los produjo.
+This page explains what `pnpm verify` does and why it has its shape.
+[`AGENTS.md`](../../AGENTS.md) states each rule and its measured number in one line. This page
+gives the reasoning behind them.
 
-Nada de esto es preferencia. Cada decisión llegó midiendo, y varias llegaron después de que algo
-fallara **en verde** — que es el modo de falla que este documento persigue de punta a punta.
+None of it is preference. Each decision comes from a measurement. Several came after a check
+failed **green**: it reported success and verified nothing. This document hunts that failure mode
+from start to end.
 
-## `pnpm verify` es el nodo de convergencia
+## `pnpm verify` is the convergence node
 
-Corre `lint ‖ typecheck ‖ suite ‖ mcp:test` en paralelo y es lo que hay que correr antes de un PR.
-Medido con caché caliente: **41,2 s en serie contra 23,7 s en paralelo**, y un nodo rojo devuelve
-exit 1.
+It runs `lint ‖ typecheck ‖ suite ‖ mcp:test` in parallel. Run it before every PR. Measured with a
+warm cache: **41.2 s in series against 23.7 s in parallel**. A red node returns exit 1.
 
-**Y desde el spec 023 no depende de que alguien se acuerde:** `.github/workflows/verify.yml` lo corre
-sobre cada `pull_request` y cada push a `main`, con Chromium instalado por el propio workflow.
+**It does not depend on memory.** `.github/workflows/verify.yml` runs it on each `pull_request` and
+on each push to `staging` and `main`. The workflow installs Chromium itself.
 
-El workflow corre el **script**, no la lista de nodos, y el porqué está comentado ahí: la forma exacta
-de `verify` ya costó dos trampas, y enumerarla en el YAML crearía un segundo lugar donde vive. La
-evidencia no es hipotética — el 029 le cambió `test` por `suite`, y un workflow con la lista habría
-seguido en verde sin el gate de coverage.
+The workflow runs the **script**, not the list of nodes. The YAML comment gives the reason: the
+exact shape of `verify` already cost two traps, and a list in the YAML is a second place where
+that shape lives. The evidence is real. The node `test` became `suite` once. A workflow with the
+list kept `test` and stayed green without the coverage gate.
 
-### Desde el 043 los workflows son dos, y el segundo no verifica: escribe
+### Two parts of its exact shape are not cosmetic
 
-`.github/workflows/mapa.yml` corre sólo en el push a `main` y **deriva `specs/mapa.json`** desde los
-PR y los issues, commiteándolo si cambió. Tarda ~20 s contra los 87 s de `verify`, porque no instala
-dependencias ni baja Chromium: `.claude/scripts/lib/specs.ts` no importa nada y node corre el `.ts`
-directo.
+The script is `pnpm --filter "{.}" run --parallel "/^(…)$/"`. Both parts were found by failing
+green:
 
-Ese mismo spec le dio a `verify` los permisos que le faltaban —`issues: read` y `pull-requests: read`,
-más `GH_TOKEN`—, y con eso **el gate del mapa deja de saltearse en la CI**. Estaba salteándose desde
-que existe: el runner trae `gh`, pero el token sólo tenía `Contents: read`, así que las dos consultas
-fallaban y el gate declaraba «sin `gh` disponible» — 7 de sus 17 tests, en verde.
+- **`--filter "{.}"` is mandatory.** `--parallel` is a recursive workspace flag and **excludes
+  the root package**. Without the filter, it runs only the scripts of `mcp-server` and reports
+  success. It never runs `lint`, `typecheck` or `test` of the app. The filter selects **by path**
+  (`{.}`), not by name, so a package rename cannot silence it again.
+- **The `$` of the regex is not decoration.** Without it, the pattern also matches `test:watch`
+  and starts a second Vitest. Measured: in a non-interactive shell it does not hang, because
+  Vitest without a TTY does not enter watch mode. The visible cost is duplicate work. In an
+  interactive terminal it waits for input. The anchor removes the question.
 
-**El token va sólo en el trigger `pull_request`, y es deliberado.** En el push a `main` de un merge de
-spec conviven un mapa que todavía dice `Propuesto` y un PR ya mergeado —la condición que el gate
-declara mentira— porque `mapa.yml` corre **en paralelo** con `verify`, no antes. Con el token puesto
-en los dos triggers, cada merge de spec dejaría `main` en rojo con un rojo ya arreglado. En el PR el
-gate confirma; en `main` la Action corrige. El comentario del YAML tiene las dos alternativas que se
-descartaron.
+## `suite` is TWO Vitest passes, in sequence and not in parallel
 
-Lo que sigue salteándose en la CI es el tercer bloque del gate, el que exige `pendientes: 0` a los
-specs cerrados: necesita `specs/` hidratado, que desde el 034 es caché. Se saltea **declarándolo**,
-que es la diferencia entre un gate que no aplica y uno que se apagó.
+First `test` runs without instrumentation. Then `coverage` runs, with a threshold of **100** on all
+four metrics. Two measured reasons decide the shape:
 
-### Su forma exacta tiene dos cosas que no son cosméticas
+- **Instrumentation measures the instrument.** v8 inserts a counter in each branch. The two
+  performance budgets of the circuit go from 1.8 ms to **11.3 ms** against a ceiling of 5 ms. A
+  `skipIf` skips them under coverage, and the clean pass verifies the budget **locally**. The same
+  `skipIf` skips them when `CI` is set. The Actions runner gave **8.4 ms and 15.7 ms** in two runs
+  of the same commit. It is not a slow machine with its own number. It is a VM without a stable
+  number, and no ceiling means anything there. The cost, stated next to the `skipIf`: **CI does not
+  verify these two budgets.** The `verify` on your machine does.
+- **In sequence, because in parallel the budget also fails, for a different reason.** Five heavy
+  processes compete for CPU, the median goes up, and `verify` went red with nothing wrong. The
+  comment of AC8 in `sequence.test.ts` documents the same failure mode, from when its ceiling went
+  from 2 to 4. A chain leaves **four** concurrent nodes, the same contention as before the second
+  pass existed. The budget then measures what it says it measures.
 
-`pnpm --filter "{.}" run --parallel "/^(…)$/"`, y las dos se descubrieron fallando en verde:
+### Why the threshold is 100 and not 95
 
-- **`--filter "{.}"` es obligatorio.** `--parallel` es un flag recursivo de workspace y **excluye el
-  paquete raíz**: sin el filtro corre solo los scripts de `mcp-server` y reporta éxito sin haber
-  tocado `lint`, `typecheck` ni `test` de la app. El filtro va **por ruta** (`{.}`) y no por nombre,
-  para que renombrar el paquete no lo deje mudo otra vez.
-- **El `$` del regex tampoco es decorativo:** sin él el patrón también engancha `test:watch` y arranca
-  un segundo vitest. Medido: en shell no interactiva no cuelga —vitest sin TTY no entra en modo watch
-  y termina igual—, así que el costo visible es trabajo duplicado. En una terminal interactiva sí
-  queda esperando. El ancla borra la pregunta.
+A lower threshold is a debt budget **without an owner**. Nobody knows which lines the margin
+allows, so nobody reviews them. The corollary: **zero comments that skip a branch**, by the same
+argument as "zero `any`". If a branch looks unreachable, delete it or make it reachable.
+`no-warning-comments` checks this with three terms.
 
-## `suite` son DOS pasadas de vitest, en secuencia y no en paralelo
+One more case appears only when the gate runs on **another** machine. A comparator
+`a.name < b.name ? -1 : 1` inside `walk()` covered both branches on Windows and one branch on the
+runner. **Which side runs depends on the order in which the file system returns entries**: NTFS is
+alphabetical, ext4 is by hash. `mcp:test` gave `99.64%`, so the threshold of 100 depended on the
+file system of the person who ran it. The fix was not an ignore: it deleted the branch. The
+comparator is now arithmetic (`Number(a > b) - Number(a < b)`), which also gives a total order.
 
-Spec 029: primero `test` sin instrumentar y después `coverage`, con umbral **100** en las cuatro
-métricas. Los dos motivos están medidos y ninguno es preferencia:
+## The node that grew most is `lint`
 
-- **Instrumentar es medir el instrumento.** v8 inserta contadores en cada rama y los dos presupuestos
-  de performance del 009 pasan de 1,8 ms a **11,3 ms** contra un techo de 5. Se saltean bajo coverage
-  con `skipIf`, y el presupuesto se verifica en la pasada limpia — **la local**. Desde el 023 el mismo
-  `skipIf` los saltea también cuando `CI` está puesta, por el mismo motivo con otra cara: el runner de
-  Actions dio **8,4 ms y 15,7 ms** en dos corridas del mismo commit, o sea que no es una máquina lenta
-  con un número propio sino una VM sin número, y no hay techo que ahí signifique algo. El precio, que
-  el `skipIf` dice al lado: **estos dos presupuestos no los verifica la CI**, los verifica el `verify`
-  de tu máquina.
-- **Y en secuencia porque en paralelo el presupuesto también se cae, por otra razón.** Con cinco
-  procesos pesados compitiendo por CPU la mediana sube igual y `verify` daba rojo sin que nada
-  estuviera mal — el mismo modo de falla que el comentario de AC8 en `sequence.test.ts` ya
-  documentaba cuando subió su techo de 2 a 4. Encadenarlas deja **cuatro** nodos concurrentes, o sea
-  la misma contención que había antes del 029, y el presupuesto vuelve a medir lo que dice medir.
+Linting with type information took it from ~2.5 s to **11.0 s**. The measurement came with it:
+`recommendedTypeChecked` over the whole repo gives 100 findings, and 97 are one pattern of
+`node:test`. What did not pay was cut. `import-x/no-cycle` cost **15 s more** and found zero
+cycles, so it is not in the config.
 
-### Por qué el umbral es 100 y no 95
+Even so, `lint` does not set the clock of `verify`. **`suite` does, with 19.4 s.** Each number is
+measured without the other change; the pair above is measured with both in place.
 
-Un umbral más bajo es un presupuesto de deuda **sin dueño**: nadie sabe cuáles son las líneas que el
-margen permite, así que nadie las revisa. Y su corolario: **cero comentarios que saltean una rama**,
-por el mismo argumento que «cero `any`». Si una rama parece inalcanzable, se borra o se vuelve
-alcanzable — las cuatro que aparecieron están anotadas en el research del 029, y desde el spec 032 lo
-verifica `no-warning-comments` con los tres términos.
+`lint` also lints **every `.md`** of the repo, with the full `@eslint/markdown` preset. The detail is
+in `eslint.config.js`, next to the block. This page does not write the file count on purpose: that
+number goes stale with the next `.md`, and `eslint .` without a glob verifies it.
 
-Y el 023 encontró la quinta, que sólo se ve corriendo el gate en **otra** máquina: un comparador
-`a.name < b.name ? -1 : 1` dentro de `walk()` cubría sus dos ramas en Windows y una sola en el runner,
-porque **cuál lado se ejecuta depende del orden en que el filesystem entrega las entradas** —NTFS
-alfabético, ext4 por hash— y `mcp:test` daba `99.64%`. El umbral 100 pasaba por el sistema de archivos
-de quien lo corriera. La salida no fue un ignore sino borrar la rama: el comparador es aritmético
-(`Number(a > b) - Number(a < b)`), que además deja el orden total.
+**Markdown costs 2.5 s.** The "before" needed a new measurement. The 11.0 s above came from another
+machine at another time, so it said nothing. `eslint .` ran with `--ignore-pattern "**/*.md"` in the
+same session: **13.6 → 16.1 s**. `suite` still set the clock with 33.8 s, more than double. The rule
+applies to every number on this page: **an old performance number is not a baseline.** Each pair
+above is valid only inside its own measurement.
 
-## El nodo que más creció es `lint`
+## Lint does not wait for someone to run it
 
-Lo pagó el spec 030: el linting con tipos lo llevó de ~2,5 s a **11,0 s**. Se pagó con la medición al
-lado —`recommendedTypeChecked` sobre el repo entero da 100 hallazgos y 97 son un solo patrón de
-`node:test`— y ya se recortó lo que no valía: `import-x/no-cycle` costaba **15 s más** y encontraba
-cero ciclos, así que no está.
+All of the above shares one problem: **it fires when someone types the command.** An agent that
+edits twenty files and never runs `pnpm verify` sees no repo rule until it opens the PR. CI then
+runs `verify` on the PR, and the ruleset of `main` blocks a red promotion, so the error does not
+reach production. But the agent finds it **at the end**, with twenty files written on a wrong
+premise.
 
-Aun así el reloj de `verify` no lo manda el lint sino **`suite`, con 19,4 s**: el 030 se escribió
-previendo ser el nodo más lento de los cuatro y el 029 lo desbancó antes de que ninguno de los dos se
-mergeara. Es el dato de cada uno medido sin el otro — el par de arriba está medido con los dos
-puestos.
+`.claude/scripts/lint-al-cerrar.mjs` runs as the **`Stop` and `SubagentStop`** hook. It lints what
+changed in the tree. On a finding, it returns the finding as text, and the agent fixes it before
+it ends the turn. **It does not replace `pnpm verify` or CI.** It moves the moment the agent learns
+about the error, from "when it opens the PR" to "when it thinks it is done".
 
-Desde el spec 032 `lint` también lintea **todos los `.md`** del repo, en dos carriles: el preset
-completo sobre la documentación viva, y sólo las reglas que cazan un error de **renderizado** sobre
-`specs/[0-9]*/**`, porque la Desviación 2 de [`specs/README.md`](../../specs/README.md) dice que un
-spec mergeado no se reescribe. El detalle de los dos carriles está en `eslint.config.js`, al lado de
-cada bloque. El conteo de archivos **no se escribe acá a propósito**: es exactamente la clase de
-número que envejece con el `.md` siguiente, y el que lo verifica es `eslint .` sin glob.
+**Per turn, not per edit.** Four numbers measured on `63e569a` decide it: the whole `pnpm lint`
+takes 21.78 s, one file with type information 4.42 s, one file without types 2.44 s, and the 38
+files of `src/` without types 3.47 s. So **~2.4 s is fixed startup**. A `PostToolUse` hook adds that
+to *each* `Edit`, and twenty edits are a minute and a half in twenty pauses. And **going from 1 file
+to 38 costs 1 second**, so a finer grain buys nothing.
 
-**Markdown cuesta 2,5 s**, y el «antes» hubo que re-medirlo: comparar contra los 11,0 s del 030 no
-decía nada —otra máquina, otro momento—, así que el 032 corrió `eslint .` con
-`--ignore-pattern "**/*.md"` en la misma sesión, **13,6 → 16,1 s**. `suite` seguía mandando el reloj
-con 33,8 s, más del doble. La regla que deja eso escrito vale para todos los números de esta página:
-**un número de performance de un spec viejo no sirve como línea de base**, y los pares de arriba lo
-son sólo dentro de su propia medición.
+**Two events, and their cost.** `Stop` and `SubagentStop` are distinct events, and `Stop` does not
+cover subagents. This repo does most of its work inside subagents, so a hook on `Stop` alone misses
+the turn that wrote the files. The cost: N parallel lanes pay the budget N times on the same ESLint
+cache. So the hook serializes with a **lock that does not wait**: a lane that does not get the lock
+lets the turn through and says so.
 
-## Desde el 048 el lint no espera a que alguien lo corra
+Measured on the development machine, **never on CI**, which varies up to 1.86× between runs:
 
-Todo lo de arriba tiene una propiedad en común y es un problema: **se dispara cuando alguien
-tipea el comando.** Un agente que edita veinte archivos y nunca corre `pnpm verify` no ve una sola
-regla del repo hasta que abre el PR — y desde el 047 ese PR en rojo no se puede mergear, así que el
-error no llega a `main`, pero se descubre **al final**, con veinte archivos escritos sobre una
-premisa equivocada en vez de al segundo.
-
-`.claude/scripts/lint-al-cerrar.mjs` corre como hook **`Stop` y `SubagentStop`**, lintea lo que
-cambió en el árbol y, si hay rojo, lo devuelve como texto para que el agente lo arregle antes de dar
-el turno por terminado. **No reemplaza a `pnpm verify` ni a la CI**, y no hay que leerlo así:
-adelanta el momento en que el agente se entera, de «cuando abre el PR» a «cuando cree que terminó».
-
-**Por turno y no por edición**, que es la decisión, y la toman cuatro números medidos sobre
-`63e569a`: `pnpm lint` entero 21,78 s, un archivo con información de tipos 4,42 s, sin tipos 2,44 s,
-y los 38 de `src/` sin tipos 3,47 s. O sea que **~2,4 s son arranque fijo** —un `PostToolUse` le sumaría eso a *cada*
-`Edit`, y veinte ediciones son un minuto y medio repartido en veinte pausas— y que **ir de 1 archivo
-a 38 cuesta 1 segundo**, así que la granularidad fina no compra nada.
-
-**Los dos eventos, y lo que cuesta.** `Stop` y `SubagentStop` son eventos distintos y `Stop` no
-cubre subagentes; este repo hace la mayor parte de su trabajo adentro de subagentes, así que un hook
-declarado sólo en `Stop` no vería el turno donde se escribieron los archivos. El precio es que N
-carriles en paralelo pagan N veces el presupuesto sobre la misma caché de ESLint, y por eso el hook
-se serializa con un **lock que no espera**: el que no lo toma deja pasar diciéndolo.
-
-Lo medido en la máquina de desarrollo, con el `eslint.config.js` de los specs 049 y 050 ya puestos
-—**nunca en la CI**, que varía hasta 1,86× entre corridas—:
-
-| | Techo | Medido (mediana) |
+| | Ceiling | Measured (median) |
 |---|---|---|
-| Árbol sin un archivo linteable | < 200 ms | **135 ms** |
-| Un archivo cambiado | < 6 s | **4,57 s** |
+| Tree without a lintable file | < 200 ms | **135 ms** |
+| One changed file | < 6 s | **4.57 s** |
 
-Los dos valen **con la máquina descargada**, y sólo eso: bajo cinco `verify` concurrentes la fila
-de un archivo se remidió en 5,5–16,2 s y la del árbol limpio en 201–237 ms. Un `.md` más en el repo
-—el que agrega el 047— no los mueve, porque el hook lintea **sólo lo que cambió**; lo que mueve es
-el `pnpm lint` entero de arriba ([#145](https://github.com/federicohermo/pentomino-games/issues/145)).
+Both values hold **only on an idle machine**. Under five concurrent `verify` runs, the one-file row
+measured 5.5–16.2 s, and the clean-tree row 201–237 ms. One more `.md` in the repo does not move
+them, because the hook lints **only what changed**. It moves the whole `pnpm lint` above
+([#145](https://github.com/federicohermo/pentomino-games/issues/145)).
 
-El `timeout` declarado es **30 s**, y no es el `10` del gate del 037 copiado: aquél corresponde a un
-hook de 64,6 ms y éste cuesta segundos. Son cinco veces el techo —margen para el turno que cambió
-treinta archivos y para una máquina cargada— y muy por debajo del default de 600 s, que sería una
-sesión trabada durante diez minutos.
+The declared `timeout` is **30 s**. It is not the `10` of the branch hook copied: that hook runs in
+milliseconds, and this one costs seconds. 30 s is five times the ceiling, a margin for a turn that
+changed thirty files and for a loaded machine. It is far below the default of 600 s, which is a
+session stuck for ten minutes.
 
-**Qué corre y qué no.** Lint sobre lo cambiado —`git diff`, el `--cached` y
-`git ls-files --others`, que es el único que ve los archivos nuevos— filtrado a `.ts`, `.tsx`, `.js`
-y `.md`, que son las extensiones que la config cubre, **y a los que todavía existen**: un borrado
-también sale en `git diff`, y ESLint sobre una ruta que no está sale con status 2, que el hook lee
-como «no pude decidir» — o sea que sin ese filtro un turno que borra un `.md` dejaba de verificar
-todo lo demás, callado y en verde. `.mjs` **queda afuera a propósito**: el bloque
-que extiende `js.configs.recommended` está atado a `**/*.js`, glob que en flat config no matchea
-`.mjs`, así que los siete `.mjs` de `.claude/scripts/` —el hook mismo incluido— hoy se lintean con
-cero reglas ([#143](https://github.com/federicohermo/pentomino-games/issues/143)). **No corre la
-suite**: es el reloj de `verify`, y además el [#97](https://github.com/federicohermo/pentomino-games/issues/97)
-documenta un test intermitente — dentro de un nodo que alguien tipea es una molestia, dentro de un
-hook por turno es un bloqueo intermitente del cierre, que es la forma más rápida de que el hook se
-apague. **No corre el typecheck aparte**: el lint ya corre con información de tipos, que es de dónde
-salen esos 4,42 s.
+**What runs and what does not.**
 
-**Y falla abierto, como su hermano.** Si ESLint no está, si la config está rota, o si el bloqueo
-anterior fue del propio hook (`stop_hook_active`), deja pasar y lo dice. Un hook que bloquea cuando
-no pudo decidir se desactiva el primer día.
+- **It lints what changed.** The list comes from `git diff`, `git diff --cached` and
+  `git ls-files --others`. Only the last one sees new files.
+- **It keeps `.ts`, `.tsx`, `.js` and `.md`**, the extensions the config covers, **and only files
+  that still exist.** A deletion also appears in `git diff`. ESLint on a missing path exits with
+  status 2, and the hook reads that as "could not decide". Without the filter, a turn that deleted
+  a `.md` stopped the check of everything else, silently and green.
+- **`.mjs` stays out on purpose.** The block that extends `js.configs.recommended` targets
+  `**/*.js`, and in flat config that glob does not match `.mjs`. So the `.mjs` files, this hook
+  included, get zero rules today
+  ([#143](https://github.com/federicohermo/pentomino-games/issues/143)).
+- **It does not run the suite.** The suite is the clock of `verify`, and
+  [#97](https://github.com/federicohermo/pentomino-games/issues/97) documents an intermittent test.
+  In a node that a person types, that is a nuisance. In a hook on every turn, it blocks the end of
+  the turn at random, and that is the fastest way to get the hook turned off.
+- **It does not run the typecheck separately.** The lint already runs with type information; that
+  is where the 4.42 s come from.
 
-### Los dos hooks protegen la SESIÓN, no el repositorio
+**And it fails open, like the branch hook.** If ESLint is missing, if the config is broken, or if
+the previous block came from the hook itself (`stop_hook_active`), it lets the turn through and
+says so. A hook that blocks when it cannot decide gets disabled on the first day.
 
-Vale para éste y para el gate del spec 037 (`.claude/scripts/gate-de-spec.mjs`), y conviene leerlo
-antes de confiar en ninguno de los dos: **un hook de Claude Code se dispara cuando el que trabaja es
-la sesión**. Una persona editando `docs/architecture/overview.md` en su editor, parada en `main`, no
-ejecuta el gate del 037 nunca; un `git commit` desde una terminal fuera de la sesión, tampoco.
+### The hooks protect the SESSION, not the repository
 
-**No es un defecto a arreglar.** Cubrir a una persona sería un hook de git, que es otra decisión con
-otro costo —empieza por instalar algo que este repo no tiene, y este repo mide antes de agregar
-dependencias— y esto es un harness de agentes: hace lo que un harness de agentes hace. Lo que
-protege el repositorio es la otra mitad, la que no depende de dónde se escribió: `pnpm verify` en la
-CI sobre cada PR, y el ruleset del 047 que no deja mergear en rojo.
+This applies to this hook and to the branch hook (`.agents/scripts/hook.ts`). Read it before you
+trust either one: **an agent hook fires only when the session does the work.** A person who edits
+`docs/architecture/overview.md` in an editor, on `main`, never runs the branch hook. A `git commit`
+from a terminal outside the session does not run it either.
 
-## Los tests de `src/` son dos proyectos de Vitest y un solo comando
+**This is not a defect to fix.** To cover a person, the repo needs a git hook. That is another
+decision with another cost: it starts with the installation of a tool this repo does not have, and
+this repo measures before it adds a dependency. This is an agent harness, and it does what an agent
+harness does. The other half protects the repository, whatever wrote the change: `pnpm verify` in
+CI on each PR, and the ruleset that blocks a red merge into `main`.
 
-Spec 029. El corte no es por capa sino por lo que el test necesita:
+## The tests are two Vitest projects and one command
 
-- **`node`** — `environment: 'node'` contra `node-web-audio-api`. El dominio es puro y el audio tiene
-  una implementación nativa de Web Audio, así que corre ahí sin adaptación. Su `include` tiene
-  **cinco** raíces, y las cuatro de afuera son gates que **no importan una línea de `src/`**: cada uno
-  vive al lado del **sujeto** que verifica, no de lo que el sujeto toca. `__tests__/` en la raíz son
-  los cuatro que miran lo que no vive en `src/` —`index.html`, `public/manifest.json`, `README.md`, y
-  el modelo de dos ramas del spec 047—;
-  `docs/__tests__/` los tres de la **documentación** —enlaces y anclas de todo `.md`, el mapa de
-  `directory-structure.md` y el techo de 200 líneas de `CLAUDE.md`, issue #100—; `specs/__tests__/`
-  los dos del **registro** —la convención y `mapa.json`, spec 035—; y `.claude/scripts/__tests__/` los
-  cuatro de los **scripts** —el de publicar e hidratar, el del lanzador de `gh` del issue #125, el del
-  gate de rama del spec 037 y el de este hook—, que son del script y no de `specs/`, que es lo que el
-  script manipula. El `include` de coverage sigue siendo
-  `src/**`, y desde el 038 eso **no alcanza**: v8 reporta todo archivo que se **ejecutó**, y el
-  `include` sólo decide cuáles de los que nadie tocó se suman al denominador. `mapa-de-specs.test.ts`
-  importa `readSpecStatus` del otro paquete, así que `mcp-server/` entero entró a la tabla y puso el
-  umbral en rojo: está en el `exclude` del coverage de vitest, y su gate al 100 sigue siendo
-  `mcp:test`.
-- **`browser`** — Chromium de verdad, por Playwright, para los archivos `*.browser.test.tsx`. Entra
-  porque jsdom no puede: `Spectrum.tsx` necesita canvas 2D, `createLinearGradient`, `ResizeObserver`,
-  `matchMedia` y un `getBoundingClientRect` con números, y `audio/engine.ts` necesita
-  `new AudioContext()` y `window.setInterval`. Cubrirlos con jsdom exigiría mockear exactamente el
-  código que se quiere cubrir, que es cobertura sin verificación.
+The split is not by layer. It is by what the test needs:
 
-El discriminante es el **sufijo** y no una carpeta: un test de `Board.tsx` que necesita navegador
-sigue siendo un test de `Board.tsx` y vive al lado.
+- **`node`**: `environment: 'node'` with `node-web-audio-api`. The domain is pure, and the audio
+  layer has a native Web Audio implementation, so it runs there without adaptation. Its `include`
+  has **seven** roots. Six of them hold gates that **do not import a line of `src/`**. Each gate
+  lives next to the **subject** it verifies, not next to what the subject touches:
+  - `src/**/__tests__/`: the app.
+  - `__tests__/` at the root: the files outside `src/` (`index.html`, `public/manifest.json`,
+    `README.md`) and the two-branch model.
+  - `docs/__tests__/`: the **documentation**. Links and anchors of every `.md`, the map in
+    `directory-structure.md`, and the line budget of `AGENTS.md` and `CLAUDE.md`.
+  - `specs/__tests__/`: the **contracts**. Every criterion of a `ratified` spec has a test that
+    cites it.
+  - `eslint-rules/__tests__/`: the two local comment rules, through `RuleTester`.
+  - `.agents/scripts/__tests__/`: the **harness scripts**: the branch and worktree hook, the
+    worktree cleaner, and the copy generator. One test runs `sync.ts --check` on the real tree,
+    so a stale generated copy turns `suite` red.
+  - `.claude/scripts/__tests__/`: the `Stop` hook above.
+- **`browser`**: real Chromium, through Playwright, for `*.browser.test.tsx` files. It exists
+  because jsdom cannot do the job. `Spectrum.tsx` needs a 2D canvas, `createLinearGradient`,
+  `ResizeObserver`, `matchMedia` and a `getBoundingClientRect` with numbers. `audio/engine.ts` needs
+  `new AudioContext()` and `window.setInterval`. Coverage with jsdom needs a mock of exactly the
+  code under test. That is coverage without verification.
 
-**Chromium no está en el lockfile**: un clone nuevo necesita `pnpm exec playwright install chromium`
-antes del primer `verify`. En CI eso no hace falta acordárselo: el workflow del 023 lo instala con
-`--with-deps`, que el runner de Ubuntu necesita para las librerías de sistema.
+The discriminant is the **suffix**, not a folder. A test of `Board.tsx` that needs a browser is
+still a test of `Board.tsx`, and it lives next to the others.
 
-Los del MCP server son de `node --test`, en su propio paquete, y desde el 029 corren con los
-`--test-coverage-*=100` de node.
+The coverage `include` is `src/**`, `eslint-rules/**/*.mjs` and `.agents/scripts/*.ts`. The last
+two are code of this repo that runs from outside (ESLint, Claude Code, Codex), and their tests
+import it in the same process. `mcp-server/**` is in the coverage `exclude`. v8 reports every file
+that **ran**, and `include` only decides which untouched files join the denominator. So a test
+that imports from the server pulls the whole server file into the table. The server has its own
+gate at 100: `mcp:test`.
 
-## El gestor es pnpm
+**Chromium is not in the lockfile.** A fresh clone needs `pnpm exec playwright install chromium`
+before the first `verify`. CI does not need anyone to remember it: the workflow installs it with
+`--with-deps`, because the Ubuntu runner lacks the system libraries Chromium needs.
 
-Fijado en `packageManager` y versionado en `pnpm-lock.yaml`. **No usar npm**: instalaría un
-`node_modules` plano y dejaría un `package-lock.json` al lado del `pnpm-lock.yaml`, o sea dos
-lockfiles que resuelven distinto y un deploy que elige uno de los dos. La config de pnpm vive en
-`pnpm-workspace.yaml`, no en el `package.json`.
+The MCP server tests use `node --test`, in their own package, with the `--test-coverage-*=100`
+flags of Node.
 
-`node_modules` es **estricto**: solo se puede importar lo declarado en `package.json`. Un import de
-una dependencia transitiva que con npm andaba, acá falla — es a propósito, y es la red que atrapa los
-imports fantasma antes de que lleguen a producción.
+## The package manager is pnpm
 
-## Versión de Node
+`packageManager` pins it, and `pnpm-lock.yaml` versions it. **Do not use npm.** npm installs a flat
+`node_modules` and leaves a `package-lock.json` next to `pnpm-lock.yaml`: two lockfiles that resolve
+differently, and a deploy that picks one of them. The pnpm config lives in `pnpm-workspace.yaml`,
+not in `package.json`.
 
-Node ≥ 20.19 o ≥ 22.12 — lo exige Vite 7 y desde el spec 023 lo declara **nuestro propio** `engines`,
-no el de Vite: con Node 18 el gestor lo dice al instalar, en vez de que se entere el build.
+`node_modules` is **strict**: you can import only what `package.json` declares. An import of a
+transitive dependency that worked with npm fails here. This is on purpose. It catches phantom
+imports before they reach production.
 
-El MCP server pide **≥ 22.18** porque corre TypeScript sin compilar; es un piso de tooling, vive en el
-`engines` del server —que es quien lo necesita— y con Node 20 solo se pierde el server.
+## Node version
+
+The app needs Node ≥ 20.19 or ≥ 22.12. Vite 7 requires it, and **our own** `engines` declares it,
+not only the one of Vite. With Node 18, the package manager reports it at install time, before the
+build does.
+
+The MCP server and the harness scripts need **≥ 22.18**, because they run TypeScript without a
+build. That floor lives in the `engines` of the server, the package that needs it. With Node 20,
+you lose only the server and the harness scripts.

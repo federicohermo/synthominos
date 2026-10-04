@@ -15,21 +15,17 @@ import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/serv
  */
 
 /**
- * `title` y `annotations` van OPCIONALES a proposito.
+ * `title` and `annotations` are OPTIONAL on purpose.
  *
- * Con un campo requerido, el commit que amplia el contrato no compila hasta que las
- * seis tools esten hechas, y tres commits chicos se vuelven uno grande. Quien exige
- * que ninguna se lo saltee es el test de `__tests__/tools.test.ts`, no el tipo — y
- * ese test cubre ademas la tool numero siete, que es el modo de falla real.
+ * With a required field, the commit that widens the contract does not compile until every tool
+ * is done. The test in `__tests__/tools.test.ts` makes sure no tool skips them, including the
+ * next tool someone adds.
  *
- * `ToolAnnotations` se IMPORTA del SDK en vez de redeclararse: una copia local no
- * ve el hint que el protocolo agregue manana.
+ * `ToolAnnotations` is IMPORTED from the SDK, not redeclared: a local copy would miss a hint the
+ * protocol adds later.
  *
- * **`openWorldHint: false` en las seis, y el porque se dice ACA una sola vez**: el
- * dominio de entidades de este server es CERRADO —doce piezas, un `src/`, un
- * `specs/`—, que es exactamente la propiedad que lo hace confiable y que hasta
- * ahora solo estaba dicha en prosa. Repetir el motivo tool por tool seria escribir
- * seis veces lo que el campo ya dice.
+ * **`openWorldHint: false` on every tool, and the reason lives HERE once**: this server's set
+ * of entities is CLOSED (twelve pieces, one `src/`), and that is what makes it reliable.
  */
 
 /** Lo que escribe un archivo de tool: el handler ya recibe los argumentos tipados. */
@@ -53,8 +49,7 @@ export interface ToolDef {
 }
 
 /**
- * Borra el parametro de tipo del schema para que las seis tools entren en un
- * mismo array.
+ * Erases the schema's type parameter so every tool fits in one array.
  *
  * El `parse` de adentro no es una segunda capa de validacion: el SDK ya valido
  * contra ESTE mismo schema, y volver a parsearlo es como se cruza el borde

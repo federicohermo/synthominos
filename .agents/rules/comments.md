@@ -9,7 +9,7 @@ paths:
 Estos son los dos árboles que lintean `local/comment-shape` y `local/comment-anchor` (spec 051), o sea
 que esta regla se carga justo cuando se está escribiendo el comentario y no cuando se está haciendo
 cualquier otra cosa. El porqué de cada cláusula está en
-[docs/guides/conventions.md](../../docs/guides/conventions.md) § Comentarios; acá está lo operable.
+[docs/guides/conventions.md](../../docs/guides/conventions.md) § Comments; acá está lo operable.
 
 **El comentario explica el porqué, no el qué**: una decisión, una restricción, un bug evitado. La forma
 más rápida de contestarlo, y la que este repo adopta, es la de Ousterhout: **el comentario tiene que
@@ -69,8 +69,9 @@ Es la regla del spec 035, y `historia` la marca sin decidirla. Ante un hallazgo,
 - **Restricción vigente** → se queda, **reescrita sin la forma histórica**. No se borra el argumento: se
   le saca el eje temporal.
 - **Crónica** → se muda al [issue de su spec](https://github.com/federicohermo/pentomino-games/issues)
-  como nota de revisión, y en su lugar queda un puntero de una línea. El número de issue sale de
-  `specs/mapa.json` y no del `NNN`: el spec 001 es el issue #63.
+  como nota de revisión, y en su lugar queda un puntero de una línea. The issue number of a numbered
+  spec comes from the frozen table in
+  `docs/architecture/decisions/2026-10-04-contract-per-capability.md`: spec 001 is issue #63.
 - **Ante la duda, se queda.** Un comentario de más cuesta una lectura; uno de menos cuesta el argumento.
 - **Si un párrafo mezcla las dos cosas, se parte.**
 

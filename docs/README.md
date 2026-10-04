@@ -1,81 +1,88 @@
-# Documentación Técnica — Pentomino Games
+# Technical documentation: Pentomino Games
 
-Prototipo de instrumento musical basado en pentominós: un tablero donde cada pieza colocada dispara una
-secuencia de cinco notas derivada de su identidad y su orientación.
+A musical instrument prototype built on pentominoes. Each piece placed on the board fires a sequence
+of five notes. The piece identity and its orientation give the notes.
 
-## Índice de Documentación
+## Documentation index
 
-### Arquitectura
-- [Visión General](./architecture/overview.md) — Las cuatro capas, su dirección de dependencia y el stack
-- [Estructura de Directorios](./architecture/directory-structure.md) — Qué hay y qué está muerto
-- [Modelo Musical](./architecture/modelo-musical.md) — Pieza → tónica, rotación → escala **o** orden según el régimen, reflexión → retrógrado
-- [Capa de Audio](./architecture/audio.md) — Grafo Web Audio, envolvente ADSR, scheduler con lookahead
+### Architecture
 
-### Guías de Desarrollo
-- [Inicio Rápido](./guides/quickstart.md) — Setup y comandos
-- [Verificación](./guides/verificacion.md) — `pnpm verify` entero: por qué cada nodo tiene la forma que tiene
-- [Convenciones de Código](./guides/conventions.md) — Organización de `src/`, geometría, comentarios, estado
-- [Troubleshooting](./guides/troubleshooting.md) — Errores reales que ya se pisaron en este repo
-- [MCP server de dominio](./guides/mcp-domain.md) — Las seis tools —cinco que ejecutan el dominio o lo leen, y la que escribe— y el resource `pentomino://constantes`
+- [Overview](./architecture/overview.md): the four layers, their dependency direction and the stack
+- [Directory structure](./architecture/directory-structure.md): what exists, and what is dead
+- [Musical model](./architecture/modelo-musical.md): piece → tonic, rotation → scale **or** order by regime, reflection → retrograde
+- [Audio layer](./architecture/audio.md): Web Audio graph, ADSR envelope, lookahead scheduler
+- [Constitution](./architecture/constitution.md): the non-negotiable principles
+- [Decisions](./architecture/decisions/): why each big choice was made, one ADR per decision
 
-### Infraestructura
-- [Deploy](./infra/deploy.md) — Dónde vive la config, qué corre en el build y cuál de las dos ramas se publica
-- [Ramas](./infra/ramas.md) — `staging` integra y es la default, `main` es release; el ruleset, y qué no verifica nadie
+### Development guides
 
-### Specs
-- [specs/mapa.json](../specs/mapa.json) — El mapa spec↔issue y el estado de cada uno
-- [GitHub Issues](https://github.com/federicohermo/pentomino-games/issues) — Lo registrado que todavía no tiene spec
-- Qué se aprendió escribiendo o revisando cada spec: como comentario en el [issue](https://github.com/federicohermo/pentomino-games/issues) de ese spec
-- [specs/README.md](../specs/README.md) — Convención de formato y flujo de trabajo
+- [Quickstart](./guides/quickstart.md): setup and commands
+- [Verification](./guides/verification.md): all of `pnpm verify`, and why each node has its shape
+- [Conventions](./guides/conventions.md): how `src/` is organized, geometry, comments, state, language
+- [Troubleshooting](./guides/troubleshooting.md): real errors already hit in this repo
+- [Domain MCP server](./guides/mcp-domain.md): the tools that run or read the domain, and the resource `pentomino://constantes`
+
+### Infrastructure
+
+- [Deploy](./infra/deploy.md): where the configuration lives, what the build runs, and which of the two branches is published
+- [Branches](./infra/branches.md): `staging` integrates and is the default, `main` is the release; the ruleset, and what nobody verifies
+
+### Specs and work
+
+- [Spec rules](../.agents/rules/specs.md): the contract of each capability, `specs/<capability>/<capability>.md`, with its `BR` rules and `AC` criteria
+- [Spec template](../specs/_template/capability-spec.md): the shape of a new contract
+- [Task-brief template](../.github/ISSUE_TEMPLATE/task-brief.md): the shape of the issue that plans one change
+- [GitHub Issues](https://github.com/federicohermo/pentomino-games/issues): planned work and debt without a plan
 
 ---
 
-## Stack Tecnológico
+## Tech stack
 
-| Tecnología | Versión | Propósito |
+| Technology | Version | Purpose |
 |---|---|---|
-| Vite | 7.x | Dev server y bundler |
-| React | 19.x | Biblioteca UI |
-| TypeScript | 5.8 | Tipado estático |
-| Tailwind CSS | 4.x | Estilos utility-first, vía `@tailwindcss/vite` |
-| Web Audio | — | Síntesis y scheduling, sin librería (`src/audio/`) |
+| Vite | 7.x | Dev server and bundler |
+| React | 19.x | UI library |
+| TypeScript | 5.8 | Static types |
+| Tailwind CSS | 4.x | Utility-first styles, through `@tailwindcss/vite` |
+| Web Audio | n/a | Synthesis and scheduling, no library (`src/audio/`) |
 
 ---
 
-## Comandos Principales
+## Main commands
 
 ```bash
-pnpm dev      # Dev server de Vite
+pnpm dev      # Vite dev server
 pnpm build    # tsc -b && vite build
 pnpm lint     # ESLint (flat config v9)
-pnpm preview  # Sirve el build de dist/
-pnpm test     # Vitest — los dos proyectos, sin instrumentar
-pnpm suite    # test y después coverage, con umbral 100; es lo que corre verify
-pnpm verify   # lint ‖ typecheck ‖ suite ‖ mcp:test — el nodo de convergencia
-pnpm mcp:test # MCP server — typecheck + tests con node --test
+pnpm preview  # Serves the build from dist/
+pnpm test     # Vitest: the two projects, without instrumentation
+pnpm suite    # test, then coverage with threshold 100; this is what verify runs
+pnpm verify   # lint ‖ typecheck ‖ suite ‖ mcp:test: the convergence node
+pnpm mcp:test # MCP server: typecheck + tests with node --test
 ```
 
-Vitest corre en **dos proyectos y un solo comando** (spec 029): los `*.test.ts` en `environment: 'node'`
-contra `node-web-audio-api`, y los `*.browser.test.tsx` en un Chromium de verdad por Playwright. **En
-jsdom no corre ninguno**, y no es una pendiente: jsdom no implementa Web Audio ni da canvas 2D,
-`ResizeObserver` o `matchMedia`, así que cubrir `Spectrum.tsx` con él exigiría mockear justo el código
-que se quiere cubrir. Los seis componentes, `App.tsx` y los dos hooks tienen test — ver
-[la sección de tests](./architecture/directory-structure.md#tests).
+Vitest runs **two projects with one command**. `*.test.ts` runs in `environment: 'node'` against
+`node-web-audio-api`. `*.browser.test.tsx` runs in a real Chromium through Playwright. **None runs
+in jsdom**, and this is not pending work. jsdom does not implement Web Audio, and it gives no 2D
+canvas, `ResizeObserver` or `matchMedia`. To cover `Spectrum.tsx` with it, a test would have to mock
+the exact code it wants to cover. The six components, `App.tsx` and the two hooks have tests: see
+[the tests section](./architecture/directory-structure.md#tests).
 
 ---
 
-## Variables de Entorno
+## Environment variables
 
-**Ninguna.** La app es enteramente cliente: sin backend, sin API keys, sin endpoints. Y no hay
-excepción escondida en la config del deploy: `vercel.json` no declara ninguna variable de entorno.
+**None.** The app runs entirely in the client: no backend, no API keys, no endpoints. The deploy
+configuration hides no exception: `vercel.json` declares no environment variable.
 
-Si algún día hace falta una, en Vite debe llevar el prefijo `VITE_` para ser visible desde el cliente
-(`import.meta.env.VITE_FOO`). El prefijo `REACT_APP_` de Create React App **no** funciona y falla en
-silencio.
+If one becomes necessary, Vite requires the `VITE_` prefix for the client to see it
+(`import.meta.env.VITE_FOO`). The Create React App prefix `REACT_APP_` **does not** work, and it
+fails silently.
 
 ---
 
-## Enlaces Rápidos
+## Quick links
 
-- [CLAUDE.md](../CLAUDE.md) — Guía para Claude Code
-- [vercel.json](../vercel.json) — Config de deploy (vive en la raíz del repo, no acá)
+- [AGENTS.md](../AGENTS.md): the guide for agents (Claude Code and Codex), and the authority on how to work in this repo
+- [CLAUDE.md](../CLAUDE.md): what applies only to Claude Code
+- [vercel.json](../vercel.json): deploy configuration (it lives in the repo root, not here)

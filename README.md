@@ -1,39 +1,38 @@
 # Synthominos
 
-Un prototipo de **instrumento musical**, no un juego con reglas de resolución. El usuario coloca
-pentominós en un tablero de 10×6 y cada pieza dispara un arpegio de cinco notas —salvo que esté
-muteada, que la deja ocupando su lugar y su tiempo sin sonar—. El tablero es un **recorrido**, no un
-compás: un circuito cerrado visita las piezas, y el orden y los silencios salen de la geometría. No
-hay puntaje ni condición de victoria: una feature se evalúa por si vuelve al instrumento más
-expresivo, no más difícil.
+A prototype of a **musical instrument**, not a game with rules to solve. The user places
+pentominoes on a board sized to the screen, and each piece fires a five-note arpeggio. A muted piece
+keeps its place and its time but does not sound. The board is a **tour**, not a bar: a closed circuit
+visits the pieces, and order and silence come from geometry. There is no score and no win. Judge a
+feature by one question: does it make the instrument more expressive?
 
-Vite 7 · React 19 · TypeScript 5.8 · Tailwind CSS 4 · Web Audio (sin librería de audio).
+Vite 7 · React 19 · TypeScript 5.8 · Tailwind CSS 4 · Web Audio (no audio library).
 
-## Correrlo
+## Run it
 
-Node ≥ 20.19 o ≥ 22.12 (Vite 7). El gestor es **pnpm** y está fijado en `packageManager`: usar npm
-deja un `package-lock.json` que el deploy puede llegar a preferir.
+Vite 7 needs Node ≥ 20.19 or ≥ 22.12. The harness scripts and `mcp:test` need Node ≥ 22.18, because
+they run TypeScript without a build. The package manager is **pnpm**, pinned in `packageManager`. npm
+leaves a `package-lock.json`, and the deploy can prefer it.
 
 ```sh
 pnpm install
-pnpm exec playwright install chromium   # una sola vez por clone
+pnpm exec playwright install chromium   # once per clone
 pnpm dev
-pnpm verify                             # el gate antes de un PR
+pnpm verify                             # the gate before a PR
 ```
 
-Chromium no está en el lockfile y el proyecto `browser` de Vitest lo necesita: sin esa segunda línea
-el primer `verify` de un clone recién sacado falla. `verify` corre `lint ‖ typecheck ‖ suite ‖
-mcp:test`, y `suite` incluye coverage con umbral 100 en las cuatro métricas. El resto de los scripts
-está en `package.json`. Ojo: `mcp:test` pide Node ≥ 22.18, porque corre TypeScript sin compilar.
+Chromium is not in the lockfile, and the `browser` project of Vitest needs it. Without the second line,
+the first `verify` of a fresh clone fails. `verify` runs `lint ‖ typecheck ‖ suite ‖ mcp:test`, and
+`suite` gates coverage at 100 on all four metrics. The other scripts are in `package.json`.
 
-## A dónde ir
+## Where to go
 
-| Para | Archivo |
+| For | File |
 |---|---|
-| La doc técnica entera: arquitectura, guías, infra | [docs/README.md](./docs/README.md) |
-| El lenguaje visual: los 12 colores y su tónica | [DESIGN.md](./DESIGN.md) |
-| Trabajar en el repo: comandos, capas, reglas | [CLAUDE.md](./CLAUDE.md) |
-| La convención de los specs | [specs/README.md](./specs/README.md) |
+| The full technical docs: architecture, guides, infra | [docs/README.md](./docs/README.md) |
+| The visual language: the 12 colors and their tonic | [DESIGN.md](./DESIGN.md) |
+| Work in the repo: commands, layers, rules | [AGENTS.md](./AGENTS.md) |
+| The contract of each capability | [specs/](./specs/AGENTS.md) |
 
-Cada uno de esos archivos es la única fuente de lo suyo. Este README enlaza y no repite, para no ser
-un lugar más donde la información pueda quedar vieja.
+Each of those files is the only source of its subject. This README links and does not repeat, so it
+is not one more place where information goes stale.

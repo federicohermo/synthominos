@@ -19,9 +19,8 @@ Es tooling: no entra al bundle ni al deploy.
   commit que amplía el contrato no espera a que las seis estén hechas— y por eso el compilador no
   ataja al que se los olvide: lo ataja `tools.test.ts`, que recorre `tools` y los exige en todas.
   `readOnlyHint` habla de si la tool **modifica** su entorno, no de si toca el filesystem: leer
-  `src/` o `specs/` del disco sigue siendo `true`. Y un hint que no sea cierto se **omite** en vez de
-  afirmarse: `spec_write` no lleva `idempotentHint` porque `marcar` **falla** si la tarea ya estaba
-  marcada, o sea que llamarla dos veces es un error y no un no-op.
+  `src/` o `specs/` del disco sigue siendo `true`. A hint that is not true is **omitted**, not
+  asserted.
 - **Un resource tampoco copia números: los importa.** Es la misma regla que la de arriba, del otro lado
   del protocolo. `resources/constantes.ts` no tiene un solo literal numérico — las 14 constantes vienen
   de `src/domain/constants/` y `src/audio/constants/`, agrupadas por archivo con shorthand de propiedad

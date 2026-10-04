@@ -86,12 +86,10 @@ const ESLINT = path.join(RAIZ, 'node_modules/eslint/bin/eslint.js');
  * ignored because no matching configuration was supplied», y con el `--max-warnings 0` que usa
  * este hook eso es un exit 1 — o sea un bloqueo por un `.png` cambiado.
  *
- * **`.mjs` NO esta, y es un agujero conocido y no un olvido.** `eslint.config.js:291` ata
- * `js.configs.recommended` a `**\/*.js`, glob que en flat config **no** matchea `.mjs`, asi que
- * los siete `.mjs` de `.claude/scripts/` —este archivo incluido, y el `gate-de-spec.mjs` que
- * custodia `src/`— se lintean hoy con CERO reglas. Agregarlos a esta lista no compraria nada
- * mientras eso siga asi, y cerrarlo es tocar `eslint.config.js`, que no es de este spec: esta
- * abierto como issue #143.
+ * **`.mjs` is NOT in the list, and that is a known hole.** The `**\/*.js` glob that carries
+ * `js.configs.recommended` does not match `.mjs` in flat config, so this file is linted with ZERO
+ * rules. Adding `.mjs` here buys nothing until that changes, and the fix belongs in
+ * `eslint.config.js`: it is open as issue #143.
  */
 const EXTENSIONES = ['.ts', '.tsx', '.js', '.md'];
 

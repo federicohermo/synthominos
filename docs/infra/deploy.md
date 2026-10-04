@@ -1,12 +1,12 @@
 # Deploy
 
-La plataforma es **Vercel**. Este archivo dice dónde vive la configuración, qué corre en el build y
-qué no, y cuál de las dos ramas se publica.
+The platform is **Vercel**. This file says where the configuration lives, what runs in the build and
+what does not, and which of the two branches is published.
 
-## Dónde vive la configuración
+## Where the configuration lives
 
-`vercel.json` está en la **raíz del repositorio**, junto al `package.json` de la app. Es el único
-archivo de config de deploy y no hay ninguno anidado.
+`vercel.json` is at the **root of the repository**, next to the `package.json` of the app. It is the
+only deploy configuration file. There is no nested one.
 
 ```json
 {
@@ -17,100 +17,99 @@ archivo de config de deploy y no hay ninguno anidado.
 }
 ```
 
-| Campo | Valor | Por qué |
+| Field | Value | Why |
 |---|---|---|
-| `$schema` | `https://openapi.vercel.sh/vercel.json` | Da autocompletado y validación en el editor; no lo lee la plataforma |
-| `installCommand` | `pnpm install` | Explícito, para que no dependa de que la detección por lockfile siga funcionando igual |
-| `buildCommand` | `pnpm run build` | Expande a `tsc -b && vite build`. Corre en la raíz del repo |
-| `outputDirectory` | `dist` | La app vive en la raíz, así que no hay prefijo de carpeta |
+| `$schema` | `https://openapi.vercel.sh/vercel.json` | It gives completion and validation in the editor. The platform does not read it |
+| `installCommand` | `pnpm install` | Explicit, so that it does not depend on lockfile detection staying the same |
+| `buildCommand` | `pnpm run build` | It expands to `tsc -b && vite build`. It runs at the root of the repo |
+| `outputDirectory` | `dist` | The app lives at the root, so there is no folder prefix |
 
-### Por qué el porqué de cada campo está acá y no al lado de la decisión
+### Why the reason for each field is here and not next to the decision
 
-Es una **desviación declarada** de la convención del repo, que pide que un comentario explique el
-porqué al lado de lo que decide. `vercel.json` es JSON y **JSON no admite comentarios**: no hay
-ningún lugar adentro del archivo donde escribirlos. Por eso la tabla de arriba es la contraparte, y
-está escrita como tal — si esto no quedara dicho, se leería como un descuido y el próximo que pase lo
-"arreglaría" metiendo los porqués en un archivo que no los admite, que es un `JSON.parse` roto.
+This is a **declared deviation** from the repo convention. The convention puts the reason in a
+comment next to what it decides. `vercel.json` is JSON, and **JSON has no comments**: the file has no
+place to write them. The table above is the counterpart, and this section says so. Without it, the
+table reads as an oversight. The next person would "fix" it with reasons inside a file that does not
+accept them, and `JSON.parse` would break.
 
-## Qué gestor de paquetes elige la plataforma, y por qué
+## Which package manager the platform picks, and why
 
-`installCommand` lo fija en `pnpm install`, así que la elección no queda librada a la detección. Pero
-el motivo por el que el repo usa pnpm sigue valiendo aunque el campo esté: **Vercel elige el gestor
-por el lockfile** cuando nadie se lo dice, y con un `package-lock.json` en el repo elegiría npm. Por
-eso `pnpm-lock.yaml` **tiene que estar versionado** y no puede haber un `package-lock.json` al lado —
-si los dos están, el deploy y la máquina de quien desarrolla resuelven versiones distintas, en
-silencio.
+`installCommand` sets `pnpm install`, so detection does not decide. The reason the repo uses pnpm still
+applies: **Vercel picks the package manager from the lockfile** when nothing tells it. With a
+`package-lock.json` in the repo it picks npm. So `pnpm-lock.yaml` **must be versioned**, and no
+`package-lock.json` can sit next to it. With both, the deploy and the developer machine resolve
+different versions, silently.
 
-**La versión de pnpm no sale de `packageManager`.** Vercel la deduce del `lockfileVersion` del
-`pnpm-lock.yaml` —hoy `9.0`, que su tabla de gestores sirve con «pnpm 9 o 10»— y sólo mira
-`packageManager` si el proyecto tiene la variable de entorno `ENABLE_EXPERIMENTAL_COREPACK=1`, que no
-tiene a propósito (ver «Variables de entorno»). O sea que el deploy **no está pinneado** a la versión
-exacta que declara el repo (`pnpm@10.33.0`), y ese campo lo leen Corepack en local y el
-`pnpm/action-setup` del workflow, que sí lo honran.
+**The pnpm version does not come from `packageManager`.** Vercel derives it from the `lockfileVersion`
+of `pnpm-lock.yaml`. Today that is `9.0`, which its table of package managers serves with "pnpm 9 or
+10". Vercel reads `packageManager` only if the project has the environment variable
+`ENABLE_EXPERIMENTAL_COREPACK=1`. The project does not have it, on purpose (see "Environment
+variables"). So the deploy is **not pinned** to the exact version the repo declares (`pnpm@10.33.0`).
+Corepack in local and `pnpm/action-setup` in the workflow read that field and honor it.
 
-## Qué corre en el build y qué no
+## What runs in the build and what does not
 
-**Corre el typecheck**, porque está adentro del `build`: `pnpm run build` es `tsc -b && vite build`, y
-el `tsc -b` falla el deploy si el proyecto no typechequea.
+**The typecheck runs**, because it is inside `build`: `pnpm run build` is `tsc -b && vite build`. The
+`tsc -b` fails the deploy if the project does not typecheck.
 
-**No corren el lint ni los tests.** Eso lo hace `pnpm verify` en GitHub Actions, sobre cada PR. La
-consecuencia práctica: un deploy verde dice que el proyecto compila, **no** que la suite pasa. Los dos
-gates son distintos y ninguno reemplaza al otro.
+**Lint and tests do not run.** `pnpm verify` runs them in GitHub Actions, on each PR. In practice, a
+green deploy says that the project compiles. It does **not** say that the suite passes. The two gates
+are different, and neither replaces the other.
 
-## Lo que `vercel.json` deliberadamente no declara
+## What `vercel.json` does not declare, on purpose
 
-### No hay `ignoreCommand`
+### No `ignoreCommand`
 
-Es el único hook nativo de Vercel para condicionar un deploy, y **está invertido**: exit 0 **saltea**
-el build y exit 1 lo continúa. Además saltea en vez de fallar. O sea que poner `pnpm verify` ahí
-tendría dos problemas a la vez — se pagaría la verificación dos veces, y un rojo se reportaría como
-«deploy salteado», que en el tablero se lee como verde. Condicionar lo que entra al repo es trabajo
-del gate del PR, no del deploy.
+It is the only native Vercel hook that can condition a deploy, and **it is inverted**: exit 0
+**skips** the build and exit 1 continues it. It also skips instead of failing. So `pnpm verify` there
+causes two problems at once. The verification runs twice, and a red result shows as "deploy skipped",
+which the dashboard shows as green. The PR gate decides what enters the repo, not the deploy.
 
-### No hay `rewrites`
+### No `rewrites`
 
-Un fallback de SPA existe para que `GET /alguna/ruta` devuelva el `index.html` en vez de un 404, y acá
-no hay ninguna «alguna/ruta» que pedir: la app no tiene routing —ni `react-router`, ni `pushState`, ni
-lectura de `window.location`— y la única URL es `/`.
+An SPA fallback makes `GET /some/route` return `index.html` instead of a 404. Here there is no route
+to request: the app has no routing (no `react-router`, no `pushState`, no read of `window.location`),
+and the only URL is `/`.
 
-**El día que haya routing, la regla va acá como `rewrites`**, no como un archivo suelto en `public/`.
-Queda escrito porque hasta el spec 045 esa regla vivía en `public/_redirects`, en la sintaxis de la
-plataforma anterior, que Vercel no lee.
+**When routing exists, the rule goes here as `rewrites`**, not as a loose file in `public/`. This is
+written down because the rule once lived in `public/_redirects`, in the syntax of the previous
+platform, and Vercel does not read that file.
 
-### No hay versión de Node
+### No Node version
 
-`engines.node` del `package.json` **pisa** la configuración del proyecto en Vercel, y hoy ese campo
-declara un rango que cruza dos majors (`^20.19.0 || >=22.12.0`) porque es el **piso** que exige Vite 7,
-no un pin. Dónde vive el pin del deploy y quién lo cruza contra los dos pisos declarados es el spec
-046; acá el campo está ausente a propósito y no por olvido.
+`engines.node` in `package.json` **overrides** the project setting in Vercel. Today that field declares
+a range across two majors (`^20.19.0 || >=22.12.0`), because it is the **floor** Vite 7 requires, not
+a pin. Where the deploy pin lives, and what checks it against the two declared floors, is an open
+decision in **#138**. The field is absent here on purpose, not by omission.
 
-## Variables de entorno
+## Environment variables
 
-**Ninguna.** La app es enteramente cliente: sin backend, sin API keys, sin endpoints. La sección
-*Environment Variables* del proyecto debe quedar vacía. La única que Vercel documenta y que acá
-cambiaría algo es `ENABLE_EXPERIMENTAL_COREPACK=1`, que haría que el deploy honre `packageManager`;
-poner una variable de entorno para pinnear el gestor es una decisión propia, y está abierta en **#155**.
+**None.** The app runs entirely on the client: no backend, no API keys, no endpoints. The
+*Environment Variables* section of the project must stay empty. The only variable Vercel documents
+that changes something here is `ENABLE_EXPERIMENTAL_COREPACK=1`, which makes the deploy honor
+`packageManager`. An environment variable to pin the package manager is a separate decision, open in
+**#155**.
 
-Si algún día hace falta una, en Vite tiene que llevar el prefijo `VITE_` para ser visible desde el
-cliente (`import.meta.env.VITE_FOO`). El prefijo `REACT_APP_` de Create React App **no** funciona y
-falla en silencio.
+If one is ever needed, Vite requires the `VITE_` prefix for the client to see it
+(`import.meta.env.VITE_FOO`). The Create React App prefix `REACT_APP_` does **not** work, and it fails
+silently.
 
-## Qué rama se publica
+## Which branch is published
 
-**`main`**, fijada explícitamente en el proyecto de Vercel y no heredada de la default. El modelo de
-dos ramas —los roles, el ruleset, y por qué la default es `staging`— vive entero en
-[`ramas.md`](./ramas.md), que es la única copia que un gate cruza
-([`__tests__/ramas-sincronizadas.test.ts`](../../__tests__/ramas-sincronizadas.test.ts)): repetirlo
-acá dejaría una segunda copia que puede divergir sin que nada se ponga en rojo.
+**`main`**, set explicitly in the Vercel project and not inherited from the default. The two-branch
+model (the roles, the ruleset, and why the default is `staging`) lives whole in
+[`branches.md`](./branches.md). It is the only copy a gate checks
+([`__tests__/branches-in-sync.test.ts`](../../__tests__/branches-in-sync.test.ts)). A repeat here is a
+second copy that can diverge with nothing turning red.
 
-## Repositorio conectado
+## Connected repository
 
-El proyecto tiene que estar conectado al repositorio **al que se pushea**. Un push a un fork no
-dispara el deploy de un proyecto conectado al repo original: los webhooks son por repositorio.
+The project must be connected to the repository **that receives the push**. A push to a fork does not
+fire the deploy of a project connected to the original repo: webhooks are per repository.
 
-## Verificar el build localmente
+## Check the build locally
 
-Reproduce exactamente lo que hace la plataforma:
+This reproduces exactly what the platform does:
 
 ```bash
 rm -rf dist
@@ -118,13 +117,13 @@ pnpm build
 find dist -type f
 ```
 
-`dist/` tiene que contener `index.html` y `assets/` con **un** chunk JS y uno CSS.
+`dist/` must contain `index.html` and `assets/` with **one** JS chunk and one CSS chunk.
 
-Antes había dos chunks JS: el segundo eran los 340 kB de Tone.js, separados por el import dinámico.
-Con el motor propio ese chunk no existe. **Si aparece un segundo chunk JS, algo volvió a introducir un
-import dinámico** — no es un error, pero conviene saber qué es.
+There were once two JS chunks: the second one was the 340 kB of Tone.js, split off by a dynamic
+import. With the in-house engine that chunk does not exist. **If a second JS chunk appears, something
+brought back a dynamic import.** It is not an error, but find out what it is.
 
-Después:
+Then:
 
 ```bash
 pnpm preview

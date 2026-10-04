@@ -139,7 +139,7 @@ donde no hay color — y estaba entera sin cubrir: medido sobre `src/`, **cero**
 significa «seleccionada» le llega al ojo y no le llega a nadie más. Las tres cláusulas —nombre accesible
 en todo control solo-icono, `aria-pressed` en todo lo que alterna y con el nombre siendo lo que alterna,
 y la etiqueta tomada del texto visible en vez de duplicada— viven en
-[`.claude/rules/ui.md`](./.claude/rules/ui.md).
+[`.agents/rules/ui.md`](./.agents/rules/ui.md).
 
 **Ese canal y el anillo de foco del spec 026 son complementarios, no rivales.** El 025 reclama lo **no
 visual** —el rol, el nombre accesible y el `aria-pressed`, que es lo que un lector de pantalla

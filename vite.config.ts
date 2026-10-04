@@ -57,35 +57,15 @@ export default defineConfig({
           name: 'node',
           environment: 'node',
           /**
-           * Seis raices, y cinco no son `src/`: **cada gate vive al lado de lo que
-           * verifica**, y eso quiere decir al lado del SUJETO, no de lo que el sujeto
-           * toca. `__tests__/` en la raiz mira los archivos de la raiz —`index.html`,
-           * `public/manifest.json`, `README.md`—; `docs/__tests__/` la DOCUMENTACION
-           * (issue #100); `specs/__tests__/` el REGISTRO —la convencion y `mapa.json`,
-           * spec 035—; y `.claude/scripts/__tests__/` los SCRIPTS que lo publican e
-           * hidratan, que son del script y no de `specs/`, que es lo que el script
-           * manipula.
+           * Seven roots, and six are not `src/`: **each gate lives next to its subject**.
+           * `__tests__/` checks the root files (`index.html`, the manifest, `README.md`);
+           * `docs/__tests__/` the documentation; `specs/__tests__/` the capability
+           * contracts; `.claude/scripts/__tests__/` and `.agents/scripts/__tests__/` the
+           * harness scripts; `eslint-rules/__tests__/` the local lint rules.
            *
-           * Estaban todos en `src/__tests__/` por una sola razon, y no era de diseno:
-           * era el unico lugar donde vitest miraba. Ninguno importa una linea de `src/`
-           * —usan `node:fs` y `node:url`, y uno lanza `gh`—, asi que lo que hacian ahi
-           * era obligar a la app a saber que el repo tiene specs, documentacion y un
-           * `index.html`. En `src/__tests__/` queda lo que es de la app.
-           *
-           * Y en `__tests__/` y no sueltos, como en el resto del repo: `specs/` es
-           * ademas la cache hidratada de los issues, y un `.test.ts` entre 35 carpetas
-           * `NNN-…` se lee como si fuera parte de un spec.
-           *
-           * `eslint-rules/__tests__/` es la sexta y la unica que verifica algo que este
-           * repo EJECUTA de afuera: las dos reglas locales del spec 051 las corre ESLint,
-           * no la app, asi que sin esta entrada su `RuleTester` no corre y las reglas
-           * quedan sin verificar. Es ademas la unica que SI entra al coverage —ver
-           * `coverage.include` abajo—, porque a diferencia de las otras cuatro lo que
-           * verifica es codigo de este repo y no un archivo de texto.
-           *
-           * Sin cualquiera de estas seis entradas, esos gates dejan de correr EN
-           * SILENCIO — la forma de fallar en verde que este repo ya se comio dos veces.
-           * Ninguno entra al coverage: su `include` es `src/**` y punto.
+           * None of them imports app code, so `src/__tests__/` keeps only what belongs to
+           * the app. Without one of these entries its gate stops running SILENTLY: a red
+           * that turns green by not running.
            */
           include: [
             'src/**/__tests__/*.test.ts',
@@ -184,22 +164,10 @@ export default defineConfig({
         // Bootstrap: `createRoot(...).render(<App />)`. Cubrirlo verifica que
         // React monta, no que este repo funcione.
         'src/main.tsx',
-        // ## El otro paquete, que tiene su propio gate al 100
-        //
-        // `include` es `src/**` y aun asi esto hace falta: v8 reporta todo archivo que
-        // se EJECUTO, y `include` solo decide cuales de los que nadie toco se suman al
-        // denominador. Desde el 038 `specs/__tests__/mapa-de-specs.test.ts` importa
-        // `readSpecStatus` de `mcp-server/src/specs.ts` —a proposito: `pendientes` no
-        // se reimplementa, que es el bug de ese spec un nivel mas abajo—, asi que el
-        // archivo entero entra a la tabla por una sola funcion. Medido: 64 % de
-        // statements y 55 % de ramas, y el umbral 100 en rojo.
-        //
-        // El numero no significa nada: ese paquete corre sus tests con `node --test` y
-        // `pnpm mcp:test` ya lo tiene en **100 en las cuatro metricas**. Contarlo aca
-        // pediria escribir tests de vitest para codigo que ya esta cubierto por su
-        // propio runner, o —peor— bajar el umbral. Se excluye del denominador de
-        // vitest, no de la verificacion: el gate del paquete sigue siendo `mcp:test`,
-        // que es un nodo de `verify`.
+        // The other package, which has its own gate at 100. v8 reports every file that
+        // RAN, so a Vitest test that imports one `mcp-server/` module would add the file
+        // to this table. That package runs its tests with `node --test`, and `pnpm
+        // mcp:test` (a node of `verify`) holds it at 100 on all four metrics.
         'mcp-server/**',
       ],
 

@@ -1,208 +1,273 @@
-# Estructura de Directorios
+# Directory structure
 
-## Organización General
+## Overview
 
 ```text
-pentomino-games/           # raíz del repo: la app vive acá, sin subdirectorio
-├── CLAUDE.md              # Guía para Claude Code
-├── docs/                  # Esta documentación, y en docs/__tests__/ los gates que la verifican
-├── specs/                 # Trabajo planificado (ver specs/README.md)
-├── public/                # Assets servidos tal cual, copiados a dist/
-├── src/                   # Todo el código de la app
-├── mcp-server/            # MCP server de dominio: tooling, NO entra al bundle
-├── __tests__/             # Gates de lo que no vive en src/: los archivos de la raíz y el modelo de ramas
-├── .mcp.json              # Registra el server; commiteado, sin nada que configurar
-├── index.html             # Entry point de Vite (en la raíz, no en public/)
-├── vite.config.ts         # Plugins: react() + tailwindcss()
-├── eslint.config.js       # Flat config v9: zonas de dirección + las reglas de CLAUDE.md
-├── eslint-rules/          # Las dos reglas locales `local/comment-*` y su `__tests__/` (spec 051)
-├── vercel.json            # Config de deploy (ver infra/deploy.md)
-├── pnpm-workspace.yaml    # Workspace de dos paquetes: `.` y `mcp-server`
-├── pnpm-lock.yaml         # Lockfile único, cubre los dos paquetes
+pentomino-games/           # repo root: the app lives here, with no subdirectory
+├── AGENTS.md              # What a file cannot tell you; loaded by Claude Code and Codex
+├── CLAUDE.md              # Imports AGENTS.md and adds what only Claude Code needs
+├── DESIGN.md              # The visual language
+├── docs/                  # This documentation; docs/__tests__/ holds the gates that verify it
+├── specs/                 # The contract of each capability: specs/<capability>/<capability>.md
+├── public/                # Assets served as they are, copied to dist/
+├── src/                   # All the app code
+├── mcp-server/            # Domain MCP server: tooling, NOT in the bundle
+├── __tests__/             # Gates on files outside src/: the root files and the branch model
+├── .agents/               # The harness, canonical for Claude Code and Codex: rules, scripts, skills
+├── .claude/               # Claude Code: settings, generated copies of rules and skills, one hook script
+├── .codex/                # Codex: hooks.json
+├── .github/               # The verify workflow and the task-brief issue template
+├── .mcp.json              # Registers the server; committed, nothing to configure
+├── index.html             # Vite entry point (at the root, not in public/)
+├── vite.config.ts         # Plugins react() + tailwindcss(), and the two Vitest projects
+├── eslint.config.js       # Flat config v9: direction zones + the repo rules
+├── eslint-rules/          # The two local rules `local/comment-*`, bloques.mjs and their __tests__/
+├── vercel.json            # Deploy config (see infra/deploy.md)
+├── pnpm-workspace.yaml    # Workspace of two packages: `.` and `mcp-server`
+├── pnpm-lock.yaml         # One lockfile for both packages
 ├── LICENSE
-└── tsconfig{,.app,.node}.json
+└── tsconfig{,.app,.node,.eslint-rules}.json
 ```
+
+## The harness
+
+`.agents/` is the source. Each other harness folder holds a copy that
+`node .agents/scripts/sync.ts` writes, and `sync.ts --check` fails when a copy differs from its
+source. Do not edit a copy by hand.
+
+```text
+.agents/
+├── rules/                        one rule per layer; its `paths:` say which folders it covers
+│   └── audio · comments · domain · mcp-server · specs · ui (.md)
+├── skills/                       shape · to-issue · to-spec · implement-feature · implement-batch ·
+│                                   pr-review · pr-review-batch · review-spec-drift
+│                                   A skill carries copies of the scripts and docs it uses
+└── scripts/                      TypeScript that node runs without a build
+    ├── hook.ts                   the PreToolUse hook of both harnesses: `hook.ts <claude|codex>`
+    ├── protocol.ts               how each harness sends its payload, and how it becomes an Intent
+    ├── policy.ts                 what can be written from which branch; INTEGRATION_BRANCH and
+    │                               RELEASE_BRANCH
+    ├── system.ts                 the git port of the hook, with real git behind it
+    ├── worktrees.ts              where worktrees live (.claude/worktrees/) and how they go
+    ├── clean-worktrees.ts        removes worktrees under .claude/worktrees/, and only there
+    ├── specs.ts                  the spec gate: corpus shape, and each criterion against its test
+    ├── sync.ts · copies.ts       writes or checks the generated copies
+    ├── task-brief.ts · brief.ts  starts and checks an issue draft against the task-brief template
+    ├── pr-diff.ts · diff.ts      materializes the diff of one PR and measures its review axes
+    ├── screenshots-to-branch.ts · screenshots.ts
+    │                             pushes the screenshots of an issue to the orphan branch
+    │                               screenshots/<N>
+    └── __tests__/                one per module
+```
+
+Each entrypoint (`hook.ts`, `sync.ts`, `task-brief.ts`, `pr-diff.ts`, `screenshots-to-branch.ts`)
+has no branches: the logic lives in the module next to it, with git and the disk injected, so a
+test can drive it.
+
+The generated copies:
+
+| Source | Copy |
+|---|---|
+| `.agents/skills/` | `.claude/skills/` |
+| `.agents/rules/` | `.claude/rules/` |
+| each rule, by its `paths:` | the `AGENTS.md` of each folder it covers: `src/`, `src/domain/`, `src/audio/`, `src/components/`, `mcp-server/`, `mcp-server/src/`, `specs/` |
+
+The root `AGENTS.md` is written by hand. A generated `AGENTS.md` starts with a comment that names
+its source.
+
+`.claude/` also holds `settings.json` (the hooks) and `scripts/lint-al-cerrar.mjs`, which lints what
+changed when a turn ends. `.codex/hooks.json` points Codex at the same `hook.ts`.
+
+## `specs/`
+
+```text
+specs/
+├── <capability>/<capability>.md  the contract: BR rules and AC criteria
+│                                   accessibility · board-editing · board-fit · circuit ·
+│                                   musical-model · panels · pieces · playback · spectrum
+├── _template/capability-spec.md  the shape of a new contract
+├── __tests__/specs.test.ts       the gate: every AC of a `ratified` spec is cited by a test
+└── AGENTS.md                     generated from .agents/rules/specs.md
+```
+
+The rules of a contract are in [specs.md](../../.agents/rules/specs.md).
 
 ## `mcp-server/`
 
-Paquete aparte, con sus propias dependencias y su propio `tsconfig.json`. **La dirección de dependencia
-es una sola: `mcp-server/` importa de `src/`, nunca al revés.**
+A separate package, with its own dependencies and its own `tsconfig.json`. **The dependency goes
+one way: `mcp-server/` imports from `src/`, never the reverse.**
 
 ```text
 mcp-server/
 └── src/
-    ├── index.ts                  entrypoint: serveStdio + registro de tools y resources
-    ├── pieces.ts                 las 12 letras, derivadas de SHAPES
-    ├── render.ts                 ASCII de una pieza (puro)
-    ├── specs.ts                  parseo de mapa.json y de los tasks.md, y la escritura del 033
-    ├── symbols.ts                índice de símbolos de src/, construido en la consulta
-    ├── resources/                un resource por archivo + el array de index.ts
-    ├── tools/                    una tool por archivo + el array de index.ts
-    └── __tests__/                node --test, uno por tool + los de parseo y render
+    ├── index.ts                  entrypoint: serveStdio + registration of tools and resources
+    ├── pieces.ts                 the 12 letters, derived from SHAPES
+    ├── render.ts                 ASCII of one piece (pure)
+    ├── symbols.ts                index of the symbols of src/, built on each query
+    ├── resources/                one resource per file + the array in index.ts
+    ├── tools/                    one tool per file + the array in index.ts: check_invariants ·
+    │                               describe_piece · find_symbol · simulate_board
+    └── __tests__/                node --test: tools, resources, symbols and render
 ```
 
-Que sea un paquete y no una carpeta más no es prolijidad: `zod` y `@modelcontextprotocol/server` quedan
-en `mcp-server/node_modules` y **no** aparecen en el de la raíz, así que el tooling no puede colarse al
-bundle. Lo garantiza pnpm, no la disciplina.
+A package and not one more folder, for a reason: `zod` and `@modelcontextprotocol/server` stay in
+`mcp-server/node_modules` and **do not** appear in the root one. The tooling cannot leak into the
+bundle. pnpm guarantees it, not discipline.
 
-No tiene `dist/`: node corre los `.ts` quitando los tipos. Por eso el server pide **Node ≥ 22.18**, por
-encima del piso de la app — y por eso no puede quedar sirviendo código viejo. Detalle en
-[mcp-domain.md](../guides/mcp-domain.md).
+It has no `dist/`: node runs the `.ts` files and strips the types. That is why the server requires
+**Node ≥ 22.18**, above the floor of the app. It is also why the server cannot serve stale code.
+Detail in [mcp-domain.md](../guides/mcp-domain.md).
 
 ## `src/`
 
 ```text
 src/
-├── main.tsx                      # createRoot + StrictMode + import de styles/index.css
-├── App.tsx                       # el shell: estado, derivados, handlers y composición. Cero efectos
-├── vite-env.d.ts                 # Tipos de Vite
+├── main.tsx                      # createRoot + StrictMode + import of styles/index.css
+├── App.tsx                       # the shell: state, derived values, handlers and composition. Zero effects
+├── vite-env.d.ts                 # Vite types
 ├── styles/
-│   └── index.css                 # @import "tailwindcss" + estilos globales de body/code
-├── domain/                       # puro: sin React, sin Web Audio, sin DOM
+│   └── index.css                 # @import "tailwindcss" + global body/code styles
+├── domain/                       # pure: no React, no Web Audio, no DOM
 │   ├── transform.ts              # rotate90 · normalize · rotateN · reflect · centroid ·
 │   │                             #   angleFromCentroid · pathThroughCells
 │   ├── board.ts                  # cellsAt · isValid · routeBetween · occupantAt ·
 │   │                             #   occupantCellIndex
 │   ├── music.ts                  # midiFor · midiName · notesForRotation · arpeggioFor ·
 │   │                             #   degreeByCellIndex · angularRank
-│   ├── sequence.ts               # buildSequence — el circuito (Held-Karp) y los offsets del ciclo —,
-│   │                             #   cellsByPlayOrder, gates —las dos puertas, las usa simulate_board—
-│   │                             #   y noteAtCell, qué nota hay en una celda
-│   ├── invariants.ts             # los siete chequeos del modelo + checkAll
-│   ├── types/                    # el contrato de la capa. Cero imports de afuera
+│   ├── sequence.ts               # buildSequence (the circuit, Held-Karp, and the cycle offsets),
+│   │                             #   cellsByPlayOrder, gates (the two doors; simulate_board uses them)
+│   │                             #   and noteAtCell, the note on one cell
+│   ├── invariants.ts             # the seven checks of the model + checkAll
+│   ├── types/                    # the contract of the layer. Zero imports from outside
 │   │   ├── transform.types.ts    #   Cell
 │   │   ├── pieces.types.ts       #   PieceKey
 │   │   ├── board.types.ts        #   PlacedPiece · Dims · Ruta
-│   │   ├── music.types.ts        #   RegimenDeRotacion, derivado de REGIMEN (spec 017)
+│   │   ├── music.types.ts        #   RegimenDeRotacion, derived from REGIMEN
 │   │   └── sequence.types.ts     #   Step · Click · Sequence
-│   ├── constants/                # los datos del modelo. Solo importan tipos
+│   ├── constants/                # the data of the model. They import only types
 │   │   ├── pieces.constants.ts   #   SHAPES · ANCHOR_INDEX
 │   │   ├── board.constants.ts    #   GRID_MIN · GRID_DEFAULT · MAX_PIEZAS · CROSS_COST
-│   │   │                         #   (el tamaño del tablero es un parámetro desde el 031)
+│   │   │                         #   (the board size is a parameter)
 │   │   ├── music.constants.ts    #   CHROMATIC · PENT_* · BASE_MAP · DEFAULT_OCTAVE
 │   │   ├── sequence.constants.ts #   PASOS_MAX
 │   │   └── invariants.constants.ts #   ROTATIONS
-│   └── __tests__/                # uno por módulo
+│   └── __tests__/                # one per module
 │       └── transform · board · music · sequence · invariants
-├── audio/                        # Web Audio; habla MIDI, no conoce el dominio ni la UI
+├── audio/                        # Web Audio; speaks MIDI, knows neither the domain nor the UI
 │   ├── voice.ts                  # midiToHz · scheduleVoice · scheduleClick
-│   ├── scheduler.ts              # collectHits · collectWindow (el swap al cierre de ciclo) ·
+│   ├── scheduler.ts              # collectHits · collectWindow (the swap at the cycle end) ·
 │   │                             #   barDuration · intervalDuration
-│   ├── engine.ts                 # singletons y la API que consume la UI
-│   ├── spectrum.ts               # mapeo puro de bins de la FFT a alturas de barra
-│   ├── playhead.ts               # offsetAt — aritmética del offset de la cabeza lectora (spec 010)
+│   ├── engine.ts                 # singletons and the API the UI consumes
+│   ├── spectrum.ts               # pure mapping from FFT bins to bar heights
+│   ├── playhead.ts               # offsetAt: the offset arithmetic of the playhead
 │   ├── types/                    #   voice.types.ts · scheduler.types.ts
 │   ├── constants/
-│   │   ├── voice.constants.ts    #   la envolvente y los tres velocities; el click del 015
-│   │   ├── scheduler.constants.ts #  LOOKAHEAD · TICK_MS · la subdivisión (008) · HIT
-│   │   └── engine.constants.ts   #   MASTER_GAIN · DEFAULT_BPM · los dos delays · la FFT
+│   │   ├── voice.constants.ts    #   the envelope, the three velocities and the click
+│   │   ├── scheduler.constants.ts #  LOOKAHEAD · TICK_MS · the subdivision · HIT
+│   │   └── engine.constants.ts   #   MASTER_GAIN · DEFAULT_BPM · the two delays · the FFT
 │   └── __tests__/
-│       ├── voice.test.ts         #   síntesis, con OfflineAudioContext
-│       ├── scheduler.test.ts     #   lookahead, reloj por origen, offsets del ciclo y el swap (D5)
-│       ├── integration.test.ts   #   el analyser es transparente, muestra por muestra
-│       ├── spectrum.test.ts      #   binsToBars, sin AudioContext (ver audio.md)
-│       ├── playhead.test.ts      #   offsetAt: borde de ciclo, t < origin y los degradados (AC2)
-│       └── test-context.ts       #   helpers de render y medición (no es un test)
-└── components/                   # un componente por archivo, presentacionales
-    ├── PiecePalette.tsx          # el dock flotante y la composición de los dos paneles, más las
-    │                             #   dos filas que quedan entre ellos (specs 022 y 019). Dejó de
-    │                             #   ser una tarjeta en columna con el spec 021
-    ├── OrientationPanel.tsx      # las doce miniaturas, cada una en SU orientación recordada
-    │                             #   (spec 016 la forma, spec 020 la orientación por pieza)
-    ├── TransportPanel.tsx        # tempo, play/pausa, el recorrido en el vacío y el reset
-    ├── Board.tsx                 # la grilla que le digan `dims`: color por pieza, nota por celda, y el fantasma
-    │                             #   diciendo lo mismo antes de colocar
-    ├── Spectrum.tsx              # canvas del espectro: rAF + HiDPI, sin props
-    ├── Playhead.tsx              # cabeza lectora: rAF + estilo imperativo, sin props (spec 010)
-    ├── playhead-loop.ts          # el bucle de la cabeza y del velo, fuera del .tsx para poder
-    │                             #   exportarlo y testearlo (spec 029). Sin cambio de conducta
-    ├── spectrum-loop.ts          # ídem el del espectro: drawBars, drawIdle e iniciarEspectro
-    ├── route-source.ts           # singleton fuera de React (no un componente): espeja active/
-    │                             #   pending del motor con la Sequence del dominio, con celdas
-    ├── cell-text.ts              # qué dice cada celda: su nota (por grado) y su #N (por paso).
-    │                             #   Fuera del .tsx para poder testearla (spec 012, fix del #N)
-    ├── cell-name.ts              # qué ANUNCIA cada celda: su nombre accesible y el texto de la
-    │                             #   región aria-live de las tres ediciones (spec 026). Fuera
-    │                             #   del .tsx por lo mismo que cell-text.ts
-    ├── piece-mini.ts             # la forma de una pieza centrada en la caja de 5×5 de la paleta,
-    │                             #   ya rotada y reflejada (spec 016). Fuera del .tsx por lo mismo
-    ├── orientation-text.ts       # la orientación en palabras, en dos fragmentos: la línea visible
-    │                             #   del panel y el aria-label de las miniaturas la componen cada
-    │                             #   uno a su formato (spec 019). Fuera del .tsx por lo mismo
-    ├── input.ts                  # la decisión de cada gesto de entrada: rueda, tecla, menú
-    │                             #   contextual y click sobre una celda (specs 013 y 014)
-    ├── engine-bridge.ts          # las dos puras del puente con el motor: proyectarAlMotor
-    │                             #   —la única del repo que ve los dos tipos Sequence— y
-    │                             #   alternarTransporte, que devuelve lo que el motor dice
-    ├── use-engine.ts             # los cuatro efectos de reconciliación del spec 022: tempo,
-    │                             #   clicks, la secuencia contra el tablero y el desmontaje
-    ├── use-input.ts              # los dos efectos de entrada del 013: teclado y rueda. Reciben
-    │                             #   callbacks, no setters, y el tapLimpio del shell
-    ├── grid-fit.ts               # cuántas celdas entran en el viewport y cuánto mide cada una
-    │                             #   (spec 031, reemplaza a cell-px.ts del 021). Pura, fuera del
-    │                             #   hook para poder testearla sin navegador
-    ├── use-grid.ts               # el tercer hook de entrada: mide el contenedor raíz, escribe la
-    │                             #   celda en --cell y devuelve las dimensiones como estado
+│       ├── voice.test.ts         #   synthesis, with OfflineAudioContext
+│       ├── scheduler.test.ts     #   lookahead, clock by origin, cycle offsets and the swap
+│       ├── integration.test.ts   #   the analyser is transparent, sample by sample
+│       ├── spectrum.test.ts      #   binsToBars, with no AudioContext (see audio.md)
+│       ├── playhead.test.ts      #   offsetAt: cycle edge, t < origin and the degraded cases
+│       └── test-context.ts       #   render and measurement helpers (not a test)
+└── components/                   # one component per file, presentational
+    ├── PiecePalette.tsx          # the floating dock, the composition of the two panels and the
+    │                             #   two rows between them
+    ├── OrientationPanel.tsx      # the twelve thumbnails, each one in ITS remembered orientation
+    ├── TransportPanel.tsx        # tempo, play/pause, the empty-board tour and reset
+    ├── Board.tsx                 # the grid that `dims` gives: color per piece, note per cell, and the
+    │                             #   ghost that shows the same before placement
+    ├── Spectrum.tsx              # spectrum canvas: rAF + HiDPI, no props
+    ├── Playhead.tsx              # playhead: rAF + imperative style, no props
+    ├── playhead-loop.ts          # the loop of the playhead and of the veil, outside the .tsx so it
+    │                             #   can be exported and tested. No change in behavior
+    ├── spectrum-loop.ts          # the same for the spectrum: drawBars, drawIdle and iniciarEspectro
+    ├── route-source.ts           # singleton outside React (not a component): mirrors the active/
+    │                             #   pending pair of the engine with the domain Sequence, with cells
+    ├── cell-text.ts              # what each cell shows: its note (by degree) and its #N (by step).
+    │                             #   Outside the .tsx so it can be tested
+    ├── cell-name.ts              # what each cell ANNOUNCES: its accessible name and the text of
+    │                             #   the aria-live region for the three edits. Outside the .tsx for
+    │                             #   the same reason as cell-text.ts
+    ├── piece-mini.ts             # the shape of a piece centered in the 5×5 box of the palette,
+    │                             #   rotated and reflected. Outside the .tsx for the same reason
+    ├── orientation-text.ts       # the orientation in words, in two fragments: the visible line of
+    │                             #   the panel and the aria-label of the thumbnails each compose
+    │                             #   them in their own format. Outside the .tsx for the same reason
+    ├── input.ts                  # the decision for each input gesture: wheel, key, context menu
+    │                             #   and click on a cell
+    ├── engine-bridge.ts          # the two pure functions of the bridge to the engine: proyectarAlMotor
+    │                             #   (the only one in the repo that sees both Sequence types) and
+    │                             #   alternarTransporte, which returns what the engine says
+    ├── use-engine.ts             # the four reconciliation effects: tempo, clicks, the sequence
+    │                             #   against the board, and unmount
+    ├── use-input.ts              # the two input effects: keyboard and wheel. They receive callbacks,
+    │                             #   not setters, and the tapLimpio of the shell
+    ├── grid-fit.ts               # how many cells fit in the viewport and the size of each one.
+    │                             #   Pure, outside the hook so it can be tested without a browser
+    ├── use-grid.ts               # the third input hook: measures the root container, writes the
+    │                             #   cell into --cell and returns the dimensions as state
     ├── constants/
-    │   ├── layout.constants.ts   # CELL_PX_OBJETIVO —el tamaño al que se apunta, 73— y las
-    │   │                         #   razones que vuelven proporcional la baldosa · MINI_BOX ·
-    │   │                         #   MINI_CELL_PX · MINI_PISTA_PX · TEMPO_MIN · TEMPO_MAX · las
-    │   │                         #   dos razones del anillo de foco de la celda (spec 026)
-    │   ├── palette.constants.ts  # los 12 colores y su color de texto (ver DESIGN.md)
-    │   ├── route.constants.ts    # MARCA: los estados de una celda bajo la cabeza lectora
-    │   ├── input.constants.ts    # ACCION y EDICION: lo que puede pedir un gesto
-    │   ├── orientation.constants.ts # ROTACION, la orientación inicial y las doce ranuras
-    │   │                         #   derivadas de SHAPES (spec 020)
-    │   ├── playhead.constants.ts # los tres grosores de borde, su tabla por MarcaKind y las
-    │   │                         #   clases del velo (spec 029, al salir del .tsx)
+    │   ├── layout.constants.ts   # CELL_PX_OBJETIVO (the target size, 73) and the ratios that make
+    │   │                         #   the tile proportional · MINI_BOX · MINI_CELL_PX ·
+    │   │                         #   MINI_PISTA_PX · TEMPO_MIN · TEMPO_MAX · the two ratios of the
+    │   │                         #   cell focus ring
+    │   ├── palette.constants.ts  # the 12 colors and their text color (see DESIGN.md)
+    │   ├── route.constants.ts    # MARCA: the states of a cell under the playhead
+    │   ├── input.constants.ts    # ACCION and EDICION: what a gesture can ask for
+    │   ├── orientation.constants.ts # ROTACION, the initial orientation and the twelve slots
+    │   │                         #   derived from SHAPES
+    │   ├── playhead.constants.ts # the three border widths, their table by MarcaKind and the
+    │   │                         #   veil classes
     │   └── spectrum.constants.ts # BAR_COUNT · GAP · MIN_BAR · IDLE_TEXT
     ├── types/
-    │   ├── cell-text.types.ts    # CellText: lo que una celda muestra
+    │   ├── cell-text.types.ts    # CellText: what a cell shows
     │   ├── route.types.ts        # Marca · CeldaPorEstrenar
     │   ├── engine.types.ts       # MotorDeTransporte · SequenceDelMotor
-    │   ├── orientation.types.ts  # Rotacion · Orientacion · MemoriaDeOrientacion (spec 020)
+    │   ├── orientation.types.ts  # Rotacion · Orientacion · MemoriaDeOrientacion
     │   ├── panel.types.ts        # PropsDeOrientacion · PropsDeTransporte
-    │   └── input.types.ts        # Accion · Edicion · los campos de evento que las puras miran
+    │   └── input.types.ts        # Accion · Edicion · the event fields the pure functions read
     └── __tests__/
-        ├── palette.test.ts       # contraste WCAG recalculado desde el fondo; puro, sin jsdom
-        ├── route-source.test.ts  # el par activa/pendiente y el velo, con el motor mockeado
-        ├── cell-text.test.ts     # el #N es el paso y la nota es el grado, en las 96
-        ├── cell-name.test.ts     # el nombre accesible de la celda y el texto de las tres
-        │                         #   ediciones que anuncia la región aria-live (spec 026)
-        ├── input.test.ts         # la decisión de cada gesto: rueda, teclas y click (013 y 014)
-        ├── engine-bridge.test.ts # los tres estados de Click.note al proyectar, y las dos ramas
-        │                         #   de alternarTransporte — AC10 del 008, sin jsdom
-        ├── piece-mini.test.ts    # la forma entra y queda centrada en la caja, en las 96
-        ├── orientation-text.test.ts # las ocho combinaciones, y que las 29 orientaciones que la
-        │                         #   miniatura no distingue den textos distintos (AC5 del 019)
-        ├── orientation-constants.test.ts # las doce ranuras salen de SHAPES y arrancan en 0°
-        │                         #   sin reflejar (spec 020)
-        └── grid-fit.test.ts      # la tabla de nueve viewports, que lo que sobra es menos de una
-                                  #   celda en los dos ejes, y los dos casos desproporcionados
-                                  #   (spec 031)
+        ├── palette.test.ts       # WCAG contrast computed again from the background; pure, no jsdom
+        ├── route-source.test.ts  # the active/pending pair and the veil, with the engine mocked
+        ├── cell-text.test.ts     # the #N is the step and the note is the degree, in all 96
+        ├── cell-name.test.ts     # the accessible name of the cell and the text of the three edits
+        │                         #   that the aria-live region announces
+        ├── input.test.ts         # the decision for each gesture: wheel, keys and click
+        ├── engine-bridge.test.ts # the three states of Click.note at projection, and the two branches
+        │                         #   of alternarTransporte, with no jsdom
+        ├── piece-mini.test.ts    # the shape fits and is centered in the box, in all 96
+        ├── orientation-text.test.ts # the eight combinations, and that the 29 orientations the
+        │                         #   thumbnail cannot tell apart give different texts
+        ├── orientation-constants.test.ts # the twelve slots come from SHAPES and start at 0°
+        │                         #   without reflection
+        └── grid-fit.test.ts      # the table of nine viewports, that the leftover is less than one
+                                  #   cell on both axes, and the two disproportionate cases
 ```
 
-## La dirección de dependencia
+## The dependency direction
 
-Es la regla que ordena todo lo demás, y **la verifica el linter**, no la revisión:
+This rule orders everything else, and **the linter verifies it**, not review:
 
 ```text
-types/ ← constants/ ← módulos              types/ no importa nada de afuera de types/
-transform.ts ← board.ts                    domain/ no importa nada de fuera de domain/
-             ← music.ts ← invariants.ts    audio/  no importa nada de fuera de audio/
-                                           components/ y App.tsx importan de las dos
+types/ ← constants/ ← modules              types/ imports nothing from outside types/
+transform.ts ← board.ts                    domain/ imports nothing from outside domain/
+             ← music.ts ← invariants.ts    audio/  imports nothing from outside audio/
+                                           components/ and App.tsx import from both
 ```
 
-`domain/` y `audio/` son **hermanos sin aristas entre ellos**: el motor habla números MIDI y no sabe
-qué es un pentominó. Agregar a mano un import prohibido falla `pnpm lint` con el mensaje de la zona de
-`eslint.config.js` — desde el spec 030 se verifica por ruta y no por el string del import, así que una
-carpeta nueva queda cubierta sola. El porqué de cada regla está en
-[conventions.md](../guides/conventions.md).
+`domain/` and `audio/` are **siblings with no edge between them**: the engine speaks MIDI numbers and
+does not know what a pentomino is. A forbidden import fails `pnpm lint` with the message of its zone
+in `eslint.config.js`. The check works by path, not by the import string, so a new folder is covered
+on its own. The reason for each rule is in [conventions.md](../guides/conventions.md).
 
-Todos los archivos de `src/` están vivos. Los residuos de las plantillas de Create React App y de Vite
-(`App.css`, `logo.svg`, `assets/react.svg`, `setupTests.ts`) se eliminaron.
+All files in `src/` are live. The leftovers of the Create React App and Vite templates (`App.css`,
+`logo.svg`, `assets/react.svg`, `setupTests.ts`) were deleted. This sentence keeps them from coming
+back.
 
-Si al agregar un archivo se quiere confirmar que efectivamente se usa:
+To confirm that a file you add is used:
 
 ```bash
 grep -rq "App.css" src --include="*.tsx" --include="*.ts" --include="*.css"
@@ -210,143 +275,134 @@ grep -rq "App.css" src --include="*.tsx" --include="*.ts" --include="*.css"
 
 ### Tests
 
-`pnpm test` corre Vitest en **dos proyectos y un solo comando** (spec 029). El corte no es por capa sino
-por lo que el test necesita:
+`pnpm test` runs Vitest in **two projects and one command**. The split is not by layer. It is by what
+the test needs:
 
-- **`node`** — `environment: 'node'` contra `node-web-audio-api`, sobre **cinco** raíces. Son 33
-  archivos: 20 en `src/`, 4 en la raíz, 3 en `docs/`, 2 en `specs/` y 4 en `.claude/scripts/`. El
-  dominio es puro y el audio tiene una implementación nativa de Web Audio, así que corren ahí sin
-  adaptación. Los que **no** son el test de un módulo leen un archivo **del disco**, porque el proyecto
-  de navegador sirve su propio documento y nunca carga esos archivos, y **cada uno vive al lado del
-  sujeto que verifica** — no de lo que el sujeto toca:
-  - `__tests__/` en la **raíz del repo** — los cuatro que cruzan una afirmación contra los archivos
-    de fuera de `src/` que la sostienen: `documento.test.ts` (spec 025) verifica el `lang` de
-    `index.html`, y `fondo-sincronizado.test.ts` y `nombre-sincronizado.test.ts` (spec 028) verifican
-    que el color de fondo y el nombre de la app digan lo mismo en los tres lugares donde están
-    escritos —`index.html`, `public/manifest.json`, `README.md`—. Eran lo único del repo que ningún
-    test podía falsear. Vivieron en `src/__tests__/` hasta que se notó lo obvio: lo que miran está en
-    la raíz, no en `src/`. El cuarto es `ramas-sincronizadas.test.ts` (spec 047), que cruza el modelo
-    de dos ramas entre los dos workflows, el `RAMAS_COMPARTIDAS` de `gate-de-spec.mjs` y
-    `docs/infra/ramas.md`.
-  - `src/__tests__/` — lo que queda ahí es de la **app**: `App.browser.test.tsx` y —desde el spec
-    050— `arbol-accesible.browser.test.tsx`, el gate que recorre el árbol de accesibilidad de la app
-    entera. Los dos corren en el otro proyecto.
-  - `docs/__tests__/` — los tres gates de la **documentación**, mudados ahí por el issue #100 porque no
-    importan una sola línea de `src/`: `enlaces-resueltos.test.ts` (enlaces y anclas de todo `.md` del
-    repo), `mapa-de-directorios.test.ts` (que este archivo nombre cada archivo de producción) y
-    `claude-md-acotado.test.ts` (el techo de 200 líneas de `CLAUDE.md`).
-  - `specs/__tests__/` — los dos del **registro** (spec 035): `mapa-de-specs.test.ts` verifica
-    `mapa.json` contra sí mismo, —cuando hay `gh`— contra los issues y contra **el PR** de cada spec,
-    y —cuando hay carpetas hidratadas— contra los `pendientes` que calcula `readSpecStatus`, para que
-    un spec cerrado con trabajo abierto dé rojo (spec 038); y `specs-convencion.test.ts` que las
-    carpetas y el registro digan lo mismo.
-  - `.claude/scripts/__tests__/` — los cuatro de los **scripts**: `scripts-de-specs.test.ts` sobre lo
-    puro de `publicar-spec.mjs` e `hidratar-specs.mjs`, `gh.test.ts` sobre los tres caminos del
-    lanzador de `gh` del issue #125 —con el entorno inyectado, porque «no hay `gh` en esta máquina» no
-    se puede fabricar en la máquina que corre los tests—, `gate-de-spec.test.ts` sobre el gate de rama
-    del spec 037 y `lint-al-cerrar.test.ts` sobre el hook que lintea lo cambiado al cerrar el turno
-    (spec 048). Están acá y no en `specs/` porque **el test es del script**, y `specs/` es lo que el
-    script manipula.
-- **`browser`** — Chromium de verdad, por Playwright, sobre `src/**/__tests__/*.browser.test.tsx`. Son
-  12: los seis componentes, `App.tsx`, el gate del árbol de accesibilidad (spec 050), los tres hooks
-  —el tercero es `use-grid.ts`, de los specs 021 y 031— y `audio/engine.ts`. Renderizan con
-  `vitest-browser-react`, y el `setupFiles` (`browser-setup.ts`) importa la hoja de estilos **una** vez:
-  sin ella `z-10` está en el `className` y `getComputedStyle` devuelve `auto`, o sea que un test de
-  layout pasa o falla por el motivo equivocado y en silencio.
+- **`node`**: `environment: 'node'` against `node-web-audio-api`, over **seven** roots. There are 41
+  files: 20 in `src/`, 4 in the root `__tests__/`, 3 in `docs/`, 1 in `specs/`, 1 in
+  `.claude/scripts/`, 2 in `eslint-rules/` and 10 in `.agents/scripts/`. The domain is pure and the
+  audio has a native Web Audio implementation, so both run there with no adaptation. A test that is
+  **not** the test of a module reads a file **from disk**: the browser project serves its own document
+  and never loads those files. **Each gate lives next to the subject it verifies**, not next to what
+  the subject touches:
+  - `__tests__/` at the **repo root**: four gates that check a claim against the files outside `src/`
+    that hold it. `documento.test.ts` checks the `lang` of `index.html`.
+    `fondo-sincronizado.test.ts` and `nombre-sincronizado.test.ts` check that the background color and
+    the app name say the same in the three places that write them: `index.html`,
+    `public/manifest.json`, `README.md`. `branches-in-sync.test.ts` checks the two-branch model in
+    `.github/workflows/verify.yml`, in `.agents/scripts/policy.ts` and in `docs/infra/branches.md`.
+    These gates read the root, so they live at the root and not in `src/`.
+  - `src/__tests__/`: what stays there belongs to the **app**. `App.browser.test.tsx` and
+    `arbol-accesible.browser.test.tsx`, the gate that walks the accessibility tree of the whole app.
+    Both run in the other project.
+  - `docs/__tests__/`: the three gates of the **documentation**. They import no line of `src/`.
+    `enlaces-resueltos.test.ts` checks the links and anchors of every `.md` in the repo.
+    `mapa-de-directorios.test.ts` checks that this file names every production file.
+    `agent-docs-bounded.test.ts` keeps `AGENTS.md` and `CLAUDE.md` within their line budget.
+  - `specs/__tests__/specs.test.ts`: the **spec gate**. It goes red when a `ratified` contract has an
+    AC that no test title cites, or when a test title cites an AC that does not exist.
+  - `.claude/scripts/__tests__/lint-al-cerrar.test.ts`: the hook that lints what changed when a turn
+    ends.
+  - `eslint-rules/__tests__/`: the `RuleTester` of the two local comment rules. ESLint runs them, not
+    the app, so without this root they stay unverified. It is the only root outside `src/` that
+    enters coverage, because it verifies code of this repo and not a text file.
+  - `.agents/scripts/__tests__/`: one per harness module. They also enter coverage.
+- **`browser`**: real Chromium, through Playwright, over `src/**/__tests__/*.browser.test.tsx`. There
+  are 12: the six components, `App.tsx`, the accessibility-tree gate, the three hooks and
+  `audio/engine.ts`. They render with `vitest-browser-react`. The `setupFiles` (`browser-setup.ts`)
+  imports the stylesheet **once**. Without it, `z-10` is in the `className` and `getComputedStyle`
+  returns `auto`: a layout test passes or fails for the wrong reason, in silence.
 
-El discriminante es el **sufijo** y no la carpeta: un test de `Board.tsx` que necesita navegador sigue
-siendo un test de `Board.tsx` y vive al lado. Los `include` terminan en `__tests__/` y con un solo
-`*`, así que no matchean ni los helpers que no son tests —`test-context.ts` y `browser-setup.ts`, a los
-que les falta el `.test.` antes de la extensión— ni el `__screenshots__/` de los artefactos.
+The discriminant is the **suffix**, not the folder: a test of `Board.tsx` that needs a browser is
+still a test of `Board.tsx` and lives next to it. The `include` patterns end in `__tests__/` with one
+`*`, so they match neither the helpers that are not tests (`test-context.ts` and `browser-setup.ts`
+lack the `.test.` before the extension) nor the `__screenshots__/` artifacts.
 
-**Chromium no está en el lockfile:** un clone nuevo necesita `pnpm exec playwright install chromium`
-antes del primer `pnpm verify`.
+**Chromium is not in the lockfile:** a fresh clone needs `pnpm exec playwright install chromium`
+before the first `pnpm verify`.
 
-Los **tests del MCP server corren aparte**, con `pnpm mcp:test`: viven en `mcp-server/src/__tests__/`
-y los corre `node --test` —con sus propios umbrales de coverage al 100, que son flags de node y no de
-Vitest—. Los `include` no se pisan: el de Vitest empieza en `src/`.
+The **MCP server tests run apart**, with `pnpm mcp:test`. They live in `mcp-server/src/__tests__/` and
+`node --test` runs them, with its own coverage thresholds at 100 (node flags, not Vitest ones). The
+`include` patterns do not overlap: the Vitest one starts at `src/`.
 
-**Renderizar un componente se resolvió sin `jsdom`, y descartarlo fue la decisión.** El `App.test.tsx`
-heredado de CRA se eliminó al montar el runner —buscaba el texto "learn react" de la plantilla, que la
-app nunca renderizó— y «no hay tests de UI» quedó abierto en `deuda.md` durante veintidós specs, con
-`jsdom` anotado como la salida prevista. El spec 024 la descartó midiendo y el 029 la implementó: jsdom
-no da canvas 2D, `createLinearGradient`, `ResizeObserver`, `matchMedia` ni un `getBoundingClientRect`
-con números, así que cubrir `Spectrum.tsx` con él exigiría mockear exactamente el código que se quiere
-cubrir, que es cobertura sin verificación. Las `@testing-library/*` **siguen sin estar en el árbol**: el
-spec 022 las borró junto con `@types/jest`, `postcss` y `autoprefixer`, porque ninguna tenía un
-consumidor y el caso que las esperaba —AC10 del spec 008, que el botón de transporte diga lo que el
-reloj hace y no lo que se le pidió— se cerró por la otra vía que el propio registro de deuda nombraba:
-extraer el handler a una pura (`engine-bridge.ts`) y pasarle el motor por parámetro.
+**Rendering a component works without `jsdom`, and rejecting it was the decision.** jsdom gives no 2D
+canvas, `createLinearGradient`, `ResizeObserver`, `matchMedia` or `getBoundingClientRect` with
+numbers. Covering `Spectrum.tsx` with it would require mocking exactly the code under test: coverage
+without verification. The `@testing-library/*` packages **are not in the tree**. They left together
+with `@types/jest`, `postcss` and `autoprefixer`, because none had a consumer. The case that waited
+for them (the transport button says what the clock does, not what it was asked) closed another way:
+the handler moved to a pure function (`engine-bridge.ts`) that receives the engine as a parameter.
 
-`components/__tests__/palette.test.ts` es de constantes, corre en el proyecto `node` y no monta nada —y
-es la mitad de la respuesta a por qué la carpeta aguantó tanto sin montar nada—. La otra mitad es que la
-lógica no vive en los componentes: la derivación de `(x, y)` al nombre de nota que muestra `Board` está
-en `domain/` (`occupantCellIndex` · `degreeByCellIndex` · `playOrderByCellIndex` · `notesForRotation` ·
-`midiName`), y el `.tsx` solo indexa el resultado.
+`components/__tests__/palette.test.ts` tests constants, runs in the `node` project and mounts
+nothing. The logic does not live in the components either: the derivation from `(x, y)` to the note
+name that `Board` shows is in `domain/` (`occupantCellIndex` · `degreeByCellIndex` ·
+`playOrderByCellIndex` · `notesForRotation` · `midiName`), and the `.tsx` only indexes the result.
 
-**Encadenarlas tampoco es gratis, y por eso el encadenado salió del `.tsx`.** Vive en `cell-text.ts`
-desde el fix del `#N`: elegir *cuál* de las dos numeraciones por celda alimenta el número y cuál la nota
-es una decisión, y adentro de un componente no se podía testear —`react-refresh/only-export-components`
-le prohíbe al archivo exportar algo que no sea el componente—, así que el bug convivió con 238 tests en
-verde. Las puras del dominio estaban bien; lo que no había era un test entre la pura y el píxel.
+**Chaining those functions is a decision too, so the chain left the `.tsx`.** It lives in
+`cell-text.ts`. Choosing *which* of the two numberings per cell feeds the number and which feeds the
+note is a decision. Inside a component it could not be tested: `react-refresh/only-export-components`
+forbids the file to export anything but the component. So the `#N` bug lived with 238 green tests.
+The pure domain functions were right; there was no test between the pure function and the pixel.
 
-`route-source.test.ts` (spec 010) es el segundo, y es el que muestra dónde queda la costura: **no** es un
-componente, es el singleton de módulo que espeja el par activa/pendiente del motor, así que tiene lógica
-propia y se testea sin montar nada. Mockea `audio/engine.ts` con `vi.mock` porque lo único que le usa es
-`cycleGeneration()`, un número — importar el motor real arrastraría el singleton del `AudioContext` para
-leer un contador. El estado es de módulo, así que cada caso lo reimporta con `vi.resetModules()`: sin
-eso, el orden de los tests sería parte del oráculo.
+`route-source.test.ts` shows where the seam is: `route-source.ts` is **not** a component. It is the
+module singleton that mirrors the active/pending pair of the engine, so it has its own logic and its
+test mounts nothing. It mocks `audio/engine.ts` with `vi.mock`, because it only uses
+`cycleGeneration()`, a number. Importing the real engine would pull in the `AudioContext` singleton
+to read a counter. The state belongs to the module, so each case imports it again after
+`vi.resetModules()`. Without that, the test order would be part of the oracle.
 
 ## `public/`
 
-Se copia tal cual a `dist/`. Las rutas se referencian desde la raíz del sitio (`/favicon.ico`).
+Copied as it is to `dist/`. Paths are referenced from the site root (`/favicon.ico`).
 
-**Acá no va ninguna regla de ruteo.** Hasta el spec 045 hubo un `_redirects` con el fallback de SPA
-`/* /index.html 200`, y estaba documentado como «vivo y necesario» siendo las dos mitades falsas: la
-app no tiene routing —ni `react-router`, ni `pushState`, ni lectura de `window.location`—, así que no
-había ninguna ruta de cliente a la que hacer fallback. El día que la haya, la regla va como `rewrites`
-en `vercel.json` y no como un archivo suelto acá.
+**No routing rule goes here.** A `_redirects` file with the SPA fallback `/* /index.html 200` lived
+here, documented as "live and necessary", and both halves were false. The app has no routing: no
+`react-router`, no `pushState`, no read of `window.location`. There was no client route to fall
+back to. When one exists, the rule goes as `rewrites` in `vercel.json`, not as a loose file here.
 
-| Archivo | Estado |
+| File | Status |
 |---|---|
-| `favicon.ico`, `icon-192.png`, `icon-512.png` | Vivos, referenciados desde `index.html` y `manifest.json`. Reemplazan a los tres íconos de la plantilla de CRA —el logo de React— desde el spec 028: la pieza `X` en `#00A99D`, dibujada con el lenguaje de `DESIGN.md`. Los `.png` se renombran a propósito —`logoNNN.png` era el nombre de CRA—; `favicon.ico` conserva el nombre |
-| `manifest.json` | Vivo, con `name`/`short_name` propios y `theme_color`/`background_color` = `#f8fafc` (spec 028; antes tenía los valores por defecto de CRA, `"name": "Create React App Sample"`) |
-| `robots.txt` | Vivo |
+| `favicon.ico`, `icon-192.png`, `icon-512.png` | Live, referenced from `index.html` and `manifest.json`. They replace the three icons of the CRA template (the React logo): the `X` piece in `#00A99D`, drawn in the language of `DESIGN.md`. The `.png` files are renamed on purpose (`logoNNN.png` was the CRA name); `favicon.ico` keeps its name |
+| `manifest.json` | Live, with its own `name`/`short_name` and `theme_color`/`background_color` = `#f8fafc`. It replaced the CRA defaults (`"name": "Create React App Sample"`) |
+| `robots.txt` | Live |
 
-## Dónde crear cada cosa
+## Where to create each thing
 
-La regla de fondo: **los módulos contienen comportamiento; los datos, los tipos y los valores fijos
-viven en la carpeta de su rol.** Un `.ts` de capa tiene funciones y nada más.
+The base rule: **modules contain behavior; data, types and fixed values live in the folder of their
+role.** A layer `.ts` file holds functions and nothing else.
 
-| Rol | Carpeta | Archivo |
+| Role | Folder | File |
 |---|---|---|
-| lógica de un concern | la capa (`domain/`, `audio/`) | `<módulo>.ts` |
-| tipo que cruza un límite | `<capa>/types/` | `<módulo>.types.ts` |
-| dato o valor fijo | `<capa>/constants/` | `<módulo>.constants.ts` |
-| test de un módulo | `<capa>/__tests__/` | `<módulo>.test.ts` |
-| helper de test | `<capa>/__tests__/` | nombre descriptivo (`test-context.ts`) |
-| componente | `components/` | `PascalCase.tsx`, **único export** |
-| estado nuevo de UI | `useState` dentro de `App()` | no hay ni hace falta estado global |
-| efecto de audio | `components/use-engine.ts`, junto a los otros cuatro | ver [audio.md](./audio.md) |
-| hook que cablea un módulo | al lado del módulo | `use-<módulo>.ts`, en kebab-case como el resto |
-| asset referenciado por URL | `public/` | se copia sin procesar |
-| documentación de arquitectura | `docs/architecture/` | |
-| gate que verifica la documentación | `docs/__tests__/` | `<qué-verifica>.test.ts`, sin importar `src/` |
-| gate que verifica un archivo de la raíz | `__tests__/` en la raíz | `<qué-verifica>.test.ts`, sin importar `src/` |
-| trabajo planificado | `specs/<NNN>-<desc>/` | cuatro archivos, ver [specs/README.md](../../specs/README.md) |
-| tool nueva del MCP server | `mcp-server/src/tools/` | `<tool>.ts` + una línea en `tools/index.ts` |
-| resource nuevo del MCP server | `mcp-server/src/resources/` | `<resource>.ts` + una línea en `resources/index.ts` |
-| regla que el server necesita ejecutar | `src/domain/` | **no** en `mcp-server/`: es un cambio de `src/`, en su propio commit |
+| logic of one concern | the layer (`domain/`, `audio/`) | `<module>.ts` |
+| type that crosses a boundary | `<layer>/types/` | `<module>.types.ts` |
+| data or fixed value | `<layer>/constants/` | `<module>.constants.ts` |
+| test of a module | `<layer>/__tests__/` | `<module>.test.ts` |
+| test helper | `<layer>/__tests__/` | descriptive name (`test-context.ts`) |
+| component | `components/` | `PascalCase.tsx`, **single export** |
+| new UI state | `useState` inside `App()` | there is no global state, and none is needed |
+| audio effect | `components/use-engine.ts`, next to the other four | see [audio.md](./audio.md) |
+| hook that wires a module | next to the module | `use-<module>.ts`, kebab-case like the rest |
+| asset referenced by URL | `public/` | copied without processing |
+| architecture documentation | `docs/architecture/` | |
+| architecture decision | `docs/architecture/decisions/` | `<date>-<topic>.md` |
+| gate that verifies the documentation | `docs/__tests__/` | `<what-it-verifies>.test.ts`, no import from `src/` |
+| gate that verifies a root file | `__tests__/` at the root | `<what-it-verifies>.test.ts`, no import from `src/` |
+| contract of a capability | `specs/<capability>/` | `<capability>.md`, see [specs.md](../../.agents/rules/specs.md) |
+| plan of one change | a GitHub issue | the [task-brief](../../.github/ISSUE_TEMPLATE/task-brief.md) format |
+| rule, skill or harness script | `.agents/` | then `node .agents/scripts/sync.ts` |
+| new MCP server tool | `mcp-server/src/tools/` | `<tool>.ts` + one line in `tools/index.ts` |
+| new MCP server resource | `mcp-server/src/resources/` | `<resource>.ts` + one line in `resources/index.ts` |
+| rule the server must execute | `src/domain/` | **not** in `mcp-server/`: it is a change to `src/`, in its own commit |
 
-**Las carpetas de rol se crean cuando tienen su primer archivo.** No hay `schemas/`, `utils/`, `hooks/`
-ni `lib/`: estarían vacías, y una carpeta vacía es ceremonia. La tabla de crecimiento —qué carpeta
-aparece con qué disparador— está en [conventions.md](../guides/conventions.md).
+**A role folder is created with its first file.** There is no `schemas/`, `utils/`, `hooks/` or
+`lib/`: they would be empty, and an empty folder is ceremony. The growth table (which folder appears
+on which trigger) is in [conventions.md](../guides/conventions.md).
 
-## Convención de nombres
+## Naming
 
-- **Componentes**: `PascalCase.tsx`, un componente por archivo y ningún otro export.
-- **Funciones puras y utilidades**: `camelCase`.
-- **Constantes de dominio**: `SCREAMING_SNAKE_CASE` (`SHAPES`, `BASE_MAP`, `ANCHOR_INDEX`, `MAX_PIEZAS`).
-- **Tipos e interfaces**: `PascalCase` (`Cell`, `PieceKey`, `PlacedPiece`).
-- **Archivos de rol**: repiten el nombre de su módulo con el sufijo del rol
+- **Components**: `PascalCase.tsx`, one component per file and no other export.
+- **Pure functions and utilities**: `camelCase`.
+- **Domain constants**: `SCREAMING_SNAKE_CASE` (`SHAPES`, `BASE_MAP`, `ANCHOR_INDEX`, `MAX_PIEZAS`).
+- **Types and interfaces**: `PascalCase` (`Cell`, `PieceKey`, `PlacedPiece`).
+- **Role files**: repeat the name of their module with the role suffix
   (`transform.ts` → `types/transform.types.ts`, `constants/…`, `__tests__/transform.test.ts`).

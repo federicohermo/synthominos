@@ -67,10 +67,10 @@ con nodos que crea y destruye él mismo.
   `proyectarAlMotor` es el único puente entre las dos capas: entrega la `Sequence` del dominio dejando
   caer `pieceId` y `cell`, porque `audio/` no puede ver `Cell` ni con `import type`. Es una **pura** y
   no un efecto, justamente para que ese cruce tenga test —los tres estados de `Click.note`, incluido
-  que el click mudo salga **sin la clave**—. Ver `.claude/rules/audio.md`.
+  que el click mudo salga **sin la clave**—. Ver `.agents/rules/audio.md`.
 - **El transporte se alterna con `alternarTransporte(playing, MOTOR)` y no con `startClock`/`stopClock`
   sueltos.** La pura devuelve lo que el motor dice que pasó y no lo que se le pidió, que es la falla
-  suave que `.claude/rules/audio.md` obliga a chequear en todo llamador. `MOTOR` es el cableado real y
+  suave que `.agents/rules/audio.md` obliga a chequear en todo llamador. `MOTOR` es el cableado real y
   vive en `use-engine.ts`, el único módulo de la capa que importa la **API de transporte** del motor
   (`startClock`, `stopClock`, `clockRunning`, `setSequence`, `setBpm`, `setClicksAudible`). No es el
   único que importa `audio/engine.ts`: `Playhead.tsx`, `Spectrum.tsx` y `route-source.ts` también, pero

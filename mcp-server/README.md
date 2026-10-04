@@ -30,7 +30,6 @@ mcp-server/
     ├── index.ts            entrypoint: serveStdio + registro de tools y resources
     ├── pieces.ts           las 12 letras, sacadas de SHAPES
     ├── render.ts           ASCII de una pieza (puro)
-    ├── specs.ts            parseo de mapa.json y de los tasks.md (puro + lectura)
     ├── symbols.ts          índice de símbolos de src/, por AST (puro + lectura)
     ├── resources/
     │   ├── index.ts        el array de resources; una línea por resource
@@ -54,7 +53,7 @@ SDK contra el schema de zod antes de llamar al handler.
 
 `title` y `annotations` son **opcionales en el tipo y obligatorios en la práctica**: quien los exige es
 `__tests__/tools.test.ts`, que recorre el registro entero, y no el compilador. El detalle de qué hint
-va en cada caso está en [`.claude/rules/mcp-server.md`](../.claude/rules/mcp-server.md).
+va en cada caso está en [`.agents/rules/mcp-server.md`](../.agents/rules/mcp-server.md).
 
 Un **resource** se agrega igual, con `src/resources/` en lugar de `src/tools/`: un archivo que exporte
 un `ResourceDef` y una línea en `src/resources/index.ts`. Y **no copia valores de `src/`, los importa** —

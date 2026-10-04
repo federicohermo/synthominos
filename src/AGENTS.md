@@ -5,7 +5,7 @@
 Estos son los dos árboles que lintean `local/comment-shape` y `local/comment-anchor` (spec 051), o sea
 que esta regla se carga justo cuando se está escribiendo el comentario y no cuando se está haciendo
 cualquier otra cosa. El porqué de cada cláusula está en
-[docs/guides/conventions.md](../docs/guides/conventions.md) § Comentarios; acá está lo operable.
+[docs/guides/conventions.md](../docs/guides/conventions.md) § Comments; acá está lo operable.
 
 **El comentario explica el porqué, no el qué**: una decisión, una restricción, un bug evitado. La forma
 más rápida de contestarlo, y la que este repo adopta, es la de Ousterhout: **el comentario tiene que
@@ -65,8 +65,9 @@ Es la regla del spec 035, y `historia` la marca sin decidirla. Ante un hallazgo,
 - **Restricción vigente** → se queda, **reescrita sin la forma histórica**. No se borra el argumento: se
   le saca el eje temporal.
 - **Crónica** → se muda al [issue de su spec](https://github.com/federicohermo/pentomino-games/issues)
-  como nota de revisión, y en su lugar queda un puntero de una línea. El número de issue sale de
-  `specs/mapa.json` y no del `NNN`: el spec 001 es el issue #63.
+  como nota de revisión, y en su lugar queda un puntero de una línea. The issue number of a numbered
+  spec comes from the frozen table in
+  `docs/architecture/decisions/2026-10-04-contract-per-capability.md`: spec 001 is issue #63.
 - **Ante la duda, se queda.** Un comentario de más cuesta una lectura; uno de menos cuesta el argumento.
 - **Si un párrafo mezcla las dos cosas, se parte.**
 
@@ -142,10 +143,10 @@ con nodos que crea y destruye él mismo.
   `proyectarAlMotor` es el único puente entre las dos capas: entrega la `Sequence` del dominio dejando
   caer `pieceId` y `cell`, porque `audio/` no puede ver `Cell` ni con `import type`. Es una **pura** y
   no un efecto, justamente para que ese cruce tenga test —los tres estados de `Click.note`, incluido
-  que el click mudo salga **sin la clave**—. Ver `.claude/rules/audio.md`.
+  que el click mudo salga **sin la clave**—. Ver `.agents/rules/audio.md`.
 - **El transporte se alterna con `alternarTransporte(playing, MOTOR)` y no con `startClock`/`stopClock`
   sueltos.** La pura devuelve lo que el motor dice que pasó y no lo que se le pidió, que es la falla
-  suave que `.claude/rules/audio.md` obliga a chequear en todo llamador. `MOTOR` es el cableado real y
+  suave que `.agents/rules/audio.md` obliga a chequear en todo llamador. `MOTOR` es el cableado real y
   vive en `use-engine.ts`, el único módulo de la capa que importa la **API de transporte** del motor
   (`startClock`, `stopClock`, `clockRunning`, `setSequence`, `setBpm`, `setClicksAudible`). No es el
   único que importa `audio/engine.ts`: `Playhead.tsx`, `Spectrum.tsx` y `route-source.ts` también, pero

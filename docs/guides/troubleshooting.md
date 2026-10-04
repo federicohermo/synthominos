@@ -80,7 +80,7 @@ compila sin quejarse —los imports son válidos— y el `<div id="root">` queda
 
 **Señal diagnóstica:** contar chunks **ya no sirve**. Cuando Tone entraba por import dinámico el build
 emitía dos chunks JS, y ver uno solo delataba que `App` no era alcanzable desde el entry; con el motor
-propio hay un único chunk siempre (ver [deploy.md](../infra/deploy.md#verificar-el-build-localmente)).
+propio hay un único chunk siempre (ver [deploy.md](../infra/deploy.md#check-the-build-locally)).
 
 La comprobación equivalente hoy es buscar código de la app dentro del bundle:
 

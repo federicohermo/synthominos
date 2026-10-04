@@ -17,7 +17,7 @@ instrument more expressive?
 - **`pnpm verify` is the convergence node.** Run it before every PR; CI runs the same script. It
   runs `lint ‖ typecheck ‖ suite ‖ mcp:test`. `suite` is two Vitest passes; the second one gates
   coverage at **100** on all four metrics, with zero exceptions. Detail:
-  [verification](./docs/guides/verificacion.md).
+  [verification](./docs/guides/verification.md).
 - **The verdict comes from the exit code**, never from a grep of the output.
 - **pnpm, not npm.** `node_modules` is strict: importing a transitive dependency fails on purpose.
 - **Chromium is not in the lockfile**: a fresh clone needs `pnpm exec playwright install chromium`.
@@ -95,7 +95,7 @@ edit any of it, run `node .agents/scripts/sync.ts` and commit the copies it writ
 | [Audio](./docs/architecture/audio.md) | Web Audio graph, ADSR, lookahead scheduler |
 | [DESIGN.md](./DESIGN.md) | The visual language: the 12 colors and what a cell shows |
 | [Constitution](./docs/architecture/constitution.md) · [Decisions](./docs/architecture/decisions/) | Non-negotiable principles, and why each big choice was made |
-| [Quickstart](./docs/guides/quickstart.md) · [Verification](./docs/guides/verificacion.md) | Setup; what `verify` runs and why |
+| [Quickstart](./docs/guides/quickstart.md) · [Verification](./docs/guides/verification.md) | Setup; what `verify` runs and why |
 | [Conventions](./docs/guides/conventions.md) · [Troubleshooting](./docs/guides/troubleshooting.md) | How code and docs are written; traps already hit |
 | [Deploy](./docs/infra/deploy.md) · [Branches](./docs/infra/branches.md) | Where the deploy lives; the two-branch model |
 

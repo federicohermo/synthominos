@@ -1,553 +1,559 @@
-# Convenciones de Código
+# Code Conventions
 
-## Organización de `src/`
+## Language
 
-### La dirección de dependencia
+Text in this repo follows **ASD-STE100**. The rules apply to code, tests, comments, documentation,
+`AGENTS.md` and the rules. They also apply to specs, issues, commits, PRs and the answers of an
+agent.
 
-`src/` son cuatro capas con **una sola dirección**:
+1. Write one idea per sentence.
+2. Write instructions of 20 words or fewer. Write descriptions of 25 words or fewer.
+3. Write paragraphs of one idea and six sentences or fewer.
+4. Use the active voice and the present tense.
+5. Write steps in the imperative: "Run the gate", "Move the rule to the domain".
+6. Use numbers for a sequence and bullets for a set.
+7. Put a warning before the step it applies to.
+8. Use one term for one concept. Do not use synonyms.
+9. Do not use filler words: "simply", "basically", "very", "really".
+10. Write code, file and variable names as they are, in backticks.
+
+- **Write everything in English.** This covers content, folder names and file names. The
+  exceptions are the existing identifiers of the instrument: see
+  [The language of identifiers](#the-language-of-identifiers).
+- **Write a measured number with its measurement, not with an adjective.** "Almost three times" is
+  not data.
+
+## Organization of `src/`
+
+### The dependency direction
+
+`src/` has four layers with **one direction**:
 
 ```text
-types/ ← constants/ ← módulos              types/ no importa nada de afuera de types/
-transform.ts ← board.ts                    domain/ no importa nada de fuera de domain/
-             ← music.ts ← invariants.ts    audio/  no importa nada de fuera de audio/
-                                           components/ y App.tsx importan de las dos
+types/ ← constants/ ← modules              types/ imports nothing from outside types/
+transform.ts ← board.ts                    domain/ imports nothing from outside domain/
+             ← music.ts ← invariants.ts    audio/  imports nothing from outside audio/
+                                           components/ and App.tsx import from both
 ```
 
-`domain/` y `audio/` son **hermanos sin aristas entre ellos**: el motor habla números MIDI y no sabe
-qué es un pentominó.
+`domain/` and `audio/` are **siblings with no edge between them**: the engine speaks MIDI numbers and
+does not know what a pentomino is.
 
-**La verifica el linter, no la revisión.** Desde el spec 030 la verifica por **ruta**:
-`import-x/no-restricted-paths` con una zona por arista prohibida, todas en una sola regla y no en un
-override por capa. Agregar a mano un import prohibido falla `pnpm lint` con el mensaje de la zona;
-está probado desde un módulo y desde un test.
+**The linter verifies it, not the review.** It verifies it by **path**:
+`import-x/no-restricted-paths` has one zone per forbidden edge, all in one rule and not in one
+override per layer. A forbidden import added by hand fails `pnpm lint` with the message of its zone.
+This is tested from a module and from a test.
 
-**Y dejó de ser una red.** Hasta el 030 se prohibía el *string* del import, así que los patrones tenían
-que llevar `../` y `../../` —porque `types/`, `constants/` y `__tests__/` están un nivel más abajo que
-los módulos— y un `domain/sub/x.ts` nuevo habría quedado sin cubrir hasta que alguien agregara el
-patrón. Las zonas resuelven la ruta contra el filesystem: la carpeta nueva queda cubierta sola.
+**A path is not a string.** A rule on the import *string* needs patterns with `../` and `../../`,
+because `types/`, `constants/` and `__tests__/` sit one level below the modules. A new
+`domain/sub/x.ts` then stays uncovered until someone adds a pattern. Zones resolve the path against
+the filesystem, so a new folder is covered on its own.
 
-**Lo que sigue en `no-restricted-imports` son los paquetes**, porque un paquete de npm no tiene ruta en
-el repo: React para `domain/` y `audio/`, y los de estado global para todo `src/`. Ahí sí se usa la
-variante de `typescript-eslint` y no la core, porque también ve los `import type`, que son justo los que
-un refactor descuidado usaría para colarse.
+**`no-restricted-imports` keeps the packages**, because an npm package has no path in the repo: React
+for `domain/` and `audio/`, and the global-state packages for all of `src/`. It uses the
+`typescript-eslint` variant and not the core one, because that variant also sees `import type`. A
+careless refactor uses `import type` to slip through.
 
-**Adentro de `domain/` también hay dirección, y desde el cierre de los seguimientos del 009 también la
-verifica el linter.** Era la única del repo que vivía sólo como dibujo en `CLAUDE.md`: las cuatro capas
-tenían su override, pero un `board.ts` importando `sequence.ts` pasaba el lint sin decir nada.
-`DOMAIN_INTERNO` en `eslint.config.js` la escribe módulo por módulo, en tres niveles —`transform.ts`
-abajo; `board.ts` y `music.ts` encima de ella y **sin conocerse entre sí**, porque que las reglas del
-tablero y el modelo musical sean ortogonales es una propiedad del instrumento; `sequence.ts` e
-`invariants.ts` como hojas que no se importan entre sí—. Desde el 030 esas cinco filas se expanden a
-cinco **zonas** de la misma regla, así que el trap de flat config —el override más específico reemplaza
-al anterior en vez de sumarse, y sin repetir los patrones de la capa `board.ts` habría quedado libre de
-importar React— ya no aplica acá: no hay override que pisar. Donde sí sigue aplicando es en los dos
-bloques de `no-restricted-imports` que quedaron, y por eso los grupos son constantes con nombre
-(`GRUPO_ESTADO`, `GRUPO_REACT`) y no listas escritas dos veces.
+**`domain/` has an internal direction too, and the linter verifies it.** Without it, a `board.ts`
+that imports `sequence.ts` passes lint in silence. `DOMAIN_INTERNO` in `eslint.config.js` writes it
+module by module, in three levels:
 
-El efecto más importante es indirecto: `voice.ts` y `scheduler.ts` reciben el `AudioContext` por
-parámetro y **no pueden** tocar el singleton, porque vive en `engine.ts` y ellos no lo importan. El
-invariante que antes sostenía un comentario ahora lo sostiene el grafo de imports — y es lo que hace
-testeable al audio.
+- `transform.ts` at the bottom.
+- `board.ts` and `music.ts` above it, and **they do not know each other**. The board rules and the
+  musical model are orthogonal: that is a property of the instrument.
+- `sequence.ts` and `invariants.ts` as leaves that do not import each other.
 
-### Cada rol tiene su carpeta
+Those five rows expand to five **zones** of the same rule. So the flat-config trap does not apply
+there: there is no override to overwrite. The trap is this: the most specific override replaces the
+previous one instead of adding to it. It still applies to the two `no-restricted-imports` blocks. That
+is why the groups are named constants (`GRUPO_ESTADO`, `GRUPO_REACT`) and not lists written twice.
 
-**Los módulos contienen comportamiento; los datos, los tipos y los valores fijos viven en la carpeta de
-su rol.** Un `.ts` de capa tiene funciones y nada más. El archivo repite el nombre del módulo con el
-sufijo del rol: `Cell` no es `types/index.ts`, es `domain/types/transform.types.ts`, el contrato del
-módulo `transform.ts`.
+The most important effect is indirect. `voice.ts` and `scheduler.ts` receive the `AudioContext` as a
+parameter and **cannot** touch the singleton: it lives in `engine.ts`, and they do not import it. The
+import graph holds that invariant, not a comment. This is what makes the audio testable.
 
-| Rol | Carpeta | Archivo |
+### Each role has its folder
+
+**Modules contain behavior. Data, types and fixed values live in the folder of their role.** A layer
+`.ts` file has functions and nothing else. The file repeats the module name with the role suffix:
+`Cell` is not in `types/index.ts`, it is in `domain/types/transform.types.ts`, the contract of the
+module `transform.ts`.
+
+| Role | Folder | File |
 |---|---|---|
-| lógica de un concern | la capa | `<módulo>.ts` |
-| tipo que cruza un límite | `<capa>/types/` | `<módulo>.types.ts` |
-| dato o valor fijo | `<capa>/constants/` | `<módulo>.constants.ts` |
-| test de un módulo | `<capa>/__tests__/` | `<módulo>.test.ts` |
-| helper de test | `<capa>/__tests__/` | nombre descriptivo |
-| componente | `components/` | `PascalCase.tsx`, único export |
-| hook que cablea un módulo | al lado del módulo | `use-<módulo>.ts` |
-| hook sin módulo propio | `<capa>/hooks/` | `useCamelCase.ts` |
-| validación de datos externos | `<capa>/schemas/` | `<módulo>.schema.ts` |
-| helper interno de un módulo | `<capa>/utils/` | `<módulo>.utils.ts` |
-| helper genérico sin dominio | `src/lib/` | `<tema>.ts` |
+| logic of one concern | the layer | `<module>.ts` |
+| a type that crosses a boundary | `<layer>/types/` | `<module>.types.ts` |
+| data or a fixed value | `<layer>/constants/` | `<module>.constants.ts` |
+| test of a module | `<layer>/__tests__/` | `<module>.test.ts` |
+| test helper | `<layer>/__tests__/` | descriptive name |
+| component | `components/` | `PascalCase.tsx`, only export |
+| hook that wires a module | next to the module | `use-<module>.ts` |
+| hook with no module of its own | `<layer>/hooks/` | `useCamelCase.ts` |
+| validation of external data | `<layer>/schemas/` | `<module>.schema.ts` |
+| internal helper of a module | `<layer>/utils/` | `<module>.utils.ts` |
+| generic helper with no domain | `src/lib/` | `<topic>.ts` |
 
-**Los módulos no declaran constantes.** Si aparece un literal con significado, va a `constants/`. Los
-únicos números que quedan en un módulo son los que no tienen nombre posible: un `+ 1` de índice, un
-`% 12` que es la aritmética de las clases de altura, el `440`/`69` que *define* el anclaje MIDI.
+**Modules do not declare constants.** A literal with a meaning goes to `constants/`. The only numbers
+left in a module are the ones that cannot have a name: an index `+ 1`, a `% 12` that is pitch-class
+arithmetic, the `440`/`69` that *defines* the MIDI anchor.
 
-**Lo verifica el linter en `domain/` y en `audio/`, y no en `components/`** (spec 030). La línea es la
-del motivo, que está en el párrafo siguiente: lo que hizo daño fue un valor escrito en dos lugares, y
-una constante privada de un solo componente no puede desincronizarse con nada.
+**The linter verifies this in `domain/` and `audio/`, and not in `components/`.** The line follows
+the reason in the next paragraph: the damage came from a value written in two places. A private
+constant of one component cannot get out of sync with anything.
 
-Cuando el 030 lo midió, las siete de `components/` vivían en los `.tsx` —`BAR_COUNT`, `GAP`, `MIN_BAR`
-e `IDLE_TEXT` en `Spectrum.tsx`; `BORDE_COLOR`, `VELO_CAJA` y `VELO_TAPA` en `Playhead.tsx`— y el
-argumento para dejarlas ahí era que sus docblocks explican el **mecanismo** de dibujo y no el valor.
-**Hoy no queda ninguna**: el spec 029 sacó los dos bucles a `.ts`, eso las dejó en módulos de capa
-—donde la regla escrita sí aplicaba— y se mudaron a `components/constants/` con los docblocks enteros.
-El alcance del linter no cambia por eso; lo que cambia es que el ejemplo ya no sostiene la parte
-estética del argumento: mudarlas no alejó ninguna explicación de su código. Lo que sostiene la línea
-es lo medible — una privada no se desincroniza con nada. El selector tampoco mira `ObjectExpression`,
-por lo que el spec 022 ya dejó escrito sobre `MOTOR` y `RUTA_VACIA`: son cableado de funciones, no
-valores fijos.
+The reason is measurable, not aesthetic. Before the split, four pairs of numbers had to match and
+nothing kept them in sync:
 
-El motivo es medible, no estético: antes de la separación había cuatro pares de números que tenían que
-coincidir y nada sincronizaba — el `0.35` de `NOTE_DUR` estaba también como default de `scheduleVoice`,
-el `110` del tempo estaba en la UI y en el motor, y el tamaño de celda convivía con un `w-7 h-7` que
-tenía que valer lo mismo.
+- `NOTE_DUR` was `0.35`, and the same number was the default of `scheduleVoice`.
+- The tempo `110` was in the UI and in the engine.
+- The cell size lived next to a `w-7 h-7` that had to be worth the same.
 
-De ese ejemplo ya no queda ninguno de los dos símbolos: el spec 008 reemplazó `NOTE_DUR` por
-`NOTE_INTERVALS` —que se mide en intervalos y no en segundos— y le sacó el default a `scheduleVoice`,
-porque una duración que depende del tempo no puede tener un valor por defecto que no lo mire.
+`components/` has no private constants today: all of them live in `components/constants/`, with
+their docblocks whole. The scope of the linter does not change because of that. What holds the line
+is measurable: a private constant cannot get out of sync with anything. The selector does not look
+at `ObjectExpression` either: `MOTOR` and `RUTA_VACIA` are wiring of functions, not fixed values.
 
-Las `Props` de cada componente son la excepción: se quedan **inline y sin exportar**, porque
-`react-refresh/only-export-components` obliga a que el componente sea el único export del `.tsx`.
+The `Props` of each component are the exception. They stay **inline and unexported**, because
+`react-refresh/only-export-components` requires the component to be the only export of the `.tsx`.
 
-**Un hook que cablea un módulo va al lado de ese módulo y no a `hooks/`.** El spec 022 sacó los seis
-efectos del shell y los partió en dos pares: `engine-bridge.ts` con las puras y `use-engine.ts` con los cuatro
-efectos que las llaman, y `input.ts` con las puras de entrada y `use-input.ts` con los dos efectos que
-las cablean. El nombre en kebab-case y la adyacencia son lo que hace visible el par —la decisión vive en
-el archivo sin `use-`, el cableado en el que lo tiene—, y mandarlos a `components/hooks/` habría partido
-cada par en dos carpetas por una convención de nombre. `hooks/` sigue reservado para un hook que **no**
-tenga un módulo del que sea el cableado.
+**A hook that wires a module goes next to that module, not to `hooks/`.** There are two pairs:
 
-**Las carpetas de rol se crean cuando tienen su primer archivo.** Hoy no hay `hooks/`, `utils/`,
-`schemas/` ni `lib/`: estarían vacías.
+- `engine-bridge.ts` has the pure functions, and `use-engine.ts` has the four effects that call them.
+- `input.ts` has the pure input functions, and `use-input.ts` has the two effects that wire them.
 
-<a id="tabla-de-crecimiento"></a>
+The kebab-case name and the adjacency make the pair visible. The decision lives in the file without
+`use-`, and the wiring lives in the file with it. `components/hooks/` would split each pair across two
+folders for a naming convention. `hooks/` stays reserved for a hook that wires **no** module.
 
-| Cuando aparezca… | Va a |
+**A role folder is created with its first file.** Today there is no `hooks/`, `utils/`, `schemas/` or
+`lib/`: they would be empty.
+
+<a id="growth-table"></a>
+
+| When this appears… | It goes to |
 |---|---|
-| un segundo concern de CSS (tokens `@theme`, capa base) | `styles/theme.css` + `styles/base.css`, importados por `styles/index.css` |
-| tests que no mapean 1:1 a un módulo (e2e, smoke, visual) | `tests/` en la raíz, fuera de `src/` |
-| un helper de test compartido **entre capas** | `src/testing/` |
-| validación de datos externos (persistir, compartir por URL) | `<capa>/schemas/` + zod — **decisión con spec propio** |
-| un asset importado desde código | `src/assets/` |
-| un provider o un router | `src/app/`, con `App.tsx` adentro |
-| una segunda pantalla o modo | recién ahí `src/features/` tiene sentido |
-| estado que necesitan dos ramas del árbol | subir el estado, o un hook con propósito específico en `<capa>/hooks/` — **no** un store global |
+| a second CSS concern (`@theme` tokens, base layer) | `styles/theme.css` + `styles/base.css`, imported by `styles/index.css` |
+| tests that do not map 1:1 to a module (e2e, smoke, visual) | `tests/` at the root, outside `src/` |
+| a test helper shared **across layers** | `src/testing/` |
+| validation of external data (persist, share by URL) | `<layer>/schemas/` + zod — **a decision for its own spec** |
+| an asset imported from code | `src/assets/` |
+| a provider or a router | `src/app/`, with `App.tsx` inside |
+| a second screen or mode | only then does `src/features/` make sense |
+| state that two branches of the tree need | lift the state, or a single-purpose hook in `<layer>/hooks/` — **never** a global store |
 
-### Sin barrels, con extensión, sin alias
+### No barrels, explicit extensions, no aliases
 
-- **Ningún `index.ts` de re-exportación.** `export * from './x'` hace cargar archivos de más y vuelve al
-  módulo responsable de propagar esas re-exportaciones por HMR. Cada import apunta al módulo concreto.
-  **Desde el spec 049 el linter verifica el `export *`** —un selector de `ExportAllDeclaration` a secas,
-  que es lo que la regla de la extensión de acá abajo **no** veía: `export * from './x.ts'` la cumple—.
-  Lo que el linter **no** verifica es el nombre del archivo, y es una decisión con número: los tres
-  `index.ts` del repo —`mcp-server/src/index.ts`, `resources/index.ts` y `tools/index.ts`— son un
-  entrypoint y dos registros que arman un `readonly [...]`, no barrels. «De re-exportación» un selector
-  no lo evalúa, así que prohibir el nombre daría tres falsos positivos. Queda afuera el barrel que
-  re-exporta a mano (`export { a } from './a.ts'`), y se declara: media red escrita como media red es
-  honesta.
-- **Extensión explícita en todo import local**: `./domain/transform.ts`, no `./domain/transform`.
-  Reduce operaciones de resolución, y sobre todo **node crudo la exige** (`ERR_MODULE_NOT_FOUND`), que
-  es lo que permite cargar `domain/` sin compilar. Ojo: omitirla **no rompe la app** —Vite resuelve
-  igual—, así que el error sería invisible del lado del navegador. **Desde el spec 030 la verifica el
-  linter** (`no-restricted-syntax`), sobre todo `src/` y `mcp-server/` y en las cuatro formas de
-  nombrar un módulo: `import`, `import()`, `export … from` y `export * from`. Ojo con lo que esa
-  enumeración dice y lo que no: son las cuatro formas en las que se verifica **la extensión**, no el
-  barrel — el `export * from` está ahí porque también lleva una ruta. Antes del 030 el único
-  que la ejercía era el MCP server del 006, que carga `src/` con node crudo — `pnpm mcp:test` sigue
-  fallando al primer import sin extensión, pero ahora es la segunda red y no la única, y solo ve lo
-  que el server importa.
-- **Sin alias de paths** (`@/domain/…`). La profundidad máxima es uno, así que el beneficio es
-  cosmético, y node no conoce los alias de Vite.
-- **Un componente por archivo**, y ningún export que no sea el componente en un `.tsx`. No es
-  preferencia estilística: es lo que el lint ya exige, y la granularidad de Fast Refresh es el módulo.
+- **No re-export `index.ts`.** `export * from './x'` loads extra files and makes the module
+  responsible for propagating those re-exports through HMR. Each import points to the concrete
+  module.
+  - **The linter verifies `export *`**, with a selector on a bare `ExportAllDeclaration`. The
+    extension rule below does **not** see it: `export * from './x.ts'` satisfies that rule.
+  - The linter does **not** verify the file name, and that is a measured decision. The repo has
+    three `index.ts`: `mcp-server/src/index.ts`, `resources/index.ts` and `tools/index.ts`. They are an
+    entrypoint and two registries that build a `readonly [...]`, not barrels. A selector cannot
+    evaluate "re-export", so a ban on the name gives three false positives.
+  - A barrel that re-exports by hand (`export { a } from './a.ts'`) stays outside. This doc states
+    it: half a net, written as half a net, is honest.
+- **An explicit extension on every local import**: `./domain/transform.ts`, not `./domain/transform`.
+  It reduces resolution work, and above all **raw node requires it** (`ERR_MODULE_NOT_FOUND`). That
+  is what lets node load `domain/` without a build.
+  - Warning: a missing extension **does not break the app**, because Vite resolves it anyway. The
+    error is invisible on the browser side.
+  - **The linter verifies it** (`no-restricted-syntax`), on all of `src/` and `mcp-server/`. It covers
+    the four forms that name a module: `import`, `import()`, `export … from` and `export * from`.
+    These are the four forms that carry **the extension**, not the barrel: `export * from` is in the
+    list because it also carries a path.
+  - The MCP server loads `src/` with raw node, so `pnpm mcp:test` also fails at the first import
+    without an extension. That is the second net, and it only sees what the server imports.
+- **No path aliases** (`@/domain/…`). The maximum depth is one, so the benefit is cosmetic, and node
+  does not know Vite aliases.
+- **One component per file**, and no export other than the component in a `.tsx`. This is not a style
+  preference: lint already requires it, and the Fast Refresh granularity is the module.
 
 ## TypeScript
 
-### Nada de `any`
+### No `any`
 
-**Cero `any` y cero `@ts-ignore` en el repo.** No es aspiracional: es el estado actual.
+**Zero `any` and zero `@ts-ignore` in the repo.** This is the current state, not a goal.
 
-Los tres que hubo desaparecieron sin que nadie los atacara de frente. Dos estaban alrededor de la
-gestión de loops y se fueron cuando esa lógica se volvió declarativa; el tercero era el `synth` de
-Tone, con su `@ts-ignore` por los tipos de constructor genérico, y se fue con Tone.
+The three that existed went away without a direct attack. Two were around loop management, and they
+left when that logic became declarative. The third was the Tone `synth`, with its `@ts-ignore` for
+the generic constructor types, and it left with Tone.
 
-Los tres estaban tapando un problema de diseño, no de tipos. **Si aparece la tentación de uno nuevo,
-sospechar del diseño antes que de TypeScript.**
+All three hid a design problem, not a type problem. **If you want to write a new one, suspect the
+design before TypeScript.**
 
-Su contraparte en el linter es `noInlineConfig`: **no hay `eslint-disable` en el repo**, porque
-silenciar la regla es la otra forma de tapar el problema. Si hace falta una excepción real, va como
-**override por archivo** en `eslint.config.js` —que se ve en el diff y se explica— y no como un
-comentario suelto.
+Its counterpart in the linter is `noInlineConfig`: **the repo has no `eslint-disable`**, because to
+silence a rule is the other way to hide the problem. A real exception goes as a **per-file override**
+in `eslint.config.js`, where the diff shows it and a comment explains it. It never goes as a loose
+comment.
 
-### La aserción no nula (`!`) es de la misma familia
+### The non-null assertion (`!`) is of the same family
 
-Un `!` es un `any` chiquito: le dice al compilador que se calle **sin darle un motivo**. El spec 027
-la nombró y el 032 la convirtió en gate — `@typescript-eslint/no-non-null-assertion` en `error`.
+A `!` is a small `any`: it tells the compiler to be quiet **without a reason**.
+`@typescript-eslint/no-non-null-assertion` is at `error`.
 
-**Antes de escribir una, probar el `const`.** El `!` que había en `audio/engine.ts` existía sólo
-porque TypeScript pierde el estrechamiento al entrar al closure de un `forEach` cuando la variable es
-un `let` de módulo; salió gratis con una `const` local, sin discutir con el compilador.
+**Before you write one, try a `const`.** The `!` in `audio/engine.ts` existed only because
+TypeScript loses the narrowing inside the closure of a `forEach` when the variable is a module `let`.
+A local `const` removed it, with no fight against the compiler.
 
-En producción quedan **tres**, y las tres viven como override por archivo en `eslint.config.js` con
-el motivo escrito al lado:
+Production has **three**. All three live as per-file overrides in `eslint.config.js`, with the reason
+written next to them:
 
-| Archivo | Por qué el compilador no puede verlo |
+| File | Why the compiler cannot see it |
 |---|---|
-| `src/main.tsx` | El idiom de Vite sobre un `#root` que el propio `index.html` garantiza |
-| `src/domain/invariants.ts` | El `queue.shift()!` de un BFS, dentro de un `while` que ya garantiza la cola no vacía |
-| `src/components/Board.tsx` | El ancestro `[role="grid"]` existe por construcción: el handler vive en un descendiente de esa grilla. El `if` alternativo sería una rama inalcanzable, y el umbral 100 no deja cubrirla |
+| `src/main.tsx` | The Vite idiom on a `#root` that `index.html` itself guarantees |
+| `src/domain/invariants.ts` | The `queue.shift()!` of a BFS, inside a `while` that already guarantees a non-empty queue |
+| `src/components/Board.tsx` | The `[role="grid"]` ancestor exists by construction: the handler lives in a descendant of that grid. The alternative `if` is an unreachable branch, and the 100 threshold does not let it be covered |
 
-**En los tests no vale**, y la regla está apagada ahí: el `!` sobre un `find` o un `querySelector` que
-el propio test acaba de fijar es la forma de que el test **falle** si el nodo no está. Son 102, en 100
-líneas, y son deliberadas.
+**In tests the rule does not apply**, and it is off there. A `!` on a `find` or a `querySelector`
+that the test itself just set up makes the test **fail** if the node is missing. There are 102, on
+100 lines, and they are deliberate.
 
-Esa lista de overrides es ahora la **única fuente** del número. Mientras vivió en la prosa de
-`CLAUDE.md` se desincronizó dos veces: decía «dos» cuando eran tres, y «66» cuando eran 102. Y el
-número **se escribe junto con la regla que lo produce**, porque sin ella no se reproduce — se cuenta
-por *ocurrencia*, corriendo la regla con sus tres overrides apagados; por línea da 100, porque hay dos
-líneas con dos `!`.
+That list of overrides is the **only source** of the number. While the number lived in prose, it got
+out of sync twice: it said "two" when there were three, and "66" when there were 102. The number is
+**written with the rule that produces it**, because without the rule nobody can reproduce it. Count
+by *occurrence*, with the rule on and its three overrides off. Counted by line it gives 100, because
+two lines have two `!` each.
 
-### Nada de saltear una rama de coverage
+### No skipped coverage branch
 
-El corolario del umbral 100, que hasta el spec 032 era prosa y ahora lo verifica `no-warning-comments`
-con los tres términos de los proveedores de coverage y `location: 'anywhere'`.
+This is the corollary of the 100 threshold. `no-warning-comments` verifies it, with the three terms of
+the coverage providers and `location: 'anywhere'`.
 
-Si una rama parece inalcanzable, la salida es **borrarla o volverla alcanzable**, nunca pedirle al
-proveedor que la saltee: un umbral con escapes es un umbral más bajo y sin dueño, que es exactamente
-el argumento con el que el 029 rechazó el 95.
+If a branch looks unreachable, **delete it or make it reachable**. Never ask the provider to skip it.
+A threshold with escapes is a lower threshold with no owner. The same argument rejected a threshold
+of 95.
 
-**La regla mira texto y no sintaxis, y eso tiene un precio que se paga una vez:** deletrear uno de los
-términos *para explicar por qué no usarlo* la viola igual. Por eso los tres términos literales viven
-en `eslint.config.js` y en ningún comentario del repo — `vite.config.ts`, `specStatus.ts` y
-`specWrite.ts` los escribían los tres, y los tres se reescribieron nombrando el mecanismo en vez del
-término.
+**The rule reads text, not syntax, and that has a price.** To spell one of the terms *to explain why
+not to use it* also violates the rule. So the three literal terms live in `eslint.config.js` and in
+no comment of the repo. A comment that needs them names the mechanism instead of the term.
 
-### Tipos de dominio
+### Domain types
 
 ```ts
 // domain/types/transform.types.ts
-export type Cell = [number, number];       // [x, y], y crece hacia abajo
+export type Cell = [number, number];       // [x, y], y grows downward
 // domain/types/pieces.types.ts
-export type PieceKey = 'F' | 'I' | … ;     // declarado explícito, no derivado
+export type PieceKey = 'F' | 'I' | … ;     // declared explicitly, not derived
 ```
 
-`PieceKey` se declara a mano y `BASE_MAP` se tipa `Record<PieceKey, number>`, no al revés: el tipo de
-las piezas sale de la geometría y no de la tabla musical, y **agregar una pieza sin darle tónica es un
-error de compilación**. Antes se derivaba de `keyof typeof BASE_MAP` y ese caso pasaba en silencio.
+`PieceKey` is declared by hand and `BASE_MAP` is typed `Record<PieceKey, number>`, not the other way
+around. The piece type comes from geometry and not from the musical table, so **a piece added
+without a tonic is a compile error**. A `PieceKey` derived from `keyof typeof BASE_MAP` lets that case
+pass in silence.
 
-### Nada de `enum`
+### No `enum`
 
-**No hay ninguno en el repo, y no puede haberlo**: `tsconfig.app.json` tiene `erasableSyntaxOnly: true`,
-que los rechaza con `TS1294`. No es una restricción a levantar — es la misma opción que garantiza que
-el código sea *type-strippable*, o sea lo que permite que node cargue `src/domain/` sin compilar. Un
-`enum` emite código en runtime, por eso queda afuera.
+**The repo has none, and it cannot have one**: `tsconfig.app.json` has `erasableSyntaxOnly: true`,
+which rejects them with `TS1294`. This is not a restriction to lift. The same option keeps the code
+*type-strippable*, and that lets node load `src/domain/` without a build. An `enum` emits runtime
+code, so it stays out.
 
-El reemplazo para cualquier conjunto cerrado reparte sus dos mitades en las carpetas de rol:
-
-El ejemplo no es hipotético: es el conjunto cerrado que el spec 020 estrenó para la rotación.
+The replacement for any closed set puts its two halves in the role folders. This is the closed set
+for the rotation:
 
 ```ts
-// components/constants/orientation.constants.ts  — el valor
+// components/constants/orientation.constants.ts  — the value
 export const ROTACION = { cero: 0, noventa: 1, ciento_ochenta: 2, doscientos_setenta: 3 } as const;
-// components/types/orientation.types.ts          — el tipo
+// components/types/orientation.types.ts          — the type
 export type Rotacion = (typeof ROTACION)[keyof typeof ROTACION];
 ```
 
-Los otros tres del repo son `ACCION` y `EDICION` (`components/constants/input.constants.ts`), `MARCA`
-(`route.constants.ts`) y `REGIMEN` (`domain/constants/music.constants.ts`).
+The other closed sets are `ACCION` and `EDICION` (`components/constants/input.constants.ts`),
+`MARCA` (`route.constants.ts`) and `REGIMEN` (`domain/constants/music.constants.ts`).
 
-### El idioma de los identificadores
+### The language of identifiers
 
-**Inglés para el vocabulario técnico universal, español para el vocabulario del instrumento.** Es
-**descriptiva**: sale de mirar lo que el repo ya escribió, no es un mandato nuevo, y **no se renombra
-nada** hacia atrás. Aplicarla hacia atrás sería un churn que ningún test atrapa.
+**English for universal technical vocabulary, Spanish for the existing vocabulary of the
+instrument.** This rule is **descriptive**: it comes from what the code already contains. **Nothing
+is renamed** backward. A rename backward is churn that no test catches.
 
-Inglés cuando el nombre existiría igual en cualquier repo: `rotate90`, `normalize`, `reflect`,
-`midiFor`, `buildSequence`, `setBpm`, `clockRunning`, `offset`, `notes`. Es el vocabulario del dominio
-técnico —geometría, MIDI, Web Audio, React— y traducirlo agrega un salto mental por cada lectura.
+English when the name would exist the same in any repo: `rotate90`, `normalize`, `reflect`,
+`midiFor`, `buildSequence`, `setBpm`, `clockRunning`, `offset`, `notes`. This is the vocabulary of the
+technical domain (geometry, MIDI, Web Audio, React). A translation adds one mental jump per read.
 
-Español cuando el nombre nombra algo de **este** instrumento, o un rol que sólo existe acá: `puertas`,
-`regimen`, `velo`, `tapLimpio`, `celdas`, `marcas`, `encolar`, `rutaActiva`, `proyectarAlMotor`,
-`accionDeTecla`, `MotorDeTransporte`. Acá el inglés sería una traducción de algo que se piensa en
-español —los comentarios, los commits y los specs están en español—, y la traducción se pierde: nadie
-llamaría `gates` a las puertas de una pieza dos veces igual.
+Spanish when the name names something of **this** instrument, or a role that exists only here:
+`puertas`, `regimen`, `velo`, `tapLimpio`, `celdas`, `marcas`, `encolar`, `rutaActiva`,
+`proyectarAlMotor`, `accionDeTecla`, `MotorDeTransporte`.
 
-El caso de borde que decide la regla es el **rol**: `MotorDeTransporte` no replica
-`startClock`/`stopClock`/`clockRunning` porque el tipo describe lo que su consumidor necesita y no la API
-del motor. Si el nombre viene de afuera, va en el idioma de afuera; si lo inventa este repo, va en
-español.
+The edge case that decides the rule is the **role**. `MotorDeTransporte` does not copy
+`startClock`/`stopClock`/`clockRunning`, because the type describes what its consumer needs, not the
+engine API. A name that comes from outside keeps the language of its origin.
 
-## Geometría
+## Geometry
 
-### El orden del array es un invariante
+### The array order is an invariant
 
-`rotate90`, `normalize` y `reflect` (en `domain/transform.ts`) son `map` sobre las celdas: **la celda
-del índice `k` sigue siendo la misma celda lógica después de transformar.**
+`rotate90`, `normalize` and `reflect` (in `domain/transform.ts`) are a `map` over the cells: **the cell
+at index `k` stays the same logical cell after the transform.**
 
-De eso depende `ANCHOR_INDEX`, que guarda la celda de agarre como índice en vez de coordenada; de eso
-depende el mapeo celda↔nota que `degreeByCellIndex` calcula sobre la forma canónica y arrastra por
-índice (spec 007); y de eso dependen las puertas del recorrido, que leen la celda del paso 0 y la del
-paso 4 por índice sobre `PlacedPiece.cells` (specs 009 y 010). Cualquier cambio que filtre, ordene o reagrupe
-celdas dentro de esas funciones rompe la colocación de piezas **en silencio**.
+Three things depend on that:
 
-Hoy hay una red: `checkArrayOrder()` de `domain/invariants.ts` lo verifica sobre las 96 combinaciones, y
-su propio test comprueba que el chequeo **da rojo** cuando una transformación reordena.
+- `ANCHOR_INDEX`, which stores the grab cell as an index instead of a coordinate.
+- The cell↔note mapping, which `degreeByCellIndex` computes on the canonical shape and carries by
+  index.
+- The gates of the circuit, which read the cell of step 0 and the cell of step 4 by index on
+  `PlacedPiece.cells`.
 
-Si hace falta transformar celdas de otra forma, escribir una función nueva en vez de modificar estas.
+A change that filters, sorts or regroups cells inside those functions breaks piece placement **in
+silence**.
 
-### `y` crece hacia abajo
+`checkArrayOrder()` in `domain/invariants.ts` verifies the order on the 96 combinations. Its own
+test checks that the check **goes red** when a transform reorders.
 
-Las coordenadas son de grilla, no cartesianas: `y` es el índice de fila. Consecuencia práctica: cualquier
-cálculo angular (`Math.atan2(dy, dx)`) recorre el círculo en sentido **horario** en pantalla. No está
-mal, pero es la clase de cosa que alguien "arregla" por error.
+If you need to transform cells another way, write a new function. Do not change these.
 
-## Estado
+### `y` grows downward
 
-- **Sin estado global.** No hay Context, Redux ni Zustand. Todo es `useState` local en `App`. Desde
-  el spec 030 lo verifica el linter y por **dos** caminos, porque uno solo no alcanza: el paquete
-  —Redux, Zustand y compañía, con `no-restricted-imports`— y la **llamada** a `createContext`, que es
-  la mitad que el paquete no ataja: importar `react` en `components/` es legítimo, así que lo que hay
-  que prohibir ahí es la llamada y no el import.
-- **Lo que no es estado de UI, no va en estado.** El contador de ids vive en un `useRef` porque
-  cambiarlo no debe re-renderizar. El `AudioContext` y la secuencia del motor —la activa y la
-  pendiente— viven en singletons de módulo porque hay uno por pestaña, no uno por componente.
-- **Nunca mutar objetos ya entregados a React.** Es literalmente el bug que tuvieron los loops:
-  `newPiece._sched = id` después de `setPlaced(prev => [...prev, newPiece])`. Si un dato tiene que
-  cambiar después, o va en el estado con su propio `set`, o va afuera de React.
-- **Identidad estable para elementos removibles.** `PlacedPiece.id` existe para eso; las `key` de listas
-  usan el id, nunca el índice.
+Coordinates are grid coordinates, not Cartesian ones: `y` is the row index. In practice, any angular
+calculation (`Math.atan2(dy, dx)`) goes around the circle **clockwise** on screen. That is not wrong,
+but it is the kind of thing someone "fixes" by mistake.
 
-## Efectos
+## State
 
-Los efectos **reconcilian**, no ejecutan comandos. El efecto de audio observa `[secuencia, placed]` y le
-entrega al motor la secuencia entera con `setSequence`. Los handlers solo cambian estado.
+- **No global state.** No Context, Redux or Zustand. All state is a local `useState` in `App`. The
+  linter verifies it by **two** paths, because one is not enough:
+  - the package (Redux, Zustand and similar), with `no-restricted-imports`;
+  - the **call** to `createContext`. The package ban does not catch it: to import `react` in
+    `components/` is legitimate, so the ban there is on the call, not the import.
+- **What is not UI state does not go in state.** The id counter lives in a `useRef`, because a change
+  to it must not re-render. The `AudioContext` and the engine sequence (the active one and the
+  pending one) live in module singletons, because there is one per tab, not one per component.
+- **Never mutate objects already given to React.** That is the bug the loops had:
+  `newPiece._sched = id` after `setPlaced(prev => [...prev, newPiece])`. Data that must change later
+  goes in state with its own `set`, or outside React.
+- **Stable identity for removable elements.** `PlacedPiece.id` exists for that. List `key`s use the
+  id, never the index.
 
-**Y un `.tsx` no declara la lógica de un efecto: a lo sumo monta un módulo en una línea.** El motivo es
-el mismo por el que salieron el audio y el dominio: `react-refresh/only-export-components` prohíbe que
-un `.tsx` exporte algo además del componente, así que la lógica de un efecto escrita ahí no se puede
-exportar y por lo tanto no se puede verificar. Lo que se queda en el shell es la **derivación** —los
-`useMemo`— y los callbacks: el hook recibe el resultado, no la regla.
+## Effects
 
-**Desde el spec 049 lo verifica el linter** (`no-restricted-syntax` sobre `src/**/*.tsx`), y hasta
-entonces esta sección decía dos cosas falsas —«los seis del repo» y «no viven en el `.tsx`»—, que es
-justo lo que pasa con una regla que nadie verifica. Los números de hoy, contados:
+Effects **reconcile**. They do not run commands. The audio effect observes `[secuencia, placed]` and
+gives the whole sequence to the engine with `setSequence`. Handlers only change state.
 
-- **Nueve efectos de producción.** Siete en tres hooks de `components/` —cuatro de reconciliación en
-  `use-engine.ts` y dos de entrada en `use-input.ts` desde el spec 022, y el que mide el viewport en
-  `use-grid.ts` desde el 021, que es un `useLayoutEffect`— y **dos en un `.tsx`**, `Playhead.tsx` y
-  `Spectrum.tsx`. `App.tsx` no declara ninguno, que es lo que `CLAUDE.md` afirma.
-- **Esos dos son las únicas exenciones, y están nombradas archivo por archivo** en `eslint.config.js`,
-  no por glob — el precedente son las tres aserciones no nulas. Cumplen el motivo y violan la letra:
-  son de **una línea** y delegan en `iniciarCabeza` e `iniciarEspectro`, que viven fuera del `.tsx` y sí
-  están testeados. Si alguno crece, la exención deja de aplicar por su propio argumento, y el linter no
-  mide líneas: por eso el motivo está escrito arriba del override.
-- **La regla nombra los dos hooks**, `useEffect` y `useLayoutEffect`. `use-grid.ts` usa el segundo a
-  propósito (spec 021), así que anclarla sólo en el primero dejaba pasar la misma lógica con el otro
-  nombre.
-- **`src/**/__tests__/` queda afuera**, y por decisión escrita: la prohibición es sobre la capa de
-  componentes, no sobre lo que la monta. Un harness que monte un componente con efecto es legítimo.
+**A `.tsx` does not declare the logic of an effect: at most it mounts a module in one line.** The
+reason is the same one that moved audio and domain out. `react-refresh/only-export-components`
+forbids a `.tsx` to export anything but the component. Effect logic written there cannot be exported,
+so it cannot be tested. The shell keeps the **derivation** (the `useMemo` calls) and the callbacks:
+the hook receives the result, not the rule.
 
-`playing` **no** está en las dependencias: la secuencia es función del tablero y no del transporte, y
-quien corta o arranca el sonido es `togglePlay` con `alternarTransporte`.
+**The linter verifies it** (`no-restricted-syntax` on `src/**/*.tsx`). The counts today:
 
-Que reemplazar la secuencia entera sea aceptable no es casualidad, es una propiedad del diseño: la
-secuencia es un **dato puro** que `tick()` lee, y el reloj es un origen que el efecto no toca —
-`setSequence` ni siquiera la pone en vigencia, la deja **pendiente** hasta que el ciclo activo cierre
-(D5 del spec 009). Con Tone, donde cada loop era un evento con identidad, el mismo patrón habría
-reiniciado la fase de todos, y perder su ID dejaba loops huérfanos.
+- **Nine production effects.**
+  - Seven live in three hooks of `components/`: four reconciliation effects in `use-engine.ts`, two
+    input effects in `use-input.ts`, and the viewport measure in `use-grid.ts`, a `useLayoutEffect`.
+  - **Two live in a `.tsx`**: `Playhead.tsx` and `Spectrum.tsx`.
+  - `App.tsx` declares none.
+- **Those two are the only exemptions, named file by file** in `eslint.config.js`, not by glob. The
+  precedent is the three non-null assertions. They meet the reason and break the letter: each is
+  **one line** and delegates to `iniciarCabeza` or `iniciarEspectro`. Those live outside the `.tsx`
+  and have tests. If one grows, its own argument stops the exemption. The linter does not count
+  lines, so the reason is written above the override.
+- **The rule names both hooks**, `useEffect` and `useLayoutEffect`. `use-grid.ts` uses the second on
+  purpose, so a rule on the first only lets the same logic through under the other name.
+- **`src/**/__tests__/` stays outside**, by a written decision. The ban is on the component layer,
+  not on what mounts it. A harness that mounts a component with an effect is legitimate.
 
-Hoy **ningún efecto del repo hace trabajo asincrónico**, así que no hay flag de cancelación en ningún
-lado. Si vuelve a hacer falta, el patrón es el de siempre (`let cancelled = false` capturado en el
-closure, chequeado después del `await`, seteado en la limpieza).
+`playing` is **not** in the dependencies. The sequence is a function of the board and not of the
+transport. `togglePlay` with `alternarTransporte` stops or starts the sound.
 
-Y ojo con las limpiezas asincrónicas: en StrictMode pueden correr **después** del siguiente efecto. Si
-la limpieza tiene que ganarle al re-montaje, tiene que ser sincrónica — es el caso del efecto de
-desmontaje de `use-engine.ts`, que llama a `stopClock()` y entrega una secuencia vacía con
-`setSequence()`. Ver
+To replace the whole sequence is acceptable by design. The sequence is **pure data** that `tick()`
+reads, and the clock is an origin that the effect does not touch. `setSequence` does not even make it
+current: it keeps it **pending** until the active cycle closes. With Tone, each loop was an event with
+identity: the same pattern restarted the phase of all of them, and a lost ID left orphan loops.
+
+Today **no effect in the repo does asynchronous work**, so there is no cancellation flag anywhere. If
+one needs it, the pattern is the usual one: `let cancelled = false` captured in the closure, checked
+after the `await`, set in the cleanup.
+
+Warning about asynchronous cleanups: in StrictMode they can run **after** the next effect. A cleanup
+that must beat the remount must be synchronous. The unmount effect of `use-engine.ts` is that case: it
+calls `stopClock()` and gives an empty sequence to `setSequence()`. See
 [audio.md](../architecture/audio.md#reconciliación-de-loops).
 
 ## Tests
 
-### Nada de `.only` ni `.skip`, ni un test sin una sola aserción
+### No `.only`, no `.skip`, no test without an assertion
 
-Es la misma familia de bug que el `--filter "{.}"` y el `$` del regex de `verify`: **fallar en
-verde**. Un `.only` olvidado deja pasar la suite entera sin que nada avise, y un test sin `expect` es
-un archivo que suma al conteo y no verifica nada.
+This is the same bug family as `--filter "{.}"` and the `$` of the `verify` regex: **failing green**.
+A forgotten `.only` lets the whole suite pass with no warning. A test without `expect` adds to the
+count and verifies nothing.
 
-Desde el spec 030 lo verifica el linter, y hace falta **una regla por runner** porque ninguna de las
-dos alcanza al otro:
+The linter verifies it, and it needs **one rule per runner**, because neither rule reaches the other
+runner:
 
-| Dónde | Quién lo caza |
+| Where | What catches it |
 |---|---|
-| `src/**/__tests__/`, `__tests__/`, `docs/__tests__/`, `specs/__tests__/` y `.claude/scripts/__tests__/` | `@vitest/eslint-plugin` — `no-focused-tests` (con `fixable: false`, para que `--fix` no borre el `.only` en silencio), `no-disabled-tests` y `expect-expect` |
-| `mcp-server/**/__tests__/` | un selector de `no-restricted-syntax`: ahí corre `node --test` y el plugin de Vitest no lo mira |
+| `src/**/__tests__/`, `__tests__/`, `docs/__tests__/`, `specs/__tests__/`, `eslint-rules/__tests__/`, `.claude/scripts/__tests__/` and `.agents/scripts/__tests__/` | `@vitest/eslint-plugin`: `no-focused-tests` (with `fixable: false`, so `--fix` does not delete the `.only` in silence), `no-disabled-tests` and `expect-expect` |
+| `mcp-server/**/__tests__/` | a `no-restricted-syntax` selector: `node --test` runs there, and the Vitest plugin does not look at it |
 
-**El test sin una sola aserción queda afuera en `mcp-server/`, y es a propósito:** con `node:test` no
-hay un `expect` que contar, así que no tiene equivalente barato. Y antes del selector un `.skip` ahí
-fallaba igual, pero **por accidente** —lo cazaba `no-floating-promises`, porque `allowForKnownSafeCalls`
-nombra `test`/`describe`/`it` y no sus miembros—, o sea que el mensaje hablaba de promesas sin esperar
-y no del motivo, y bastaba un `void` para silenciarlo sin que nada dijera nada.
+**The test without an assertion stays outside in `mcp-server/`, on purpose.** `node:test` has no
+`expect` to count, so there is no cheap equivalent. Without the selector, a `.skip` there also fails,
+but **by accident**: `no-floating-promises` catches it, because `allowForKnownSafeCalls` names
+`test`/`describe`/`it` and not their members. The message then talks about unawaited promises and
+not about the reason, and a `void` silences it with no warning.
 
-## Comentarios
+## Comments
 
-**Los comentarios explican el porqué, no el qué.** El código dice qué hace; el comentario existe para lo
-que no se puede leer del código: una decisión, una restricción, un bug evitado.
+**Comments explain the why, not the what.** The code says what it does. The comment exists for what
+the code cannot say: a decision, a constraint, a bug avoided.
 
-La formulación es de Ousterhout y es más operable que la nuestra: **un comentario tiene que estar en un
-nivel de abstracción DISTINTO del código.** De ahí sale su red flag *«Comment Repeats Code»*, y el motivo
-para preferirla es práctico: «¿esto es un porqué?» se contesta que sí casi siempre, y **«¿esto está en
-otro nivel que el código?» se contesta mirando**. `// normalized` arriba de `return c` falla la segunda
-pregunta sin discusión.
+Ousterhout's wording is easier to apply: **a comment must be at a DIFFERENT level of abstraction from
+the code.** His red flag *"Comment Repeats Code"* comes from it. The reason to prefer it is
+practical. The answer to "is this a why?" is almost always yes. The answer to **"is this at another
+level than the code?" comes from a look**. `// normalized` above `return c` fails the second question
+with no discussion.
 
-Bien:
+Good:
 
 ```ts
-// Se guarda como índice dentro de SHAPES[pieza] en vez de como coordenada porque
-// rotar, reflejar y normalizar mapean cada celda preservando el orden del array.
+// Stored as an index into SHAPES[piece] instead of a coordinate because
+// rotate, reflect and normalize map each cell and keep the array order.
 const ANCHOR_INDEX: Record<PieceKey, number> = { … };
 ```
 
-Mal:
+Bad:
 
 ```ts
-// Mapea cada pieza a un índice
+// Maps each piece to an index
 const ANCHOR_INDEX: Record<PieceKey, number> = { … };
 ```
 
-Los comentarios de este repo están **en español**, igual que los mensajes de commit y los specs.
+A comment you write is **in English**, like commits and specs. See [Language](#language).
 
-### Lo que se verifica es la exactitud, y no la longitud
+### What is verified is accuracy, not length
 
-Éste es el criterio que ordena la sección entera, y hasta el spec 051 no estaba escrito. **El consumidor
-principal de los comentarios de este repo es un modelo leyendo el código para cambiarlo**, y para él los
-comentarios no se comportan como uno esperaría. Tres mediciones, y las tres empujan para el mismo lado:
+This criterion orders the whole section. **The main reader of the comments in this repo is a model
+that reads the code to change it**, and for that reader comments do not behave as expected. Three
+measurements, and all three push the same way:
 
-- **Sacarlos es caro, y justo en la tarea que se hace acá.** Desactivar los conceptos de comentario en
-  las representaciones internas de un modelo degrada la refinación de código **hasta un 90 %** y el
-  autocompletado hasta un 15 % ([arXiv:2512.16790](https://arxiv.org/html/2512.16790v1)). Refinar código
-  es exactamente lo que se hace en este repo. **La prosa larga es un activo medido.**
-- **Que uno mienta cuesta tanto como ofuscar el código.** CodeCrash midió sobre **17 modelos y 1279
-  tareas** que el lenguaje natural engañoso —comentarios incluidos— degrada el razonamiento sobre código
-  un **23,2 %** de media, y sigue costando **13,8 %** aun razonando paso a paso: tanto daño como
-  ofuscar la estructura ([arXiv:2504.14119](https://arxiv.org/html/2504.14119)).
-- **El volumen irrelevante desorienta, aunque sea verdadero.** El estudio de *context rot* sobre 18
-  modelos nombra la **interferencia por distractores**: contenido semánticamente parecido pero
-  irrelevante desorienta activamente. Una crónica de cómo se llegó a algo es literalmente eso — habla
-  del código, y es sobre un pasado que ya no rige.
+- **To remove them is expensive, in the exact task done here.** To turn off the comment concepts in
+  the internal representations of a model degrades code refinement **by up to 90 %** and completion
+  by up to 15 % ([arXiv:2512.16790](https://arxiv.org/html/2512.16790v1)). Code refinement is what
+  this repo does. **Long prose is a measured asset.**
+- **A comment that lies costs as much as obfuscated code.** CodeCrash measured **17 models and 1279
+  tasks**. Misleading natural language, comments included, degrades code reasoning by **23.2 %** on
+  average. It still costs **13.8 %** with step-by-step reasoning: as much damage as obfuscating the
+  structure ([arXiv:2504.14119](https://arxiv.org/html/2504.14119)).
+- **Irrelevant volume misleads, even when it is true.** The *context rot* study on 18 models names
+  **distractor interference**: content that is semantically close but irrelevant actively misleads.
+  A chronicle of how the code got here is exactly that: it talks about the code, about a past that no
+  longer applies.
 
-**La conclusión: lo que importa no es cuánto dice un comentario sino que lo que dice siga siendo
-cierto.** Un comentario largo y verdadero es barato; uno corto y podrido es caro. Por eso lo que se
-verifica ataca la exactitud, y **nada de este repo se acorta por ser largo**.
+**Conclusion: what matters is not how much a comment says, but that what it says stays true.** A long,
+true comment is cheap. A short, rotten one is expensive. So the checks target accuracy, and
+**nothing in this repo is shortened because it is long**.
 
-### Cada cláusula, y quién la verifica
+### Each clause, and what verifies it
 
-Desde el spec 051 las dos reglas locales de `eslint-rules/` cierran la última convención que seguía
-siendo prosa. El detalle operable —para escribir, no para consultar— vive en
-[`.claude/rules/comentarios.md`](../../.claude/rules/comentarios.md), que se carga sola al tocar
-`src/**` o `mcp-server/src/**`.
+Two local rules in `eslint-rules/` verify the comment convention. The operational detail, for
+writing and not for reference, lives in
+[`.agents/rules/comments.md`](../../.agents/rules/comments.md). It loads on its own when you touch
+`src/**` or `mcp-server/src/**`.
 
-| Cláusula | Lo verifica |
+| Clause | Verified by |
 |---|---|
-| Un comentario no está vacío ni archiva código | `local/comment-shape`, `vacio` y `codigo` |
-| Un comentario JSX no reetiqueta el marcado | `local/comment-shape`, `etiqueta` |
-| El primer párrafo de un docblock no pasa de 2 líneas | `local/comment-shape`, `resumen` |
-| **Una cita tiene que resolver** | `local/comment-anchor`, `muerta` |
-| Un comentario no narra historia | `local/comment-anchor`, `historia` |
-| El comentario dice el porqué y está en otro nivel que el código | **Nadie: es la parte que un linter no puede evaluar** |
+| A comment is not empty and does not archive code | `local/comment-shape`, `vacio` and `codigo` |
+| A JSX comment does not relabel the markup | `local/comment-shape`, `etiqueta` |
+| The first paragraph of a docblock is 2 lines or fewer | `local/comment-shape`, `resumen` |
+| **A citation must resolve** | `local/comment-anchor`, `muerta` |
+| A comment does not narrate history | `local/comment-anchor`, `historia` |
+| The comment says the why and is at another level than the code | **Nothing: a linter cannot evaluate it** |
 
-La última fila es el punto de la tabla. Lo que el linter exige no se vuelve a explicar en prosa acá; lo
-que no puede evaluar se queda entero, porque ahí la prosa es lo único que hay.
+The last row is the point of the table. What the linter requires is not explained again in prose
+here. What it cannot evaluate stays whole, because there the prose is all there is.
 
-**Una cita tiene que resolver** es la cláusula que la sección no tenía, y viene de darle vuelta una regla
-prestada. El repo del que se portó **prohíbe** nombrar un archivo en un comentario, con un argumento que
-es bueno allá: sus citas apuntan afuera del repo. Acá se midió antes de decidir —**315 citas, 309
-vivas**— y prohibirlas habría sido 98 % ruido. Así que en vez de prohibir la cita se verifica que
-resuelva, que caza el modo de falla real: el archivo borrado o renombrado, que
-[arXiv:2212.01479](https://arxiv.org/abs/2212.01479) midió sobre más de 3000 proyectos. El caso que lo
-motivó acá fue `log.md`, citado **siete** veces —tres en producción— después de que la mudanza de los
-specs a Issues lo borrara.
+**A citation must resolve** reverses a borrowed rule. The source repo **forbids** a file name in a
+comment, with a good argument there: its citations point outside the repo. Here it was measured
+first: **315 citations, 309 alive**. A ban would be 98 % noise. So the check verifies that a
+citation resolves. That catches the real failure mode: a file deleted or renamed,
+which [arXiv:2212.01479](https://arxiv.org/abs/2212.01479) measured on more than 3000 projects. The
+case here was `log.md`: comments cited it **seven** times, three in production, after its deletion.
 
-Y no es una preferencia de estilo: **un cambio que deja el comentario inconsistente tiene ~1,5 veces más
-probabilidad de terminar en un commit que introduce un bug** que uno consistente, medido sobre 1300
-millones de cambios a nivel AST en 1500 sistemas (Wen et al., ICPC 2019). Por eso es un gate y no una
-guía.
+This is not a style preference. **A change that leaves the comment inconsistent is ~1.5 times more
+likely to end in a bug-introducing commit** than a consistent one. Wen et al. (ICPC 2019) measured it
+on 1.3 billion AST-level changes in 1500 systems. That is why it is a gate and not a guideline.
 
-### El eje del tiempo: restricción vigente contra crónica
+### The time axis: current constraint against chronicle
 
-«El porqué» tiene dos formas y sólo una envejece bien. **Se queda el comentario que describe una
-restricción que HOY hace que el código tenga que ser así. El que cuenta cómo se llegó se muda al
-[issue de su spec](https://github.com/federicohermo/pentomino-games/issues) como nota de revisión, y en su lugar queda un puntero de una línea.**
+"The why" has two forms, and only one ages well. **A comment that describes a constraint that TODAY
+forces the code to be this way stays. A comment that tells how the code got here moves out, and a
+one-line pointer stays in its place.** The chronicle of a change goes to its PR or its issue. The
+reason for a big choice goes to an ADR in [`decisions/`](../architecture/decisions/).
 
-El issue de un spec es donde el lector busca el porqué de ese spec, así que no es una poda: es
-mudanza. Fue `specs/revisiones.md` hasta el spec 035, que repartió sus 41 notas —el archivo había
-llegado a 89.316 bytes y ya no entraba en un issue, y nadie lo podaba—. El costo de tener la crónica en el código es que el lector tiene que separar, párrafo por
-párrafo, la restricción que sigue viva de la historia de cómo se llegó — y la segunda se pudre sola:
-cada spec nuevo deja una capa más de «antes esto decía otra cosa».
+A chronicle in the code has a cost. The reader must separate, paragraph by paragraph, the constraint
+that is still alive from the story of how it came to be. The story rots on its own: each change adds
+one more layer of "this used to say something else".
 
-**Desde el 051 lo marca `local/comment-anchor`, con `historia`.** La regla no decide: señala el
-candidato, y separar es un juicio.
+**`local/comment-anchor` marks it, with `historia`.** The rule does not decide: it points to the
+candidate, and the split is a judgment.
 
-Se queda (restricción vigente — el código no puede escribirse de otra forma):
+It stays (current constraint: the code cannot be written another way):
 
 ```ts
-// El ternario y no `({ offset, note })`: con la forma corta el click mudo sale con la
-// clave `note` PRESENTE y en `undefined`, y la ausencia del campo es justo lo que dice
-// "celda vacía".
+// The ternary and not `({ offset, note })`: with the short form the silent click goes out
+// with the key `note` PRESENT and `undefined`, and the absence of the field is exactly
+// what says "empty cell".
 ```
 
-Se muda (crónica — cuenta un cambio de opinión, no una restricción de hoy):
+It moves (chronicle: it tells a change of mind, not a constraint of today):
 
 ```ts
-// El plan del spec 009 decía que el ciclo era X. Se cambió DESPUÉS DE ESCUCHARLO, y el
-// spec 011 le sacó el síntoma y no el motivo.
+// The plan said the cycle was X. It changed AFTER LISTENING to it, and the next change
+// removed the symptom and not the cause.
 ```
 
-Tres reglas para aplicarlo sin perder nada:
+Three rules to apply it without loss:
 
-- **Ante la duda, se queda.** Un comentario de más cuesta una lectura; uno de menos cuesta el
-  argumento, y el argumento es lo que este repo tiene de valioso.
-- **Si un párrafo mezcla las dos cosas, se parte**: la restricción se queda donde está, la historia se
-  muda y deja el puntero.
-- **Sin objetivo numérico.** Un porcentaje es un incentivo a borrar el comentario largo, que acá es
-  sistemáticamente el bueno.
+- **When in doubt, it stays.** One comment too many costs a read. One too few costs the argument,
+  and the argument is what this repo values.
+- **If a paragraph mixes the two, split it.** The constraint stays where it is. The history moves and
+  leaves the pointer.
+- **No numeric target.** A percentage is an incentive to delete the long comment, and here the long
+  comment is systematically the good one.
 
-### Tres chequeos que se evaluaron y se rechazaron
+### Three checks evaluated and rejected
 
-Están acá para que no se vuelvan a proponer. Los tres venían en las reglas portadas, y los tres se
-midieron sobre este árbol antes de decidir:
+They are here so that nobody proposes them again. All three came with the borrowed rules, and all
+three were measured on this tree before the decision:
 
-- **Longitud (302 hallazgos) y densidad (49).** Son presupuestos de prosa: chocan con «sin objetivo
-  numérico» de arriba y con el 90 % de degradación en refinación. Recortar por número optimiza la
-  variable equivocada.
-- **El comentario al final de una línea de código (49).** **Se permite**, y es una decisión explícita:
-  ancla la explicación al token exacto sin gastar una línea, y ningún benchmark dice que dañe.
-  `no-inline-comments` del core de ESLint hace exactamente eso, y además está *frozen* con la
-  deprecación ya aceptada y sin reemplazo en `@stylistic`, así que atarse a ella sería comprar el
-  trabajo dos veces.
-- **Prohibir citar el issue de un spec (10).** Acá el puntero al issue **es** la convención, y la
-  escribió el 035.
+- **Length (302 findings) and density (49).** They are prose budgets. They conflict with "no numeric
+  target" above and with the 90 % degradation in refinement. A cut by number optimizes the wrong
+  variable.
+- **A comment at the end of a code line (49).** **It is allowed**, by an explicit decision. It anchors
+  the explanation to the exact token without one more line, and no benchmark shows harm. The ESLint
+  core rule `no-inline-comments` does exactly that ban. It is also *frozen*, with its deprecation
+  accepted and no replacement in `@stylistic`, so a dependency on it buys the work twice.
+- **A ban on citing an issue (10).** Here the pointer to an issue **is** the convention.
 
-Corrida verbatim, la regla prestada daba **1007 hallazgos en 92 de 93 archivos**. Un gate que enciende
-en rojo el árbol entero no se arregla: se apaga. Con el recorte de arriba quedaron 186, y ninguno es un
-desacuerdo de estilo — son una cita que no resuelve, un primer párrafo que baja al cuerpo, o una crónica
-que ya tiene adónde mudarse.
+Run verbatim, the borrowed rule gave **1007 findings in 92 of 93 files**. A gate that turns the whole
+tree red does not get fixed: it gets turned off. After the cut above, 186 were left, and none is a
+style disagreement. Each is a citation that does not resolve, a first paragraph that runs into the
+body, or a chronicle that already has a place to move to.
 
-## Estilos
+## Styles
 
-Tailwind 4, sin archivo de config. Las utilidades se escriben inline en el JSX. Para lógica condicional
-de clases, template literals:
+Tailwind 4, with no config file. Utilities are written inline in the JSX. For conditional class logic,
+use template literals:
 
 ```tsx
 className={`border ${occ ? 'bg-slate-900 text-white' : 'bg-white hover:bg-slate-100'}`}
 ```
 
-Cuando las ramas pasan de dos, calcular la clase en una variable antes del JSX (como hace el `tone` de
-las celdas del tablero) en vez de anidar ternarios.
+When there are more than two branches, compute the class in a variable before the JSX, as the `tone`
+of the board cells does. Do not nest ternaries.
 
-**Lo que sale de una constante va por estilo inline, no por clase.** Tailwind escanea el fuente: una
-clase interpolada (`w-[${CELL_PX}px]`) no se generaría, así que el número volvería a estar escrito dos
-veces. Desde el spec 021 las celdas del tablero ya no se dimensionan ni con la constante ni con una
-clase: leen la custom property `--cell`, que `components/use-grid.ts` escribe sobre el contenedor
-raíz midiendo el viewport. El estilo inline sigue siendo la vía —`width: calc(var(--cell) * 1)`— y el
-motivo se sumó uno: una custom property la resuelve el navegador en cada elemento, así que
-redimensionar la ventana reposiciona las celdas, el velo y la cabeza lectora **sin un solo re-render de
-React**.
+**A value that comes from a constant goes through an inline style, not a class.** Tailwind scans the
+source: an interpolated class (`w-[${CELL_PX}px]`) is never generated, so the number is written twice
+again. The board cells read the custom property `--cell`. `components/use-grid.ts` writes it on the
+root container from the measured viewport. The inline style is still the path:
+`width: calc(var(--cell) * 1)`. And there is one more reason: the browser resolves a custom property
+on each element. So a window resize moves the cells, the veil and the playhead **with no React
+re-render**.
 
 ## Commits
 
-- En español, imperativo, sin scope de Conventional Commits.
-- El cuerpo explica **el porqué y la causa raíz**, no el listado de archivos tocados — eso ya está en el
-  diff.
-- Los cambios de borrado van en su propio commit, para que revertirlos sea trivial.
+- In English, in the imperative, with no Conventional Commits scope.
+- The body explains **the why and the root cause**, not the list of files touched: the diff already
+  has that.
+- A deletion goes in its own commit, so that a revert is trivial.

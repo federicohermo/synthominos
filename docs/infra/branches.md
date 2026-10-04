@@ -1,122 +1,111 @@
-# Ramas
+# Branches
 
-Este repositorio tiene **dos ramas compartidas con roles distintos**, y ramas de trabajo cuyo prefijo
-dice qué clase de cambio son. Este archivo dice qué hace cada una, qué las protege, y qué hacer cuando
-el hook te frena.
+This repo has **two shared branches with distinct roles**, and work branches whose prefix says
+what kind of change they are. This file says what each one does, what protects it, and what to
+do when the hook stops you.
 
-## Los dos roles
+## The two roles
 
-| Rama | Rol | Quién le escribe |
+| Branch | Role | Who writes to it |
 |---|---|---|
-| `staging` | **Integración**, y la **default** del repositorio | cada PR de una rama de trabajo, y los commits `hotfix:` |
-| `main` | **Release**: es la rama de producción del deploy | sólo un PR de promoción desde `staging` |
+| `staging` | **Integration**, and the repo **default** | each PR from a work branch, and `hotfix:` commits |
+| `main` | **Release**: the deploy's production branch | only a promotion PR from `staging` |
 
-La rama de producción del proveedor de deploy se declara **explícitamente** en `main`, y no se hereda
-de la default. La configuración del build vive en [`deploy.md`](./deploy.md), que es su archivo; acá
-sólo importa qué rama publica.
+The deploy provider's production branch is set **explicitly** to `main`; it is not inherited from
+the default. The build configuration lives in [`deploy.md`](./deploy.md).
 
-Los PR se mergean con merge commit. Un squash deja en `main` un commit que no está en `staging`, y la
-promoción siguiente vuelve a proponer todo como conflicto.
+PRs merge with a merge commit. A squash leaves a commit on `main` that is not on `staging`, and
+the next promotion proposes everything again as conflicts.
 
-## Las ramas de trabajo
+## Work branches
 
-Una rama de trabajo sale de `staging` y vuelve a `staging` por PR. Su prefijo dice qué clase de cambio
-es, y es lo único que el hook mira:
+A work branch leaves `staging` and returns to `staging` through a PR. Its prefix says what kind of
+change it is, and the prefix is all the hook checks:
 
-| Prefijo | Qué cambia | Toca `src/` |
+| Prefix | What changes | Touches `src/` |
 |---|---|---|
-| `feature/` | lo que el instrumento hace: crea o modifica una capacidad, y su spec es el primer commit | sí |
-| `bugfix/` | un bug; lleva spec sólo si el bug era una regla sin escribir | sí |
-| `refactor/` | la forma del código sin cambiar lo que hace | sí |
-| `improvement/` | UI, arte, audio o rendimiento, sin cambiar una regla | sí |
-| `harness/` | el harness: hooks, skills, reglas, CI | no |
-| `docs/` | documentación | no |
+| `feature/` | what the instrument does: creates or modifies a capability; its spec is the first commit | yes |
+| `bugfix/` | a bug; it carries a spec only if the bug was an unwritten rule | yes |
+| `refactor/` | the shape of the code, not what it does | yes |
+| `improvement/` | UI, art, audio or performance, without changing a rule | yes |
+| `harness/` | the harness: hooks, skills, rules, CI | no |
+| `docs/` | documentation | no |
 
-**Un hotfix no es una rama**: es un commit directo en `staging` cuyo mensaje empieza con `hotfix:`.
-El hook deja escribir el producto desde `staging` por eso.
+**A hotfix is not a branch**: it is a commit straight on `staging` whose message starts with
+`hotfix:`. That is why the hook lets `staging` write the product.
 
-## El ruleset
+## The ruleset
 
-`main` está protegida por un ruleset —`main-solo-por-pr-verde`, **id 21477023**— con exactamente
-estas reglas:
+`main` is protected by a ruleset (`main-solo-por-pr-verde`, **id 21477023**) with exactly these
+rules:
 
-| Regla | Valor |
+| Rule | Value |
 |---|---|
-| `pull_request` | puesta: a `main` no se pushea directo |
+| `pull_request` | on: nobody pushes to `main` directly |
 | `required_status_checks` | `[verify]` |
-| `bypass_actors` | `[]` — **nadie**, ni el dueño |
+| `bypass_actors` | `[]`: **nobody**, not even the owner |
 
-El id se escribe acá porque es lo que hace falta para desarmarlo
-(`gh api -X DELETE repos/federicohermo/pentomino-games/rulesets/21477023`), y un gate que no se sabe
-desarmar se desarma mal: a los manotazos, o borrando la rama.
+The id is here because it is what you need to remove it
+(`gh api -X DELETE repos/federicohermo/pentomino-games/rulesets/21477023`).
 
-`staging` **no tiene ruleset**: es adonde va un `hotfix:`, y el bypass que haría falta para un actor
-que no sea el dueño no existe en un repositorio personal (la API responde `422` a un bypass por
-integración, medido el 2026-08-26).
+`staging` **has no ruleset**: it receives `hotfix:` commits, and a bypass for any actor other than
+the owner does not exist in a personal repo (the API answers `422`, measured on 2026-08-26).
 
-### Por qué la rama default es `staging` y no la productiva
+### Why the default branch is `staging`
 
-La default de GitHub no significa producción: significa la base **preseleccionada** de cada PR nuevo,
-lo que da un `clone` fresco, y cuál rama toma el proveedor de deploy como producción si nadie la fija.
+The GitHub default is not production: it is the **preselected** base of each new PR, what a fresh
+`clone` gets, and the branch the deploy provider takes as production if nobody sets one.
 
-El argumento es asimétrico, y por eso no hay empate:
+The argument is asymmetric:
 
-- Con `main` de default, el error es **silencioso y grave**: una rama de trabajo aterriza directo en la
-  rama de release. El ruleset no lo impide —sólo exige `verify` en verde, no una rama de origen— así
-  que la integración se saltea sin que nada avise.
-- Con `staging` de default, el error es **visible e inofensivo**: un PR de promoción que apunta a
-  `staging` no rompe nada y se retargetea en dos clics.
+- With `main` as default, the error is **silent and serious**: a work branch lands straight on the
+  release branch. The ruleset does not stop it: it requires a green `verify`, not a source branch.
+- With `staging` as default, the error is **visible and harmless**: a promotion PR aimed at
+  `staging` breaks nothing and is retargeted in two clicks.
 
-## Las dos copias que la maquinaria tiene del modelo
+## The two copies the machinery keeps of the model
 
-El modelo está escrito en dos lugares del árbol además de acá, y ninguno puede leer al otro: uno es
-YAML que GitHub Actions parsea antes de que exista un proceso donde correr código, y el otro es el
-núcleo del hook que corre en cada edición. Lo que cada uno declara:
-
-| Dónde | Qué declara | Ramas |
+| Where | What it declares | Branches |
 |---|---|---|
 | `.github/workflows/verify.yml` | `on.push.branches` | `staging`, `main` |
-| `.agents/scripts/policy.ts` | `INTEGRATION_BRANCH` y `RELEASE_BRANCH` | `staging`, `main` |
+| `.agents/scripts/policy.ts` | `INTEGRATION_BRANCH` and `RELEASE_BRANCH` | `staging`, `main` |
 
-`verify` corre sobre las dos porque la rama que se publica no puede ser la única sin corrida propia, y
-el hook nombra a las dos porque las dos reciben trabajo de otros: **es el mismo conjunto**, y no por
-casualidad — una rama compartida sin corrida propia es exactamente el agujero que este modelo cierra.
+`verify` runs on both because the published branch cannot be the only one without its own run.
+The hook names both because both receive work from others: **it is the same set**. A shared
+branch without its own run is the hole this model closes.
 
-Que las dos digan lo mismo que este documento lo verifica
-[`__tests__/ramas-sincronizadas.test.ts`](../../__tests__/ramas-sincronizadas.test.ts): lee del disco,
-compara texto, y corre sin red.
+[`__tests__/branches-in-sync.test.ts`](../../__tests__/branches-in-sync.test.ts) checks that both
+copies say what this document says. It reads from disk, compares text, and needs no network.
 
-## Cuando el hook te frena
+## When the hook stops you
 
-`.agents/scripts/hook.ts` corre antes de cada edición, en Claude Code y en Codex. Bloquea escribir
-`src/` o `mcp-server/src/` desde una rama cuyo prefijo no sea uno de los cuatro del producto, y desde
-`main`. El mensaje dice cuál es el problema; las salidas son dos:
+`.agents/scripts/hook.ts` runs before each edit, in Claude Code and in Codex. It blocks writing
+`src/` or `mcp-server/src/` from a branch without one of the four product prefixes, and from
+`main`. The message names the problem. There are two ways out:
 
 ```bash
 git switch staging && git pull
-git switch -c feature/<descripcion-kebab>   # o bugfix/, refactor/, improvement/
+git switch -c feature/<kebab-description>   # or bugfix/, refactor/, improvement/
 ```
 
-o, si es un arreglo de una línea que no merece rama, commitearlo en `staging` con `hotfix:`.
+or, for a one-line fix that does not deserve a branch, commit it on `staging` as `hotfix:`.
 
-El mismo hook rechaza abrir un worktree de este repo fuera de `.claude/worktrees/`, que es la única
-carpeta que barre `node .agents/scripts/clean-worktrees.ts`. Los worktrees que abre la app de Codex
-viven en `~/.codex/worktrees/` y los limpia ella: el hook no los ve y el limpiador no los toca.
+The same hook rejects opening a worktree of this repo outside `.claude/worktrees/`, the only
+folder `node .agents/scripts/clean-worktrees.ts` sweeps. The Codex app keeps its worktrees in
+`~/.codex/worktrees/` and cleans them itself: the hook does not see them and the cleaner does not
+touch them.
 
-Si el hook no puede leer algo —git no contesta, el payload no se entiende— deja pasar y lo avisa. Lo
-que protege es una convención, no un secreto.
+If the hook cannot read something (git does not answer, the payload does not parse), it lets the
+call through and warns. It protects a convention, not a secret.
 
-## Qué no verifica nadie
+## What nobody verifies
 
-**Que el ruleset siga puesto.** Vive en la configuración de GitHub, no en el repositorio, y leerlo
-cuesta una llamada de red: los tests de este repo corren sin red a propósito. El gate cruza las copias
-que están en el árbol y **declara** que ésta no la mira.
+**That the ruleset is still on.** It lives in the GitHub configuration, not in the repo, and
+reading it takes a network call. The repo tests run without network on purpose. The gate checks
+the copies in the tree and **states** that it does not check this one.
 
-Si alguien borra el ruleset, nada del repositorio se pone en rojo. Comprobarlo es una llamada:
+If someone deletes the ruleset, nothing in the repo turns red. Checking takes one call:
 
 ```bash
 gh api repos/federicohermo/pentomino-games/rulesets/21477023
 ```
-
-Si algún día se quiere cubrir de verdad, el lugar es un paso de la Action y no un test: ahí sí hay red
-y hay token.

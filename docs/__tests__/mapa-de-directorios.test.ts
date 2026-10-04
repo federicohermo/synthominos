@@ -79,14 +79,13 @@ describe('`directory-structure.md` es el mapa real del codigo', () => {
    * vuelva a crear. Un gate en esa direccion los borraria del doc, y con ellos el
    * unico registro de que se fueron a proposito.
    *
-   * (`CLAUDE.md` resume este doc como «dónde crear cada cosa, qué está muerto», y esa
-   * segunda mitad es este parrafo: no hay una seccion con ese titulo, y buscarla por
-   * encabezado da un falso negativo. Se verifica el contenido.)
+   * (No hay una seccion con titulo para lo muerto: es el parrafo que dice «were
+   * deleted». Buscarla por encabezado da un falso negativo. Se verifica el contenido.)
    */
   it('no verifica la direccion inversa, y lo que el doc dice de lo muerto explica por que', () => {
     // Que el parrafo siga estando es lo que sostiene la excepcion de arriba: si se
     // fuera, la asimetria pasaria a ser un agujero en vez de una decision.
-    expect(MAPA).toContain('se eliminaron');
+    expect(MAPA).toContain('were deleted');
     expect(MAPA).toContain('setupTests.ts');
   });
 });
