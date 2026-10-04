@@ -11,6 +11,18 @@
  */
 
 /**
+ * The settings of the AnalyserNode that `playback/engine.ts` creates for the spectrum.
+ *
+ * They live here and not in the engine because a node test reads them, and the node project
+ * must not load `engine.ts`: see `docs/guides/conventions.md`.
+ */
+/** 128 bins (fftSize / 2). Suficiente para visualizar, insuficiente para afinar. */
+export const FFT_SIZE = 256;
+
+/** Promediado temporal entre lecturas: sin el la animacion tiembla; de mas, es melaza. */
+export const SMOOTHING = 0.8;
+
+/**
  * Agrupa los bins de la FFT en `barCount` barras con espaciado logaritmico y
  * devuelve alturas normalizadas 0-1.
  *

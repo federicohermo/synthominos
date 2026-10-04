@@ -106,7 +106,9 @@ describe('realScreenshotSystem', () => {
     expect(git(origin, 'log', '--format=%s', 'screenshots/7').split('\n')).toEqual(['screenshots of #7', 'screenshots of #7']);
     log.mockRestore();
     rmSync(root, { recursive: true, force: true });
-  });
+    // About fifteen real git processes. On Windows, with the suite running in parallel, they
+    // pass the 5 s default with nothing wrong.
+  }, 30_000);
 
   it('a failing git throws, isDir tells folders apart, and err writes to stderr', () => {
     const sys = realScreenshotSystem();

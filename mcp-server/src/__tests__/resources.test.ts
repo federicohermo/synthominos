@@ -13,7 +13,9 @@ import {
   DEFAULT_REGIMEN,
 } from '../../../src/musical-model/music.ts';
 import { PASOS_MAX } from '../../../src/circuit/sequence.ts';
-import { DEFAULT_BPM, MASTER_GAIN, FFT_SIZE } from '../../../src/playback/engine.ts';
+import { MASTER_GAIN } from '../../../src/playback/engine.ts';
+import { FFT_SIZE } from '../../../src/spectrum/spectrum-bars.ts';
+import { DEFAULT_BPM } from '../../../src/playback/scheduler.ts';
 import { LOOKAHEAD, TICK_MS } from '../../../src/playback/scheduler.ts';
 
 /**

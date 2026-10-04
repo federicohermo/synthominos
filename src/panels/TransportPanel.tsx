@@ -1,4 +1,4 @@
-import { TEMPO_MIN, TEMPO_MAX } from '../playback/engine.ts';
+import { TEMPO_MIN, TEMPO_MAX } from '../playback/scheduler.ts';
 
 /** El transporte del instrumento: tempo, play/pausa, los clicks del recorrido y el reset. */
 export interface PropsDeTransporte {

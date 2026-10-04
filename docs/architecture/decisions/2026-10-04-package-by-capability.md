@@ -40,6 +40,13 @@ of their folder (`board.ts` and `Board.tsx`), which a case-insensitive file syst
 name; they took the names `placement.ts`, `playhead-offset.ts` and `spectrum-bars.ts`.
 
 The cost, measured when the decision landed: no rule orders the modules of `src/`, so a cycle passes
-lint. A run of `import-x/no-cycle` found no cycle between files. Between capabilities, five pairs
+lint. A run of `import-x/no-cycle` found no cycle between files. Between capabilities, six pairs
 import each other: accessibility ↔ board-editing, board-editing ↔ board-fit, board-editing ↔
-musical-model, board-editing ↔ playback, and musical-model ↔ pieces. No gate forbids that today.
+musical-model, board-editing ↔ playback, musical-model ↔ pieces, and playback ↔ spectrum. No gate
+forbids that today.
+
+One constraint appeared with the fusion. The browser project is the only one that runs
+`playback/engine.ts`; when the node project loads it without running its functions, v8 coverage
+cannot merge the two statement maps and the gate fails. So a value that another file reads does not
+live in `engine.ts`: the tempo values went to `scheduler.ts`, and the analyser settings to
+`spectrum/spectrum-bars.ts`.

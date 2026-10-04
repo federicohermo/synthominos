@@ -45,9 +45,9 @@ vi.mock('../route-source.ts', async (importActual) => ({
   rutaActiva: () => fuente.marcas,
   velo: () => fuente.velo,
 }));
-vi.mock('../engine.ts', async (importActual) => ({
-  ...await importActual<typeof import('../engine.ts')>(),
+vi.mock('../engine.ts', () => ({
   playheadOffset: () => fuente.offset,
+  cycleGeneration: () => 0,
 }));
 
 const Playhead = (await import('../Playhead.tsx')).default;

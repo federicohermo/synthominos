@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef, useCallback } from "react";
-import { playNow, DEFAULT_BPM } from "./playback/engine.ts";
+import { playNow } from "./playback/engine.ts";
+import { DEFAULT_BPM } from "./playback/scheduler.ts";
 import { rotateN, reflect } from "./pieces/transform.ts";
 import { arpeggioFor, DEFAULT_REGIMEN } from "./musical-model/music.ts";
 import { cabeEn, cellsAt, isValid, occupantAt, MAX_PIEZAS } from "./board-editing/placement.ts";

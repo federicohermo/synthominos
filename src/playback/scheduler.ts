@@ -118,6 +118,13 @@ export type Hit =
   | { kind: typeof HIT.cross; hz: number; at: number }
   | { kind: typeof HIT.click; at: number };
 
+/** Tempo inicial. Lo comparten el motor y el estado de la UI: es un solo numero. */
+export const DEFAULT_BPM = 110;
+
+/** Extremos del slider de tempo, en bpm. El valor inicial es `DEFAULT_BPM`. */
+export const TEMPO_MIN = 60;
+export const TEMPO_MAX = 160;
+
 /** Cuanto futuro se agenda en cada vuelta del temporizador, en segundos. */
 export const LOOKAHEAD = 0.1;
 

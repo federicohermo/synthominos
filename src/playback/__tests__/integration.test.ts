@@ -10,7 +10,7 @@ import {
   GRACE_VELOCITY,
 } from '../voice.ts';
 import { collectHits, intervalDuration, HIT } from '../scheduler.ts';
-import { FFT_SIZE, SMOOTHING } from '../engine.ts';
+import { FFT_SIZE, SMOOTHING } from '../../spectrum/spectrum-bars.ts';
 import type { ClockState } from '../scheduler.ts';
 import { offline, peakNear, detectOnsets, zeroCrossHz, SR } from './test-context.ts';
 

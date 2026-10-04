@@ -8,8 +8,10 @@ import {
   GRACE_INTERVALS,
   GRACE_VELOCITY,
 } from './voice.ts';
-import { collectWindow, intervalDuration, LOOKAHEAD, TICK_MS, HIT, CLOCK_START_DELAY } from './scheduler.ts';
+import { collectWindow, intervalDuration } from './scheduler.ts';
+import { LOOKAHEAD, TICK_MS, HIT, CLOCK_START_DELAY, DEFAULT_BPM } from './scheduler.ts';
 import { offsetAt } from './playhead-offset.ts';
+import { FFT_SIZE, SMOOTHING } from '../spectrum/spectrum-bars.ts';
 
 /**
  * Capa de aplicacion del audio: los singletons y la API que consume la UI.
@@ -25,9 +27,6 @@ import { offsetAt } from './playhead-offset.ts';
 /** Ganancia del master. */
 export const MASTER_GAIN = 0.3;
 
-/** Tempo inicial. Lo comparten el motor y el estado de la UI: es un solo numero. */
-export const DEFAULT_BPM = 110;
-
 /**
  * Margen al disparar ya mismo, para no agendar en el pasado.
  *
@@ -39,16 +38,6 @@ export const DEFAULT_BPM = 110;
  * deliberada que `CLICK_SECONDS`, por otro motivo.
  */
 export const PLAY_DELAY = 0.02;
-
-/** 128 bins (fftSize / 2). Suficiente para visualizar, insuficiente para afinar. */
-export const FFT_SIZE = 256;
-
-/** Promediado temporal entre lecturas: sin el la animacion tiembla; de mas, es melaza. */
-export const SMOOTHING = 0.8;
-
-/** Extremos del slider de tempo, en bpm. El valor inicial es DEFAULT_BPM del motor. */
-export const TEMPO_MIN = 60;
-export const TEMPO_MAX = 160;
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;

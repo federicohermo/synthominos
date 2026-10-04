@@ -7,7 +7,9 @@ import {
   DEFAULT_REGIMEN,
 } from '../../../src/musical-model/music.ts';
 import { PASOS_MAX } from '../../../src/circuit/sequence.ts';
-import { DEFAULT_BPM, MASTER_GAIN, FFT_SIZE } from '../../../src/playback/engine.ts';
+import { MASTER_GAIN } from '../../../src/playback/engine.ts';
+import { FFT_SIZE } from '../../../src/spectrum/spectrum-bars.ts';
+import { DEFAULT_BPM } from '../../../src/playback/scheduler.ts';
 import { LOOKAHEAD, TICK_MS } from '../../../src/playback/scheduler.ts';
 import { jsonResource, type ResourceDef } from './types.ts';
 
@@ -51,11 +53,15 @@ const POR_ARCHIVO = [
   },
   {
     archivo: 'src/playback/engine.ts',
-    constantes: { DEFAULT_BPM, MASTER_GAIN, FFT_SIZE },
+    constantes: { MASTER_GAIN },
+  },
+  {
+    archivo: 'src/spectrum/spectrum-bars.ts',
+    constantes: { FFT_SIZE },
   },
   {
     archivo: 'src/playback/scheduler.ts',
-    constantes: { LOOKAHEAD, TICK_MS },
+    constantes: { DEFAULT_BPM, LOOKAHEAD, TICK_MS },
   },
 ];
 

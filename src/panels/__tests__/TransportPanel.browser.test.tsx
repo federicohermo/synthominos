@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { page } from 'vitest/browser';
 import TransportPanel from '../TransportPanel.tsx';
-import { TEMPO_MIN, TEMPO_MAX } from '../../playback/engine.ts';
+import { TEMPO_MIN, TEMPO_MAX } from '../../playback/scheduler.ts';
 import type { PropsDeTransporte } from '../TransportPanel.tsx';
 
 /**

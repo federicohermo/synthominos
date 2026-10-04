@@ -5,7 +5,7 @@ import { SHAPES, ANCHOR_INDEX } from '../pieces/pieces.ts';
 import { grillaPara } from '../board-fit/grid-fit.ts';
 import { MAX_PIEZAS, cellsAt } from '../board-editing/placement.ts';
 import { REGIMEN, arpeggioFor } from '../musical-model/music.ts';
-import { DEFAULT_BPM } from '../playback/engine.ts';
+import { DEFAULT_BPM } from '../playback/scheduler.ts';
 import { rotateN, reflect } from '../pieces/transform.ts';
 import type { PieceKey } from '../pieces/pieces.ts';
 import type { ReactNode } from 'react';
@@ -43,7 +43,7 @@ const motor = vi.hoisted(() => {
     cycleGeneration: () => 0,
   };
 });
-vi.mock('../playback/engine.ts', async (importActual) => ({ ...await importActual<typeof import('../playback/engine.ts')>(), ...motor }));
+vi.mock('../playback/engine.ts', () => motor);
 
 /**
  * Cuantas veces se EJECUTA el panel de las doce miniaturas (AC6 y AC7).

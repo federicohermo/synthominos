@@ -182,10 +182,9 @@ src/
 ├── playback/                 # the transport, and the sound in time
 │   ├── voice.ts              # the envelope, the velocities and the click · midiToHz ·
 │   │                         #   scheduleVoice · scheduleClick
-│   ├── scheduler.ts          # the engine Sequence · LOOKAHEAD · TICK_MS · HIT ·
-│   │                         #   CLOCK_START_DELAY · collectHits · collectWindow
-│   ├── engine.ts             # the AudioContext singletons and the API the UI consumes ·
-│   │                         #   DEFAULT_BPM · TEMPO_MIN · TEMPO_MAX
+│   ├── scheduler.ts          # the engine Sequence · DEFAULT_BPM · TEMPO_MIN · TEMPO_MAX ·
+│   │                         #   LOOKAHEAD · TICK_MS · HIT · CLOCK_START_DELAY · collectWindow
+│   ├── engine.ts             # the AudioContext singletons and the API the UI consumes
 │   ├── playhead-offset.ts    # offsetAt: the offset arithmetic of the playhead
 │   ├── engine-bridge.ts      # proyectarAlMotor (the only module that sees both Sequence types)
 │   │                         #   and alternarTransporte · MotorDeTransporte
@@ -197,7 +196,7 @@ src/
 │   └── Playhead.tsx          # playhead: rAF + imperative style, no props
 │
 ├── spectrum/                 # the signal on screen
-│   ├── spectrum-bars.ts      # pure mapping from FFT bins to bar heights
+│   ├── spectrum-bars.ts      # pure mapping from FFT bins to bar heights · FFT_SIZE · SMOOTHING
 │   ├── spectrum-loop.ts      # the loop: drawBars, drawIdle and iniciarEspectro · BAR_COUNT ·
 │   │                         #   GAP · MIN_BAR · IDLE_TEXT
 │   └── Spectrum.tsx          # spectrum canvas: rAF + HiDPI, no props

@@ -23,9 +23,9 @@ import {
   TICK_MS,
   HIT,
   CLOCK_START_DELAY,
+  DEFAULT_BPM,
 } from '../../../src/playback/scheduler.ts';
 import { midiToHz } from '../../../src/playback/voice.ts';
-import { DEFAULT_BPM } from '../../../src/playback/engine.ts';
 import type { Sequence, ClockState, Hit } from '../../../src/playback/scheduler.ts';
 
 /**

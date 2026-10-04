@@ -75,9 +75,16 @@ meaning.
 
 **A value that two modules read belongs to the one whose rule it states.** `GRID_MIN`,
 `GRID_DEFAULT` and `MAX_PIEZAS` are facts of the board, so `placement.ts` owns them even though it
-does not read them. `DEFAULT_BPM`, `TEMPO_MIN` and `TEMPO_MAX` live in `engine.ts`, with the tempo
-the engine plays. A test that mocks a module that owns values keeps its real exports
-(`vi.mock(path, async (importActual) => ({ ...await importActual(), ... }))`).
+does not read them. `DEFAULT_BPM`, `TEMPO_MIN` and `TEMPO_MAX` live in `scheduler.ts`, with the
+arithmetic of the tempo.
+
+**A value that another file reads does not live in `engine.ts`.** Only the browser project runs
+the engine. When a node test or an `importActual` mock loads `engine.ts` without running its
+functions, v8 coverage gets a second statement map that it cannot merge with the first, and the
+gate fails on statements that the browser ran. So the tempo values live in `scheduler.ts` and the
+analyser settings (`FFT_SIZE`, `SMOOTHING`) in `spectrum-bars.ts`, which the node project runs in
+full. `route-source.ts` owns `MARCA`, and the test that mocks it keeps its real exports: the
+node project also runs that module in full.
 
 **A component may export its props type** next to the component: `react-refresh` reads a type
 export as no export. `PropsDeOrientacion` lives in `OrientationPanel.tsx`.

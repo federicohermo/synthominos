@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { HIT, TICK_MS } from '../scheduler.ts';
-import { DEFAULT_BPM, MASTER_GAIN, FFT_SIZE } from '../engine.ts';
+import { MASTER_GAIN } from '../engine.ts';
+import { FFT_SIZE } from '../../spectrum/spectrum-bars.ts';
+import { DEFAULT_BPM } from '../scheduler.ts';
 import type { Sequence } from '../scheduler.ts';
 
 /**
