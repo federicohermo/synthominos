@@ -2,30 +2,22 @@ import type { PlatformPath } from 'node:path';
 import { isValidWorktreeTarget } from './worktrees.ts';
 
 /**
- * Las reglas del repo sobre QUÉ se puede tocar desde DÓNDE. Es el núcleo de los hooks: no sabe
- * de Claude ni de Codex, ni de shells, ni lanza git. Recibe un `Intent` —qué rutas escribe una
- * llamada y qué worktrees abre— y un puerto `Git` con lo único que necesita saber del repo.
+ * The repo's rules on WHAT can be written from WHERE. The core of the hooks: it knows nothing
+ * about Claude, Codex, shells or how to run git. It takes an `Intent` and a `Git` port.
  *
- * ## Las dos reglas
+ * 1. The branch prefix decides whether the product can be written. `src/` and `mcp-server/src/`
+ *    are written from a branch that says what kind of change it is, or from `staging` for a
+ *    `hotfix:`. Only the NAME is checked: the PR checks that a `feature/` starts from a spec.
+ * 2. A worktree of this repo opens only under `.claude/worktrees/`. See `worktrees.ts`.
  *
- * 1. **El prefijo de la rama decide si se puede tocar el producto.** `src/` y `mcp-server/src/`
- *    se escriben desde una rama que dice qué clase de cambio es, o desde `staging` para un
- *    `hotfix:`. Mira el NOMBRE y nada más: que una `feature/` parta de un spec lo mira el PR,
- *    porque el spec se escribe en la misma rama. Un gate que obliga a pedir permiso antes de
- *    empezar es un gate que se apaga.
- * 2. **Un worktree de este repo se abre sólo en `.claude/worktrees/`.** Ver `worktrees.ts`.
- *
- * ## Falla abierto, y lo dice
- *
- * Lo que protege es una convención, no un secreto. Un gate que rompe la sesión cuando no puede
- * leer algo se desactiva el mismo día, y ahí no queda gate. Por eso cada regla corre aparte: si
- * una no puede decidir, la otra igual decide, y lo que no se pudo mirar se avisa.
+ * It fails open, and says so: it protects a convention, not a secret. Each rule runs in
+ * isolation, so one rule's error does not switch off the other.
  */
 
-/** Lo que una llamada a una herramienta va a hacer, en rutas absolutas. */
+/** What one tool call is going to do, as absolute paths. */
 export interface Intent {
   readonly writes: readonly string[];
-  /** `gitDir` es el directorio desde el que corre el `git worktree add` (el cwd, o su `-C`). */
+  /** `gitDir` is the directory git runs from for `git worktree add` (the cwd, or its `-C`). */
   readonly worktrees: readonly { readonly gitDir: string; readonly target: string }[];
 }
 
@@ -34,46 +26,46 @@ export type Verdict =
   | { readonly kind: 'deny'; readonly reason: string }
   | { readonly kind: 'warn'; readonly reason: string };
 
-/** Lo único que el núcleo sabe de git. Real en `system.ts`, falso en los tests. */
+/** All the core knows about git. Real in `system.ts`, fake in tests. */
 export interface Git {
-  /** `path.win32` o `path.posix`: el caso de dos discos se prueba en cualquier plataforma. */
+  /** `path.win32` or `path.posix`: the two-drive case is tested on any platform. */
   readonly paths: PlatformPath;
-  /** El checkout principal del repo donde vive este harness. `null` si git no contestó. */
+  /** The main checkout of the repo this harness lives in. `null` if git did not answer. */
   ownCheckout(): string | null;
-  /** El toplevel del árbol que contiene `target`, subiendo hasta la carpeta que exista. */
+  /** The toplevel of the tree that holds `target`, walking up to the nearest existing folder. */
   treeOf(target: string): string | null;
-  /** La rama del árbol. Durante un rebase, la que se está rebasando. */
+  /** The branch of the tree. During a rebase, the branch being rebased. */
   branchOf(tree: string): string | null;
-  /** El checkout principal del repo de `dir`: el padre de su `--git-common-dir`. */
+  /** The main checkout of the repo of `dir`: the parent of its `--git-common-dir`. */
   mainCheckoutOf(dir: string): string | null;
 }
 
 export const PROTECTED = ['src', 'mcp-server/src'] as const;
 export const PRODUCT_PREFIXES = ['feature/', 'bugfix/', 'refactor/', 'improvement/'] as const;
-/** Sólo para el mensaje: no habilitan nada, nombran lo que no toca el producto. */
+/** For the message only: they enable nothing, they name what does not touch the product. */
 export const NON_PRODUCT_PREFIXES = ['harness/', 'docs/'] as const;
 export const INTEGRATION_BRANCH = 'staging';
 export const RELEASE_BRANCH = 'main';
 
 const list = (prefixes: readonly string[]) => prefixes.map(p => `\`${p}\``).join(', ');
 
-const HOW_OUT =
-  `Al producto lo tocan ${list(PRODUCT_PREFIXES)}. Lo que no toca \`src/\` se nombra por lo ` +
-  `que toca: ${list(NON_PRODUCT_PREFIXES)}. Un hotfix es un commit \`hotfix:\` directo en ` +
-  `\`${INTEGRATION_BRANCH}\`. Qué es cada prefijo está en \`docs/infra/ramas.md\`.`;
+const WAY_OUT =
+  `The product is written from ${list(PRODUCT_PREFIXES)}. A change that does not touch \`src/\` ` +
+  `is named by what it touches: ${list(NON_PRODUCT_PREFIXES)}. A hotfix is a \`hotfix:\` commit ` +
+  `straight on \`${INTEGRATION_BRANCH}\`. See \`docs/infra/branches.md\`.`;
 
-/** La comparación que hace el sistema: Windows no distingue mayúsculas. */
+/** The comparison the OS makes: Windows ignores case. */
 function same(paths: PlatformPath, a: string, b: string): boolean {
   return paths.sep === '\\' ? a.toLowerCase() === b.toLowerCase() : a === b;
 }
 
 /**
- * Si `target` cae dentro de una carpeta protegida del árbol `tree`.
+ * Whether `target` falls inside a protected folder of the tree `tree`.
  *
- * Compara por ruta RESUELTA y no por el string, así que `src/../src/x.ts` cae donde cae. La
- * carpeta misma cuenta como adentro: `rm -rf src` es el borrado que más importa. Y «sale de
- * acá» es `..` exacto o `../…`: una hermana que se llame `..notas` no sale de ningún lado. Entre
- * dos discos de Windows `relative` devuelve la ruta absoluta del otro disco, que no está adentro.
+ * It compares RESOLVED paths, so `src/../src/x.ts` lands where it lands. The folder itself
+ * counts as inside: `rm -rf src` is the delete that matters most. "Leaves" means `..` exactly or
+ * `../…`, so a sibling named `..notes` does not leave. Across two Windows drives `relative`
+ * returns the other drive's absolute path, which is outside.
  */
 export function isProtected(paths: PlatformPath, tree: string, target: string): boolean {
   return PROTECTED.some(dir => {
@@ -83,19 +75,16 @@ export function isProtected(paths: PlatformPath, tree: string, target: string): 
   });
 }
 
-/** Por qué `branch` no puede escribir el producto, o `null` si puede. */
+/** Why `branch` cannot write the product, or `null` if it can. */
 export function branchDenial(branch: string, target: string): string | null {
   if (branch === INTEGRATION_BRANCH || PRODUCT_PREFIXES.some(p => branch.startsWith(p))) return null;
   if (branch === RELEASE_BRANCH) {
-    return (
-      `Estás parado en \`${RELEASE_BRANCH}\`, y \`${RELEASE_BRANCH}\` sólo cambia por un PR de ` +
-      `promoción desde \`${INTEGRATION_BRANCH}\`. ${HOW_OUT}`
-    );
+    return `You are on \`${RELEASE_BRANCH}\`, which changes only through a promotion PR from \`${INTEGRATION_BRANCH}\`. ${WAY_OUT}`;
   }
-  return `La rama \`${branch}\` no dice qué clase de cambio es, y \`${target}\` es producto. ${HOW_OUT}`;
+  return `The branch \`${branch}\` does not say what kind of change it is, and \`${target}\` is product code. ${WAY_OUT}`;
 }
 
-/** El checkout principal de `dir` si es ESTE repo, o `null` si es otro o ninguno. */
+/** The main checkout of `dir` if it is THIS repo, or `null` if it is another repo or none. */
 function ourMainCheckout(git: Git, dir: string): string | null {
   const main = git.mainCheckoutOf(dir);
   const own = git.ownCheckout();
@@ -105,15 +94,14 @@ function ourMainCheckout(git: Git, dir: string): string | null {
 function worktreeRule(intent: Intent, git: Git): Verdict {
   for (const w of intent.worktrees) {
     const main = ourMainCheckout(git, w.gitDir);
-    // Otro repo, o ninguno: este gate no tiene opinión sobre él.
     if (main === null) continue;
     if (!isValidWorktreeTarget(git.paths, main, w.target)) {
       return {
         kind: 'deny',
         reason:
-          `Un worktree de este repo se abre sólo como hijo directo de ` +
-          `\`${git.paths.join(main, '.claude', 'worktrees')}\`, que es lo único que barre el ` +
-          `limpiador. \`${w.target}\` quedaría fuera de toda limpieza.`,
+          `A worktree of this repo opens only as a direct child of ` +
+          `\`${git.paths.join(main, '.claude', 'worktrees')}\`, the only folder the cleaner sweeps. ` +
+          `\`${w.target}\` would be left out of every cleanup.`,
       };
     }
   }
@@ -122,15 +110,14 @@ function worktreeRule(intent: Intent, git: Git): Verdict {
 
 function branchRule(intent: Intent, git: Git): Verdict {
   for (const write of intent.writes) {
-    // Condición necesaria y gratis: toda carpeta protegida termina en un `src`. Sin ella no se
-    // le pregunta nada a git, que es lo caro (unos 80 ms por consulta en Windows).
+    // A free necessary condition: every protected folder ends in `src`. Without it, git is not asked.
     if (!git.paths.normalize(write).split(git.paths.sep).some(s => s.toLowerCase() === 'src')) continue;
     const tree = git.treeOf(write);
     if (tree === null || ourMainCheckout(git, tree) === null) continue;
     if (!isProtected(git.paths, tree, write)) continue;
     const branch = git.branchOf(tree);
     if (branch === null) {
-      return { kind: 'warn', reason: `gate de rama: no pude leer la rama de \`${tree}\`, y dejé pasar \`${write}\`` };
+      return { kind: 'warn', reason: `branch gate: could not read the branch of \`${tree}\`, and let \`${write}\` through` };
     }
     const denial = branchDenial(branch, git.paths.relative(tree, write));
     if (denial !== null) return { kind: 'deny', reason: denial };
@@ -138,20 +125,20 @@ function branchRule(intent: Intent, git: Git): Verdict {
   return { kind: 'no-opinion' };
 }
 
-/** Corre una regla sin dejar que su error apague a la otra. */
+/** Runs one rule without letting its error switch off the other. */
 function isolated(name: string, rule: () => Verdict): Verdict {
   try {
     return rule();
   } catch (error) {
-    return { kind: 'warn', reason: `${name} no pudo correr y dejó pasar: ${String(error)}` };
+    return { kind: 'warn', reason: `${name} could not run and let the call through: ${String(error)}` };
   }
 }
 
-/** El veredicto de las dos reglas: el primer rechazo gana; si no hay, el primer aviso. */
+/** The verdict of both rules: the first denial wins; otherwise the first warning. */
 export function decide(intent: Intent, git: Git): Verdict {
   const verdicts = [
-    isolated('gate de worktrees', () => worktreeRule(intent, git)),
-    isolated('gate de rama', () => branchRule(intent, git)),
+    isolated('worktree gate', () => worktreeRule(intent, git)),
+    isolated('branch gate', () => branchRule(intent, git)),
   ];
   return verdicts.find(v => v.kind === 'deny') ?? verdicts.find(v => v.kind === 'warn') ?? { kind: 'no-opinion' };
 }

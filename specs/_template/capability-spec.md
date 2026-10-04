@@ -2,76 +2,76 @@
 schema_version: 1
 capability_id: CAP-<COD>
 status: draft
-owner: <dueño de la capacidad>
-provenance: <de dónde sale el contenido>
+owner: <capability owner>
+provenance: <where the content comes from>
 ---
 
-# Capacidad: <nombre>
+# Capability: <name>
 
-<!-- Un contrato durable por capacidad. Las secciones van de lo estable a lo volátil.
-     Escribir sólo lo que el código no dice. Sin rutas de archivo ni nombres de símbolo:
-     eso vive en el issue y en `docs/`.
-     `status`: `draft` mientras un AC no tiene test; `ratified` cuando todos lo tienen;
-     `superseded` cuando otro spec lo reemplaza. -->
+<!-- One durable contract per capability. Sections go from stable to volatile.
+     Write only what the code does not say. No file paths and no symbol names: those
+     live in the issue and in `docs/`.
+     `status`: `draft` while an AC has no test; `ratified` when all have one;
+     `superseded` when another spec replaces it. -->
 
-## Propósito
+## Purpose
 
-<!-- Una o dos oraciones: qué hace para el instrumento y lo único que tiene que hacer bien. -->
+<!-- One or two sentences: what it does for the instrument, and the one thing it must get right. -->
 
-## Lenguaje de la capacidad
+## Capability language
 
-<!-- El término canónico, qué es acá, y los sinónimos que no se usan. -->
+<!-- The canonical term, what it means here, and the synonyms to avoid. -->
 
-| Término | Significado acá | Evitar |
+| Term | Meaning here | Avoid |
 |---|---|---|
 | | | |
 
-## Comportamiento normativo
+## Normative behavior
 
-<!-- Un encabezado por regla, con ID estable. Un ID no se renumera ni se reutiliza.
-     Retirar es borrar: la regla sale con su test, y el número queda como hueco.
-     EARS: "El sistema DEBE", "CUANDO <disparador>, el sistema DEBE",
-     "SI <condición>, ENTONCES el sistema DEBE", "MIENTRAS <estado>, el sistema DEBE".
-     Un cálculo va con su fórmula y sus valores de referencia. -->
+<!-- One heading per rule, with a stable ID. An ID is never renumbered or reused.
+     Retiring is deleting: the rule goes with its test, and the number stays a gap.
+     EARS: "The system SHALL", "WHEN <trigger>, the system SHALL",
+     "IF <condition>, THEN the system SHALL", "WHILE <state>, the system SHALL".
+     A calculation states its formula and its reference values. -->
 
-### BR-<COD>-001 — <nombre>
+### BR-<COD>-001 — <name>
 
-CUANDO <disparador>, el sistema DEBE <comportamiento observable>.
+WHEN <trigger>, the system SHALL <observable behavior>.
 
-## Criterios de aceptación
+## Acceptance criteria
 
-<!-- Un encabezado por criterio, con ID estable. Binario, con los valores que deciden.
-     Lo cierra un agente, no una persona mirando o escuchando. Nombra las reglas que verifica. -->
+<!-- One heading per criterion, with a stable ID. Binary, with the deciding values.
+     An agent closes it, not a person looking or listening. It names the rules it verifies. -->
 
-### AC-<COD>-001 — <nombre> *(verifica BR-<COD>-001)*
+### AC-<COD>-001 — <name> *(verifies BR-<COD>-001)*
 
-DADO <estado> CUANDO <acción> ENTONCES <resultado observable con valores>.
+GIVEN <state> WHEN <action> THEN <observable result with values>.
 
-## No objetivos
+## Non-goals
 
-- Esta capacidad NO <...>.
+- This capability does NOT <...>.
 
-## Contratos
+## Contracts
 
-<!-- Qué recibe, qué contesta y qué pasa en el borde. El caso de falla va junto al de éxito. -->
+<!-- What it receives, what it answers, and what happens at the edge. The failure case sits next to the success case. -->
 
-- **Entrada:** <...>
-- **Salida:** <...>
-- **Falla:** <...>
+- **Input:** <...>
+- **Output:** <...>
+- **Failure:** <...>
 
-## Señales
+## Signals
 
-- <lo que emite al cumplirse y al rechazar>.
+- <what it emits on success and on rejection>.
 
-## Dependencias
+## Dependencies
 
-- <capacidad> (<consume | alimenta>): <qué usa>.
+- <capability> (<consumes | feeds>): <what it uses>.
 
-## Preguntas abiertas
+## Open questions
 
-<!-- Huecos sin resolver. Nunca un valor inventado. -->
+<!-- Unresolved gaps. Never an invented value. -->
 
-- **OQ-<COD>-001 — <pregunta>**
-  - Por qué sigue abierta: <...>
-  - Decide: <...>
-  - Bloquea: <...>
+- **OQ-<COD>-001 — <question>**
+  - Why it is still open: <...>
+  - Decides: <...>
+  - Blocks: <...>

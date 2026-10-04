@@ -6,8 +6,8 @@ import path from 'node:path';
 import { readInput, realGit, respond } from '../system.ts';
 
 /**
- * El `Git` real contra un repo FABRICADO, con un worktree y un rebase a la mitad: son los dos
- * estados en que leer «la rama» de la forma ingenua da la respuesta equivocada.
+ * The real `Git` against a FABRICATED repo, with a worktree and a half-done rebase: the two
+ * states where reading "the branch" the naive way gives the wrong answer.
  */
 
 let repo: string;
@@ -32,7 +32,7 @@ afterAll(() => {
 });
 
 describe('realGit', () => {
-  it('su propio repo es el del hook, y se pregunta una sola vez', () => {
+  it('its own repo is the hook\'s, and it is asked once', () => {
     const run = vi.fn((args: readonly string[], cwd: string) => execFileSync('git', args, { cwd, encoding: 'utf8' }));
     const g = realGit(path.join(repo, 'src'), process.platform, run);
     expect(run).not.toHaveBeenCalled();
@@ -41,13 +41,13 @@ describe('realGit', () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 
-  it('el árbol de una ruta que todavía no existe es el de su carpeta existente', () => {
+  it('the tree of a path that does not exist yet is the tree of its existing folder', () => {
     const g = realGit(repo);
     expect(r(g.treeOf(path.join(repo, 'src', 'nueva', 'x.ts')))).toBe(r(repo));
     expect(r(g.treeOf(path.join(repo, 'src', 'a.ts')))).toBe(r(repo));
   });
 
-  it('el árbol de un worktree es el worktree, y su principal es el repo', () => {
+  it('the tree of a worktree is the worktree, and its main checkout is the repo', () => {
     const wt = path.join(repo, '.claude', 'worktrees', 'wt');
     const g = realGit(repo);
     expect(r(g.treeOf(path.join(wt, 'src', 'a.ts')))).toBe(r(wt));
@@ -55,7 +55,7 @@ describe('realGit', () => {
     expect(g.branchOf(wt)).toBe('feature/wt');
   });
 
-  it('fuera de todo repo no hay árbol ni principal', () => {
+  it('outside any repo there is no tree and no main checkout', () => {
     const g = realGit(repo);
     const loose = mkdtempSync(path.join(tmpdir(), 'loose-'));
     expect(g.treeOf(path.join(loose, 'x'))).toBeNull();
@@ -63,18 +63,18 @@ describe('realGit', () => {
     rmSync(loose, { recursive: true });
   });
 
-  it('una ruta sin ninguna carpeta existente no tiene árbol', () => {
-    // Un disco que no existe: subir hasta la raíz no encuentra nada, en cualquier plataforma.
+  it('a path with no existing folder has no tree', () => {
+    // A drive that does not exist: walking up to the root finds nothing, on any platform.
     const g = realGit(repo, 'win32', () => '');
     expect(g.treeOf('Q:\\no\\existe\\en\\ningun\\lado')).toBeNull();
   });
 
-  it('si git no puede ubicar el estado del rebase, no hay rama', () => {
-    const g = realGit(repo, process.platform, args => { if (args[0] === 'symbolic-ref') return ''; throw new Error('sin git'); });
+  it('if git cannot locate the rebase state, there is no branch', () => {
+    const g = realGit(repo, process.platform, args => { if (args[0] === 'symbolic-ref') return ''; throw new Error('no git'); });
     expect(g.branchOf(repo)).toBeNull();
   });
 
-  it('en un rebase a la mitad, la rama es la que se rebasa', () => {
+  it('during a rebase, the branch is the one being rebased', () => {
     git(repo, 'switch', '-q', '-c', 'bugfix/choque');
     writeFileSync(path.join(repo, 'src', 'a.ts'), 'dos\n');
     git(repo, 'commit', '-q', '-am', 'dos');
@@ -88,26 +88,26 @@ describe('realGit', () => {
     git(repo, 'switch', '-q', 'staging');
   });
 
-  it('HEAD desprendido sin rebase no tiene rama', () => {
+  it('a detached HEAD without a rebase has no branch', () => {
     git(repo, 'switch', '-q', '--detach', 'HEAD');
     expect(realGit(repo).branchOf(repo)).toBeNull();
     git(repo, 'switch', '-q', 'staging');
   });
 
-  it('usa las rutas de la plataforma, no las de la máquina que corre el test', () => {
+  it('uses the platform paths, not those of the machine running the test', () => {
     expect(realGit(repo, 'win32', () => '').paths).toBe(path.win32);
     expect(realGit(repo, 'linux', () => '').paths).toBe(path.posix);
   });
 });
 
-describe('entrada y salida', () => {
-  it('readInput lee el archivo entero', () => {
+describe('input and output', () => {
+  it('readInput reads the whole file', () => {
     const file = path.join(repo, 'input.json');
     writeFileSync(file, '{"a":1}');
     expect(readInput(file)).toBe('{"a":1}');
   });
 
-  it('respond escribe sólo lo que hay', () => {
+  it('respond writes only what there is', () => {
     const out = vi.spyOn(process.stdout, 'write').mockReturnValue(true);
     const err = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
     respond({ stdout: '', stderr: '' });

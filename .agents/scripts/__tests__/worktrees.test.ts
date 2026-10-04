@@ -5,9 +5,9 @@ import path from 'node:path';
 import { clean, isValidWorktreeTarget, processKillScript, realMachine, type Machine } from '../worktrees.ts';
 
 /**
- * El limpiador contra una máquina FALSA, porque sus dos modos de falla —el `node_modules` que
- * deja la carpeta sin vaciar y el `.exe` vivo que no se deja borrar— son de Windows y la CI es
- * `ubuntu-latest`. La máquina real se prueba aparte, y el borrado sobre disco de verdad.
+ * The cleaner against a FAKE machine: its two failure modes (the ignored `node_modules` and the
+ * live `.exe`) are Windows-only, and CI runs `ubuntu-latest`. The real machine is tested
+ * separately, with a real delete on disk.
  */
 
 const MAIN = 'D:\\repo';
@@ -21,7 +21,7 @@ interface FakeOptions {
   readonly existing?: readonly string[];
 }
 
-/** Una máquina falsa que registra lo que le piden. */
+/** A fake machine that records what it is asked. */
 function fakeMachine(o: FakeOptions = {}) {
   const log: string[] = [];
   const calls: string[] = [];
@@ -38,7 +38,7 @@ function fakeMachine(o: FakeOptions = {}) {
     },
     exists: target => existing.has(target),
     realpath: target => (existing.has(target) ? target : null),
-    killProcessesInside: target => [`   matando adentro de ${target}`],
+    killProcessesInside: target => [`   killing inside ${target}`],
     remove(target) {
       calls.push(`remove ${target}`);
       if (survives > 0) survives--;
@@ -60,27 +60,27 @@ describe('isValidWorktreeTarget', () => {
   ])('%s → %s', (target, expected) => {
     expect(isValidWorktreeTarget(path.win32, MAIN, target)).toBe(expected);
   });
-  it('en POSIX distingue mayúsculas', () => {
+  it('on POSIX it is case sensitive', () => {
     expect(isValidWorktreeTarget(path.posix, '/repo', '/Repo/.claude/worktrees/x')).toBe(false);
   });
 });
 
 describe('clean', () => {
-  it('sin argumentos, o con --todos, explica el uso y sale con 2', () => {
+  it('without arguments, or with --todos, it prints the usage and exits with 2', () => {
     for (const args of [[], ['--todos']]) {
       const { m, log } = fakeMachine();
       expect(clean(args, m)).toBe(2);
-      expect(log[0]).toMatch(/^uso:/);
+      expect(log[0]).toMatch(/^usage:/);
     }
   });
 
-  it('fuera de un repo aborta', () => {
+  it('outside a repo it aborts', () => {
     const { m, log } = fakeMachine({ common: 1 });
     expect(clean([`${DIR}\\a`], m)).toBe(1);
-    expect(log).toEqual(['ABORTADO: no es un repo git']);
+    expect(log).toEqual(['ABORTED: not a git repo']);
   });
 
-  it('el orden de Windows: desregistrar, matar, borrar, y después prune', () => {
+  it('the Windows order: unregister, kill, delete, then prune', () => {
     const { m, log, calls } = fakeMachine();
     expect(clean([`${DIR}\\a`], m)).toBe(0);
     expect(calls).toEqual([
@@ -91,47 +91,47 @@ describe('clean', () => {
       `remove ${DIR}\\a`,
       'git worktree prune',
     ]);
-    expect(log).toContain(`   matando adentro de ${DIR}\\a`);
-    expect(log.at(-1)).toBe('   borrado');
+    expect(log).toContain(`   killing inside ${DIR}\\a`);
+    expect(log.at(-1)).toBe('   removed');
   });
 
-  it('en POSIX no mata procesos', () => {
+  it('on POSIX it kills no process', () => {
     const { m, log } = fakeMachine({ windows: false });
     clean([`${DIR}\\a`], m);
-    expect(log.some(l => l.includes('matando'))).toBe(false);
+    expect(log.some(l => l.includes('killing'))).toBe(false);
   });
 
-  it('un handle que tarda en soltarse se reintenta una vez', () => {
+  it('a slow handle release is retried once', () => {
     const { m, calls } = fakeMachine({ survivesRemovals: 1 });
     expect(clean([`${DIR}\\a`], m)).toBe(0);
     expect(calls).toContain('sleep 2000');
   });
 
-  it('si sigue ahí después del reintento, lo dice y sale con 1', () => {
+  it('if it is still there after the retry, it says so and exits with 1', () => {
     const { m, log } = fakeMachine({ survivesRemovals: 2 });
     expect(clean([`${DIR}\\a`], m)).toBe(1);
-    expect(log.at(-1)).toMatch(/SIGUE AHÍ/);
+    expect(log.at(-1)).toMatch(/STILL THERE/);
   });
 
-  it('lo que no existe no es un error', () => {
+  it('a missing path is not an error', () => {
     const { m, log } = fakeMachine();
     expect(clean([`${DIR}\\nada`], m)).toBe(0);
-    expect(log).toContain('   no existe: nada que hacer');
+    expect(log).toContain('   does not exist: nothing to do');
   });
 
-  it('fuera de .claude/worktrees, o anidado, lo rechaza', () => {
+  it('outside .claude/worktrees, or nested, it is rejected', () => {
     const { m, log } = fakeMachine({ existing: [DIR, 'D:\\afuera', `${DIR}\\a\\b`] });
     expect(clean(['D:\\afuera', `${DIR}\\a\\b`], m)).toBe(1);
-    expect(log.filter(l => l.includes('RECHAZADO'))).toHaveLength(2);
+    expect(log.filter(l => l.includes('REJECTED'))).toHaveLength(2);
   });
 
-  it('sin la carpeta de worktrees no hay nada que sea suyo', () => {
+  it('without the worktrees folder nothing is its own', () => {
     const { m, log } = fakeMachine({ existing: [`${DIR}\\a`] });
     expect(clean([`${DIR}\\a`], m)).toBe(1);
-    expect(log.some(l => l.includes('RECHAZADO'))).toBe(true);
+    expect(log.some(l => l.includes('REJECTED'))).toBe(true);
   });
 
-  it('con cambios sin commitear no lo toca', () => {
+  it('with uncommitted changes it does not touch it', () => {
     const { m, calls } = fakeMachine({ dirty: ' M src/a.ts' });
     expect(clean([`${DIR}\\a`], m)).toBe(1);
     expect(calls.some(c => c.startsWith('remove'))).toBe(false);
@@ -139,7 +139,7 @@ describe('clean', () => {
 });
 
 describe('processKillScript', () => {
-  it('es ASCII, escapa la comilla y excluye su propio árbol de procesos', () => {
+  it('is ASCII, escapes the quote and excludes its own process tree', () => {
     const script = processKillScript("D:\\o'brien\\wt");
     expect(script).toMatch(/^[\x20-\x7e\n]*$/);
     expect(script).toContain("$a = 'D:\\o''brien\\wt'");
@@ -148,7 +148,7 @@ describe('processKillScript', () => {
 });
 
 describe('realMachine', () => {
-  it('git devuelve el código y la salida, y 1 si el proceso falla', () => {
+  it('git returns the code and the output, and 1 if the process fails', () => {
     const run = vi.fn((_: string, args: readonly string[]) => { if (args[0] === 'mal') throw new Error('x'); return 'ok'; });
     const m = realMachine('linux', run);
     expect(m.paths).toBe(path.posix);
@@ -156,42 +156,42 @@ describe('realMachine', () => {
     expect(m.git(['mal'], '.')).toEqual({ code: 1, output: '' });
   });
 
-  it('killProcessesInside devuelve una línea por proceso, y sigue si no hay PowerShell', () => {
-    const m = realMachine('win32', () => '   matando PID 1 - a\r\n\r\n   matando PID 2 - b\r\n');
+  it('killProcessesInside returns one line per process, and continues without PowerShell', () => {
+    const m = realMachine('win32', () => '   killing PID 1 - a\r\n\r\n   killing PID 2 - b\r\n');
     expect(m.windows).toBe(true);
-    expect(m.killProcessesInside('D:\\x')).toEqual(['   matando PID 1 - a', '   matando PID 2 - b']);
-    const without = realMachine('win32', () => { throw new Error('sin powershell'); });
-    expect(without.killProcessesInside('D:\\x')).toEqual(['   no se pudo listar procesos: sigo con el borrado']);
+    expect(m.killProcessesInside('D:\\x')).toEqual(['   killing PID 1 - a', '   killing PID 2 - b']);
+    const without = realMachine('win32', () => { throw new Error('no powershell'); });
+    expect(without.killProcessesInside('D:\\x')).toEqual(['   could not list processes: continuing with the delete']);
   });
 
-  it('borra en disco real sin cruzar un enlace que apunta afuera: el centinela sobrevive', () => {
+  it('deletes on real disk without crossing a link that points outside: the sentinel survives', () => {
     const root = mkdtempSync(path.join(tmpdir(), 'clean-'));
-    const outside = path.join(root, 'afuera');
+    const outside = path.join(root, 'outside');
     const wt = path.join(root, 'wt');
     mkdirSync(outside);
-    writeFileSync(path.join(outside, 'centinela'), 'vivo');
+    writeFileSync(path.join(outside, 'sentinel'), 'alive');
     mkdirSync(path.join(wt, 'node_modules'), { recursive: true });
-    // En Windows `junction` no pide permisos de administrador; en POSIX el tipo se ignora.
-    symlinkSync(outside, path.join(wt, 'node_modules', 'enlace'), 'junction');
+    // On Windows `junction` needs no admin rights; on POSIX the type is ignored.
+    symlinkSync(outside, path.join(wt, 'node_modules', 'link'), 'junction');
 
     const m = realMachine(process.platform);
     expect(m.git(['--version'], root).output).toMatch(/^git version/);
-    expect(m.realpath(path.join(root, 'no-existe'))).toBeNull();
+    expect(m.realpath(path.join(root, 'missing'))).toBeNull();
     expect(m.realpath(wt)).not.toBeNull();
     m.remove(wt);
     expect(m.exists(wt)).toBe(false);
-    expect(existsSync(path.join(outside, 'centinela'))).toBe(true);
+    expect(existsSync(path.join(outside, 'sentinel'))).toBe(true);
     rmSync(root, { recursive: true, force: true });
   });
 
-  it('sleep espera y log escribe en consola', () => {
+  it('sleep waits and log writes to the console', () => {
     const m = realMachine('linux');
     const start = Date.now();
     m.sleep(20);
     expect(Date.now() - start).toBeGreaterThanOrEqual(15);
     const out = vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    m.log('hola');
-    expect(out).toHaveBeenCalledWith('hola');
+    m.log('hello');
+    expect(out).toHaveBeenCalledWith('hello');
     out.mockRestore();
   });
 });

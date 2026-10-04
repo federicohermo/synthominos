@@ -2,21 +2,18 @@ import type { PlatformPath } from 'node:path';
 import { decide, type Git, type Intent, type Verdict } from './policy.ts';
 
 /**
- * Cómo hablan los dos harnesses con un hook `PreToolUse`, y cómo se traduce lo que mandan a un
- * `Intent`. Es la única puerta de los hooks del repo: `hook.ts` le pasa stdin y escribe lo que
- * devuelve.
+ * How both harnesses talk to a `PreToolUse` hook, and how their payload becomes an `Intent`.
+ * The single door of the repo's hooks: `hook.ts` passes stdin in and writes what comes out.
  *
- * ## Lo que se midió antes de escribirlo (2026-10-04, Codex CLI 0.160 y Claude Code)
+ * Measured on 2026-10-04 with Codex CLI 0.160 and Claude Code:
  *
- * - **Los dos mandan `{ tool_name, tool_input, cwd }`.** Codex manda `Bash` con
- *   `tool_input.command` como string —en Windows lo corre PowerShell, aunque se llame `Bash`— y
- *   `apply_patch` con el parche entero en `tool_input.command`, con rutas relativas al `cwd`.
- * - **Denegar es un JSON con `permissionDecision: "deny"`, en los dos.** Codex trata el código
- *   de salida 2 como «el hook falló» y deja pasar; el JSON sí lo frena. Claude acepta el mismo
- *   JSON. Por eso hay una sola codificación del rechazo.
- * - **Nunca se emite `allow`.** En Claude Code `allow` saltea el sistema de permisos: el gate
- *   anterior lo emitía en cada pasada y aprobaba sin preguntar cada `Edit` y cada `Bash`. Sin
- *   opinión es salir callado.
+ * - Both send `{ tool_name, tool_input, cwd }`. Codex sends `Bash` with `tool_input.command` as
+ *   a string (PowerShell on Windows, despite the name), and `apply_patch` with the whole patch
+ *   in `tool_input.command`, paths relative to `cwd`.
+ * - Both honor a JSON `permissionDecision: "deny"`. Codex treats exit code 2 as a broken hook
+ *   and lets the call through. So there is one encoding for a denial.
+ * - `allow` is never emitted. In Claude Code it skips the permission system. No opinion means
+ *   exiting silently.
  */
 
 export type Agent = 'claude' | 'codex';
@@ -25,7 +22,7 @@ export interface Response { readonly stdout: string; readonly stderr: string }
 const FILE_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const SHELL_TOOLS = new Set(['Bash', 'PowerShell']);
 
-/** `/d/Usuarios/…` de Git Bash es `D:/Usuarios/…` para Windows. En POSIX no se toca. */
+/** Git Bash's `/d/Users/…` is `D:/Users/…` on Windows. POSIX paths stay as they are. */
 function native(paths: PlatformPath, target: string): string {
   if (paths.sep !== '\\') return target;
   return target.replace(/^\/([a-zA-Z])(?=\/|$)/, (_, drive: string) => `${drive.toUpperCase()}:`);
@@ -33,17 +30,15 @@ function native(paths: PlatformPath, target: string): string {
 
 const resolveFrom = (paths: PlatformPath, cwd: string, target: string) => paths.resolve(cwd, native(paths, target));
 
-// ## El shell
-//
-// Es DETECCIÓN y no un parser: reconoce las formas que se usan de verdad —redirección, `sed -i`,
-// `tee`, `cp`/`mv`/`rm`, los cmdlets de PowerShell que escriben y `git worktree add`— y no
-// pretende ser exhaustiva. Un `python -c` que abra el archivo pasa. Está bien que pase: un gate
-// que intenta parsear shell de verdad se equivoca en la dirección cara, que es bloquear lo que
-// no debía. Las dos sintaxis se miran siempre juntas, sin importar el nombre de la herramienta.
+// The shell: DETECTION, not a parser. It knows the write forms that occur in practice
+// (redirection, `sed -i`, `tee`, `cp`/`mv`/`rm`, writing cmdlets, `git worktree add`) and is not
+// exhaustive: a `python -c` that opens the file gets through. A gate that tries to parse shell
+// fails in the expensive direction, blocking what it should not. POSIX and PowerShell syntax are
+// always checked together, whatever the tool name.
 
 export interface Word { readonly text: string; readonly redirect: boolean }
 
-/** Corta un comando en segmentos de palabras, respetando comillas. Una redirección marca a la palabra que la sigue. */
+/** Splits a command into segments of words, honoring quotes. A redirection marks the word after it. */
 export function segments(command: string): Word[][] {
   const result: Word[][] = [];
   let current: Word[] = [];
@@ -80,11 +75,11 @@ export function segments(command: string): Word[][] {
       continue;
     }
     if (c === '>') {
-      // El dígito pegado adelante (`2>`) es un descriptor, no una palabra del comando.
+      // A digit glued in front (`2>`) is a descriptor, not a word of the command.
       if (inWord && /^\d$/.test(word)) inWord = false;
       closeWord();
       if (command[i + 1] === '>') i++;
-      // `2>&1` y `>&2` duplican un descriptor: no escriben un archivo.
+      // `2>&1` and `>&2` duplicate a descriptor: they write no file.
       if (command[i + 1] === '&') {
         i++;
         while (i + 1 < command.length && /[\d-]/.test(command[i + 1])) i++;
@@ -94,7 +89,7 @@ export function segments(command: string): Word[][] {
       continue;
     }
     if (c === ';' || c === '\n' || c === '|' || c === '&') {
-      // `&&`, `||`, `|`, `;`, salto de línea y `&` cortan el segmento por igual.
+      // `&&`, `||`, `|`, `;`, newline and `&` all end the segment.
       closeSegment();
       continue;
     }
@@ -109,10 +104,10 @@ export function segments(command: string): Word[][] {
   return result;
 }
 
-/** El nombre del programa: sin carpeta, sin `.exe`, en minúsculas (PowerShell no distingue). */
+/** The program name: no folder, no `.exe`, lower case (PowerShell ignores case). */
 const programName = (word: string) => word.replace(/^.*[/\\]/, '').replace(/\.exe$/i, '').toLowerCase();
 
-/** Lo que escriben los comandos POSIX, sobre sus argumentos que no son flags. */
+/** What POSIX commands write, given their non-flag arguments. */
 const WRITERS: Readonly<Record<string, (args: readonly string[], flags: readonly string[]) => readonly string[]>> = {
   tee: args => args,
   cp: args => args.slice(-1),
@@ -125,7 +120,7 @@ const WRITERS: Readonly<Record<string, (args: readonly string[], flags: readonly
   sed: (args, flags) => (flags.some(f => f.startsWith('-i')) ? args : []),
 };
 
-/** Cmdlets que escriben: la posición del destino entre los posicionales, y los parámetros que lo nombran. */
+/** Writing cmdlets: the target's position among positionals, and the parameters that name it. */
 const CMDLETS: Readonly<Record<string, readonly [number, readonly string[]]>> = {
   'set-content': [0, ['-path', '-literalpath']],
   'add-content': [0, ['-path', '-literalpath']],
@@ -144,10 +139,10 @@ const ALIASES: Readonly<Record<string, string>> = {
 };
 
 /**
- * El destino de un cmdlet. Sin parámetro nombrado devuelve TODOS los posicionales desde su
- * posición, no uno: saber cuál es «el N-ésimo» obliga a saber qué parámetros son interruptores,
- * y equivocarse ahí sale caro hacia el lado malo (`Remove-Item -Force src` se comería el `src`).
- * Devolver de más no cuesta nada: un candidato que no es ruta protegida se descarta solo.
+ * A cmdlet's targets. Without a named parameter it returns ALL positionals from its position.
+ * Picking "the Nth" requires knowing which parameters are switches, and a mistake there fails
+ * the expensive way: `Remove-Item -Force src` would lose the `src`. Extra candidates cost
+ * nothing: a candidate that is not a protected path is dropped.
  */
 function cmdletTargets(rest: readonly string[], position: number, params: readonly string[]): readonly string[] {
   const named = rest.findIndex(t => params.includes(t.toLowerCase()));
@@ -155,13 +150,13 @@ function cmdletTargets(rest: readonly string[], position: number, params: readon
   return rest.filter(t => !t.startsWith('-')).slice(position);
 }
 
-/** Los sumideros: redirigir ahí no escribe ningún archivo. */
+/** Sinks: redirecting there writes no file. */
 const SINKS = new Set(['/dev/null', '$null', 'nul']);
 const CHANGE_DIR = new Set(['cd', 'pushd', 'chdir', 'set-location', 'sl']);
-/** Opciones de `git worktree add` que consumen el valor siguiente. */
+/** `git worktree add` options that take the next word as their value. */
 const TAKES_VALUE = new Set(['-b', '-B', '--reason']);
 
-/** El `git worktree add` de un segmento, si lo hay: desde qué directorio corre git y adónde abre. */
+/** The `git worktree add` of a segment, if any: where git runs from and where it opens. */
 function worktreeOpening(words: readonly string[], cwd: string, paths: PlatformPath): { gitDir: string; target: string } | null {
   let dir = cwd;
   let i = 1;
@@ -178,7 +173,7 @@ function worktreeOpening(words: readonly string[], cwd: string, paths: PlatformP
   return null;
 }
 
-/** Lo que escribe un comando de shell y los worktrees que abre, siguiendo los `cd`. */
+/** What a shell command writes and which worktrees it opens, following each `cd`. */
 export function commandIntent(command: string, cwd: string, paths: PlatformPath): Intent {
   const writes: string[] = [];
   const worktrees: { gitDir: string; target: string }[] = [];
@@ -211,7 +206,7 @@ export function commandIntent(command: string, cwd: string, paths: PlatformPath)
   return { writes, worktrees };
 }
 
-/** Las rutas que toca un parche de `apply_patch`: las que agrega, cambia, borra o mueve. */
+/** The paths an `apply_patch` patch touches: added, updated, deleted or moved. */
 export function patchPaths(patch: string): string[] {
   return [...patch.matchAll(/^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+?)\s*$/gm)].map(m => m[1]);
 }
@@ -219,8 +214,8 @@ export function patchPaths(patch: string): string[] {
 const isRecord = (v: unknown): v is Readonly<Record<string, unknown>> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /**
- * El `Intent` de un payload, o `null` si no se pudo leer. `null` NO es lo mismo que «no escribe
- * nada» (`[]`): el primero se avisa, el segundo pasa callado.
+ * The `Intent` of a payload, or `null` if it could not be read. `null` is not "writes nothing"
+ * (`[]`): the first one is warned about, the second one passes silently.
  */
 export function readIntent(raw: string, paths: PlatformPath): Intent | null {
   let payload: unknown;
@@ -242,7 +237,7 @@ export function readIntent(raw: string, paths: PlatformPath): Intent | null {
   }
   const command = Array.isArray(input.command) ? input.command.map(String).join(' ') : input.command;
   if (typeof command === 'string') {
-    // Un parche viaja en `apply_patch` o adentro de un Bash (`apply_patch <<EOF`): se mira en los dos.
+    // A patch travels in `apply_patch` or inside a Bash call (`apply_patch` with a heredoc): check both.
     for (const target of patchPaths(command)) writes.push(resolveFrom(paths, cwd, target));
     if (typeof tool === 'string' && SHELL_TOOLS.has(tool)) {
       const fromCommand = commandIntent(command, cwd, paths);
@@ -253,27 +248,27 @@ export function readIntent(raw: string, paths: PlatformPath): Intent | null {
   return { writes, worktrees };
 }
 
-/** Codifica un veredicto para el harness que llamó. */
+/** Encodes a verdict for the calling harness. */
 export function encode(verdict: Verdict, agent: Agent): Response {
   if (verdict.kind === 'deny') {
     const output = { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: verdict.reason } };
     return { stdout: JSON.stringify(output), stderr: '' };
   }
   if (verdict.kind === 'warn') {
-    // Codex rechaza campos que no conoce en la salida: el aviso va por stderr, que muestra.
+    // Codex rejects unknown output fields: its warning goes to stderr, which it shows.
     return agent === 'claude' ? { stdout: JSON.stringify({ systemMessage: verdict.reason }), stderr: '' } : { stdout: '', stderr: verdict.reason };
   }
   return { stdout: '', stderr: '' };
 }
 
-/** La única puerta de los hooks, para los dos harnesses. Nunca lanza. */
+/** The single door of the hooks, for both harnesses. It never throws. */
 export function handle(args: readonly string[], raw: string, git: Git): Response {
   const agent: Agent = args[0] === 'codex' ? 'codex' : 'claude';
   try {
     const intent = readIntent(raw, git.paths);
-    if (intent === null) return encode({ kind: 'warn', reason: 'hook: payload ilegible, no se verificó nada' }, agent);
+    if (intent === null) return encode({ kind: 'warn', reason: 'hook: unreadable payload, nothing was checked' }, agent);
     return encode(decide(intent, git), agent);
   } catch (error) {
-    return encode({ kind: 'warn', reason: `hook: no pudo correr y dejó pasar: ${String(error)}` }, agent);
+    return encode({ kind: 'warn', reason: `hook: could not run and let the call through: ${String(error)}` }, agent);
   }
 }

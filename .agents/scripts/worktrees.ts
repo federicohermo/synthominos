@@ -4,81 +4,66 @@ import { existsSync, realpathSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
 /**
- * Dónde viven los worktrees de este repo y cómo se borran. Lo importan los dos lados de la
- * misma regla —el hook, que decide dónde se ABRE uno, y el limpiador, que decide dónde se
- * BORRA— para que la carpeta exista una sola vez.
+ * Where this repo's worktrees live, and how they are removed.
  *
- * ## Por qué hay una sola carpeta
+ * The hook (where a worktree OPENS) and the cleaner (where it is REMOVED) both import this
+ * module, so the folder exists once. In the repo this harness comes from, a cleaner that took
+ * every registered worktree deleted one open next to the repo, with uncommitted work in it.
  *
- * El 2026-09-22, en el repo del que sale este harness, un limpiador que tomaba todo worktree
- * registrado se llevó uno abierto al lado del repo, con lo que tuviera sin commitear. La regla
- * de dónde se abre tiene que ser ejecutable, igual que la de dónde se borra: si cualquiera de
- * las dos es prosa, la otra no alcanza.
+ * Worktrees of other owners are not touched. The Codex app opens its own in
+ * `~/.codex/worktrees/` and cleans them itself. That is why the cleaner has no `--todos`.
  *
- * Los worktrees que abren otros dueños no son de este módulo y no se tocan: la app de Codex
- * abre los suyos en `~/.codex/worktrees/` y los limpia ella, con un snapshot antes de borrar.
- * Por eso el limpiador no tiene un `--todos`: «todo lo registrado» incluye lo de otros.
- *
- * Este archivo sólo importa `node:*` porque los skills que abren worktrees llevan una copia
- * byte a byte, junto con `clean-worktrees.ts`: un skill es autocontenido.
+ * This file imports only `node:*`: skills carry a byte-for-byte copy of it.
  */
 
-/** La carpeta, relativa al checkout principal. Un worktree es un hijo DIRECTO de ella. */
+/** The folder, relative to the main checkout. A worktree is a DIRECT child of it. */
 export const WORKTREES_DIR = ['.claude', 'worktrees'] as const;
 
-/** Compara rutas como las compara el sistema: Windows no distingue mayúsculas. */
+/** Compares paths the way the OS does: Windows ignores case. */
 function key(paths: PlatformPath, target: string): string {
   const normal = paths.resolve(target);
   return paths.sep === '\\' ? normal.toLowerCase() : normal;
 }
 
 /**
- * Si `target` es un lugar válido para un worktree del repo cuyo checkout principal es
- * `mainCheckout`: un hijo directo de `<mainCheckout>/.claude/worktrees/`.
+ * Whether `target` is a valid place for a worktree of the repo whose main checkout is
+ * `mainCheckout`: a direct child of `<mainCheckout>/.claude/worktrees/`.
  *
- * **Directo, y no «adentro».** Un agente parado en un worktree que abre
- * `.claude/worktrees/x` lo abre anidado en el suyo, y el limpiador se lo lleva junto con el
- * padre. Por eso el lugar sale del checkout principal y no del cwd.
+ * Direct, not nested: a worktree opened inside another one is removed with its parent.
  */
 export function isValidWorktreeTarget(paths: PlatformPath, mainCheckout: string, target: string): boolean {
   const dir = paths.join(mainCheckout, ...WORKTREES_DIR);
   return key(paths, paths.dirname(paths.resolve(target))) === key(paths, dir);
 }
 
-/**
- * Lo que el limpiador necesita de la máquina, y nada más. Real en `realMachine`, falsa en los
- * tests: los dos modos de falla de Windows no se pueden fabricar en el `ubuntu-latest` de la CI.
- */
+/** What the cleaner needs from the machine. Real in `realMachine`, fake in tests. */
 export interface Machine {
   readonly paths: PlatformPath;
   readonly windows: boolean;
   git(args: readonly string[], cwd: string): { readonly code: number; readonly output: string };
   exists(target: string): boolean;
-  /** `null` si la ruta no existe. Resuelve junctions y enlaces: es lo que impide usarlos para salir. */
+  /** `null` if the path does not exist. Resolves junctions and links, so they cannot lead outside. */
   realpath(target: string): string | null;
-  /** Mata lo que corre adentro de `target` y devuelve una línea por proceso. Sólo en Windows. */
+  /** Kills what runs inside `target` and returns one line per process. Windows only. */
   killProcessesInside(target: string): readonly string[];
-  /** Recursivo y SIN cruzar enlaces ni junctions: lo que apunta afuera se desenlaza, no se vacía. */
+  /** Recursive, and does NOT follow links or junctions: it unlinks them. */
   remove(target: string): void;
   sleep(ms: number): void;
   log(line: string): void;
 }
 
-const USAGE = 'uso: node .agents/scripts/clean-worktrees.ts <ruta-del-worktree> [<ruta> ...]';
+const USAGE = 'usage: node .agents/scripts/clean-worktrees.ts <worktree-path> [<path> ...]';
 
 /**
- * Destruye los worktrees nombrados, que tienen DOS modos de falla en Windows y no uno, los dos
- * medidos el 2026-08-21:
+ * Removes the named worktrees. Windows has two failure modes, both measured:
  *
- * 1. `node_modules` está en `.gitignore`. `git worktree remove` borra lo trackeado y el `.git`,
- *    pero el directorio no queda vacío y el borrado final falla. Git igual saca la metadata,
- *    así que el worktree deja de estar registrado y queda un directorio huérfano.
- * 2. Un proceso vivo adentro. Un `.exe` en ejecución desde el `node_modules` del worktree no se
- *    puede borrar, y su línea de comando puede traer la ruta relativa: sólo lo encuentra un
- *    match por `ExecutablePath`.
+ * 1. `node_modules` is ignored, so `git worktree remove` leaves a non-empty folder and fails.
+ *    Git still unregisters the worktree.
+ * 2. A live process inside holds a handle. A running `.exe` from the worktree's `node_modules`
+ *    is found only by its `ExecutablePath`.
  *
- * Por eso el orden es: sacar la metadata, matar lo de adentro, recién ahí borrar. Devuelve el
- * código de salida: 0 todo borrado, 1 algo quedó, 2 mal invocado.
+ * So the order is: unregister, kill what runs inside, then delete.
+ * Returns the exit code: 0 all removed, 1 something stayed, 2 bad invocation.
  */
 export function clean(args: readonly string[], m: Machine): 0 | 1 | 2 {
   if (args.length === 0 || args.includes('--todos')) {
@@ -87,7 +72,7 @@ export function clean(args: readonly string[], m: Machine): 0 | 1 | 2 {
   }
   const common = m.git(['rev-parse', '--path-format=absolute', '--git-common-dir'], '.');
   if (common.code !== 0) {
-    m.log('ABORTADO: no es un repo git');
+    m.log('ABORTED: not a git repo');
     return 1;
   }
   const mainCheckout = m.paths.dirname(common.output.trim());
@@ -98,38 +83,36 @@ export function clean(args: readonly string[], m: Machine): 0 | 1 | 2 {
     m.log(`== ${target}`);
     const real = m.realpath(target);
     if (real === null) {
-      m.log('   no existe: nada que hacer');
+      m.log('   does not exist: nothing to do');
       continue;
     }
-    // Por la ruta RESUELTA: un junction adentro de `.claude/worktrees/` que apunte afuera
-    // resuelve afuera, y se rechaza.
+    // Compare the RESOLVED path: a junction inside `.claude/worktrees/` that points outside is rejected.
     if (dir === null || key(m.paths, m.paths.dirname(real)) !== key(m.paths, dir)) {
-      m.log(`   RECHAZADO: no es un hijo directo de ${WORKTREES_DIR.join('/')}/`);
+      m.log(`   REJECTED: not a direct child of ${WORKTREES_DIR.join('/')}/`);
       failed = 1;
       continue;
     }
     const status = m.git(['status', '--porcelain'], real);
     if (status.code !== 0 || status.output.trim() !== '') {
-      m.log('   SALTEADO: tiene cambios sin commitear, o git no pudo leerlo');
+      m.log('   SKIPPED: it has uncommitted changes, or git could not read it');
       failed = 1;
       continue;
     }
     m.git(['worktree', 'unlock', real], mainCheckout);
-    // Se espera que falle en el borrado final (modo 1): lo que importa es que desregistre.
+    // Expected to fail on the final delete (mode 1). What matters is that it unregisters.
     m.git(['worktree', 'remove', '--force', real], mainCheckout);
     if (m.windows) for (const line of m.killProcessesInside(real)) m.log(line);
     m.remove(real);
     if (m.exists(real)) {
-      // Windows tarda en soltar el handle de un `.exe` recién matado. Dos fallos seguidos ya
-      // no son timing: es algo que el filtro no ve, típicamente el IDE con la carpeta abierta.
+      // Windows is slow to release the handle of a just-killed `.exe`. A second failure is not timing.
       m.sleep(2000);
       m.remove(real);
     }
     if (m.exists(real)) {
-      m.log('   SIGUE AHÍ: algo tiene un handle abierto. Cerralo y volvé a correr esto.');
+      m.log('   STILL THERE: something holds an open handle. Close it and run this again.');
       failed = 1;
     } else {
-      m.log('   borrado');
+      m.log('   removed');
     }
   }
 
@@ -138,12 +121,11 @@ export function clean(args: readonly string[], m: Machine): 0 | 1 | 2 {
 }
 
 /**
- * El PowerShell que mata lo que corre adentro de `target`. Sólo ASCII: la cadena cruza a
- * `powershell.exe` por la codepage de la consola.
+ * The PowerShell that kills what runs inside `target`. ASCII only: the string crosses to
+ * `powershell.exe` through the console code page.
  *
- * El filtro matchea la RUTA, nunca el nombre del proceso —un `pnpm dev` sobre el checkout
- * principal tiene el mismo nombre que uno de adentro— y excluye el propio árbol de procesos,
- * porque su línea de comando también contiene la ruta.
+ * It matches the PATH, never the process name, and it excludes its own process tree, whose
+ * command line also contains the path.
  */
 export function processKillScript(target: string): string {
   const literal = target.replaceAll("'", "''");
@@ -154,17 +136,17 @@ export function processKillScript(target: string): string {
     '$all = Get-CimInstance Win32_Process',
     '$mine = @(); $p = $PID',
     'while ($p -and ($mine -notcontains $p)) { $mine += $p; $pr = $all | Where-Object { $_.ProcessId -eq $p }; if (-not $pr) { break }; $p = $pr.ParentProcessId }',
-    "$all | Where-Object { $mine -notcontains $_.ProcessId } | Where-Object { $c = $_.CommandLine; $e = $_.ExecutablePath; ($c -and ($pats | Where-Object { $c.Contains($_) })) -or ($e -and ($pats | Where-Object { $e.StartsWith($_) })) } | ForEach-Object { Write-Output ('   matando PID ' + $_.ProcessId + ' - ' + $_.Name); Stop-Process -Id $_.ProcessId -Force }",
+    "$all | Where-Object { $mine -notcontains $_.ProcessId } | Where-Object { $c = $_.CommandLine; $e = $_.ExecutablePath; ($c -and ($pats | Where-Object { $c.Contains($_) })) -or ($e -and ($pats | Where-Object { $e.StartsWith($_) })) } | ForEach-Object { Write-Output ('   killing PID ' + $_.ProcessId + ' - ' + $_.Name); Stop-Process -Id $_.ProcessId -Force }",
   ].join('\n');
 }
 
-/** Cómo se lanza un proceso. Se inyecta para que la máquina real tenga test sin lanzar nada. */
+/** How a process is run. Injected so the real machine has tests that launch nothing. */
 export type Run = (program: string, args: readonly string[], cwd: string) => string;
 
 const runForReal: Run = (program, args, cwd) =>
   execFileSync(program, args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 
-/** La máquina de verdad. */
+/** The real machine. */
 export function realMachine(platform: NodeJS.Platform, run: Run = runForReal): Machine {
   const windows = platform === 'win32';
   return {
@@ -184,12 +166,11 @@ export function realMachine(platform: NodeJS.Platform, run: Run = runForReal): M
         const output = run('powershell', ['-NoProfile', '-NonInteractive', '-Command', processKillScript(target)], '.');
         return output.split(/\r?\n/).filter(line => line.trim() !== '');
       } catch {
-        // Sin PowerShell no hay a quién matar: el borrado de abajo dice si quedó algo.
-        return ['   no se pudo listar procesos: sigo con el borrado'];
+        // No PowerShell means nothing to kill: the delete below says if something stayed.
+        return ['   could not list processes: continuing with the delete'];
       }
     },
-    // `rmSync` recursivo desenlaza un symlink o un junction en vez de entrar: borra la entrada,
-    // no lo que hay del otro lado. El test del centinela lo verifica en disco real.
+    // A recursive `rmSync` unlinks a symlink or junction instead of entering it. The sentinel test proves it.
     remove: target => rmSync(target, { recursive: true, force: true, maxRetries: 3 }),
     sleep: ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms),
     log: line => console.log(line),
