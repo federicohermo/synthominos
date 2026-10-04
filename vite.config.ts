@@ -94,6 +94,7 @@ export default defineConfig({
             'specs/__tests__/*.test.ts',
             '.claude/scripts/__tests__/*.test.ts',
             'eslint-rules/__tests__/*.test.ts',
+            '.agents/scripts/__tests__/*.test.ts',
           ],
         },
       },
@@ -165,12 +166,19 @@ export default defineConfig({
       // `mcp-server/**` mas abajo—. La salida elegida es la contraria a la de alla:
       // incluir y cubrir. `mcp-server/**` se excluye porque tiene su propio gate al 100
       // con otro runner; estas dos reglas no tienen otro runner, las cubre vitest.
-      include: ['src/**/*.{ts,tsx}', 'eslint-rules/**/*.mjs'],
+      //
+      // Y `.agents/scripts/*.ts`, por el mismo motivo que `eslint-rules/`: es codigo de este
+      // repo que corre de afuera —los hooks de Claude y de Codex, el limpiador de worktrees y
+      // el generador de copias— y sus tests lo importan en el mismo proceso. Las copias que
+      // viajan dentro de los skills no entran: nadie las ejecuta desde un test, y son byte a
+      // byte las de aca.
+      include: ['src/**/*.{ts,tsx}', 'eslint-rules/**/*.mjs', '.agents/scripts/*.ts'],
 
       exclude: [
         // Son los tests.
         'src/**/__tests__/**',
         'eslint-rules/**/__tests__/**',
+        '.agents/scripts/__tests__/**',
         // Declaraciones de tipo: no llegan al runtime.
         'src/vite-env.d.ts',
         // Bootstrap: `createRoot(...).render(<App />)`. Cubrirlo verifica que

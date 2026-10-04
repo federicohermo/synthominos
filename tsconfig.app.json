@@ -38,5 +38,5 @@
    * asi que de `.claude/scripts` no entran los `.mjs` ejecutables y de `docs` no entra
    * un solo `.md`. TypeScript levanta unicamente los `.ts` de adentro.
    */
-  "include": ["src", "__tests__", "docs", "specs", ".claude/scripts"]
+  "include": ["src", "__tests__", "docs", "specs", ".claude/scripts", ".agents/scripts"]
 }
