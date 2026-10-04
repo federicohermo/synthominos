@@ -14,9 +14,6 @@ pentomino-games/           # repo root: the app lives here, with no subdirectory
 ├── mcp-server/            # Domain MCP server: tooling, NOT in the bundle
 ├── __tests__/             # Gates on files outside src/: the root files and the branch model
 ├── .agents/               # The harness, canonical for Claude Code and Codex: rules, scripts, skills
-├── agents/                # The contracts of the two hardening agents of a run
-├── policy/                # The policy profiles of a run
-├── .spec-anchored/        # The kernel that checks the artifacts of a run; its README says where it comes from
 ├── .claude/               # Claude Code: settings, generated copies, one hook script
 ├── .codex/                # Codex: hooks.json, generated copies
 ├── .github/               # The workflows and the task-brief issue template
@@ -42,8 +39,6 @@ source. Do not edit a copy by hand.
 .agents/
 ├── rules/                        one rule per subject; its `paths:` say which folders it covers
 ├── skills/                       a skill carries copies of the scripts and docs it uses
-├── protocols/                    the state machine of an implementation run, and its references
-├── routines/                     the prompt of a scheduled routine
 └── scripts/                      TypeScript that node runs without a build
     ├── hook.ts                   the PreToolUse hook of both harnesses: `hook.ts <claude|codex>`
     ├── protocol.ts               how each harness sends its payload, and how it becomes an Intent
@@ -72,7 +67,6 @@ The generated copies:
 |---|---|
 | `.agents/skills/` | `.claude/skills/` |
 | `.agents/rules/` | `.claude/rules/` |
-| `agents/<name>.md` | `.claude/agents/<name>.md`, and its TOML form in `.codex/agents/<name>.toml` |
 | each rule, by its `paths:` | the `AGENTS.md` of each folder it covers: `src/`, the capability folders of the domain and audio rules, `mcp-server/`, `mcp-server/src/`, `specs/` |
 | each contract in `specs/` | the opening of `src/<capability>/AGENTS.md`: a pointer to the contract, before the rules of that folder |
 

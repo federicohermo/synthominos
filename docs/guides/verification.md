@@ -197,29 +197,6 @@ before the first `verify`. CI does not need anyone to remember it: the workflow 
 The MCP server tests use `node --test`, in their own package, with the `--test-coverage-*=100`
 flags of Node.
 
-## Mutation is a CI job, and it judges a file whole
-
-`pnpm mutation` runs Stryker. It is not a node of `verify`, and the reason is time, measured on the
-development machine on 2026-10-04 with 15 workers:
-
-| Target | Mutants | Time |
-|---|---|---|
-| One small module, `playback/playhead-offset.ts` | 24 | 30 s, of which 20 s are the start of Stryker |
-| The kernel, `.spec-anchored/kernel.ts` and `pyjson.ts` | 2,760 | 8 min |
-| The whole `mutate` list | 4,515 | The first test run alone passed 5 min, and the run was stopped |
-
-So the job is differential: it mutates the files a PR changes, not the tree.
-
-**A file is judged whole.** The first PR that touches a module must leave it with no surviving
-mutant, also the ones that were there before the PR. Most modules of `src/` have never been
-mutated, so that first PR pays for the file. This is the cost of a threshold of 100 with no stored
-baseline, and it was chosen over a baseline for the reason the coverage threshold is 100.
-
-**The sandbox can stay behind on Windows.** Stryker copies the repo to `.stryker-tmp/`, and fails
-to delete it when a process still holds a file. A stopped run also leaves its worker processes
-alive. Delete the folder, and end the `node` processes whose command line names
-`@stryker-mutator`.
-
 ## The package manager is pnpm
 
 `packageManager` pins it, and `pnpm-lock.yaml` versions it. **Do not use npm.** npm installs a flat
