@@ -1,0 +1,51 @@
+---
+paths:
+  - "specs/**"
+---
+
+# Specs
+
+`specs/<capability>/<capability>.md` is the contract of one capability. The code answers to
+the contract. Template: [capability-spec.md](../../specs/_template/capability-spec.md).
+
+**A spec is not an issue.** The spec is the durable contract of a capability. The issue is the
+disposable plan of one change, in the shape of
+[task-brief.md](../../.github/ISSUE_TEMPLATE/task-brief.md). An issue touches a spec only if it
+changes what the instrument does.
+
+## What a spec declares
+
+- Observable behavior. No file paths and no symbol names: those live in the issue and in
+  `docs/`. A spec that names a file goes stale with the next refactor.
+- Rules `BR-<COD>-###` and criteria `AC-<COD>-###`. The three-letter code is unique in the repo.
+- An ID is never renumbered or reused. A new ID follows the highest number the spec ever had,
+  deleted ones included: `git log -p` shows it.
+- **Retiring is deleting.** Behavior that leaves the instrument is deleted with its test, and
+  the number stays a gap.
+- Each AC is GIVEN/WHEN/THEN with the deciding values, and names the rules it verifies. An
+  agent closes it, not a person looking or listening.
+- A fixed value is cited by name, not copied: the exact number lives in the code.
+- A gap goes to `OQ-<COD>-###`. Do not invent a default.
+- `status: draft` while a criterion has no test. `ratified` when all have one. `superseded`
+  when another spec replaces it. A capability that is removed deletes its spec.
+
+## Each AC names its test
+
+The test cites the ID in its title:
+
+```ts
+it('AC-BRD-004 — a piece is not placed over another', () => { … })
+```
+
+`rg AC-BRD-004` finds the link. The gate `specs/__tests__/specs.test.ts` goes red when a
+`ratified` spec has an uncited AC, or when a title cites an AC that does not exist. On a
+`draft` it only reports how many are missing. It verifies the citation, not that the test
+exercises the criterion: review checks that.
+
+## Changes
+
+- A behavior change updates the spec and the tests in the same PR. The spec is the first
+  commit of the `feature/` branch, or of `bugfix/` if the bug was an unwritten rule.
+- If the code does not meet an AC, fix the code. If the AC no longer describes the instrument,
+  a person decides.
+- The PR states, for each AC it touches, `AC-<COD>-### → test → result`.

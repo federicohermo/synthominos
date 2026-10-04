@@ -1,0 +1,103 @@
+# AGENTS.md
+
+What a file cannot tell you about this repo. Detail lives in `docs/`; layer rules live in
+`.agents/rules/` and load on their own; the contract of each capability lives in `specs/`.
+
+## What it is
+
+A **musical instrument**, not a game. The user places pentominoes on a board sized to the screen,
+and each piece fires a five-note arpeggio. A closed tour visits the pieces: order and silence come
+from geometry. There is no score and no win. Judge a feature by one question: does it make the
+instrument more expressive?
+
+**Stack:** Vite 7 · React 19 · TypeScript 5.8 · Tailwind CSS 4 · Web Audio (no audio library).
+
+## Commands
+
+- **`pnpm verify` is the convergence node.** Run it before every PR; CI runs the same script. It
+  runs `lint ‖ typecheck ‖ suite ‖ mcp:test`. `suite` is two Vitest passes; the second one gates
+  coverage at **100** on all four metrics, with zero exceptions. Detail:
+  [verification](./docs/guides/verificacion.md).
+- **The verdict comes from the exit code**, never from a grep of the output.
+- **pnpm, not npm.** `node_modules` is strict: importing a transitive dependency fails on purpose.
+- **Chromium is not in the lockfile**: a fresh clone needs `pnpm exec playwright install chromium`.
+- **Node ≥ 22.18** runs the harness scripts and the MCP server as TypeScript without a build.
+
+## Architecture
+
+```text
+types/ ← constants/ ← modules        inside each layer
+domain/ and audio/ never see each other; components/ and App.tsx import from both
+```
+
+`domain/` is pure: no React, no Web Audio, no DOM. `audio/` speaks MIDI and does not know the
+domain. `components/` are presentational. `App.tsx` is the shell. Detail:
+[overview](./docs/architecture/overview.md) · [constitution](./docs/architecture/constitution.md).
+
+## Rules, and who verifies each
+
+- **Dependency direction is forbidden by path** — `import-x/no-restricted-paths`.
+- **No barrels, explicit extensions, no aliases** — every local import ends in `.ts`/`.tsx`; lint.
+- **Zero `enum`, zero `any`, zero `@ts-ignore`, no `eslint-disable`** — `erasableSyntaxOnly`,
+  lint, `noInlineConfig`. A real exception is a per-file override in `eslint.config.js`.
+- **No `.only`, no `.skip`, no test without an assertion** — `@vitest/eslint-plugin`.
+- **A comment cites what resolves** — `local/comment-anchor`, `local/comment-shape`.
+- **Every criterion of a `ratified` spec is cited by a test title** — `specs/__tests__/specs.test.ts`.
+- **The branch prefix decides who writes `src/` and `mcp-server/src/`** — the hook
+  `.agents/scripts/hook.ts`. Prefixes and hotfixes: [branches](./docs/infra/branches.md).
+- **A worktree of this repo opens only under `.claude/worktrees/`** — the same hook.
+- **Generated harness copies match their source** — `node .agents/scripts/sync.ts --check`, in `suite`.
+- **No global state**: no Context, Redux or Zustand. **Deletions go in their own commit.**
+- **Everything written into the repo is English**, in the style of ASD-STE100.
+
+## Before a change
+
+**An issue is not a spec.** The issue is the disposable plan of one change, in the
+[task-brief](./.github/ISSUE_TEMPLATE/task-brief.md) format, closed by its PR. The spec is the
+durable contract of a capability. An issue touches a spec only if it changes what the instrument
+does.
+
+1. **Interview** when anything is assumed — skill `shape`. It writes nothing.
+2. **Write the issue** — skill `to-issue`.
+3. **Write the spec** only when the change creates, modifies or deletes behavior — skill
+   `to-spec`. It is the first commit of the `feature/` branch, or `bugfix/` if the bug was an
+   unwritten rule.
+4. **Implement** — skill `implement-feature`, test first. The PR states
+   `AC-<COD>-### → test → result` for each criterion it touches.
+
+- **The code answers to the spec.** If the code fails a criterion, fix the code. If the criterion
+  no longer describes the instrument, a person decides.
+- **No spec needed for:** a refactor, a bug that changes no rule, or a UI, art, audio or
+  performance improvement. Nor for anything outside `src/`.
+- **A run leaves no written work for later.** Doctrine: `.agents/skills/to-spec/no-debt.md`.
+
+## Ask the domain instead of simulating it
+
+The `pentomino-domain` MCP server (`.mcp.json`) runs the real pure functions, with no build. Ask it
+before you derive a rotation by hand (`describe_piece`), walk the lookahead (`simulate_board`),
+touch geometry or the musical model (`check_invariants`), or grep for a symbol (`find_symbol`).
+`mcp-server/` imports domain symbols: changing a `domain/` signature can break a tool, and
+`pnpm verify` typechecks across that edge. Detail: [MCP](./docs/guides/mcp-domain.md).
+
+## The harness
+
+`.agents/` is canonical for both Claude Code and Codex: `skills/`, `rules/`, `scripts/`. After you
+edit any of it, run `node .agents/scripts/sync.ts` and commit the copies it writes (`.claude/`,
+`.codex/`, and the `AGENTS.md` of each folder a rule covers).
+
+## Documentation
+
+| Document | When to read it |
+|---|---|
+| [Overview](./docs/architecture/overview.md) | The four layers and their dependency direction |
+| [Directory structure](./docs/architecture/directory-structure.md) | Where each thing goes |
+| [Musical model](./docs/architecture/modelo-musical.md) | Piece → tonic, rotation → scale or order, reflection → retrograde |
+| [Audio](./docs/architecture/audio.md) | Web Audio graph, ADSR, lookahead scheduler |
+| [DESIGN.md](./DESIGN.md) | The visual language: the 12 colors and what a cell shows |
+| [Constitution](./docs/architecture/constitution.md) · [Decisions](./docs/architecture/decisions/) | Non-negotiable principles, and why each big choice was made |
+| [Quickstart](./docs/guides/quickstart.md) · [Verification](./docs/guides/verificacion.md) | Setup; what `verify` runs and why |
+| [Conventions](./docs/guides/conventions.md) · [Troubleshooting](./docs/guides/troubleshooting.md) | How code and docs are written; traps already hit |
+| [Deploy](./docs/infra/deploy.md) · [Branches](./docs/infra/branches.md) | Where the deploy lives; the two-branch model |
+
+**Debt without a plan lives in [GitHub Issues](https://github.com/federicohermo/pentomino-games/issues)**,
+not in a file. `gh` may be outside PATH on Windows: `"/c/Program Files/GitHub CLI/gh.exe"`.

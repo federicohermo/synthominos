@@ -4,9 +4,9 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 /**
- * Los dos puntos de entrada. Se importan en el mismo proceso con sus bordes simulados, porque v8
- * no mide un subproceso; y además se corren UNA vez de verdad, como los corre cada harness, que
- * es lo único que prueba que la ruta y los argumentos de los hooks andan.
+ * The two entrypoints. They are imported in-process with mocked edges, because v8 does not
+ * measure a subprocess. They also run ONCE for real, the way each harness runs them: only that
+ * proves the hook path and arguments work.
  */
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -16,22 +16,23 @@ afterEach(() => {
   vi.resetModules();
   vi.doUnmock('../system.ts');
   vi.doUnmock('../worktrees.ts');
+  vi.doUnmock('../copies.ts');
   process.exitCode = undefined;
 });
 
 describe('hook.ts', () => {
-  it('lee stdin, decide y responde', async () => {
+  it('reads stdin, decides and responds', async () => {
     const respond = vi.fn();
     vi.doMock('../system.ts', () => ({
-      readInput: () => 'no es json',
+      readInput: () => 'not json',
       realGit: () => ({ paths: path.posix }),
       respond,
     }));
     await import('../hook.ts');
-    expect(respond).toHaveBeenCalledWith({ stdout: expect.stringMatching(/ilegible/) as string, stderr: '' });
+    expect(respond).toHaveBeenCalledWith({ stdout: expect.stringMatching(/unreadable/) as string, stderr: '' });
   });
 
-  it('de verdad, como lo llama Codex: un worktree afuera se rechaza', () => {
+  it('for real, as Codex calls it: a worktree outside is denied', () => {
     const payload = JSON.stringify({ cwd: process.cwd(), tool_name: 'Bash', tool_input: { command: 'git worktree add ../afuera-del-repo' } });
     const out = execFileSync(process.execPath, [HOOK, 'codex'], { input: payload, encoding: 'utf8' });
     expect(JSON.parse(out)).toMatchObject({ hookSpecificOutput: { permissionDecision: 'deny' } });
@@ -39,9 +40,17 @@ describe('hook.ts', () => {
 });
 
 describe('clean-worktrees.ts', () => {
-  it('devuelve el código del limpiador', async () => {
+  it('returns the cleaner\'s exit code', async () => {
     vi.doMock('../worktrees.ts', () => ({ clean: () => 2, realMachine: () => ({}) }));
     await import('../clean-worktrees.ts');
     expect(process.exitCode).toBe(2);
+  });
+});
+
+describe('sync.ts', () => {
+  it('returns the exit code of the copy check', async () => {
+    vi.doMock('../copies.ts', () => ({ sync: () => 1, realDisk: () => ({}) }));
+    await import('../sync.ts');
+    expect(process.exitCode).toBe(1);
   });
 });

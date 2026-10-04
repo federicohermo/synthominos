@@ -279,7 +279,12 @@ export default tseslint.config([
    * tres aserciones no nulas que el repo declara deliberadas se leen como prohibidas
    * en la copia, y el rojo aparece en `main` por trabajo que ni siquiera es de `main`.
    */
-  globalIgnores(['dist', '.claude/worktrees']),
+  // The generated copies of the harness: `node .agents/scripts/sync.ts --check` verifies they
+  // match their canonical source, which is linted. A nested `AGENTS.md` joins several rules.
+  globalIgnores([
+    'dist', '.claude/worktrees', '.claude/skills', '.claude/rules', '.claude/agents', '.codex',
+    '.agents/skills/*/scripts', '*/**/AGENTS.md',
+  ]),
 
   {
     // Sin `files`, o sea que valen para todo el repo.
