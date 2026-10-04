@@ -65,8 +65,8 @@ Coverage is 100 in four metrics, and `suite` fails under it. Every branch you ad
 that would fail if the branch were wrong. A branch you cannot reach is deleted or made reachable.
 No comment skips it.
 
-**If a rule cannot be tested without React, Web Audio or the DOM, it is in the wrong layer.** Move
-it down to `domain/`, which is pure. That is the conversation coverage forces, and it keeps the
+**If a rule cannot be tested without React, Web Audio or the DOM, it is in the wrong file.** Move
+it to a pure `.ts` module of its capability. That is the conversation coverage forces, and it keeps the
 instrument testable. The dependency direction is in `CLAUDE.md`, and the linter enforces it.
 
 **The test project follows the suffix.** `*.browser.test.tsx` runs in Chromium; everything else
@@ -74,7 +74,7 @@ runs in `node`. A change you can see is measured in the DOM of a browser test
 (`getComputedStyle`, a `Range` on the text node), not by looking.
 
 **Ask the domain before you simulate it.** `describe_piece`, `simulate_board` and
-`check_invariants` (MCP `pentomino-domain`) run the real functions. After you edit `domain/`, the
+`check_invariants` (MCP `pentomino-domain`) run the real functions. After you edit the model, the
 authority is the suite: the session's server reads the main checkout and may hold modules it
 loaded before your edit.
 

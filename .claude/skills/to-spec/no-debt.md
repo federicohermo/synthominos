@@ -129,7 +129,7 @@ expensive deliverable, and the only one that keeps the finding from coming back.
 | What appeared | Which skill to fix |
 |---|---|
 | a criterion that cannot be seen to fail | `to-spec` |
-| a rule of the instrument placed in `ui/` when it could run in `domain/` | `to-spec`: the layer question was asked late |
+| a rule of the instrument placed in a component when it could run in a pure `.ts` | `to-spec`: the question of where it runs was asked late |
 | a measurement taken in the wrong process: the scheduler's arguments instead of the audio render, `node` instead of `browser` | `to-spec` |
 | a criterion that sweeps a directory and lists exceptions without running the sweep | `to-spec`: from memory it comes out short and the criterion is born impossible to pass |
 | an identifier the spec writes in `code` that does not exist in the repo | `to-spec`: the prose was written without searching it |

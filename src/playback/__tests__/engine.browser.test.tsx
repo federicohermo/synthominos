@@ -6,7 +6,7 @@ import type { Sequence } from '../scheduler.ts';
 /**
  * El motor, contra Web Audio de VERDAD.
  *
- * Es la unica de las cuatro partes de `audio/` que no se podia testear: `voice`,
+ * Es la unica de las cuatro partes del motor que no se podia testear: `voice`,
  * `scheduler` y `playhead` reciben el contexto por parametro y corren contra un
  * `OfflineAudioContext` de `node-web-audio-api`, pero este modulo **es** el que crea
  * el singleton —`new AudioContext()` a nivel de modulo— y ademas agenda con
@@ -112,7 +112,7 @@ async function esperarCabeza(e: Engine, limiteMs = 4000): Promise<number | null>
 /**
  * Un ciclo con las tres clases de evento, escrito a mano y no derivado del dominio.
  *
- * A mano porque el override de eslint le prohibe a `audio/` ver `domain/` —tambien en
+ * A mano porque el motor no importa el circuito —tambien en
  * sus tests— y porque lo que se verifica aca es el DESPACHO de cada clase, no de donde
  * salio: `A4` con altura, un cruce con altura y un click mudo, que son las tres ramas
  * del `for` de `tick()`.
@@ -470,7 +470,7 @@ describe('outputLatency — la cadena que TypeScript cree innecesaria', () => {
    *
    * `lib.dom.d.ts` los declara como `number` no opcional, pero Firefox no implementa el
    * primero y ahi llega `undefined`. El fallback existe por eso, y hasta aca no lo
-   * ejercia nadie: los tests de `audio/` corren contra `node-web-audio-api`, donde estos
+   * ejercia nadie: los tests del motor corren contra `node-web-audio-api`, donde estos
    * numeros no describen ninguna salida real.
    *
    * Se fabrica el navegador que falta parcheando el prototipo ANTES de que el modulo

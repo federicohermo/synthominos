@@ -15,28 +15,22 @@ expresivo, no más difícil.
 ## Arquitectura de Alto Nivel
 
 ```text
-src/main.tsx → src/App.tsx         the shell: state, derived values, handlers and composition.
-                   │                Zero effects. It calls playNow; the rest goes through use-engine.ts
+src/main.tsx → src/App.tsx    the shell: state, derived values, handlers and composition.
+                   │           Zero effects. It calls playNow; the rest goes through use-engine.ts
                    │ imports
                    ▼
-src/<capability>/ui/               components (presentational: props, no state), the hooks
-                   │                use-engine · use-input · use-grid, and the pure functions they call
-                   │ imports
-          ┌────────┴─────────┐
-          ▼                  ▼
-src/<capability>/domain/   src/<capability>/audio/
-pure: no React, no Web     Web Audio, and it speaks MIDI. voice.ts and scheduler.ts receive
-Audio, no DOM              the context as a parameter and do not import engine.ts, so they
-                           render offline
+src/<capability>/             one flat folder per contract in specs/:
+                              pieces · board-editing · board-fit · musical-model · circuit ·
+                              playback · spectrum · panels · accessibility
 
-domain/ and audio/ have no edge between them, in any capability.
-
-capabilities: pieces · board-editing · board-fit · musical-model · circuit ·
-              playback · spectrum · panels · accessibility
+in a capability:  *.tsx       a component: presentational, props, no state
+                  use-*.ts    a hook: use-engine · use-input · use-grid
+                  *.ts        a module: pure functions, or the Web Audio engine of playback/
 ```
 
-Each folder under `src/` is the code of the contract with its name in `specs/`. The layers are
-subfolders of the capability, and the linter verifies the direction. See
+Each folder under `src/` is the code of the contract with its name in `specs/`. `voice.ts` and
+`scheduler.ts` receive the `AudioContext` as a parameter and do not import `engine.ts`, so they
+render offline. See
 [directory-structure.md](./directory-structure.md) and [conventions.md](../guides/conventions.md).
 
 ## Qué vive dónde
@@ -48,7 +42,7 @@ se pueden renderizar con `OfflineAudioContext` sin montar nada de React.
 **El dominio salió después, y por un motivo parecido**: `react-refresh/only-export-components` prohíbe
 que un `.tsx` exporte algo además del componente, así que mientras la geometría y la música vivieran en
 `App.tsx` **no podían exportarse, y por lo tanto no podían testearse**. La organización no era neutral:
-condenaba al dominio a no ser verificable. Hoy `src/<capability>/domain/` tiene tests donde antes había cero.
+condenaba al dominio a no ser verificable. Hoy `src/` tiene tests donde antes había cero.
 
 **El shell perdió sus seis `useEffect` con el spec 022**, y por el mismo motivo por tercera vez: en un `.tsx` no se
 podían exportar, así que las 166 líneas del puente con el motor —el 75 % de ellas comentario— no se
@@ -56,7 +50,7 @@ podían montar ni testear. Lo que queda en `App.tsx` es el shell: estado, deriva
 composición de los componentes, con **cero `useEffect`**. Ninguna función pura y ningún literal de
 dominio.
 
-Los que había son ahora **dos archivos** de `ui/`, y el corte es el que la lista ya dibujaba
+Los que había son ahora **dos hooks**, y el corte es el que la lista ya dibujaba
 (el spec 021 suma un tercero —hoy `use-grid.ts`— por la misma regla y sin tocar el shell: sigue en cero):
 
 - `use-engine.ts` — los **cuatro de reconciliación**: tempo, clicks, la secuencia contra el tablero, y la
@@ -73,7 +67,7 @@ La **proyección** del `Sequence` del dominio al del motor es una pura, `proyect
 `playback/engine-bridge.ts`: es el único módulo del repo que puede importar los dos tipos `Sequence`, y estaba
 escrita dos veces adentro del shell.
 
-## Las cuatro capas
+## Lo que hace cada parte
 
 ### 1. Dominio — funciones puras
 
@@ -88,8 +82,8 @@ Sin React, sin audio, sin DOM. Determinísticas y testeables en aislamiento.
 | `sequence.ts` | `buildSequence`, `cellsByPlayOrder`, `gates`, `noteAtCell` | El circuito que visita las piezas colocadas (Held-Karp sobre `routeBetween`) y los offsets del ciclo — orden, silencios y clicks. Las otras tres son las derivaciones celda↔nota que el circuito necesita y que no pueden vivir escondidas en su único consumidor: el orden de reproducción, las dos puertas de una pieza y qué nota suena en una celda (la que da su altura al cruce del spec 011) |
 | `invariants.ts` | `checkArrayOrder`, `checkAnchors`, `checkShapes`, `checkBaseMap`, `checkNotes`, `checkDistinct`, `checkLetters`, `checkAll` | Los siete chequeos del modelo. Cuatro recorren las 96 orientaciones —los dos geométricos, `checkDistinct`, que compara las 12 formas entre sí, y `checkLetters`: los dos últimos porque reducir una forma a su clave canónica exige generar sus 8—; los otros tres, lo que les corresponde. `checkLetters` es del spec 039 y es el único que compara contra una tabla EXTERNA: que cada forma sea el pentominó de su letra, que es lo que `checkDistinct` no puede ver |
 
-Los datos (`SHAPES`, `ANCHOR_INDEX`, `BASE_MAP`, `PENT_*`, `GRID_MIN`/`GRID_DEFAULT`) viven en `domain/*.constants.ts`, y
-los tipos (`Cell`, `PieceKey`, `PlacedPiece`) en `domain/*.types.ts`. Detalle en
+Los datos (`SHAPES`, `ANCHOR_INDEX`, `BASE_MAP`, `PENT_*`, `GRID_MIN`/`GRID_DEFAULT`) viven en el módulo que los define, igual que
+los tipos (`Cell` en `transform.ts`, `PieceKey` en `pieces.ts`, `PlacedPiece` en `placement.ts`). Detalle en
 [modelo-musical.md](./modelo-musical.md).
 
 Los chequeos **devuelven** un `CheckResult` en vez de lanzar o asertar, para que los use igual su test y
@@ -163,7 +157,7 @@ está en las dependencias: la secuencia es función del tablero y no del transpo
 
 Ese efecto **no vive en el shell**: desde el spec 022 está en `playback/use-engine.ts` con los otros
 tres de reconciliación, y `App.tsx` sigue sin declarar un solo `useEffect` —el 021 le agregó un hook más,
-`use-grid.ts`, y lo puso donde van todos: en `ui/`— (ver [Qué vive dónde](#qué-vive-dónde)). Lo
+`use-grid.ts`, y lo puso donde van todos: en un hook `use-*.ts`— (ver [Qué vive dónde](#qué-vive-dónde)). Lo
 que se queda en el shell es la **derivación** —`secuencia` es un `useMemo` sobre
 `[visibles, regimen, dims]`, que desde el spec 031 son las tres cosas de las que depende: las piezas
 que entran en la grilla de ahora, el régimen y cuánto mide el tablero— y el hook recibe el resultado,

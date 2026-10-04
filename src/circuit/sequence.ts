@@ -77,7 +77,7 @@ export interface Step {
  * union discriminada, y aca esa es la forma correcta justamente por la `cell`: la
  * altura es un DERIVADO de ella —`noteAtCell` del ocupante, o nada si no hay
  * ocupante—, asi que "sin `note`" significa exactamente "esa celda estaba vacia" y
- * ninguna construccion puede producir la combinacion equivocada. En `audio/` la
+ * ninguna construccion puede producir la combinacion equivocada. En el motor la
  * decision es la contraria y va union discriminada: alla la celda no viaja, y sin
  * ella nada atajaria un click con altura que no deberia tenerla.
  */

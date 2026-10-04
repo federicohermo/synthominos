@@ -9,14 +9,14 @@ import { cycleGeneration } from './engine.ts';
  * suena y no lo que va a sonar.
  *
  * El motor ya tiene su propio par, pero su `Sequence` no lleva `pieceId` ni `cell`: el
- * click no tiene altura y para sonar alcanza con contarlo, y ademas el override de
- * eslint le prohibe a `audio/` ver `Cell`, tambien como `import type`. La unica
+ * click no tiene altura y para sonar alcanza con contarlo, y el motor habla MIDI: no
+ * conoce `Cell`. La unica
  * secuencia con celdas es la del dominio, y la UI la deriva de `placed`, que es el
  * tablero DE AHORA — o sea la pendiente. Sin este modulo la cabeza recorreria el
  * circuito encolado mientras suena el viejo, justo durante los hasta 7,5 s de espera
  * que este spec existe para hacer visibles.
  *
- * Vive en `ui/` y no en `audio/` por esa misma frontera: habla `Cell`. Es el
+ * Vive fuera del motor por esa misma frontera: habla `Cell`. Es el
  * mismo cruce que `proyectarAlMotor` (`playback/engine-bridge.ts`) ya hace al proyectar la
  * secuencia para `setSequence`.
  *

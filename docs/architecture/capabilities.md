@@ -6,12 +6,11 @@ single spec can say it.
 
 The rules to edit a spec are in [the spec rules](../../.agents/rules/specs.md).
 
-## A capability is a folder, and its layers are inside
+## A capability is a folder
 
-A capability is a slice of what the instrument does. Its code lives in `src/<capability>/`, the
-folder with the name of its contract, and the layers are subfolders of it: `domain/`, `audio/`,
-`ui/`. The spec gate checks the link both ways, and a generated `AGENTS.md` in the folder points
-at the contract.
+A capability is a slice of what the instrument does. Its code lives in `src/<capability>/`, a flat
+folder with the name of its contract. The spec gate checks the link both ways, and a generated
+`AGENTS.md` in the folder points at the contract.
 
 The folder is the only link. A spec names no file and no symbol, because files move inside a
 capability and the contract stays.

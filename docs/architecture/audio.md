@@ -1,6 +1,6 @@
 # Capa de Audio
 
-El motor vive en `src/<capability>/audio/` y está construido directamente sobre Web Audio, sin librerías. Es la
+El motor vive en `src/` y está construido directamente sobre Web Audio, sin librerías. Es la
 parte del código con más decisiones no obvias.
 
 ## El grafo
@@ -17,7 +17,7 @@ Una voz por nota, creada y descartada. El `master` existe para tener un punto ú
 inserción: el `AnalyserNode` del
 [spec 003](https://github.com/federicohermo/pentomino-games/issues/65) entra ahí.
 
-## Los archivos de la capa
+## Los archivos del motor
 
 | Archivo | Qué hace | Cómo obtiene el contexto |
 |---|---|---|
@@ -37,13 +37,12 @@ los tests, y es la razón por la que el audio de este proyecto es verificable.
 
 Hasta el spec 005 los tres bloques del motor eran secciones de un mismo archivo y el invariante lo sostenía un
 comentario: nada estructural impedía que `scheduleVoice` llamara a `audio()` y el audio dejara de ser
-testeable. Ahora lo sostiene el grafo de imports, y la zona del linter
-([conventions.md](../guides/conventions.md)) impide además que la capa mire al dominio o a la UI.
+testeable. Ahora lo sostiene el grafo de imports.
 
 Efecto lateral: se puede importar `scheduler.ts` **sin** arrastrar el módulo de los singletons a un
 proceso de node.
 
-Los valores fijos de cada capa viven en `audio/*.constants.ts` y los tipos en `audio/*.types.ts`, con el nombre
+Los valores fijos y los tipos viven en el módulo que los define, con el nombre
 de su módulo. Ahí están, por ejemplo, la duración de la nota y su release: `NOTE_INTERVALS` y
 `RELEASE_INTERVALS` los fijan en intervalos, no en segundos, y `scheduleVoice` no tiene default para
 `dur` ni para `rel` —un default fijo sería una constante que ya no puede ser constante, porque las dos
@@ -163,8 +162,8 @@ El click **mudo** suena igual en cualquier celda —es una campana de altura fij
 esa altura no sale del modelo (ver [más abajo](#el-click))—; desde
 el spec 011 el recorrido puede cruzar una celda ocupada, y ese cruce lleva su nota en `note` —MIDI,
 ausente cuando la celda está vacía—. La celda en sí sigue sin ser información que el motor pueda usar,
-y `Sequence` sigue sin poder importar `Cell` del dominio ni con `import type`, porque `audio/` y
-`domain/` son hermanos sin aristas entre ellos: `note` viaja como número plano, no como referencia a la
+y `Sequence` sigue sin poder importar `Cell` del dominio ni con `import type`, porque el motor habla MIDI y
+no importa el circuito: `note` viaja como número plano, no como referencia a la
 celda que lo originó. Pero **ya no es cierto que para sonar alcance con contar clicks** — un click con
 `note` suena distinto de uno sin ella (ver [más abajo](#el-click)). `setSequence(next)` reemplaza a
 `addJob`/`removeJob`/`clearJobs`; `sequenceInfo()` reemplaza a `jobCount()` como receta de verificación
@@ -209,8 +208,8 @@ más fina y su propio cambio.
 Un salto de `d` celdas entre la salida de una pieza y la entrada de la siguiente produce `d − 1`
 eventos intermedios, uno por celda del camino que devuelve `routeBetween(a, b, placed)`
 (`board-editing/placement.ts`). Sobre celda **vacía** suena una **campana de altura fija** de 50 ms a volumen
-bajo (`CLICK_MIDI`, `CLICK_VELOCITY`, `CLICK_SECONDS` en `audio/*.constants.ts`) — `scheduleClick` en
-`voice.ts` es la otra forma de sonido de la capa, aparte de `scheduleVoice`.
+bajo (`CLICK_MIDI`, `CLICK_VELOCITY`, `CLICK_SECONDS` en `voice.ts`) — `scheduleClick` en
+`voice.ts` es la otra forma de sonido del motor, aparte de `scheduleVoice`.
 
 Fue **ruido blanco** desde el spec 009 y hasta el 015, con un argumento explícito: un oscilador
 siempre tiene altura, y una altura haría que el recorrido dibujara una línea melódica que compite con
@@ -314,13 +313,13 @@ Dos cosas del snippet que no son detalle:
   lograr lo mismo desde acá; con una sola llamada a `setSequence` deja de hacer falta, y colocar o
   quitar con el transporte parado igual deja la secuencia lista para cuando arranque.
 - **Es una proyección, no una traducción.** `offset` y `notes` viajan tal cual; lo que se cae es
-  `pieceId` —el motor no tiene a quién devolvérselo— y `cell` en los clicks, porque `audio/` no puede
+  `pieceId` —el motor no tiene a quién devolvérselo— y `cell` en los clicks, porque el motor no puede
   importar `Cell` ni como `import type` ([arriba](#el-recorrido-en-el-scheduler)). Las celdas no se
   pierden: siguen en `placed`.
 
 Antes este efecto iteraba piezas y armaba un job por cada una; hoy es **una sola llamada**:
 `buildSequence` (`circuit/sequence.ts`) arma el circuito entero —orden, offsets y clicks— de una vez, y
-el puente entre las dos capas es una sola pura, `proyectarAlMotor`. Que sea una pura y no dos
+el puente entre el circuito y el motor es una sola pura, `proyectarAlMotor`. Que sea una pura y no dos
 bloques de efecto es del spec 022: hasta ahí el mismo cruce estaba escrito dos veces —el efecto de
 reconciliación y el de desmontaje—, con un comentario que ya admitía que escribirlo distinto invitaría a
 divergir. Con la pura eso pasa a ser imposible de escribir, y los tres estados de `Click.note` tienen
@@ -576,7 +575,7 @@ Dos trampas que costaron un ciclo de tests cada una:
 ### En el navegador
 
 ```js
-const m = await import('/src/playback/audio/engine.ts');   // en dev, mismo singleton
+const m = await import('/src/playback/engine.ts');   // en dev, mismo singleton
 m.sequenceInfo();                                  // { steps, clicks, crosses, length } de la activa
 m.clockRunning();                                  // reloj
 m.audio().state;                                   // 'running' | 'suspended'

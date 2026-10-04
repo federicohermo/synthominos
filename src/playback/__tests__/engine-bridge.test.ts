@@ -92,7 +92,7 @@ describe('proyectarAlMotor deja caer lo que el motor no puede ver', () => {
       expect(destino.offset).toBe(c.offset);
       expect(destino.note).toBe(c.note);
       expect(Object.keys(destino).sort()).toEqual(['note', 'offset']);
-      // `cell` se cae porque `audio/` no puede importar `Cell`, ni como `import type`:
+      // `cell` se cae porque el motor habla MIDI y no conoce `Cell`:
       // si la proyeccion la dejara pasar, el tipo del motor tendria que nombrar algo
       // que su capa no puede ver. Es la mitad de D7/D8 del 009 que no tenia test.
       expect('cell' in destino).toBe(false);

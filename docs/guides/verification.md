@@ -167,7 +167,7 @@ CI on each PR, and the ruleset that blocks a red merge into `main`.
 
 ## The tests are two Vitest projects and one command
 
-The split is not by layer. It is by what the test needs:
+The split is by what the test needs:
 
 - **`node`**: `environment: 'node'` with `node-web-audio-api`. The domain is pure, and the audio
   layer has a native Web Audio implementation, so it runs there without adaptation. Its `include`

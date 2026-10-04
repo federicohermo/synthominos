@@ -501,7 +501,7 @@ export default tseslint.config([
   {
     // Los DOS `.tsx` que montan un efecto, nombrados uno por uno y no por glob. El
     // precedente es el de las tres aserciones no nulas de arriba, y el motivo de que sea por
-    // archivo es que un glob crece solo: `src/<capability>/ui/*.tsx` eximiria a todo componente
+    // archivo es que un glob crece solo: `src/*.tsx` eximiria a todo componente
     // futuro sin que nadie lo decida.
     //
     // Los dos cumplen el motivo de la regla y violan su letra, que es lo que los hace

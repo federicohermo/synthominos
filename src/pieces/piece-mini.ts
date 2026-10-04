@@ -28,7 +28,7 @@ import type { PieceKey } from './pieces.ts';
  * sin la caja fija rotar la `I` sola moveria a sus once vecinas de la grilla. El argumento
  * esta duplicado en `piece-mini.ts` y en `DESIGN.md`, y los tres tienen que decir lo mismo.
  *
- * **No se toma `CELLS_PER_PIECE` de `domain/`**, aunque valga 5 tambien. Son dos
+ * **No se toma `CELLS_PER_PIECE` de `pieces.ts`**, aunque valga 5 tambien. Son dos
  * numeros distintos que coinciden por casualidad: aquel dice cuantas celdas tiene una
  * pieza —una propiedad del modelo— y este cuantas casillas mide la caja donde se
  * dibuja, que es una decision de layout. Atarlos haria que cambiar el pentomino a
@@ -105,7 +105,7 @@ export const MINI_PISTA_PX = MINI_BOX * MINI_CELL_PX + 16 + 2;
  * ## Acá el invariante de orden del array NO aplica
  *
  * Vale decirlo porque todo el resto del repo afirma lo contrario, y con razón: en
- * `domain/` la celda del índice `k` tiene que seguir siendo la misma celda lógica después
+ * el dominio la celda del índice `k` tiene que seguir siendo la misma celda lógica después
  * de transformar, porque de eso dependen `ANCHOR_INDEX`, el grado de cada celda y las
  * puertas del circuito. Acá no: la miniatura no numera celdas, no las conecta con grados
  * y no dice qué suena — sólo pinta cuáles están ocupadas. Reordenar su salida no rompería

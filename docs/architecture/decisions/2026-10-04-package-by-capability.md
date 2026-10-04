@@ -1,4 +1,4 @@
-# The code is organized by capability, and the layers live inside
+# The code is organized by capability, flat
 
 **2026-10-04**
 
@@ -7,30 +7,39 @@ Until today `src/` had one folder per layer: `domain/`, `audio/` and `components
 nothing tied a capability to its code. An agent that edited `src/domain/sequence.ts` could not
 tell from the tree that `specs/circuit/circuit.md` governs it.
 
-**Decision: each capability owns `src/<capability>/`, with the name of its contract, and its layers
-are subfolders.** `src/circuit/sequence.ts` is the code of `specs/circuit/circuit.md`. The
-shell (`App.tsx`, `main.tsx`, `styles/`, the app-level tests) stays at the root of `src/`. This is
-the package-by-feature rule of the
+**Decision: each capability owns `src/<capability>/`, a flat folder with the name of its
+contract.** `src/circuit/sequence.ts` is the code of `specs/circuit/circuit.md`. Its tests sit in
+`src/circuit/__tests__/`. The shell (`App.tsx`, `main.tsx`, `styles/`, the app-level tests) stays at
+the root of `src/`. This is the package-by-feature rule of the
 [spec-anchored agentic development](https://github.com/w00fx/spec-anchored-agentic-development)
-toolkit; the first plan of the migration kept the layers and dropped it, without seeing that the
-link went with it.
+toolkit. The first plan of the migration kept the layers and dropped this rule, without seeing that
+the link to the contracts went with it.
+
+Two decisions come with it:
+
+- **A constant or a type lives in the module that owns it.** The `*.constants.ts` and `*.types.ts`
+  files are fused into their owner modules, and the linter rejects a new one.
+- **There are no layer rules.** The lint zones between `domain/` and `audio/`, the order between the
+  domain modules, the ban on React in two layers, and the rule that a module declares no constant
+  are deleted. What they protected is now held by three constraints of the tools: a `.tsx` exports
+  only its component, the MCP server loads its imports with plain node, and a test picks its
+  project by suffix.
 
 What holds the link:
 
 - **The spec gate** (`.agents/scripts/specs.ts`): a folder under `src/` needs a contract with its
-  name, a live contract needs code in its folder, and each file of a capability sits in a layer
-  folder (`domain/`, `audio/`, `ui/`).
-- **The generator** (`node .agents/scripts/sync.ts`): it writes `src/<capability>/AGENTS.md`, a
-  pointer to the contract, from each contract.
-- **The linter**: the layer zones are globs over every capability (`src/*/domain/**`), so the rules
-  of spec 005 (#67) hold in each capability with no new zone.
+  name, a live contract needs code in its folder, and a capability holds no subfolder but
+  `__tests__/`.
+- **The generator** (`node .agents/scripts/sync.ts`): it opens `src/<capability>/AGENTS.md` with a
+  pointer to the contract, then the rules that cover the folder.
 
 Where a file goes: to the capability whose criteria its tests cite. `board.ts` held two
-capabilities, so it was split: the rules of placement stay in `board-editing/`, and the graph the
-circuit walks moves to `circuit/routing.ts`.
+capabilities, so it was split: the rules of placement stay in `board-editing/placement.ts`, and the
+graph the circuit walks moves to `circuit/routing.ts`. Three modules shared a name with a component
+of their folder (`board.ts` and `Board.tsx`), which a case-insensitive file system reads as one
+name; they took the names `placement.ts`, `playhead-offset.ts` and `spectrum-bars.ts`.
 
-The cost, measured when the decision landed: four pairs of capabilities import each other
-(accessibility ↔ board-editing, board-editing ↔ board-fit, board-editing ↔ playback,
-musical-model ↔ pieces). Most of those edges are a `*.constants.ts` or a `*.types.ts` that two
-capabilities read. The PR that dissolves those files into their owner modules is where each edge
-gets an owner. No gate forbids a cycle between capabilities today.
+The cost, measured when the decision landed: no rule orders the modules of `src/`, so a cycle passes
+lint. A run of `import-x/no-cycle` found no cycle between files. Between capabilities, five pairs
+import each other: accessibility ↔ board-editing, board-editing ↔ board-fit, board-editing ↔
+musical-model, board-editing ↔ playback, and musical-model ↔ pieces. No gate forbids that today.

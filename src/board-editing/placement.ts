@@ -9,7 +9,7 @@ import type { PieceKey } from '../pieces/pieces.ts';
  * rule. The route between two cells belongs to the circuit: `circuit/routing.ts`.
  *
  * **That includes the size of the board.** This file imports no dimension: the dimensions
- * arrive as `Dims` because they come from the viewport, and only `ui/` sees the viewport.
+ * arrive as `Dims` because they come from the viewport, and only the UI sees the viewport.
  */
 
 /**
@@ -21,7 +21,7 @@ import type { PieceKey } from '../pieces/pieces.ts';
  * 5 x 5 y no 4 x 4 porque 5 es el lado de la caja mas chica que contiene cualquier
  * pentomino en cualquiera de sus 8 orientaciones —el maximo en un eje lo pone sola la
  * `I`, 5x1 acostada y 1x5 parada—, o sea que abajo de 5 hay piezas que no entran en
- * ninguna posicion. Es el mismo argumento que `MINI_BOX` en `ui/`, sobre otro
+ * ninguna posicion. Es el mismo argumento que `MINI_BOX` en `piece-mini.ts`, sobre otro
  * dibujo: aquel es la caja donde se dibuja la miniatura y este es el tablero, y coinciden
  * porque los dos tienen que contener a la `I`.
  *
@@ -121,7 +121,7 @@ export interface PlacedPiece {
  * **Es un parámetro y no una constante.** El tablero medía `GRID_W × GRID_H` = 10 × 6 y las
  * funciones del dominio lo leían de una constante; hoy mide lo que entra
  * en la pantalla —26 × 15 en un escritorio de 1920 × 1080— y quien lo sabe es la capa que
- * ve el viewport, que es `ui/`. El dominio no puede leerlo de ningún lado: se lo
+ * ve el viewport, que es la UI. El dominio no puede leerlo de ningún lado: se lo
  * tienen que decir.
  *
  * Lo reciben las tres funciones que miran el tablero como un todo —`isValid`,
@@ -192,7 +192,7 @@ export function isValid(cells: Cell[], placed: readonly PlacedPiece[], dims: Dim
  * `mcp-server/src/tools/simulateBoard.ts` ya hacia para distinguir `fuera-del-tablero` de
  * un choque.
  *
- * Vive en `domain/` y no adentro de `App.tsx` por la regla de `.claude/rules/ui.md` —el
+ * Vive en un módulo y no adentro de `App.tsx` por la regla de `.claude/rules/ui.md` —el
  * shell no lleva funciones puras—: aca se testea, y ahi no podria exportarse.
  */
 export function cabeEn(p: PlacedPiece, dims: Dims): boolean {
@@ -239,7 +239,7 @@ export function occupantAt(placed: readonly PlacedPiece[], x: number, y: number)
  * Existe para que la derivacion celda→nota no viva adentro de `Board.tsx`. El
  * argumento no es de costo —cinco comparaciones por celda es irrelevante, midiera el
  * tablero 60 celdas o 390— sino de cobertura: cuando se escribio,
- * `ui/` no tenia tests, asi que un `findIndex` ahi adentro dejaba verificado solo
+ * la UI no tenia tests, asi que un `findIndex` ahi adentro dejaba verificado solo
  * por captura el unico paso del que depende lo que se ve, y una captura no distingue un
  * mapeo correcto de uno corrido en uno. Hoy la capa tiene tests,
  * pero la pura sigue siendo mas barata de agotar que un render.

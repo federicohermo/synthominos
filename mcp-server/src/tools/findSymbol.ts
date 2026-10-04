@@ -65,7 +65,7 @@ export const findSymbol = defineTool({
     'de módulos distintos ni cuenta quince veces al archivo que lo llama quince veces; (2) los ' +
     'tests quedan afuera salvo que se pidan.\n' +
     '`usedBy` incluye los archivos de `mcp-server/` que dependen del dominio, con su prefijo de ' +
-    'ruta: tocar una firma de `src/<capability>/domain/` puede romper una tool, y esa arista cuenta.\n' +
+    'ruta: tocar una firma de `src/` puede romper una tool, y esa arista cuenta.\n' +
     'Se construye en la consulta y no se persiste: no hay archivo de índice que pueda quedar viejo. ' +
     'Para saber POR QUÉ algo está hecho así hay que leer el código igual — eso vive en los ' +
     'comentarios, no acá.',

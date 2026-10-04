@@ -104,7 +104,7 @@ delegated, because it needs the whole chain at once.
 Without it, N agents derive it N times from cold. Write it to a file with `Write`, and pass the
 absolute path. A heredoc breaks on the backticks and `$` of the content. It holds, distilled:
 
-- **The checkable conventions, 40 lines or fewer**, from `CLAUDE.md` and the rules of the layers
+- **The checkable conventions, 40 lines or fewer**, from `CLAUDE.md` and the rules of the folders
   the batch touches, with the line of `findings.md` marked: what a tool checks and what it does not.
 - **What was tried and failed** in the area, from the comments of each PR's issue:
   `gh issue view <N> --json comments`.

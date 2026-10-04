@@ -24,7 +24,7 @@ import type { RegimenDeRotacion } from '../../../src/musical-model/music.ts';
  * cuatro puras a mano sobre cinco pares de coordenadas, y nadie avisa si la
  * simulacion mental salio mal.
  *
- * Todo lo que se calcula viene de `src/<capability>/domain/`. Lo unico propio es el ASCII.
+ * Todo lo que se calcula viene de `src/`. Lo unico propio es el ASCII.
  */
 
 /**
@@ -94,7 +94,7 @@ export const describePiece = defineTool({
     'render ASCII con la celda de agarre marcada, la tónica, la fórmula de escala y las cinco ' +
     'notas MIDI con el retrógrado ya aplicado. Devuelve además `cellMap`: qué grado del arpegio y ' +
     'qué nota le toca a CADA celda, en el mismo orden que `cells`. Ejecuta las funciones reales de ' +
-    'src/<capability>/domain/, así que responde lo que suena hoy, no lo que decía la documentación.\n' +
+    'src/, así que responde lo que suena hoy, no lo que decía la documentación.\n' +
     'Tres trampas medidas que conviene tener presentes: (1) la letra describe la FORMA, no el ' +
     'sonido — la pieza F suena con tónica C, y la nota F le toca a la pieza T; (2) la reflexión ' +
     'siempre invierte las notas, pero a veces no se ve: en I y X deja la forma idéntica en las ' +

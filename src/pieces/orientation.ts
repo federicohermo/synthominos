@@ -6,7 +6,7 @@ import type { PieceKey } from './pieces.ts';
  *
  * Const-object + union derivado, que es la forma que este repo usa para todo conjunto
  * cerrado: **nunca un `enum`**, que el `erasableSyntaxOnly` del tsconfig rechaza —y que es
- * la misma opción que permite que node cargue `src/<capability>/domain/` sin compilar—.
+ * la misma opción que permite que node cargue `src/` sin compilar—.
  *
  * ## Qué cierra y qué no
  *
@@ -14,13 +14,13 @@ import type { PieceKey } from './pieces.ts';
  * `0|1|2|3` en siete lugares. Este tipo **no la cierra, la achica**, y la diferencia
  * importa para el que la lea después.
  *
- * Lo que queda abierto es el tramo de `domain/`: `rotateN`, `arpeggioFor` y
+ * Lo que queda abierto es el tramo del dominio: `rotateN`, `arpeggioFor` y
  * `PlacedPiece.rotation` siguen tomando `number`, y ése es el que cruza el borde de
  * paquete hacia `mcp-server/` —que importa 31 símbolos del dominio—, así que acotarlo es
  * un refactor con su propio spec.
  *
  * Lo que sí cierra es la **vía**: la rotación entra al modelo desde `Orientacion`, así que
- * con la fuente acotada `domain/` no puede recibir un valor fuera de `0..3` por acá. El
+ * con la fuente acotada el dominio no puede recibir un valor fuera de `0..3` por acá. El
  * escenario concreto está medido: con un índice de más, `base[j + rot]` daba
  * `undefined`, `midiName` no explotaba y la celda del tablero pintaba `undefinedNaN`.
  */
@@ -35,7 +35,7 @@ export interface Orientacion {
 /**
  * La orientación de cada una de las doce piezas.
  *
- * ## Por qué NO vive en un archivo de tipos de `domain/`
+ * ## Por qué NO vive en el modulo de `transform.ts`
  *
  * Porque no es del modelo: es **estado del shell**, y el modelo ya tiene su propia
  * representación de lo mismo. Una pieza colocada guarda su rotación y su reflexión en
@@ -44,7 +44,7 @@ export interface Orientacion {
  * una preferencia de quien toca y no un hecho del tablero.
  *
  * Que los dos tipos lleven los mismos dos campos es real y está anotado en
- * unificarlos es un refactor de `domain/` que cruza el borde de paquete
+ * unificarlos es un refactor del dominio que cruza el borde de paquete
  * con beneficio cero de comportamiento.
  */
 export type MemoriaDeOrientacion = Record<PieceKey, Orientacion>;

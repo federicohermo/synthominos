@@ -8,17 +8,17 @@ A behavior change changes its spec in the same PR. Each acceptance criterion has
 names it. If the code does not meet a criterion, fix the code. Never adjust the spec to match
 the code.
 
-## One direction of dependency
+## A folder per capability
 
-The code of each capability lives in `src/<capability>/`, with the name of its contract, and its
-layers are subfolders. In every capability, `domain/` and `audio/` never see each other, and `ui/`
-and `App.tsx` import from both. `import-x/no-restricted-paths` enforces the direction; the spec gate
-enforces that each folder has a contract.
+The code of each capability lives in `src/<capability>/`, a flat folder with the name of its
+contract; the spec gate enforces the link. `mcp-server/` imports from `src/` and never the reverse;
+`import-x/no-restricted-paths` enforces it.
 
-## The domain is pure
+## A rule of the instrument runs without a browser
 
-`domain/` uses no React, no Web Audio and no DOM, so it runs in the `node` test project. A rule
-that needs a browser to run is not a rule of the instrument: it is presentation.
+A rule of the instrument lives in a `.ts` module with no React, no Web Audio and no DOM, so it runs
+in the `node` test project. A rule that needs a browser to run is not a rule of the instrument: it
+is presentation.
 
 ## Time comes in as a parameter
 

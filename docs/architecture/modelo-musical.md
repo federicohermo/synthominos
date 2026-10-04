@@ -1,9 +1,9 @@
 # Modelo Musical
 
 Cómo se traduce una pieza colocada en cinco notas y en qué momento suena el recorrido que las conecta.
-Las cuatro primeras reglas viven en `src/<capability>/domain/` —`music.ts`, `transform.ts` y sus constantes— y no
-dependen de React ni de la capa de audio; la quinta también es dominio puro (`circuit/sequence.ts`), y es
-la única que cruza a la capa de audio — proyectada a una `Sequence` sin celdas, porque el motor no ve
+Las cuatro primeras reglas viven en `src/` —`music.ts`, `transform.ts` y sus constantes— y no
+dependen de React ni del motor de audio; la quinta también es dominio puro (`circuit/sequence.ts`), y es
+la única que cruza al motor — proyectada a una `Sequence` sin celdas, porque el motor no ve
 qué es un pentominó (ver [audio.md](./audio.md#el-recorrido-en-el-scheduler)).
 
 ## Las cinco reglas

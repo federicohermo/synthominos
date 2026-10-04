@@ -27,36 +27,14 @@ import { midiToHz } from './voice.ts';
  * las celdas que cruza entre una y otra suenan al pasar. En el dominio un cruce lleva
  * su celda ademas de su instante, porque alli el recorrido ES el modelo.
  *
- * Aca la celda igual no viaja, y hay que decir POR QUE, porque de las dos razones que
- * se le pueden poner vale una sola:
+ * Aca la celda no viaja: el motor sabe sonar alturas y no sabe que es un tablero. Lo
+ * que cruza es el numero MIDI, y no alcanza con contar los cruces: el recorrido puede
+ * pisar una celda OCUPADA y ese cruce suena la nota de la celda, asi que `clicks` lleva
+ * su `note` en MIDI.
  *
- * - **Vale** que no podria verla: `Cell` vive en el dominio y el override
- *   de eslint sobre esta capa prohibe importarlo, tambien como `import type` (usa la
- *   variante de typescript-eslint, que si ve los imports de tipo). Importarlo no
- *   romperia el navegador —los tipos se borran—: rompe `pnpm lint`, que es donde la
- *   separacion de capas se verifica de verdad.
- * - **NO vale** que para sonar alcance con contar. Eso seria cierto solo si todo
- *   cruce fuera un click sin altura, y no lo es: el recorrido puede pisar
- *   una celda OCUPADA y ese cruce suena la nota de la celda, asi
- *   que `clicks` lleva su `note` en MIDI.
- *
- * O sea que el numero MIDI cruza el borde y la coordenada no, y eso no es un
- * accidente: el motor sabe sonar alturas y no sabe que es un tablero.
- *
- * Las dos salidas faciles quedaron descartadas, y conviene que quede escrito por si
- * alguien las vuelve a proponer:
- *
- * - DUPLICAR `Cell` en esta capa deja dos definiciones que alguien tiene que
- *   mantener iguales a mano, que es exactamente lo que la regla de constantes del
- *   repo existe para evitar.
- * - AFLOJAR el override del linter compra comodidad tirando abajo la separacion que
- *   sostiene el grafo de imports.
- *
- * Por eso esta forma es la del dominio MENOS `pieceId` y MENOS `cell`:
- * `playback/engine-bridge.ts` es el unico puente entre las dos capas y entrega la secuencia
- * dejando caer esos campos. Vive en `ui/` porque es la unica capa que puede
- * importar los dos tipos `Sequence` —el override de eslint le prohibe a `domain/` ver
- * `audio/` y viceversa—, y es una PURA con test: escrita adentro del shell estaba
+ * Por eso esta forma es la del circuito MENOS `pieceId` y MENOS `cell`:
+ * `playback/engine-bridge.ts` es el unico puente entre las dos y entrega la secuencia
+ * dejando caer esos campos. Es una PURA con test: escrita adentro del shell estaba
  * dos veces y no se podia exportar ni verificar. Es una
  * PROYECCION, no una traduccion —los `offset`, los `notes` y la `note`
  * del cruce viajan tal cual, en MIDI y sin recalcularse—, y eso solo se sostiene

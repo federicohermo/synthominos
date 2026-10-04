@@ -37,7 +37,7 @@ source. Do not edit a copy by hand.
 
 ```text
 .agents/
-├── rules/                        one rule per layer; its `paths:` say which folders it covers
+├── rules/                        one rule per subject; its `paths:` say which folders it covers
 │   └── audio · comments · domain · mcp-server · specs · ui (.md)
 ├── skills/                       shape · to-issue · to-spec · implement-feature · implement-batch ·
 │                                   pr-review · pr-review-batch · review-spec-drift
@@ -70,8 +70,8 @@ The generated copies:
 |---|---|
 | `.agents/skills/` | `.claude/skills/` |
 | `.agents/rules/` | `.claude/rules/` |
-| each rule, by its `paths:` | the `AGENTS.md` of each folder it covers: `src/`, `mcp-server/`, `mcp-server/src/`, `specs/` |
-| each contract in `specs/` | `src/<capability>/AGENTS.md`, a pointer to the contract |
+| each rule, by its `paths:` | the `AGENTS.md` of each folder it covers: `src/`, the capability folders of the domain and audio rules, `mcp-server/`, `mcp-server/src/`, `specs/` |
+| each contract in `specs/` | the opening of `src/<capability>/AGENTS.md`: a pointer to the contract, before the rules of that folder |
 
 The root `AGENTS.md` is written by hand. A generated `AGENTS.md` starts with a comment that names
 its source.
@@ -121,166 +121,117 @@ Detail in [mcp-domain.md](../guides/mcp-domain.md).
 
 ## `src/`
 
-**`src/` is organized by capability.** Each folder under `src/` has the name of a contract in
-`specs/`, and it holds the code of that capability and nothing else. Inside a capability, the
-layers are subfolders: `domain/`, `audio/` and `ui/`. A capability has only the layers it needs.
-The shell stays at the root of `src/`.
+**`src/` is organized by capability, and each capability folder is flat.** Each folder under
+`src/` has the name of a contract in `specs/` and holds the code of that capability: its modules
+at the top, its tests in `__tests__/`. A constant or a type lives in the module that owns it, and
+that module exports it. The shell stays at the root of `src/`.
 
-The link goes both ways, and the spec gate verifies it: every folder under `src/` except the shell
-has a contract with its name, and every contract has a folder. Each capability folder holds a
-generated `AGENTS.md` that points at its contract.
+The spec gate verifies the link both ways: every folder under `src/` except the shell has a
+contract with its name, every contract has a folder, and a capability holds no subfolder but
+`__tests__/`. Each capability folder holds a generated `AGENTS.md`: the pointer to its contract,
+then the rules that cover the folder.
 
 ```text
 src/
-├── main.tsx                      # createRoot + StrictMode + import of styles/index.css
-├── App.tsx                       # the shell: state, derived values, handlers and composition. Zero effects
-├── vite-env.d.ts                 # Vite types
+├── main.tsx                  # createRoot + StrictMode + import of styles/index.css
+├── App.tsx                   # the shell: state, derived values, handlers and composition. Zero effects
+├── vite-env.d.ts             # Vite types
 ├── styles/
-│   └── index.css                 # @import "tailwindcss" + global body/code styles
-├── __tests__/                    # the app-level tests, and browser-setup.ts for the browser project
-├── AGENTS.md                     # generated from the layer rules: domain, audio, ui, comments
+│   └── index.css             # @import "tailwindcss" + global body/code styles
+├── __tests__/                # the app-level tests, and browser-setup.ts for the browser project
+├── AGENTS.md                 # generated from the rules for all of src/: ui, comments
 │
-├── pieces/                       # the 12 shapes, their orientation, and the checks of the model
-│   ├── domain/
-│   │   ├── transform.ts          # rotate90 · normalize · rotateN · reflect · centroid ·
-│   │   │                         #   angleFromCentroid · pathThroughCells
-│   │   ├── invariants.ts         # the seven checks of the model + checkAll
-│   │   ├── transform.ts    #   Cell
-│   │   ├── pieces.ts       #   PieceKey
-│   │   ├── pieces.ts   #   SHAPES · ANCHOR_INDEX
-│   │   └── invariants.ts #   ROTATIONS
-│   └── ui/
-│       ├── piece-mini.ts         # the shape of a piece centered in the 5×5 box of the palette,
-│       │                         #   rotated and reflected. Outside the .tsx so it can be tested
-│       ├── orientation.ts # ROTACION, the initial orientation and the twelve slots
-│       │                         #   derived from SHAPES
-│       ├── orientation.ts  # Rotacion · Orientacion · MemoriaDeOrientacion
-│       └── palette.ts  # the 12 colors and their text color (see DESIGN.md)
+├── pieces/                   # the 12 shapes, their orientation, and the checks of the model
+│   ├── pieces.ts             # PieceKey · SHAPES · ANCHOR_INDEX · CELLS_PER_PIECE
+│   ├── transform.ts          # Cell · rotate90 · normalize · rotateN · reflect · centroid ·
+│   │                         #   angleFromCentroid · pathThroughCells
+│   ├── invariants.ts         # the seven checks of the model + checkAll · ROTATIONS
+│   ├── orientation.ts        # Rotacion · Orientacion · the initial orientation and the twelve slots
+│   ├── palette.ts            # the 12 colors and their text color (see DESIGN.md)
+│   └── piece-mini.ts         # the shape of a piece centered in the 5×5 box of the palette ·
+│                             #   MINI_BOX · MINI_CELL_PX · MINI_PISTA_PX
 │
-├── board-editing/                # place, remove, mute, and the gestures that do it
-│   ├── domain/
-│   │   ├── placement.ts              # cellsAt · isValid · cabeEn · occupantAt · occupantCellIndex
-│   │   ├── placement.ts        #   PlacedPiece · Dims
-│   │   └── placement.ts    #   GRID_MIN · GRID_DEFAULT · MAX_PIEZAS
-│   │                             #   (the board size is a parameter)
-│   └── ui/
-│       ├── Board.tsx             # the grid that `dims` gives: color per piece, note per cell, and the
-│       │                         #   ghost that shows the same before placement
-│       ├── input.ts              # the decision for each input gesture: wheel, key, context menu
-│       │                         #   and click on a cell
-│       ├── use-input.ts          # the two input effects: keyboard and wheel. They receive callbacks,
-│       │                         #   not setters, and the tapLimpio of the shell
-│       ├── input.ts    # ACCION and EDICION: what a gesture can ask for
-│       └── input.ts        # Accion · Edicion · the event fields the pure functions read
+├── board-editing/            # place, remove, mute, and the gestures that do it
+│   ├── placement.ts          # PlacedPiece · Dims · GRID_MIN · GRID_DEFAULT · MAX_PIEZAS ·
+│   │                         #   cellsAt · isValid · cabeEn · occupantAt · occupantCellIndex
+│   ├── input.ts              # the decision for each input gesture: wheel, key, context menu
+│   │                         #   and click on a cell · ACCION · EDICION
+│   ├── use-input.ts          # the two input effects: keyboard and wheel
+│   └── Board.tsx             # the grid that `dims` gives: color per piece, note per cell, and the
+│                             #   ghost that shows the same before placement
 │
-├── board-fit/                    # how many cells fit in the screen, and the size of each one
-│   └── ui/
-│       ├── grid-fit.ts           # how many cells fit in the viewport and the size of each one.
-│       │                         #   Pure, outside the hook so it can be tested without a browser
-│       ├── use-grid.ts           # measures the root container, writes the cell into --cell and
-│       │                         #   returns the dimensions as state
-│       └── grid-fit.ts   # CELL_PX_OBJETIVO (the target size, 73) and the ratios that make
-│                                 #   the tile proportional · MINI_BOX · MINI_CELL_PX ·
-│                                 #   MINI_PISTA_PX · TEMPO_MIN · TEMPO_MAX · the two ratios of the
-│                                 #   cell focus ring
+├── board-fit/                # how many cells fit in the screen, and the size of each one
+│   ├── grid-fit.ts           # how many cells fit in the viewport · CELL_PX_OBJETIVO and the
+│   │                         #   ratios that make the tile proportional
+│   └── use-grid.ts           # measures the root container, writes the cell into --cell and
+│                             #   returns the dimensions as state
 │
-├── musical-model/                # the note of each cell
-│   ├── domain/
-│   │   ├── music.ts              # midiFor · midiName · notesForRotation · arpeggioFor ·
-│   │   │                         #   degreeByCellIndex · angularRank
-│   │   ├── music.ts        #   RegimenDeRotacion, derived from REGIMEN
-│   │   └── music.ts    #   CHROMATIC · PENT_* · BASE_MAP · DEFAULT_OCTAVE
-│   └── ui/
-│       ├── cell-text.ts          # what each cell shows: its note (by degree) and its #N (by step).
-│       │                         #   Outside the .tsx so it can be tested
-│       └── cell-text.ts    # CellText: what a cell shows
+├── musical-model/            # the note of each cell
+│   ├── music.ts              # RegimenDeRotacion · CHROMATIC · PENT_* · BASE_MAP · midiFor ·
+│   │                         #   midiName · notesForRotation · arpeggioFor · degreeByCellIndex
+│   └── cell-text.ts          # CellText: what each cell shows, its note (by degree) and its #N
+│                             #   (by step)
 │
-├── circuit/                      # the order of the pieces, the legs between them, the silences
-│   └── domain/
-│       ├── routing.ts            # costuraDe · routeBetween · rutador: the graph of the board and
-│       │                         #   the cheapest route between two cells
-│       ├── sequence.ts           # buildSequence (the circuit, Held-Karp, and the cycle offsets),
-│       │                         #   cellsByPlayOrder, gates (the two doors; simulate_board uses them)
-│       │                         #   and noteAtCell, the note on one cell
-│       ├── routing.ts      #   Ruta
-│       ├── routing.ts  #   CROSS_COST
-│       ├── sequence.ts     #   Step · Click · Sequence
-│       └── sequence.ts #   PASOS_MAX
+├── circuit/                  # the order of the pieces, the legs between them, the silences
+│   ├── routing.ts            # Ruta · CROSS_COST · costuraDe · routeBetween · rutador: the graph
+│   │                         #   of the board and the cheapest route between two cells
+│   └── sequence.ts           # Step · Click · Sequence · PASOS_MAX · buildSequence (the circuit,
+│                             #   Held-Karp, and the cycle offsets) · cellsByPlayOrder · gates ·
+│                             #   noteAtCell
 │
-├── playback/                     # the transport, and the sound in time
-│   ├── audio/                    # Web Audio; speaks MIDI, knows neither the domain nor the UI
-│   │   ├── voice.ts              # midiToHz · scheduleVoice · scheduleClick
-│   │   ├── scheduler.ts          # collectHits · collectWindow (the swap at the cycle end) ·
-│   │   │                         #   barDuration · intervalDuration
-│   │   ├── engine.ts             # singletons and the API the UI consumes
-│   │   ├── playhead-offset.ts           # offsetAt: the offset arithmetic of the playhead
-│   │   ├── voice.ts · scheduler.ts
-│   │   ├── voice.ts    #   the envelope, the three velocities and the click
-│   │   ├── scheduler.ts #  LOOKAHEAD · TICK_MS · the subdivision · HIT
-│   │   ├── engine.ts   #   MASTER_GAIN · DEFAULT_BPM · the two delays · the FFT
-│   │   └── __tests__/test-context.ts # render and measurement helpers (not a test)
-│   └── ui/
-│       ├── engine-bridge.ts      # the two pure functions of the bridge to the engine: proyectarAlMotor
-│       │                         #   (the only one in the repo that sees both Sequence types) and
-│       │                         #   alternarTransporte, which returns what the engine says
-│       ├── use-engine.ts         # the four reconciliation effects: tempo, clicks, the sequence
-│       │                         #   against the board, and unmount
-│       ├── engine-bridge.ts       # MotorDeTransporte · SequenceDelMotor
-│       ├── Playhead.tsx          # playhead: rAF + imperative style, no props
-│       ├── playhead-loop.ts      # the loop of the playhead and of the veil, outside the .tsx so it
-│       │                         #   can be exported and tested
-│       ├── playhead-loop.ts # the three border widths, their table by MarcaKind and the
-│       │                         #   veil classes
-│       ├── route-source.ts       # singleton outside React (not a component): mirrors the active/
-│       │                         #   pending pair of the engine with the domain Sequence, with cells
-│       ├── route-source.ts    # MARCA: the states of a cell under the playhead
-│       └── route-source.ts        # Marca · CeldaPorEstrenar
+├── playback/                 # the transport, and the sound in time
+│   ├── voice.ts              # the envelope, the velocities and the click · midiToHz ·
+│   │                         #   scheduleVoice · scheduleClick
+│   ├── scheduler.ts          # the engine Sequence · LOOKAHEAD · TICK_MS · HIT ·
+│   │                         #   CLOCK_START_DELAY · collectHits · collectWindow
+│   ├── engine.ts             # the AudioContext singletons and the API the UI consumes ·
+│   │                         #   DEFAULT_BPM · TEMPO_MIN · TEMPO_MAX
+│   ├── playhead-offset.ts    # offsetAt: the offset arithmetic of the playhead
+│   ├── engine-bridge.ts      # proyectarAlMotor (the only module that sees both Sequence types)
+│   │                         #   and alternarTransporte · MotorDeTransporte
+│   ├── use-engine.ts         # the four reconciliation effects: tempo, clicks, the sequence
+│   │                         #   against the board, and unmount
+│   ├── route-source.ts       # singleton outside React: the active/pending pair of the engine with
+│   │                         #   cells · MARCA · Marca
+│   ├── playhead-loop.ts      # the loop of the playhead and of the veil · the border widths
+│   └── Playhead.tsx          # playhead: rAF + imperative style, no props
 │
-├── spectrum/                     # the signal on screen
-│   ├── audio/
-│   │   └── spectrum-bars.ts           # pure mapping from FFT bins to bar heights
-│   └── ui/
-│       ├── Spectrum.tsx          # spectrum canvas: rAF + HiDPI, no props
-│       ├── spectrum-loop.ts      # the loop outside the .tsx: drawBars, drawIdle and iniciarEspectro
-│       └── spectrum-loop.ts # BAR_COUNT · GAP · MIN_BAR · IDLE_TEXT
+├── spectrum/                 # the signal on screen
+│   ├── spectrum-bars.ts      # pure mapping from FFT bins to bar heights
+│   ├── spectrum-loop.ts      # the loop: drawBars, drawIdle and iniciarEspectro · BAR_COUNT ·
+│   │                         #   GAP · MIN_BAR · IDLE_TEXT
+│   └── Spectrum.tsx          # spectrum canvas: rAF + HiDPI, no props
 │
-├── panels/                       # the dock and its two panels
-│   └── ui/
-│       ├── PiecePalette.tsx      # the floating dock, the composition of the two panels and the
-│       │                         #   two rows between them
-│       ├── OrientationPanel.tsx  # the twelve thumbnails, each one in ITS remembered orientation
-│       ├── TransportPanel.tsx    # tempo, play/pause, the empty-board tour and reset
-│       ├── orientation-text.ts   # the orientation in words, in two fragments: the visible line of
-│       │                         #   the panel and the aria-label of the thumbnails
-│       └── OrientationPanel.tsx        # PropsDeOrientacion · PropsDeTransporte
+├── panels/                   # the dock and its two panels
+│   ├── PiecePalette.tsx      # the floating dock, the composition of the two panels and the
+│   │                         #   two rows between them
+│   ├── OrientationPanel.tsx  # the twelve thumbnails · PropsDeOrientacion
+│   ├── TransportPanel.tsx    # tempo, play/pause, the empty-board tour and reset · PropsDeTransporte
+│   └── orientation-text.ts   # the orientation in words: the visible line of the panel and the
+│                             #   aria-label of the thumbnails
 │
-└── accessibility/                # keyboard and the accessible tree
-    └── ui/
-        └── cell-name.ts          # what each cell ANNOUNCES: its accessible name and the text of
-                                  #   the aria-live region for the three edits
+└── accessibility/            # keyboard and the accessible tree
+    └── cell-name.ts          # what each cell ANNOUNCES: its accessible name and the text of
+                              #   the aria-live region for the three edits
 ```
 
-Each layer folder has a `__tests__/` with one test per module, next to its subject. A file belongs to
-the capability whose criteria its tests cite. A module that serves two capabilities lives in the one
-that owns its rule, and the other imports it.
+A file belongs to the capability whose criteria its tests cite. A module that two capabilities use
+lives in the one that owns its rule, and the other imports it.
 
-## The dependency direction
+## What the tools require
 
-This rule orders everything else, and **the linter verifies it**, not review:
+There is no layer rule. Three constraints come from the tools, and the tools check them:
 
-```text
-inside every capability:   domain/ and audio/ import nothing from ui/ or from the shell
-                           domain/ imports nothing from any audio/; audio/ nothing from any domain/
-                           ui/ and App.tsx import from both
-between domain modules:    transform ← board · routing · music ← sequence · invariants
-```
+- **A `.tsx` exports its component and nothing else** (`react-refresh/only-export-components`). Logic
+  that a test or another module needs goes in a `.ts` module.
+- **The MCP server loads the modules it imports with plain node.** A module it imports cannot touch
+  React, the DOM or an `AudioContext` when it loads. `pnpm mcp:test` fails if one does.
+- **A test picks its project by suffix:** `*.browser.test.tsx` runs in Chromium, the rest in node.
 
-`domain/` and `audio/` are **siblings with no edge between them**: the engine speaks MIDI numbers and
-does not know what a pentomino is. A forbidden import fails `pnpm lint` with the message of its zone
-in `eslint.config.js`. The zones are globs over every capability (`src/*/domain/**`), so a new
-capability is covered on its own. The order between the domain modules is a list of module paths,
-because those modules live in different capabilities. The reason for each rule is in
-[conventions.md](../guides/conventions.md).
+`mcp-server/` imports from `src/` and never the reverse; a lint zone in `eslint.config.js` enforces
+it. No rule orders the modules of `src/` among themselves. A run of `import-x/no-cycle` found no
+cycle when the layer rules left; [conventions.md](../guides/conventions.md) has the reason the rule
+stays off.
 
 All files in `src/` are live. The leftovers of the Create React App and Vite templates (`App.css`,
 `logo.svg`, `assets/react.svg`, `setupTests.ts`) were deleted. This sentence keeps them from coming
@@ -354,7 +305,7 @@ the handler moved to a pure function (`engine-bridge.ts`) that receives the engi
 
 `pieces/__tests__/palette.test.ts` tests constants, runs in the `node` project and mounts
 nothing. The logic does not live in the components either: the derivation from `(x, y)` to the note
-name that `Board` shows is in the `domain/` layers (`occupantCellIndex` · `degreeByCellIndex` ·
+name that `Board` shows is in pure modules (`occupantCellIndex` · `degreeByCellIndex` ·
 `playOrderByCellIndex` · `notesForRotation` · `midiName`), and the `.tsx` only indexes the result.
 
 **Chaining those functions is a decision too, so the chain left the `.tsx`.** It lives in
@@ -387,18 +338,17 @@ back to. When one exists, the rule goes as `rewrites` in `vercel.json`, not as a
 
 ## Where to create each thing
 
-The base rule: **a file lives in the capability that owns it, in the folder of its layer.** A module
-holds functions; its data, types and fixed values sit next to it in `<module>.constants.ts` and
-`<module>.types.ts`. A new capability starts as a contract in `specs/`, and only then as a folder.
+The base rule: **a file lives in the capability that owns it, at the top of its folder.** A module
+holds its functions and the constants and types it defines, and exports what others read. A new
+capability starts as a contract in `specs/`, and only then as a folder.
 
 | Role | Folder | File |
 |---|---|---|
-| logic of one concern | `src/<capability>/<layer>/` | `<module>.ts` |
-| type that crosses a boundary | next to its module | `<module>.types.ts` |
-| data or fixed value | next to its module | `<module>.constants.ts` |
-| test of a module | `<capability>/<layer>/__tests__/` | `<module>.test.ts` |
-| test helper | `<capability>/<layer>/__tests__/` | descriptive name (`test-context.ts`) |
-| component | `src/<capability>/ui/` | `PascalCase.tsx`, **single export** |
+| logic of one concern | `src/<capability>/` | `<module>.ts` |
+| a type or a fixed value | the module that owns it | exported from `<module>.ts` |
+| test of a module | `src/<capability>/__tests__/` | `<module>.test.ts` |
+| test helper | `src/<capability>/__tests__/` | descriptive name (`test-context.ts`) |
+| component | `src/<capability>/` | `PascalCase.tsx`; it exports the component, and may export its props type |
 | new UI state | `useState` inside `App()` | there is no global state, and none is needed |
 | audio effect | `playback/use-engine.ts`, next to the other four | see [audio.md](./audio.md) |
 | hook that wires a module | next to the module | `use-<module>.ts`, kebab-case like the rest |
@@ -412,18 +362,21 @@ holds functions; its data, types and fixed values sit next to it in `<module>.co
 | rule, skill or harness script | `.agents/` | then `node .agents/scripts/sync.ts` |
 | new MCP server tool | `mcp-server/src/tools/` | `<tool>.ts` + one line in `tools/index.ts` |
 | new MCP server resource | `mcp-server/src/resources/` | `<resource>.ts` + one line in `resources/index.ts` |
-| rule the server must execute | `src/<capability>/domain/` | **not** in `mcp-server/`: it is a change to `src/`, in its own commit |
+| rule the server must execute | its capability in `src/` | **not** in `mcp-server/`: it is a change to `src/`, in its own commit |
 
-**A role folder is created with its first file.** There is no `schemas/`, `utils/` or `hooks/`:
-they would be empty, and an empty folder is ceremony. There is no `lib/` or `shared/` at all: a
-helper belongs to a capability. The growth table (which folder appears
-on which trigger) is in [conventions.md](../guides/conventions.md).
+**A capability folder holds no subfolder but `__tests__/`.** There is no `lib/`, `shared/`,
+`utils/`, `hooks/`, `constants/` or `types/`: a helper belongs to a capability, and a value to its
+module. The spec gate rejects a subfolder, and the linter rejects a `*.constants.ts`, a
+`*.types.ts` or a role folder. The growth table (what appears on which trigger) is in
+[conventions.md](../guides/conventions.md).
 
 ## Naming
 
-- **Components**: `PascalCase.tsx`, one component per file and no other export.
+- **Components**: `PascalCase.tsx`, one component per file.
+- **Modules**: kebab-case `.ts`. A module never shares its name with a component of the same folder
+  (`placement.ts` next to `Board.tsx`): a case-insensitive file system reads `board.ts` and
+  `Board.tsx` as one name, and the TypeScript project service drops one of them.
 - **Pure functions and utilities**: `camelCase`.
-- **Domain constants**: `SCREAMING_SNAKE_CASE` (`SHAPES`, `BASE_MAP`, `ANCHOR_INDEX`, `MAX_PIEZAS`).
+- **Constants**: `SCREAMING_SNAKE_CASE` (`SHAPES`, `BASE_MAP`, `ANCHOR_INDEX`, `MAX_PIEZAS`).
 - **Types and interfaces**: `PascalCase` (`Cell`, `PieceKey`, `PlacedPiece`).
-- **Role files**: repeat the name of their module with the role suffix
-  (`transform.ts` → `transform.ts`, `transform.constants.ts`, `__tests__/transform.test.ts`).
+- **Test files**: repeat the name of their module (`transform.ts` → `__tests__/transform.test.ts`).

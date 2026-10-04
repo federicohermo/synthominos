@@ -45,15 +45,14 @@ import type { MemoriaDeOrientacion, Orientacion } from "./pieces/orientation.ts"
  * en que se fueron colocando.
  *
  * Este archivo es el shell: estado, derivados, handlers y la composicion — y CERO
- * efectos. La geometria, la musica y las reglas del tablero viven en
- * `src/<capability>/domain/`; el sonido en `src/<capability>/audio/`; el JSX, en los componentes de
- * `src/<capability>/ui/`; y el puente con el motor, en `playback/use-engine.ts` (los cuatro
+ * efectos. La geometria, la musica, las reglas del tablero, el sonido y los
+ * componentes viven en su capacidad, `src/<capability>/`; y el puente con el motor, en `playback/use-engine.ts` (los cuatro
  * de reconciliacion) y `board-editing/use-input.ts` (los dos de entrada).
  *
  * Que los seis salieran de aca no fue prolijidad: en un `.tsx`
  * `react-refresh/only-export-components` prohibe exportar cualquier cosa que no sea el
  * componente, asi que nada de lo que viviera en este archivo podia testearse. Es el
- * mismo mecanismo por el que nacio `domain/`.
+ * mismo mecanismo por el que la logica vive en modulos `.ts`.
  *
  * Ver docs/architecture/modelo-musical.md y docs/architecture/audio.md.
  */
@@ -192,7 +191,7 @@ export default function App() {
   // El efecto que la escribe vive en `board-fit/use-grid.ts` y no aca: desde el spec
   // 022 este shell **no declara un solo `useEffect`**, y un listener de `resize` es
   // exactamente el caso que `.claude/rules/ui.md` ya resuelve —el listener global vive en
-  // un hook de `ui/`, con el `ref` creado en el shell—. El precedente literal es
+  // un hook `use-*.ts`, con el `ref` creado en el shell—. El precedente literal es
   // `useRuedaRota` recibiendo `boardRef`.
   const raizRef = useRef<HTMLDivElement | null>(null);
   // El hook **contesta** ademas de escribir: cuanto mide el tablero en

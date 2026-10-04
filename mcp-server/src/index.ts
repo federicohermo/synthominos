@@ -17,7 +17,7 @@ import { resources } from './resources/index.ts';
  * persiste—, asi que sigue sin haber artefacto que alguien tenga que regenerar.
  *
  * Los imports de `src/` llevan `.ts` explicito, y eso NO es cosmetico: node los
- * necesita para resolver. Un import sin extension dentro de `src/<capability>/domain/` rompe
+ * necesita para resolver. Un import sin extension dentro de `src/` rompe
  * este server y **no** rompe la app, porque Vite resuelve igual — un modo de
  * falla asimetrico que ataja `pnpm mcp:test`.
  */

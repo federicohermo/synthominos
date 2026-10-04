@@ -131,7 +131,7 @@ dice de dónde sale `describe`, que es lo que se pierde con las globales.
 ### No suena nada
 
 1. **¿Hubo un click primero?** `ctx.resume()` necesita un gesto del usuario. Nada suena hasta el
-   primer click en el tablero. Verificable: `(await import('/src/playback/audio/engine.ts')).audio().state`
+   primer click en el tablero. Verificable: `(await import('/src/playback/engine.ts')).audio().state`
    debe decir `'running'`, no `'suspended'`.
 2. **¿Web Audio está disponible?** `audio()` falla de forma suave: loguea `"Web Audio no disponible"` y
    devuelve `null`. La app queda usable pero muda. Revisar la consola.
@@ -162,7 +162,7 @@ está en el docblock de `proyectarAlMotor`.
 Para ver la secuencia activa desde la consola:
 
 ```js
-(await import('/src/playback/audio/engine.ts')).sequenceInfo()
+(await import('/src/playback/engine.ts')).sequenceInfo()
 ```
 
 ## MCP server
@@ -178,7 +178,7 @@ Casi siempre es **un import sin extensión dentro de `src/`**. El server corre c
 necesita el `./music.constants.ts` completo; Vite resuelve igual sin la extensión, así que el error
 **no rompe la app** y solo aparece del lado del server.
 
-Es un modo de falla asimétrico y está verificado: sacándole el `.ts` a un import de `src/<capability>/domain/`, el
+Es un modo de falla asimétrico y está verificado: sacándole el `.ts` a un import de `src/`, el
 server muere con este error y `pnpm build` termina en verde.
 
 **Solución:** poner la extensión. La regla está en
@@ -189,7 +189,7 @@ todo el repo, y no solo sobre lo que el server llega a importar.
 
 El server importó un `.tsx`. El type-stripping de node no transforma JSX: **`App.tsx` y los componentes
 son inalcanzables desde el server, y no es cuestión de configuración.** Si una tool necesita algo que
-hoy vive en un `.tsx`, eso tiene que bajar a `src/<capability>/domain/` primero — en su propio commit.
+hoy vive en un `.tsx`, eso tiene que bajar a `src/` primero — en su propio commit.
 
 ### El server arranca pero Claude Code no lo ve
 

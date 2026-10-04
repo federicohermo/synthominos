@@ -5,13 +5,12 @@ import type { Sequence } from '../circuit/sequence.ts';
  * Las dos puras del puente con el motor: proyectar la secuencia, y alternar el
  * transporte preguntándole qué pasó.
  *
- * Vive en `ui/` y no en `domain/` ni en `audio/` porque es el único lugar
- * del repo que puede importar los dos `Sequence`: el override de eslint le prohíbe
- * a cada una de esas dos capas ver a la otra, también como `import type`. Es el
- * mismo argumento por el que `route-source.ts` vive acá.
+ * Es el único módulo que conoce los dos `Sequence`: el del circuito, con celdas, y el
+ * del motor, que habla MIDI. `route-source.ts` hace el mismo cruce para la cabeza
+ * lectora.
  *
  * Sin React y sin importar el motor: por eso su test corre en
- * `environment: 'node'` como los otros cinco de esta capa. El cableado con React y
+ * `environment: 'node'` como los otros módulos puros de la UI. El cableado con React y
  * con `playback/engine.ts` es de `use-engine.ts`, que no toma ninguna decisión.
  *
  * Los dos `Sequence` chocan de nombre, así que uno viaja con alias, y el alias va
@@ -60,9 +59,8 @@ export interface MotorDeTransporte {
  *
  * Acá se PROYECTA, no se traduce (D7, D8, AC12). `offset`, `notes` y la
  * `note` MIDI del cruce viajan tal cual; lo que se cae es `pieceId` —el motor no
- * tiene a quién devolvérselo— y `cell` en los clicks: el motor no puede ver `Cell`,
- * que vive en `domain/` y el override de eslint sobre `audio/**` lo prohíbe importar
- * incluso como `import type`. La `note` sí cruza, porque es un número MIDI y el motor
+ * tiene a quién devolvérselo— y `cell` en los clicks: el motor habla MIDI y no
+ * conoce `Cell`. La `note` sí cruza, porque es un número MIDI y el motor
  * habla MIDI: el recorrido puede pisar una celda ocupada y ese
  * cruce suena su altura, así que no alcanza con contar los clicks.
  * Convertirla a Hz es del motor —lo hace `collectHits`, igual que con `steps.notes`—:

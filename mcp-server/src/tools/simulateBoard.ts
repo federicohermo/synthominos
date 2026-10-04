@@ -283,7 +283,7 @@ export const simulateBoard = defineTool({
     const n = seq.order.length;
 
     // La proyeccion a la `Sequence` del MOTOR, que no lleva `pieceId` ni `cell`:
-    // `src/<capability>/audio/**` tiene prohibido importar `Cell` (AC12), asi que las dos formas
+    // el motor habla MIDI y no conoce `Cell`, asi que las dos formas
     // son distintas a proposito. `App.tsx` hace esta misma proyeccion por su cuenta
     // y la duplicacion es aceptada: esta tool existe para reproducir lo que hace la
     // app CON LAS MISMAS funciones, y sacarla a un helper compartido romperia

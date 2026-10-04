@@ -28,7 +28,7 @@ import { centroid, angleFromCentroid, pathThroughCells } from '../pieces/transfo
  * el porque de que existan los dos.
  *
  * Derivado del const-object y no un `enum`: `erasableSyntaxOnly` rechaza los enums, y
- * es la misma opcion que permite que node cargue `src/<capability>/domain/` sin compilar. Es el
+ * es la misma opcion que permite que node cargue `src/` sin compilar. Es el
  * mismo patron que `HitKind` sobre `HIT` y `MarcaKind` sobre `MARCA` — un conjunto
  * cerrado se escribe una sola vez, como valores, y el tipo se deriva.
  *
@@ -67,7 +67,7 @@ export const PENT_BLUES5: number[] = [0,3,5,6,7];
  * comparar seria comparar dos instrumentos distintos.
  *
  * Const-object y no `enum`: `erasableSyntaxOnly` los rechaza, y es la misma opcion que
- * permite que node cargue `src/<capability>/domain/` sin compilar —de lo que viven el MCP server y
+ * permite que node cargue `src/` sin compilar —de lo que viven el MCP server y
  * las mediciones del research—. El union type derivado es `RegimenDeRotacion`, en este mismo archivo.
  */
 export const REGIMEN = { escala: 'escala', orden: 'orden' } as const;

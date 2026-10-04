@@ -6,7 +6,7 @@ import type { PieceKey } from '../pieces.ts';
 /**
  * AC7: el texto de cada celda contrasta con el color de su pieza.
  *
- * Es el primer test de `ui/` y es PURO: constantes y aritmetica, sin DOM y
+ * Es el primer test de la UI y es PURO: constantes y aritmetica, sin DOM y
  * sin React. Corre en el `environment: 'node'` que ya usa el resto del repo.
  *
  * La formula esta reimplementada aca a proposito. Si `palette.ts`

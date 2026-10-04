@@ -56,7 +56,7 @@ El porqué de cada decisión, con las mediciones que la respaldan, está en
   sonar alcance con contar clicks**: `clicks` es `{ offset: number; note?: number }[]`.
   `proyectarAlMotor` (`playback/engine-bridge.ts`) sigue llevando `buildSequence(placed, regimen)`
   a esa versión antes de que `use-engine.ts` la pase a `setSequence`. Es D7/D8 del spec 009 más la
-  ampliación del 011, y lo verifica `pnpm lint` con el override de capa.
+  ampliación del 011.
 - **El swap de secuencia al cerrar el ciclo (spec 009) tiene la misma trampa que `startClock`.** Al
   reemplazar la secuencia activa por la pendiente hay que bajar `scheduledUntil` a estrictamente
   **antes** del nuevo `origin`, o el primer onset del ciclo nuevo se pierde en silencio sin ningún

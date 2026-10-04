@@ -7,10 +7,10 @@ of five notes. The piece identity and its orientation give the notes.
 
 ### Architecture
 
-- [Overview](./architecture/overview.md): the four layers, their dependency direction and the stack
+- [Overview](./architecture/overview.md): the capabilities, the shell and the stack
 - [Directory structure](./architecture/directory-structure.md): what exists, and what is dead
 - [Musical model](./architecture/modelo-musical.md): piece → tonic, rotation → scale **or** order by regime, reflection → retrograde
-- [Audio layer](./architecture/audio.md): Web Audio graph, ADSR envelope, lookahead scheduler
+- [Audio](./architecture/audio.md): Web Audio graph, ADSR envelope, lookahead scheduler
 - [Constitution](./architecture/constitution.md): the non-negotiable principles
 - [Decisions](./architecture/decisions/): why each big choice was made, one ADR per decision
 
@@ -44,7 +44,7 @@ of five notes. The piece identity and its orientation give the notes.
 | React | 19.x | UI library |
 | TypeScript | 5.8 | Static types |
 | Tailwind CSS | 4.x | Utility-first styles, through `@tailwindcss/vite` |
-| Web Audio | n/a | Synthesis and scheduling, no library (`src/<capability>/audio/`) |
+| Web Audio | n/a | Synthesis and scheduling, no library (`src/`) |
 
 ---
 

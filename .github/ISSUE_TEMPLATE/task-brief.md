@@ -34,8 +34,8 @@ labels: ""
 
 ## Contract
 
-<!-- Only if new signatures, types or data appear. Each one with its layer (`domain/`, `audio/`,
-     `ui/`, `mcp-server/`) and its return type. The failure case sits next to the
+<!-- Only if new signatures, types or data appear. Each one with its module (`src/<capability>/<module>.ts`
+     or `mcp-server/`) and its return type. The failure case sits next to the
      success case. -->
 
 ## File boundaries

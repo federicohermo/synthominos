@@ -181,7 +181,7 @@ export const ANILLO_FOCO_CLARO_RAZON = AIRE_RAZON;
  *
  * ## Los mínimos son un piso duro
  *
- * `GRID_MIN` sale de `domain/`: 5 × 5 es la caja más chica donde entra cualquier pentominó
+ * `GRID_MIN` sale de `placement.ts`: 5 × 5 es la caja más chica donde entra cualquier pentominó
  * en cualquier orientación. Abajo de eso hay piezas de la paleta que no se podrían colocar
  * en ningún lado, así que en un viewport que no dé para 5 celdas de 73 px lo que cede es el
  * tamaño de la celda (320 × 568 → 64 px) y nunca la cantidad.

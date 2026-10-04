@@ -8,7 +8,7 @@ paths:
 
 # Capa de dominio
 
-Pure: no React, no Web Audio, no DOM. Each capability has its own `domain/` folder:
+The modules of the model are pure: no React, no Web Audio, no DOM.
 `pieces/transform.ts` (geometry) and `invariants.ts` (the checks),
 `board-editing/placement.ts` (the rules of placement), `musical-model/music.ts` (the
 musical model), and `circuit/routing.ts` (the graph of the board) and `sequence.ts` (the
@@ -131,7 +131,7 @@ la pieza `T`. La letra describe la forma, no el sonido.
 
 Detalle en [docs/architecture/modelo-musical.md](../../docs/architecture/modelo-musical.md).
 
-## Después de tocar esta capa
+## Después de tocar el modelo
 
 `check_invariants` del MCP server ejecuta los chequeos sobre las 96 orientaciones y devuelve
 contraejemplos — antes y después de tocar geometría, `SHAPES` o el modelo musical.

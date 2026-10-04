@@ -8,8 +8,8 @@ import { grillaPara } from './grid-fit.ts';
  * Mide el contenedor raíz y contesta **cuánto mide el tablero**, escribiendo de paso el
  * tamaño de celda en la custom property `--cell`.
  *
- * Es el tercer hook de entrada de `ui/`, junto a los dos, y está acá
- * por la misma regla: **el listener global vive en un hook de `ui/`, en un efecto
+ * Es el tercer hook de entrada de la UI, junto a los dos, y está acá
+ * por la misma regla: **el listener global vive en un hook `use-*.ts`, en un efecto
  * propio**, con el `ref` creado en el shell. `App.tsx` no declara un solo `useEffect` desde
  * el 022 y este spec no lo cambia — lo único que agrega al shell es un `ref` y una llamada.
  *
