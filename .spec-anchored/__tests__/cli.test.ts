@@ -150,9 +150,29 @@ describe('validate-scope and validate-result', () => {
   });
 });
 
+describe('resolve-policy', () => {
+  it('prints the effective policy and the hash that a bundle must carry', () => {
+    const profile = run('resolve-policy', 'supervised-local/v1');
+    expect(profile.code).toBe(0);
+    expect(JSON.parse(profile.stdout())).toMatchObject({
+      policy: { profile_id: 'supervised-local/v1', denied_path_patterns: [] }, policy_sha256: BUNDLE.policy_sha256 });
+
+    const overlay = JSON.parse(run('resolve-policy', 'overlay.json').stdout()) as { policy: { denied_path_patterns: string[] }; policy_sha256: string };
+    expect(overlay.policy.denied_path_patterns).toEqual(['src/circuit/secret/**']);
+    expect(overlay.policy_sha256).toBe(hashJson(resolvePolicy(strictJsonLoads(FILES['overlay.json']))));
+    expect(overlay.policy_sha256).not.toBe(BUNDLE.policy_sha256);
+  });
+
+  it('refuses an object that is not an issued policy', () => {
+    const { code, err } = run('resolve-policy', 'doc.json');
+    expect(code).toBe(1);
+    expect(err.join('')).toContain('a policy object must name a known profile_id');
+  });
+});
+
 describe('a wrong call exits 2, and a file that cannot be read exits 1', () => {
   it.each([
-    [[], 'expected one of: canonicalize, build-approval, verify-approval, validate-scope, validate-result'],
+    [[], 'expected one of: canonicalize, build-approval, verify-approval, validate-scope, validate-result, resolve-policy'],
     [['explode'], 'expected one of:'],
     [['canonicalize'], 'canonicalize: expected 1 file argument(s)'],
     [['canonicalize', 'plan.md', '--loud'], 'canonicalize: unknown option --loud'],

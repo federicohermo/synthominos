@@ -10,6 +10,7 @@ node .spec-anchored/spec-anchored.ts build-approval <bundle.json> --policy <prof
 node .spec-anchored/spec-anchored.ts verify-approval <record.json> --bundle <bundle.json> --policy <profile|file>
 node .spec-anchored/spec-anchored.ts validate-scope --manifest <file> --changes <file> [--nul] --profile <profile|file>
 node .spec-anchored/spec-anchored.ts validate-result <result.json>
+node .spec-anchored/spec-anchored.ts resolve-policy <profile|file>
 ```
 
 Exit 0 is acceptance, 1 is a refusal, 2 is a wrong call. A file named `-` is the standard input.
@@ -22,6 +23,7 @@ Node ≥ 22.18 runs the `.ts` files with no build.
 | `verify-approval` | That an approval record binds to that bundle, that run and that repository |
 | `validate-scope` | That every path of a `git diff --name-status` is inside the approved scope manifest |
 | `validate-result` | That a run's `result.json` meets the contract of its terminal |
+| `resolve-policy` | The effective policy of a profile or of a policy file, and the `policy_sha256` a bundle must carry |
 
 These commands prove that an artifact is well formed and consistent. They do not prove that a PR,
 a commit or a review exists.
@@ -60,5 +62,8 @@ Python kernel gave (Python 3.13.7): every upstream call, every hand-written case
 that add an outcome. `python-kernel.test.ts` asserts that the port still gives them, to the byte.
 The fixtures are frozen evidence. A deliberate change to a rule of the kernel removes the cases it
 contradicts and adds a test in `kernel.test.ts`, with the reason in the commit.
+
+`resolve-policy` is the one command the original does not have. There, a caller imports the
+Python module to hash a resolved policy. It adds no rule: it prints what `resolvePolicy` returns.
 
 The upstream mutation script (`tests/test-mutants.py`) is not ported: Stryker mutates the port.

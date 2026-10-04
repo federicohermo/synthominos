@@ -1,0 +1,15 @@
+{
+  "base_profile": "orchestrated-autonomous/v1",
+  "overlay": {
+    "authorized_scope_roots": [
+      "src/circuit"
+    ],
+    "max_scope_roots": 1,
+    "max_recursive_scope_patterns": 1,
+    "max_exact_paths": 10,
+    "allowed_operations": [
+      "M",
+      "A"
+    ]
+  }
+}

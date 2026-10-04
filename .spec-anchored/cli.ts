@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import {
-  CANON_ALGO, PROFILES, buildApproval, canonicalJsonBytes, canonicalTextBytes, parseNameStatus, resolvePolicy,
+  CANON_ALGO, PROFILES, buildApproval, canonicalJsonBytes, canonicalTextBytes, hashJson, parseNameStatus, resolvePolicy,
   validateResult, validateScope, verifyApproval, type ResolvedPolicy,
 } from './kernel.ts';
 import { ContractViolation, InputError, json, prettyJson, sha256Hex, strictJsonLoads } from './pyjson.ts';
@@ -13,6 +13,11 @@ import { ContractViolation, InputError, json, prettyJson, sha256Hex, strictJsonL
  *   verify-approval <record> --bundle <file> --policy <profile|file>
  *   validate-scope --manifest <file> --changes <file> [--nul] --profile <profile|file>
  *   validate-result <file>
+ *   resolve-policy <profile|file>
+ *
+ * `resolve-policy` is not in the Python original. It prints the effective policy and the
+ * `policy_sha256` that an approval bundle must carry: a policy file with an overlay does not hash
+ * to its own bytes.
  *
  * A file named `-` is the standard input. Exit 0 is acceptance, 1 is a refusal, 2 is a wrong call.
  */
@@ -35,6 +40,7 @@ const COMMANDS: Record<string, { readonly positional: number; readonly options: 
     required: ['--manifest', '--changes', '--profile'],
   },
   'validate-result': { positional: 1, options: {}, required: [] },
+  'resolve-policy': { positional: 1, options: {}, required: [] },
 };
 const CHOICES: Record<string, readonly string[]> = { '--kind': ['json', 'text'], '--emit': ['hash', 'bytes'] };
 
@@ -86,8 +92,9 @@ function run({ command, files, options }: Call, io: Io): number {
   const document = (path: string) => strictJsonLoads(io.read(path));
   const option = (name: string) => options.get(name) as string;
   // A policy is a profile id, or the artifact a launcher issued. It is resolved exactly once.
-  const policy = (name: string): ResolvedPolicy =>
-    resolvePolicy(PROFILES.has(option(name)) ? option(name) : document(option(name)));
+  const resolve = (reference: string): ResolvedPolicy =>
+    resolvePolicy(PROFILES.has(reference) ? reference : document(reference));
+  const policy = (name: string) => resolve(option(name));
 
   if (command === 'canonicalize') {
     const text = io.read(files[0]);
@@ -114,6 +121,12 @@ function run({ command, files, options }: Call, io: Io): number {
     const changes = parseNameStatus(io.read(option('--changes')), options.has('--nul'));
     return report(io, validateScope(manifest, changes, policy('--profile')),
       `OK - ${changes.length} changed path(s) within the approved scope`);
+  }
+  if (command === 'resolve-policy') {
+    const resolved = resolve(files[0]);
+    io.out(`${prettyJson(json({ policy: resolved, policy_sha256: hashJson(resolved) }))}
+`);
+    return 0;
   }
   return report(io, validateResult(document(files[0])), 'OK - result satisfies the terminal contract');
 }
