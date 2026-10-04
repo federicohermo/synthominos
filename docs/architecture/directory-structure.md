@@ -247,8 +247,8 @@ grep -rq "App.css" src --include="*.tsx" --include="*.ts" --include="*.css"
 `pnpm test` runs Vitest in **two projects and one command**. The split is not by layer. It is by what
 the test needs:
 
-- **`node`**: `environment: 'node'` against `node-web-audio-api`, over **seven** roots. There are 41
-  files: 20 in `src/`, 4 in the root `__tests__/`, 3 in `docs/`, 1 in `specs/`, 1 in
+- **`node`**: `environment: 'node'` against `node-web-audio-api`, over **seven** roots. There are 42
+  files: 21 in `src/`, 4 in the root `__tests__/`, 3 in `docs/`, 1 in `specs/`, 1 in
   `.claude/scripts/`, 2 in `eslint-rules/` and 10 in `.agents/scripts/`. The domain is pure and the
   audio has a native Web Audio implementation, so both run there with no adaptation. A test that is
   **not** the test of a module reads a file **from disk**: the browser project serves its own document
