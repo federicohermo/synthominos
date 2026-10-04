@@ -15,7 +15,7 @@ instrument more expressive?
 ## Commands
 
 - **`pnpm verify` is the convergence node.** Run it before every PR; CI runs the same script. It
-  runs `lint ‖ typecheck ‖ suite ‖ mcp:test`. `suite` is two Vitest passes; the second one gates
+  runs `lint ‖ typecheck ‖ suite ‖ mcp:test`, then the time budgets alone. `suite` gates
   coverage at **100** on all four metrics, with zero exceptions. Detail:
   [verification](./docs/guides/verification.md).
 - **The verdict comes from the exit code**, never from a grep of the output.

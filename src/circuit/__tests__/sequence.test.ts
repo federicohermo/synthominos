@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildSequence, cellsByPlayOrder, gates, noteAtCell } from '../sequence.ts';
-import { cellsAt, isValid, GRID_DEFAULT } from '../../board-editing/placement.ts';
+import { isValid, GRID_DEFAULT } from '../../board-editing/placement.ts';
 import { routeBetween, CROSS_COST } from '../routing.ts';
 import {
   degreeByCellIndex,
@@ -11,37 +11,13 @@ import {
   REGIMEN,
 } from '../../musical-model/music.ts';
 import { rotateN, reflect } from '../../pieces/transform.ts';
-import { SHAPES, ANCHOR_INDEX, CELLS_PER_PIECE } from '../../pieces/pieces.ts';
+import { SHAPES, CELLS_PER_PIECE } from '../../pieces/pieces.ts';
 import type { Cell } from '../../pieces/transform.ts';
 import type { PieceKey } from '../../pieces/pieces.ts';
 import type { PlacedPiece } from '../../board-editing/placement.ts';
+import { place as colocar, TWELVE as DOCE } from './tiling.ts';
 
 const PIECES = Object.keys(SHAPES) as PieceKey[];
-
-/**
- * La cadena de colocacion COMPLETA, igual a la de la app: rotar, reflejar si toca, y
- * bajar la celda de agarre a `(x, y)`.
- *
- * Se replica en vez de simplificarse porque las puertas se leen por indice sobre
- * `p.cells`, y una forma armada de otra manera verificaria un mapeo que la app nunca
- * produce.
- *
- * La pieza NO lleva sus notas: las deriva `buildSequence` con `arpeggioFor`. El oraculo
- * de este archivo las compone a mano (`notaEsperada`) para no verificar una funcion
- * contra si misma.
- */
-const colocar = (piece: PieceKey, rot: number, mirror: boolean, x: number, y: number, muted = false): PlacedPiece => {
-  const base = rotateN(SHAPES[piece], rot);
-  const shape = mirror ? reflect(base) : base;
-  return {
-    id: piece,
-    piece,
-    rotation: rot,
-    mirror,
-    cells: cellsAt(shape, ANCHOR_INDEX[piece], x, y),
-    muted,
-  };
-};
 
 /**
  * El arpegio que le corresponde a una pieza colocada, compuesto a mano: `BASE_MAP` +
@@ -102,30 +78,6 @@ const pasosEntre = (a: PlacedPiece, b: PlacedPiece, board: readonly PlacedPiece[
   rutaEntre(a, b, board).steps;
 
 const misma = (a: Cell, b: Cell): boolean => a[0] === b[0] && a[1] === b[1];
-
-/**
- * Un teselado del tablero entero con las 12 piezas.
- *
- * No sale de colocar al azar: teselar 10x6 con las 12 piezas es un exact cover, y
- * 200 intentos aleatorios dieron 0 tableros completos (`research.md` del 009).
- * Sus PREFIJOS son tableros validos de 1 a 12 piezas, y con eso alcanza para las
- * propiedades que hay que medir sobre muchos tableros sin meter azar en un test.
- *
- * **El de antes no era un teselado de las 12 piezas**, y no podia serlo: hasta el spec
- * 036 la `Z` era la `N` reflejada, asi que este tablero se cubria con DOS `N` y ninguna
- * `Z`. El de ahora sale de resolver el exact cover con las doce formas ya distintas
- * —el 10x6 tiene 2.339 soluciones—, no de acomodar piezas a ojo.
- *
- * El ORDEN del array se dejo como estaba, y no es estetica: `PREFIJOS` corta este
- * array, asi que el orden es lo que define los doce tableros intermedios sobre los que
- * mide medio archivo.
- */
-const TESELADO: [PieceKey, number, boolean, number, number][] = [
-  ['F', 1, true, 1, 1], ['I', 0, false, 3, 0], ['L', 1, true, 5, 1], ['P', 2, false, 8, 5],
-  ['N', 2, true, 2, 2], ['Y', 3, true, 0, 4], ['Z', 0, false, 8, 2], ['U', 0, false, 6, 2],
-  ['W', 2, true, 2, 4], ['T', 2, false, 4, 4], ['X', 0, false, 6, 4], ['V', 0, true, 9, 0],
-];
-const DOCE = TESELADO.map(([p, r, m, x, y]) => colocar(p, r, m, x, y));
 
 /** Los 12 tableros de 1 a 12 piezas que salen de cortar el teselado. */
 const PREFIJOS = DOCE.map((_, i) => DOCE.slice(0, i + 1));
@@ -866,183 +818,6 @@ describe('determinismo', () => {
         .sort()[0];
       expect(ordenDe(board).join(','), `${board.length} piezas`).toBe(lexmin);
     }
-  });
-});
-
-describe('el tablero lleno', () => {
-  // ## Los dos presupuestos de abajo NO corren bajo coverage, y el motivo esta medido
-  //
-  // v8 instrumenta insertando contadores en cada rama, y estos dos tests son justamente
-  // los que mas ramas ejecutan del repo: 144 Dijkstras sobre 60 celdas. Medido el
-  // 2026-08-20 sobre esta misma suite: **11,3 ms** contra el techo de 5 del AC10 y
-  // **6,8 ms** contra el de 4 del AC8, o sea entre 2,3x y 3,7x. Sin instrumentar pasan
-  // los dos con el margen de siempre.
-  //
-  // Un presupuesto de performance medido sobre un build instrumentado no mide el
-  // producto: mide el instrumento. Por eso `suite` son DOS pasadas y no una: `pnpm test`
-  // primero, que corre estos dos sobre un build limpio, y `pnpm coverage` despues, que
-  // mide cobertura. Encadenadas adentro del mismo nodo desde el 029 —no en paralelo, que
-  // volvia a romper el presupuesto por contencion de CPU—. La env var la inyecta
-  // `vite.config.ts`, que es el unico lugar que ve con que flags arranco vitest.
-  //
-  // ## Y tampoco corren en CI, por la MISMA razon
-  //
-  // Es el segundo entorno donde el numero no habla del producto. Aca no es la
-  // instrumentacion: es que el runner de Actions es una VM compartida sin numero propio.
-  //
-  // Medido cuando el 023 puso `pnpm verify` en un runner limpio por primera vez —cada
-  // celda es la mediana de 21 corridas que el test ya calcula, no una muestra suelta:
-  //
-  //            esta maquina   runner #1   runner #2
-  //     AC10       2,00 ms     8,426 ms   15,687 ms
-  //     AC8        1,31 ms     6,324 ms    3,803 ms
-  //
-  // Mismo codigo y mismo workflow entre las dos corridas del runner: **1,86x de
-  // variacion** en AC10 y 0,60x en AC8. No es lentitud constante que se compense
-  // subiendo el techo — se intento, con 10 y 8, y la corrida siguiente rompio el 10
-  // igual.
-  //
-  // Por eso no hay techo que sirva. Para cubrir el pico de 15,7 ms haria falta ~30, y
-  // contra los 2,0 ms de esta maquina eso deja el presupuesto **15x por encima de lo
-  // medido**: un test que no puede fallar. Se elige conservar el numero donde es
-  // confiable antes que conservar el test donde no lo es — que es exactamente el mismo
-  // criterio que el parrafo de arriba aplica al build instrumentado.
-  //
-  // Lo que se pierde, dicho sin adornos: la CI **no** verifica estos dos presupuestos.
-  // Los verifica `pnpm verify` local, que es donde los techos de 5 y 4 significan algo.
-  // Un rojo de aca sigue siendo una regresion de verdad.
-  const BAJO_COVERAGE = !!process.env.COVERAGE;
-  // `CI` la pone GitHub Actions sola en todo runner; no hay que declararla en el YAML.
-  const EN_CI = !!process.env.CI;
-  const NO_ES_MEDIBLE = BAJO_COVERAGE || EN_CI;
-
-  it.skipIf(NO_ES_MEDIBLE)('AC-CIR-023 — 12 piezas se resuelven en menos de 5 ms (mediana de 21 corridas)', () => {
-    // Mediana y no una sola corrida: una pausa de GC en una maquina cargada se come el
-    // margen entero. La mediana de 21 deja 10 corridas para que se la coman sin que el
-    // test parpadee.
-    //
-    // 12 es el peor caso POSIBLE, no el tipico: hay 12 pentominos libres y no se
-    // repiten, asi que `O(n^2 * 2^n)` esta acotado por las reglas del juego.
-    const seq = buildSequence(DOCE, REGIMEN.escala, GRID_DEFAULT);
-    expect(seq.steps).toHaveLength(12);
-
-    const corridas: number[] = [];
-    for (let i = 0; i < 21; i++) {
-      const t0 = performance.now();
-      buildSequence(DOCE, REGIMEN.escala, GRID_DEFAULT);
-      corridas.push(performance.now() - t0);
-    }
-    corridas.sort((a, b) => a - b);
-    const mediana = corridas[10];
-    // Se imprime a proposito: un AC de tiempo que solo dice "paso" no deja ver que el
-    // margen se este comiendo. Medido en esta maquina: 2,0 ms, 2,5x por debajo del
-    // tope. Era 0,620 ms antes — la matriz de costos paso de 144 restas a
-    // 144 Dijkstras, y ese es el precio del recorrido que esquiva.
-    console.log(`AC10 — mediana de 21 corridas con 12 piezas: ${mediana.toFixed(3)} ms`);
-    expect(mediana).toBeLessThan(5);
-  });
-
-  it.skipIf(NO_ES_MEDIBLE)('AC-CIR-024 — el MISMO presupuesto sobre el tablero de una pantalla de 1920x1080', () => {
-    // El presupuesto de arriba mide 12 piezas sobre 60 celdas. El tablero
-    // sale del viewport, asi que el peor caso realista de escritorio es **26 x 15 = 390
-    // celdas**, 6,5 veces mas grande — y el Dijkstra de `routeBetween` es `O(N^2)`.
-    //
-    // Entra en los mismos 5 ms por la cache de distancias por destino: las 144 corridas
-    // pasan a ser 12. Medido sin ella eran **10,9 ms**, o sea que este test es el que
-    // sostiene que la cache no es una optimizacion prematura sino la que hace posible el
-    // tablero grande.
-    const GRANDE = { w: 26, h: 15 };
-    // Las mismas 12 piezas, cada una en su propio bloque de 6 x 5: normalizadas al origen
-    // entran en 5 x 5 —es la caja de `GRID_MIN`, y por el mismo motivo— asi que cuatro
-    // columnas de bloques por tres filas dan las doce sin que se toquen, y quedan repartidas
-    // por todo el tablero. Eso es lo caro: los tramos entre puertas cruzan la pantalla.
-    const doce = DOCE.map((p, i) => {
-      const x0 = Math.min(...p.cells.map(([x]) => x));
-      const y0 = Math.min(...p.cells.map(([, y]) => y));
-      const dx = (i % 4) * 6 - x0;
-      const dy = Math.floor(i / 4) * 5 - y0;
-      return { ...p, cells: p.cells.map(([x, y]): Cell => [x + dx, y + dy]) };
-    });
-    for (let i = 0; i < doce.length; i++) {
-      expect(isValid(doce[i].cells, doce.slice(0, i), GRANDE), `${i}`).toBe(true);
-    }
-    expect(buildSequence(doce, REGIMEN.escala, GRANDE).steps).toHaveLength(12);
-
-    const corridas: number[] = [];
-    for (let i = 0; i < 21; i++) {
-      const t0 = performance.now();
-      buildSequence(doce, REGIMEN.escala, GRANDE);
-      corridas.push(performance.now() - t0);
-    }
-    corridas.sort((a, b) => a - b);
-    const mediana = corridas[10];
-    console.log(`031 AC6 — mediana de 21 corridas con 12 piezas en 390 celdas: ${mediana.toFixed(3)} ms`);
-    // **El techo es 8 y el AC dice 5**, y la diferencia no es el producto sino el vecino.
-    // Medido en esta maquina: **3,1 ms** corriendo este archivo solo —o sea que el AC se
-    // cumple— y **5,39 ms** adentro de `pnpm verify`, donde hay cuatro nodos peleandose la
-    // CPU. Es exactamente el modo de falla que el AC8 de al lado ya documenta, y que le
-    // hizo subir su techo de 2 a 4: la mediana sube por contencion sin que nada este mal.
-    //
-    // Se elige subir el techo y no sacar el test de `verify`: lo que hay que atrapar es
-    // una regresion de ORDEN —perder la cache y volver a 10,9 ms, o dejar entrar una pieza
-    // 13 y pasar a 3,7— y para eso 8 alcanza de sobra. El numero fino lo dice el
-    // `console.log` de arriba, que es para lo que esta.
-    expect(mediana).toBeLessThan(8);
-  });
-
-  it.skipIf(NO_ES_MEDIBLE)('la matriz de 12x12 rutas se mantiene despreciable (mediana de 21 corridas)', () => {
-    // El pedazo que encarecio el cruce, medido aparte y con su propio tope: son las
-    // 144 rutas con las que `buildSequence` arma la matriz que ordena el circuito. El
-    // 009 hacia 144 restas; hoy son 144 Dijkstras sobre 60 celdas.
-    //
-    // El teselado es el peor caso posible: 60 celdas ocupadas, o sea ninguna donde el
-    // camino pueda ahorrarse el peso.
-    const puertas = DOCE.map(gates);
-    const matriz = (): number => {
-      let acc = 0;
-      for (const desde of puertas) for (const hasta of puertas) acc += routeBetween(desde.salida, hasta.entrada, DOCE, GRID_DEFAULT).steps;
-      return acc;
-    };
-    // Cinco corridas de calentamiento y no una: la primera pasa por el interprete y
-    // mide el arranque del JIT, no la matriz.
-    for (let i = 0; i < 5; i++) matriz();
-
-    const corridas: number[] = [];
-    for (let i = 0; i < 21; i++) {
-      const t0 = performance.now();
-      matriz();
-      corridas.push(performance.now() - t0);
-    }
-    corridas.sort((a, b) => a - b);
-    // ## El tope es 4 y el AC dice 2, y la diferencia NO es holgura regalada
-    //
-    // Medido en esta maquina: **1,31 ms** bajo `pnpm vitest run src/domain` y 0,68 ms
-    // con node crudo, o sea que contra los 2 ms del AC el margen real es 1,5x y no el
-    // 6x que sugeria el `research.md` §6 con su 0,31 ms. Esos 0,31 ms se midieron sobre
-    // un BFS de referencia que NO materializa el camino ni desempata lexicograficamente
-    // (D7), que es la mitad de lo que `routeBetween` tiene que hacer: la referencia y la
-    // implementacion no median lo mismo.
-    //
-    // Y con 2 el test PARPADEA en el unico lugar donde de verdad corre. `pnpm verify`
-    // lanza lint, typecheck, test y mcp:test **en paralelo**, y ahi la mediana sube a
-    // 2,10-2,35 ms por competencia de CPU: medido, 2 de cada 3 corridas de `verify` en
-    // rojo contra 3 de 3 en verde aislado. Un test que se cae dos de cada tres veces en
-    // el nodo de convergencia del repo no mide rendimiento, mide carga de la maquina —
-    // y entrena a leer el rojo como ruido, que es el peor resultado posible.
-    //
-    // 4 ms sostiene igual lo que el AC afirma —que el pedazo que este spec encarecio
-    // sigue siendo despreciable— porque el techo real de la operacion completa es el
-    // test de al lado: `buildSequence` con 12 piezas bajo 5 ms, que incluye a esta
-    // matriz MAS el Held-Karp de 1,87 ms del 009. Una matriz que se acercara a 4 ms
-    // reventaria ese test antes que este.
-    //
-    // Si algun dia hay que bajarlo de vuelta a 2, el sospechoso es el escaneo del minimo
-    // de `routeBetween`: se probo una cola por baldes y salio PEOR (1,41 ms), porque a
-    // 60 nodos las tres arrays que hay que alocar por llamada cuestan mas que las 3.600
-    // iteraciones que ahorran. El `console.log` deja el numero real a la vista en cada
-    // corrida, que es lo que permite ver una regresion mucho antes de que toque el tope.
-    console.log(`AC8 — matriz de 144 rutas con 12 piezas: ${corridas[10].toFixed(3)} ms`);
-    expect(corridas[10]).toBeLessThan(4);
   });
 });
 

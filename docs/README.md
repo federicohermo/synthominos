@@ -56,8 +56,8 @@ pnpm build    # tsc -b && vite build
 pnpm lint     # ESLint (flat config v9)
 pnpm preview  # Serves the build from dist/
 pnpm test     # Vitest: the two projects, without instrumentation
-pnpm suite    # test, then coverage with threshold 100; this is what verify runs
-pnpm verify   # lint ‖ typecheck ‖ suite ‖ mcp:test: the convergence node
+pnpm suite    # coverage with threshold 100; this is what verify runs
+pnpm verify   # lint ‖ typecheck ‖ suite ‖ mcp:test, then the time budgets: the convergence node
 pnpm mcp:test # MCP server: typecheck + tests with node --test
 ```
 

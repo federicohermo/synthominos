@@ -119,8 +119,9 @@ pnpm verify > <temp-dir>/verify.log 2>&1; echo "exit=$?"
 Read the verdict from the exit code, never from a grep. If it is red:
 
 1. Is the failing test in a file the PR touches? Then it is yours: fix it.
-2. If not, and it is a performance budget or a wall-clock test, run `pnpm test` alone. These tests
-   measure the machine, and a busy machine fails them.
+2. If not, and it is a time budget or a wall-clock test, run it alone: `pnpm run budgets` for a
+   budget, the file for a wall-clock test. These tests measure the machine, and a busy machine
+   fails them.
 3. Green alone: continue, and report both runs with the test name.
 4. Red again: do not push. Report it.
 

@@ -156,7 +156,8 @@ PRs went red on the first run, always in clock tests, always in files the PR did
 three were fine.
 
 1. Is the failing test in a file the PR touches? Then it is yours: fix it.
-2. If not, and it is a budget or a wall clock, run `pnpm test` alone.
+2. If not, and it is a budget or a wall clock, run it alone: `pnpm run budgets` for a budget,
+   the file for a wall-clock test.
 3. Green: continue, and report both runs with the test name.
 4. Red again: do not push. Report it as a blocker of the batch, not of the PR.
 

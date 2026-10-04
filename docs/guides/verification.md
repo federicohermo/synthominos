@@ -10,8 +10,9 @@ from start to end.
 
 ## `pnpm verify` is the convergence node
 
-It runs `lint ‖ typecheck ‖ suite ‖ mcp:test` in parallel. Run it before every PR. Measured with a
-warm cache: **41.2 s in series against 23.7 s in parallel**. A red node returns exit 1.
+It runs `lint ‖ typecheck ‖ suite ‖ mcp:test` in parallel, then the time budgets alone. Run it
+before every PR. Measured with a warm cache, before the budgets had their own step: **41.2 s in
+series against 23.7 s in parallel**. A red node returns exit 1.
 
 **It does not depend on memory.** `.github/workflows/verify.yml` runs it on each `pull_request` and
 on each push to `staging` and `main`. The workflow installs Chromium itself.
@@ -35,23 +36,27 @@ green:
   Vitest without a TTY does not enter watch mode. The visible cost is duplicate work. In an
   interactive terminal it waits for input. The anchor removes the question.
 
-## `suite` is TWO Vitest passes, in sequence and not in parallel
+## The time budgets run alone, after everything else
 
-First `test` runs without instrumentation. Then `coverage` runs, with a threshold of **100** on all
-four metrics. Two measured reasons decide the shape:
+`suite` is one Vitest run, with coverage and a threshold of **100** on all four metrics. The time
+budgets of the circuit are not in it. They are the `budget` project, `*.budget.test.ts`, and
+`verify` runs it by itself when the parallel block ends. Two measurements decide the shape:
 
-- **Instrumentation measures the instrument.** v8 inserts a counter in each branch. The two
-  performance budgets of the circuit go from 1.8 ms to **11.3 ms** against a ceiling of 5 ms. A
-  `skipIf` skips them under coverage, and the clean pass verifies the budget **locally**. The same
-  `skipIf` skips them when `CI` is set. The Actions runner gave **8.4 ms and 15.7 ms** in two runs
-  of the same commit. It is not a slow machine with its own number. It is a VM without a stable
-  number, and no ceiling means anything there. The cost, stated next to the `skipIf`: **CI does not
-  verify these two budgets.** The `verify` on your machine does.
-- **In sequence, because in parallel the budget also fails, for a different reason.** Five heavy
-  processes compete for CPU, the median goes up, and `verify` went red with nothing wrong. The
-  comment of AC8 in `sequence.test.ts` documents the same failure mode, from when its ceiling went
-  from 2 to 4. A chain leaves **four** concurrent nodes, the same contention as before the second
-  pass existed. The budget then measures what it says it measures.
+- **Instrumentation measures the instrument.** v8 counts each branch. Under it the first budget
+  goes from 1.8 ms to **11.3 ms**, against a ceiling of 5 ms.
+- **Contention measures the machine.** Next to lint, typecheck and the MCP suite the median goes
+  up with nothing wrong in the product. The budget of the large board gave **8.07 ms** in one run
+  of `verify` in three, against 3.1 ms alone
+  ([#107](https://github.com/federicohermo/synthominos/issues/107)). Its ceiling had already gone
+  from 5 to 8 for this reason, and the contract says 5.
+
+`suite` was two passes, a clean one and an instrumented one, only so that the budgets had a clean
+run. With the budgets in their own step, the clean pass verified nothing more, and it is gone.
+
+**CI does not verify the budgets**: a `skipIf` skips them when `CI` is set. The Actions runner
+gave **8.4 ms and 15.7 ms** in two runs of the same commit. It is not a slow machine with its own
+number. It is a VM without a stable number, and no ceiling means anything there. The `verify` on
+your machine does verify them.
 
 ### Why the threshold is 100 and not 95
 

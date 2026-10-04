@@ -53,8 +53,9 @@ pnpm lint           # ESLint
 pnpm preview        # Serves dist/ the way production does
 pnpm test           # Vitest: the two projects, without instrumentation
 pnpm coverage       # Vitest with coverage, threshold 100 on all four metrics
-pnpm suite          # test, then coverage: this is what verify runs
-pnpm verify         # lint ‖ typecheck ‖ suite ‖ mcp:test: the convergence node
+pnpm suite          # coverage: this is what verify runs
+pnpm budgets        # the time budgets of the circuit, alone
+pnpm verify         # lint ‖ typecheck ‖ suite ‖ mcp:test, then budgets: the convergence node
 pnpm mcp:test       # MCP server: typecheck + node --test, threshold 100
 pnpm mcp:typecheck  # MCP server: tsc only
 ```

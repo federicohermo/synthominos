@@ -5,13 +5,10 @@ import tailwindcss from '@tailwindcss/vite'
 import { playwright } from '@vitest/browser-playwright'
 
 /**
- * Si esta corrida esta instrumentada.
+ * Whether this run is instrumented. It sets the test timeout, below.
  *
- * Se lee de `process.argv` porque es el unico lugar donde el dato existe cuando se arma
- * la config: los workers no ven los flags con los que arranco vitest, y un
- * `COVERAGE=1 vitest` adelante del comando no funciona en Windows —`cross-env` seria una
- * dependencia nueva para dos lineas—. Gobierna dos cosas, las dos con el mismo motivo:
- * bajo instrumentacion se mide el instrumento y no el producto.
+ * It is read from `process.argv` because that is the only place that holds the fact when the
+ * config is built. A `COVERAGE=1 vitest` in front of the command does not work on Windows.
  */
 const BAJO_COVERAGE = process.argv.some(a => a.startsWith('--coverage'))
 
@@ -20,9 +17,9 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   test: {
     /**
-     * Dos proyectos y UN comando: `pnpm test` sigue corriendo todo, asi que el nodo
-     * de convergencia sigue convergiendo. Partirlo en `test` y `test:browser` haria
-     * que `verify` reporte verde habiendo corrido la mitad.
+     * Three projects. `node` and `browser` run in ONE command: a `test` and a
+     * `test:browser` would let `verify` report green after it ran half. `budget` runs
+     * alone, and its block below says why.
      *
      * El corte no es por capa sino por lo que el test NECESITA:
      *
@@ -78,6 +75,20 @@ export default defineConfig({
             '.agents/scripts/__tests__/*.test.ts',
             '.spec-anchored/__tests__/*.test.ts',
           ],
+          // The time budgets are a project of their own, below.
+          exclude: ['**/*.budget.test.ts'],
+        },
+      },
+      {
+        // The time budgets. `pnpm verify` runs this project ALONE, after its parallel block: a
+        // median measured next to lint, typecheck and the MCP suite goes up by contention, with
+        // nothing wrong in the product (#107). `test` and `coverage` name the two other
+        // projects, so neither runs it: under the counters of v8 a budget measures the counters.
+        extends: true,
+        test: {
+          name: 'budget',
+          environment: 'node',
+          include: ['src/**/__tests__/*.budget.test.ts'],
         },
       },
       {
@@ -109,15 +120,6 @@ export default defineConfig({
       },
     ],
 
-    // Los workers no ven los flags con los que arranco vitest, y hay dos tests
-    // —los presupuestos de performance del 009— que necesitan saber si estan
-    // corriendo instrumentados: bajo v8 miden 11,3 ms contra un techo de 5, o
-    // sea que medirian el instrumento y no el producto. Se pasa por `env` y no
-    // por el script de npm porque un `COVERAGE=1 vitest` adelante del comando no
-    // funciona en Windows, y `cross-env` seria una dependencia nueva para dos
-    // lineas.
-    env: { COVERAGE: BAJO_COVERAGE ? '1' : '' },
-
     // ## El timeout se afloja bajo coverage, y no es pereza
     //
     // v8 instrumenta insertando contadores en cada rama, y los tests combinatorios del
@@ -127,10 +129,8 @@ export default defineConfig({
     // `verify` compitiendo por CPU al mismo tiempo, eso lleva a alguno de esos tests por
     // encima de los 5 s del default y lo pone en rojo **sin que nada este mal**.
     //
-    // Un rojo espurio en el nodo de convergencia es peor que no tener el nodo: entrena a
-    // leer el rojo como ruido. El presupuesto de TIEMPO sigue verificandose donde
-    // corresponde —`pnpm test`, sin instrumentar, con sus techos de 5 y 4 ms—; aca lo
-    // unico que se mide es cobertura.
+    // A false red in the convergence node is worse than no node: it teaches people to read
+    // red as noise. Time is still checked where it means something, in the `budget` project.
     testTimeout: BAJO_COVERAGE ? 30_000 : 5_000,
 
     coverage: {

@@ -241,8 +241,8 @@ grep -rq "App.css" src --include="*.tsx" --include="*.ts" --include="*.css"
 
 ### Tests
 
-`pnpm test` runs Vitest in **two projects and one command**. The split is not by layer. It is by what
-the test needs:
+`pnpm test` runs Vitest in **two projects and one command**. A third project, `budget`, holds the
+time budgets and runs alone. The split is not by layer. It is by what the test needs:
 
 - **`node`**: `environment: 'node'` against `node-web-audio-api`, over **seven** roots. There are 42
   files: 21 in `src/`, 4 in the root `__tests__/`, 3 in `docs/`, 1 in `specs/`, 1 in
