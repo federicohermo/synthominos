@@ -1,0 +1,83 @@
+# The two gates of the implementation protocol that `verify` does not run.
+#
+# They are jobs of their own because neither belongs in the convergence node. `pnpm verify` is
+# what a person runs before each PR, and it must stay a few minutes long:
+#
+#   - `secrets` needs the whole history and a binary that is not in the lockfile.
+#   - `mutation` takes minutes for one file and much longer for many. It runs on the files a PR
+#     changes, not on the tree.
+#
+# What each one decides is in docs/guides/verification.md.
+name: hardening
+
+on:
+  pull_request:
+  # The same two branches as `verify`: a commit can reach a shared branch with no PR, as a
+  # `hotfix:`, and a secret in it is still a secret.
+  push:
+    branches: [staging, main]
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      # The whole history: a secret that a later commit deletes is still in the repo.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # A pinned release, checked against the checksum its publisher prints. A secret is an
+      # incident, not a count to bring down: this job blocks from its first run, and a finding is
+      # answered by rotating the secret, never by adding it to an allowlist.
+      - name: Install gitleaks 8.30.1
+        run: |
+          curl -sSfLO https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks_8.30.1_linux_x64.tar.gz" | sha256sum --check
+          tar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks
+
+      - run: ./gitleaks git --no-banner --redact .
+
+  mutation:
+    # Only a PR has a base to compare with.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      # The whole history: the target is the diff from the merge base with the base branch.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      # The same exact version as `verify`, for the same reason: the runtime of a gate does not
+      # move by itself.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.18.0
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The files this PR changed that the `mutate` list of stryker.config.json covers. Stryker
+      # does not intersect the two: a `--mutate` on its command line replaces the list.
+      #
+      # The branch name and the file names reach the shell through `env`, never through `${{ }}`
+      # inside `run`: a PR chooses its file names, and an expression is pasted into the script
+      # before the shell reads it.
+      - name: Find the eligible target
+        id: target
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: echo "files=$(node .agents/scripts/mutation-target.ts "origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
+
+      # No Chromium here: Stryker runs the `node` project only. A changed file that only a
+      # browser test covers is not in the target, and the PR body names it.
+      - name: Mutate the eligible target
+        if: steps.target.outputs.files != ''
+        env:
+          FILES: ${{ steps.target.outputs.files }}
+        run: pnpm mutation --mutate "$FILES"

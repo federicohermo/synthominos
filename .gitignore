@@ -39,3 +39,7 @@ dist-ssr
 # The state of a run of the implementation protocol: logs, approvals, evidence, handoffs.
 # The PR and the issue are the durable record. See .agents/protocols/implementation-protocol.md.
 .agent-runs/
+
+# What a mutation run writes: the sandbox of Stryker and its report. `pnpm mutation`.
+.stryker-tmp/
+reports/

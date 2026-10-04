@@ -155,6 +155,8 @@ export default tseslint.config([
   globalIgnores([
     'dist', '.claude/worktrees', '.claude/skills', '.claude/rules', '.claude/agents', '.codex',
     '.agents/skills/*/scripts', '*/**/AGENTS.md',
+    // What a mutation run writes: the sandbox, which is a copy of the repo, and the report.
+    '.stryker-tmp', 'reports',
   ]),
 
   {
@@ -645,4 +647,29 @@ export default tseslint.config([
       }],
     },
   },
+
+  {
+    // The cyclomatic complexity of each function of the product, at most 10. It is the
+    // complexity gate of the implementation protocol: the two hardening agents work under it.
+    //
+    // It covers the product and not the harness. The kernel in `.spec-anchored/` keeps the
+    // shape of the Python functions it ports, and one function per contract there is the
+    // property that lets a reader compare the two.
+    files: ['src/**/*.{ts,tsx}', 'mcp-server/src/**/*.ts'],
+    rules: { complexity: ['error', 10] },
+  },
+  // The files that were over 10 on 2026-10-04, each with the value measured that day as its
+  // ceiling. A ceiling goes down when the function gets simpler. It never goes up, and no file
+  // joins this list: a new function over 10 is split.
+  ...[
+    ['src/board-editing/Board.tsx', 22],
+    ['src/board-editing/input.ts', 17],
+    ['src/pieces/invariants.ts', 16],
+    ['src/pieces/transform.ts', 15],
+    ['src/circuit/sequence.ts', 13],
+    ['src/playback/playhead-loop.ts', 12],
+    ['src/playback/__tests__/test-context.ts', 12],
+    ['src/circuit/routing.ts', 11],
+    ['mcp-server/src/symbols.ts', 25],
+  ].map(([file, ceiling]) => ({ files: [file], rules: { complexity: ['error', ceiling] } })),
 ])

@@ -45,7 +45,7 @@ const existe = (ruta: string) => existsSync(ruta);
  * cada `.md` del proyecto se verifica una vez de mas por cada tarea en paralelo que
  * este corriendo, y el test pasa a depender de si hay una.
  */
-const IGNORADOS = new Set(['node_modules', 'dist', '.git', 'worktrees', '__screenshots__']);
+const IGNORADOS = new Set(['node_modules', 'dist', '.git', 'worktrees', '__screenshots__', '.stryker-tmp']);
 
 const caminar = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((e) => {

@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "`mutate` is the eligible target of the implementation protocol: every module that the node test project covers alone, and the kernel. The six modules of src/ it leaves out by name are covered only in Chromium, and Stryker cannot run the browser project. mcp-server/ is out because its tests run with node --test. Do not add an exclusion to make a mutant go away.",
+  "packageManager": "pnpm",
+  "testRunner": "vitest",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "vitest": { "configFile": "vitest.stryker.config.ts" },
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/**/*.ts",
+    "!src/**/__tests__/**",
+    "!src/**/*.d.ts",
+    "!src/board-editing/use-input.ts",
+    "!src/board-fit/use-grid.ts",
+    "!src/playback/engine.ts",
+    "!src/playback/playhead-loop.ts",
+    "!src/playback/use-engine.ts",
+    "!src/spectrum/spectrum-loop.ts",
+    ".spec-anchored/*.ts",
+    "!.spec-anchored/spec-anchored.ts"
+  ],
+  "ignorePatterns": [".claude/worktrees", ".agent-runs", "dist", "coverage", ".vercel"],
+  "reporters": ["clear-text", "progress", "json"],
+  "clearTextReporter": { "logTests": false, "reportTests": false },
+  "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
+  "thresholds": { "high": 100, "low": 100, "break": 100 },
+  "dryRunTimeoutMinutes": 30,
+  "tempDirName": ".stryker-tmp"
+}
