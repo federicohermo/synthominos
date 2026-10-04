@@ -2,7 +2,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 /**
- * The spec gate: the shape of the `specs/` corpus, and the link between each criterion and its test.
+ * The spec gate: the shape of the `specs/` corpus, the link between each criterion and its test,
+ * and the link between each contract and its code folder.
  *
  * It verifies the CITATION, not that the test exercises the criterion. Review checks that.
  */
@@ -17,6 +18,10 @@ export const STATUSES = ['draft', 'ratified', 'superseded'] as const;
 /** The files of the previous spec regime. They do not come back. */
 export const FORBIDDEN = ['spec.md', 'research.md', 'plan.md', 'tasks.md'] as const;
 const FIELDS = ['schema_version', 'capability_id', 'status', 'owner', 'provenance'] as const;
+/** The folders of `src/` that belong to no capability: the shell. */
+export const SHELL = ['__tests__', 'styles'] as const;
+/** The layer folders a capability folder may hold. */
+export const LAYERS = ['domain', 'audio', 'ui'] as const;
 const AC = /\bAC-[A-Z]{3}-\d{3}\b/g;
 
 interface Spec {
@@ -90,8 +95,39 @@ export function citedIds(text: string): Set<string> {
   return cited;
 }
 
-/** The gate verdict on a corpus. Pure: it does not read the disk. */
-export function audit(specs: readonly SourceFile[], tests: readonly SourceFile[]): Audit {
+/**
+ * The findings on the code folders. Each capability owns `src/<capability>/`, and its files live
+ * in a layer folder. The link goes both ways: a folder needs a contract, a contract needs code.
+ */
+function folderFindings(corpus: readonly Spec[], sources: readonly string[]): string[] {
+  const findings: string[] = [];
+  const folders = new Set<string>();
+  const withCode = new Set<string>();
+  for (const file of sources) {
+    const parts = file.split('/');
+    if (parts[0] !== 'src' || parts.length < 3 || (SHELL as readonly string[]).includes(parts[1])) continue;
+    folders.add(parts[1]);
+    if (parts.length === 3 && parts[2] === 'AGENTS.md') continue;
+    withCode.add(parts[1]);
+    if (parts.length < 4 || !(LAYERS as readonly string[]).includes(parts[2])) {
+      findings.push(`${file}: lies outside a layer folder of its capability (${LAYERS.join('/, ')}/)`);
+    }
+  }
+  const live = corpus.filter(s => s.status !== 'superseded').map(s => s.file.split('/')[1]);
+  for (const folder of [...folders].sort()) {
+    if (!live.includes(folder)) findings.push(`src/${folder}/: no contract has its name; write specs/${folder}/${folder}.md`);
+  }
+  for (const capability of live) {
+    if (!withCode.has(capability)) findings.push(`specs/${capability}/${capability}.md: has no code in src/${capability}/`);
+  }
+  return findings;
+}
+
+/**
+ * The gate verdict on a corpus: the specs, the tests, and the path of every file under `src/`.
+ * Pure: it does not read the disk.
+ */
+export function audit(specs: readonly SourceFile[], tests: readonly SourceFile[], sources: readonly string[]): Audit {
   const findings: string[] = [];
   const report: string[] = [];
   const corpus: Spec[] = [];
@@ -116,6 +152,7 @@ export function audit(specs: readonly SourceFile[], tests: readonly SourceFile[]
     if (other !== undefined) findings.push(`${spec.file}: the code \`${spec.code}\` already belongs to ${other}`);
     owners.set(spec.code, spec.file);
   }
+  findings.push(...folderFindings(corpus, sources));
 
   const cited = new Set<string>();
   for (const test of tests) for (const id of citedIds(test.text)) cited.add(id);
@@ -152,12 +189,16 @@ function walk(root: string, dir: string): string[] {
   return out;
 }
 
-/** The repo corpus: all of `specs/`, and every test by its suffix (not by a list of roots). */
-export function readCorpus(root: string): { specs: SourceFile[]; tests: SourceFile[] } {
+/**
+ * The repo corpus: all of `specs/`, every test by its suffix (not by a list of roots), and the
+ * path of every file under `src/`.
+ */
+export function readCorpus(root: string): { specs: SourceFile[]; tests: SourceFile[]; sources: string[] } {
   const read = (rel: string): SourceFile => ({ path: rel, text: readFileSync(path.join(root, rel), 'utf8') });
   const files = walk(root, '');
   return {
     specs: files.filter(f => f.startsWith('specs/') && f.endsWith('.md')).map(read),
     tests: files.filter(f => /\.test\.tsx?$/.test(f) && !f.startsWith('.agents/skills/')).map(read),
+    sources: files.filter(f => f.startsWith('src/')),
   };
 }

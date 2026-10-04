@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { COPIES, GENERATED_MARK, differences, planCopies, realDisk, rebaseLinks, ruleFolders, sync, type Disk, type Tree } from '../copies.ts';
+import { COPIES, GENERATED_MARK, contractPointer, differences, planCopies, realDisk, rebaseLinks, ruleFolders, sync, type Disk, type Tree } from '../copies.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -86,6 +86,22 @@ describe('planCopies', () => {
     expect(agents.startsWith(GENERATED_MARK)).toBe(true);
     expect(agents).toContain('`.agents/rules/a.md`, `.agents/rules/b.md`');
     expect(agents.indexOf('# A')).toBeLessThan(agents.indexOf('# B'));
+    expect(agents).toContain('> Applies to `src/App.tsx`.\n\n# A');
+  });
+
+  it('writes the pointer of each contract into its code folder, and reports a rule that writes there too', () => {
+    const contract = (code: string) => `---\ncapability_id: CAP-${code}\nstatus: draft\n---\n\n# Capability: ${code}\n`;
+    const plan = planCopies(new Map([
+      ...sources(),
+      ['specs/alpha/alpha.md', contract('ALP')],
+      ['specs/beta/beta.md', contract('BET')],
+      ['specs/_template/_template.md', contract('TPL')],
+      ['specs/alpha/notes.md', 'a companion file'],
+      ['.agents/rules/b.md', rule(['src/beta/**'], '# B\n')],
+    ]));
+    expect(plan.files.get('src/alpha/AGENTS.md')).toBe(contractPointer('alpha', contract('ALP')));
+    expect([...plan.files.keys()].filter(f => f.startsWith('src/'))).toEqual(['src/beta/AGENTS.md', 'src/alpha/AGENTS.md']);
+    expect(plan.problems).toEqual(['src/beta/AGENTS.md: a rule and the contract of `beta` both write it']);
   });
 
   it('reports a missing source, a reach into another skill, an undeclared copy and a root rule', () => {
@@ -103,6 +119,25 @@ describe('planCopies', () => {
       `.agents/skills/x/scripts/${path.posix.basename([...COPIES.keys()][1])}: has the name of \`${[...COPIES.keys()][1]}\` but is not a declared copy`,
       '.agents/rules/root.md: applies to the repo root, whose AGENTS.md is written by hand',
     ]);
+  });
+});
+
+describe('contractPointer', () => {
+  const contract = (status: string) =>
+    `---\nschema_version: 1\n# a note\ncapability_id: CAP-ABC\nstatus: ${status}\n---\n\n# Capability: alpha beta\n\nbody\n`;
+
+  it('points the code folder at its contract, with its title and its code', () => {
+    const pointer = contractPointer('alpha', contract('draft')) ?? '';
+    expect(pointer.startsWith(`${GENERATED_MARK} from \`specs/alpha/alpha.md\`.`)).toBe(true);
+    expect(pointer).toContain('\n# Capability: alpha beta\n');
+    expect(pointer).toContain('[`specs/alpha/alpha.md`](../../specs/alpha/alpha.md), `CAP-ABC`');
+    expect(pointer).toContain('`AC-ABC-###`');
+    expect(pointer).toContain('[`src/AGENTS.md`](../AGENTS.md)');
+  });
+
+  it('a superseded contract gets no pointer, and a contract with no title uses the folder name', () => {
+    expect(contractPointer('alpha', contract('superseded'))).toBeNull();
+    expect(contractPointer('alpha', 'no frontmatter, no title')).toContain('\n# alpha\n');
   });
 });
 
@@ -175,8 +210,10 @@ describe('realDisk', () => {
     put('src/AGENTS.md', 'agents');
     put('node_modules/p/AGENTS.md', 'dependency');
     put('src/app.ts', 'not read');
+    put('specs/alpha/alpha.md', 'contract');
+    put('specs/alpha/notes.md', 'companion, not read');
     const disk = realDisk(root);
-    expect([...disk.read().keys()].sort()).toEqual(['.agents/rules/r.md', '.claude/rules/r.md', 'src/AGENTS.md']);
+    expect([...disk.read().keys()].sort()).toEqual(['.agents/rules/r.md', '.claude/rules/r.md', 'specs/alpha/alpha.md', 'src/AGENTS.md']);
     disk.write('.claude/skills/s/SKILL.md', 'new');
     expect(readFileSync(path.join(root, '.claude/skills/s/SKILL.md'), 'utf8')).toBe('new');
     disk.remove('.claude/rules/r.md');
