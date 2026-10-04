@@ -17,6 +17,7 @@ path of that folder.
   "run_folder": "<absolute path of .agent-runs/<run-id>>",
   "base_sha": "<40 hex>",
   "input_candidate_sha": "<40 hex>",
+  "branch": "feature/138-node-pins--general",
   "diff_sha256": "<64 hex>",
   "spec_corpus_sha256": "<64 hex>",
   "plan_sha256": "<64 hex>",
@@ -27,12 +28,34 @@ path of that folder.
 ```
 
 - `role` is `general-code-reviewer` or `mutation-hardener`.
+- `branch` is the branch the agent creates at the input candidate: the branch of the run plus
+  `--general` or `--mutation`. It keeps the prefix of the run's branch, so the hook lets the agent
+  write `src/`. Nobody pushes it.
 - `diff_sha256` is the SHA-256 of `git diff <base_sha>..<input_candidate_sha>`.
-- `policy` is the profile id, or the path of the instance the launcher issued.
+- `policy` is the profile id, or the absolute path of the instance the launcher issued.
 - `mode` is `code`, or `no-change` for an evidence target. Only `general-code-reviewer` takes
   `no-change`.
 
 The agent reads `plan.md`, `scope-manifest.json` and `issue.md` from the run folder.
+
+## Dispatch
+
+The agent works in a worktree of its own, under `.claude/worktrees/` of the main checkout. The
+hook denies any other place.
+
+- **Claude Code.** Call the agent by its name. Its contract declares `isolation: worktree`, so the
+  harness opens the worktree.
+- **Codex.** Open the worktree first, then start the agent in it:
+  `git worktree add --detach .claude/worktrees/<run-id>-<role> <input_candidate_sha>`.
+
+The prompt of the dispatch is one line: the absolute path of the target file.
+
+When the Owner has taken what it accepts, it removes the worktree and the branch of the agent:
+
+```bash
+node .agents/scripts/clean-worktrees.ts <path of the worktree>
+git branch -D <branch of the target>
+```
 
 ## The handoff of `general-code-reviewer`
 
