@@ -77,7 +77,7 @@ describe('useMotorSincronizado — los cuatro efectos', () => {
     expect(colaDeDibujo.encolar.mock.calls[0][0]).toBe(p.secuencia);
   });
 
-  it('cambiar el tempo NO vuelve a encolar la secuencia', async () => {
+  it('AC-PLY-006 — cambiar el tempo NO vuelve a encolar la secuencia', async () => {
     // Cada efecto con su array, que es de lo que hablan la mitad de los docblocks del
     // archivo: una dependencia de mas aca significa reencolar el circuito entero cada
     // vez que alguien arrastra el slider de tempo.

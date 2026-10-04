@@ -198,7 +198,7 @@ describe('App — la composicion', () => {
     expect(container.textContent).toContain('arranca y para');
   });
 
-  it('021 AC1 — la pagina no scrollea: el tablero mide exactamente el viewport', async () => {
+  it('AC-FIT-008 — la pagina no scrollea: el tablero mide exactamente el viewport', async () => {
     await render(<App />);
     // Es la mitad falsable de AC1 que no necesita cinco viewports: si el raiz creciera mas
     // que la ventana —una tarjeta de vuelta, un flotante en el flujo, un `min-h-screen`
@@ -206,7 +206,7 @@ describe('App — la composicion', () => {
     expect(document.documentElement.scrollHeight).toBe(document.documentElement.clientHeight);
   });
 
-  it('021 AC10 y AC11 — los dos flotantes se pliegan, y el espectro sigue vivo al plegarse', async () => {
+  it('AC-PNL-002 — los dos flotantes se pliegan, y el espectro sigue vivo al plegarse', async () => {
     // Plegar OCULTA y no desmonta, y de eso dependen dos cosas medidas: el
     // `ResizeObserver` del espectro —que redibuja porque su contenedor cambia de TAMAÑO— y
     // la barrera del `memo` de `OrientationPanel`, que se pagaria entera al remontar.
@@ -240,7 +240,7 @@ describe('App — la composicion', () => {
     await vi.waitFor(() => expect(dock.hasAttribute('hidden')).toBe(false));
   });
 
-  it('arranca con el tempo del motor y el regimen de siempre', async () => {
+  it('AC-MUS-012 AC-PLY-005 — arranca con el tempo del motor y el regimen de siempre', async () => {
     // `DEFAULT_BPM` es una sola declaracion: el estado del shell y el del motor no
     // pueden discrepar porque salen del mismo numero.
     const { container } = await render(<App />);
@@ -251,7 +251,7 @@ describe('App — la composicion', () => {
 });
 
 describe('App — colocar', () => {
-  it('el click coloca la pieza en la mano y dispara su arpegio', async () => {
+  it('AC-BRD-002 — el click coloca la pieza en la mano y dispara su arpegio', async () => {
     const { container } = await render(<App />);
     click(celda(container, 3, 2));
 
@@ -261,7 +261,7 @@ describe('App — colocar', () => {
     expect(motor.playNow).toHaveBeenCalledWith(arpeggioFor('F', 0, false, REGIMEN.escala));
   });
 
-  it('con el transporte corriendo NO lo dispara: seria el arpegio dos veces', async () => {
+  it('AC-BRD-005 — con el transporte corriendo NO lo dispara: seria el arpegio dos veces', async () => {
     const { container } = await render(<App />);
     await page.getByRole('button', { name: 'Reproducir' }).click();
     motor.playNow.mockClear();
@@ -271,7 +271,7 @@ describe('App — colocar', () => {
     expect(motor.playNow).not.toHaveBeenCalled();
   });
 
-  it('`Alt`+click coloca MUTEADA, y tampoco suena', async () => {
+  it('AC-BRD-006 — `Alt`+click coloca MUTEADA, y tampoco suena', async () => {
     // La pieza se pone justamente para que no suene: un arpegio de cortesia
     // contradiria el gesto en el momento de hacerlo.
     const { container } = await render(<App />);
@@ -284,7 +284,7 @@ describe('App — colocar', () => {
     expect(baldosa(celda(container, x, y)).className).toContain('bg-white');
   });
 
-  it('una jugada invalida no coloca nada', async () => {
+  it('AC-BRD-003 — una jugada invalida no coloca nada', async () => {
     const { container } = await render(<App />);
     // Contra el borde: parte de la `F` cae fuera del tablero.
     click(celda(container, 0, 0));
@@ -303,14 +303,14 @@ describe('App — editar en el tablero', () => {
     return vista;
   };
 
-  it('el click sobre la pieza propia la QUITA', async () => {
+  it('AC-BRD-007 — el click sobre la pieza propia la QUITA', async () => {
     const { container } = await conUnaF();
     const [x, y] = donde('F', 3, 2)[0];
     click(celda(container, x, y));
     await vi.waitFor(() => expect(conNota(container)).toBe(0));
   });
 
-  it('`Alt`+click sobre la pieza propia alterna su muteo, ida y vuelta', async () => {
+  it('AC-BRD-010 — `Alt`+click sobre la pieza propia alterna su muteo, ida y vuelta', async () => {
     const { container } = await conUnaF();
     const [x, y] = donde('F', 3, 2)[0];
 
@@ -323,7 +323,7 @@ describe('App — editar en el tablero', () => {
     await vi.waitFor(() => expect(baldosa(celda(container, x, y)).style.background).not.toBe(''));
   });
 
-  it('mutear una pieza no toca a las demas', async () => {
+  it('AC-BRD-011 — mutear una pieza no toca a las demas', async () => {
     // El `map` devuelve la MISMA referencia para las que no cambian, y objetos nuevos
     // solo para la que se muteo: nunca mutar lo que ya se entrego a React.
     const { container } = await conUnaF();
@@ -340,7 +340,7 @@ describe('App — editar en el tablero', () => {
     expect(conNota(container)).toBe(SHAPES.F.length * 2);
   });
 
-  it('sobre una pieza que NO esta en la mano no pasa nada', async () => {
+  it('AC-BRD-009 — sobre una pieza que NO esta en la mano no pasa nada', async () => {
     const { container } = await conUnaF();
     // Se cambia la pieza en la mano y se vuelve a apretar la `F` colocada.
     await page.getByRole('button', { name: 'W, rotación 0°' }).click();
@@ -353,7 +353,7 @@ describe('App — editar en el tablero', () => {
 });
 
 describe('App — el fantasma', () => {
-  it('aparece bajo el cursor y desaparece al salir del tablero', async () => {
+  it('AC-BRD-014 — aparece bajo el cursor y desaparece al salir del tablero', async () => {
     const { container } = await render(<App />);
     hover(celda(container, 4, 3));
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
@@ -362,7 +362,7 @@ describe('App — el fantasma', () => {
     await vi.waitFor(() => expect(conNota(container)).toBe(0));
   });
 
-  it('sobre la pieza propia NO se pinta: ahi el click edita, no coloca', async () => {
+  it('AC-BRD-015 — sobre la pieza propia NO se pinta: ahi el click edita, no coloca', async () => {
     // Saldria rosa entero, diciendo "aca no entra" sobre la unica celda donde el click
     // si hace algo (AC20 del 014).
     const { container } = await render(<App />);
@@ -381,7 +381,7 @@ describe('App — el fantasma', () => {
 });
 
 describe('App — el transporte', () => {
-  it('el boton refleja si el reloj ARRANCO, no si se lo apreto', async () => {
+  it('AC-PLY-002 — el boton refleja si el reloj ARRANCO, no si se lo apreto', async () => {
     // AC10, que espero catorce specs: la decision vive en
     // `alternarTransporte` y aca se verifica el cableado contra un motor que contesta.
     const { container } = await render(<App />);
@@ -395,7 +395,7 @@ describe('App — el transporte', () => {
     expect(container).toBeTruthy();
   });
 
-  it('si el motor NO arranca, el boton se queda en Reproducir', async () => {
+  it('AC-PLY-003 — si el motor NO arranca, el boton se queda en Reproducir', async () => {
     // Sin Web Audio `startClock` no arranca nada. Creerle a lo que se pidio dejaria el
     // boton diciendo que suena algo que no suena.
     motor.startClock.mockImplementationOnce(() => {});
@@ -404,7 +404,7 @@ describe('App — el transporte', () => {
     await expect.element(page.getByRole('button', { name: 'Reproducir' })).toBeVisible();
   });
 
-  it('Reset frena el transporte ADEMAS de vaciar el tablero', async () => {
+  it('AC-BRD-030 AC-PLY-038 — Reset frena el transporte ADEMAS de vaciar el tablero', async () => {
     // Vaciar solo `placed` deja al motor terminando su ciclo activo: hasta 7,5 s sonando
     // sobre un tablero que ya esta vacio.
     const { container } = await render(<App />);
@@ -421,7 +421,7 @@ describe('App — el transporte', () => {
     await expect.element(page.getByRole('button', { name: 'Reproducir' })).toBeVisible();
   });
 
-  it('el tempo y los clicks bajan al motor', async () => {
+  it('AC-PLY-006 — el tempo y los clicks bajan al motor', async () => {
     await render(<App />);
     await page.getByRole('slider').fill('128');
     await vi.waitFor(() => expect(motor.setBpm).toHaveBeenLastCalledWith(128));
@@ -437,7 +437,7 @@ describe('App — el transporte', () => {
 });
 
 describe('App — la orientacion, por panel y por gesto', () => {
-  it('el panel ya no rota ni refleja: lo que hace es DECIR la orientacion', async () => {
+  it('AC-PNL-018 AC-PNL-020 — el panel ya no rota ni refleja: lo que hace es DECIR la orientacion', async () => {
     // La tarjeta perdio los cuatro botones de grados y el ON/OFF de
     // Reflexion, porque duplicaban la rueda, `Shift`, el boton derecho y `Ctrl`. Lo que
     // queda en su lugar es un lector: una linea de texto que no se puede apretar.
@@ -462,7 +462,7 @@ describe('App — la orientacion, por panel y por gesto', () => {
     await vi.waitFor(() => expect(linea().textContent).toBe('90° · reflejada'));
   });
 
-  it('020 — la orientacion es de la PIEZA: se recuerda, y el `0°` resetea una sola', async () => {
+  it('AC-PCS-019 AC-PCS-020 AC-PCS-021 — la orientacion es de la PIEZA: se recuerda, y el `0°` resetea una sola', async () => {
     // Los cuatro criterios que sólo el shell puede verificar, porque la memoria vive acá:
     // AC1/AC2 (el gesto toca una ranura), AC5 (volver a una pieza la trae como la
     // dejaste), AC7 (el `0°` no toca las otras once) y AC9 (la línea sigue a la pieza).
@@ -496,7 +496,7 @@ describe('App — la orientacion, por panel y por gesto', () => {
     expect(nombreDe('T')).toBe('T, rotación 0°');
   });
 
-  it('020 — `↺` vacia el tablero y NO toca las orientaciones recordadas', async () => {
+  it('AC-BRD-030 AC-PCS-022 — `↺` vacia el tablero y NO toca las orientaciones recordadas', async () => {
     // AC8, con su costo escrito: se renuncia al invariante «después de `↺` la app queda
     // como recién abierta» para que este botón conserve un alcance único y nombrable.
     const { container } = await render(<App />);
@@ -513,7 +513,7 @@ describe('App — la orientacion, por panel y por gesto', () => {
     expect(nombre).toBe('F, rotación 90°');
   });
 
-  it('020 — rotar la pieza en la mano no cambia una nota de la que ya esta puesta', async () => {
+  it('AC-PCS-023 — rotar la pieza en la mano no cambia una nota de la que ya esta puesta', async () => {
     // AC11, que hasta este review solo tenia la confirmacion a ojo de T025 `[M]`. Es la
     // promesa central del spec —«no cambia una nota»— y la que se rompe sola si algun dia
     // la memoria del shell pasa a ser la fuente de lo que ya esta en el tablero: hoy cada
@@ -536,7 +536,7 @@ describe('App — la orientacion, por panel y por gesto', () => {
     expect(conNota(container)).toBe(SHAPES.F.length);
   });
 
-  it('el regimen cambia lo que la rotacion HACE, y se ve en el fantasma', async () => {
+  it('AC-MUS-013 — el regimen cambia lo que la rotacion HACE, y se ve en el fantasma', async () => {
     // AC7 del 017: sin llevar el regimen a las tres derivaciones, cambiarlo no
     // re-derivaria el tablero.
     const { container } = await render(<App />);
@@ -553,7 +553,7 @@ describe('App — la orientacion, por panel y por gesto', () => {
     await vi.waitFor(() => expect(notaDelFantasma(container)).not.toBe(enEscala));
   });
 
-  it('`Shift` rota, `Ctrl` refleja y la barra alterna el transporte', async () => {
+  it('AC-BRD-024 AC-BRD-028 — `Shift` rota, `Ctrl` refleja y la barra alterna el transporte', async () => {
     const { container } = await render(<App />);
     hover(celda(container, 4, 3));
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
@@ -574,7 +574,7 @@ describe('App — la orientacion, por panel y por gesto', () => {
     await vi.waitFor(() => expect(motor.startClock).toHaveBeenCalled());
   });
 
-  it('la rueda sobre el tablero rota, y `Ctrl`+rueda no', async () => {
+  it('AC-BRD-023 — la rueda sobre el tablero rota, y `Ctrl`+rueda no', async () => {
     const { container } = await render(<App />);
     const tablero = container.querySelector('div.relative')!;
     hover(celda(container, 4, 3));
@@ -595,7 +595,7 @@ describe('App — la orientacion, por panel y por gesto', () => {
     expect(notaDelFantasma(container)).toBe(conRueda);
   });
 
-  it('el boton derecho refleja, salvo el `Ctrl`+click de macOS', async () => {
+  it('AC-BRD-026 — el boton derecho refleja, salvo el `Ctrl`+click de macOS', async () => {
     const { container } = await render(<App />);
     const tablero = container.querySelector('div.relative')!;
     hover(celda(container, 4, 3));
@@ -628,7 +628,7 @@ describe('App — la orientacion, por panel y por gesto', () => {
     expect(container.textContent).toContain('tónica');
   });
 
-  it('la LETRA elige la pieza, sin ir al panel', async () => {
+  it('AC-BRD-017 — la LETRA elige la pieza, sin ir al panel', async () => {
     // No es redundante con el test de `use-input`: lo que cubre de mas es el callback del
     // shell, que es el que traduce la pieza a la ranura de estado y que ningun test del
     // hook ejerce.
@@ -656,7 +656,7 @@ describe('App — la orientacion, por panel y por gesto', () => {
 });
 
 describe('App — lo que llega al arbol de accesibilidad', () => {
-  it('ningun boton de la app puede enviar un formulario', async () => {
+  it('AC-ACC-011 — ningun boton de la app puede enviar un formulario', async () => {
     // Hoy no hay un solo `<form>` en el arbol, asi que no hay bug — y por eso mismo
     // esta es la unica linea que nada mas falsea: existe para una
     // regresion futura. El default de un `<button>` dentro de un formulario es
@@ -751,7 +751,7 @@ const aLaVista = (c: HTMLElement) =>
   c.querySelector('div.relative')!.scrollIntoView({ block: 'center' });
 
 describe('App — el tablero se toca con el teclado', () => {
-  it('desde la paleta, UN `Tab` entra al tablero y otro lo pasa de largo', async () => {
+  it('AC-ACC-013 — desde la paleta, UN `Tab` entra al tablero y otro lo pasa de largo', async () => {
     // `Tab` de VERDAD, por Playwright, y no el conteo de cuantas celdas tienen `tabIndex`
     // distinto de -1: las dos cosas no son la misma. El conteo mide el DOM y seria cierto
     // igual con el `0` sobre una celda que el navegador se saltea; lo que AC1 y AC12
@@ -774,7 +774,7 @@ describe('App — el tablero se toca con el teclado', () => {
     expect(celdas(container)).not.toContain(document.activeElement);
   });
 
-  it('las flechas mueven el foco del DOM, y la pagina NO scrollea', async () => {
+  it('AC-ACC-016 — las flechas mueven el foco del DOM, y la pagina NO scrollea', async () => {
     // Teclas de VERDAD, por Playwright, y esa es toda la razon de ser de este test: un
     // `dispatchEvent` fabrica un evento NO confiable, y un evento no confiable **nunca
     // ejecuta la accion por default** — con lo que "la pagina no scrolleo" seria cierto
@@ -835,7 +835,7 @@ describe('App — el tablero se toca con el teclado', () => {
     expect(document.activeElement).toBe(celda(container, 0, 3));
   });
 
-  it('`Enter` coloca, `Enter` sobre la pieza propia la quita, `Alt`+`Enter` mutea — y la region lo dice', async () => {
+  it('AC-ACC-020 — `Enter` coloca, `Enter` sobre la pieza propia la quita, `Alt`+`Enter` mutea — y la region lo dice', async () => {
     // Las cuatro entran por el MISMO `onCellClick` que el click, o sea por `accionDeClick`:
     // lo que se verifica aca es que el shell las reciba iguales y que la region `aria-live`
     // cuente la edicion que el tablero acaba de aplicar y no la que se pidio.
@@ -875,7 +875,7 @@ describe('App — el tablero se toca con el teclado', () => {
     await vi.waitFor(() => expect(dicho()).toBe('pieza F muteada en fila 3, columna 4'));
   });
 
-  it('con una celda enfocada la barra NO alterna el transporte; con el foco en el `body`, si', async () => {
+  it('AC-BRD-031 — con una celda enfocada la barra NO alterna el transporte; con el foco en el `body`, si', async () => {
     // El oraculo es el TRANSPORTE —el motor y el nombre del boton— y no "se llamo
     // `preventDefault`": la barra frena el default tambien con la celda enfocada, porque su
     // default es scrollear y eso hay que frenarlo lo maneje quien lo maneje. Usar el
@@ -907,7 +907,7 @@ describe('App — el tablero se toca con el teclado', () => {
     await expect.element(page.getByRole('button', { name: 'Pausa' })).toBeVisible();
   });
 
-  it('con una celda enfocada, `Shift` SI rota y `Ctrl` SI refleja', async () => {
+  it('AC-BRD-032 — con una celda enfocada, `Shift` SI rota y `Ctrl` SI refleja', async () => {
     // Va separado del test de la barra a proposito: uno verifica que se apago, este que NO
     // se apago de mas. Ensanchar la guarda del listener global para que matchee la celda es
     // lo tentador —es una linea— y apagaria los tres atajos para arreglar uno.
@@ -928,7 +928,7 @@ describe('App — el tablero se toca con el teclado', () => {
     await vi.waitFor(() => expect(notaDelFantasma(container)).not.toBe(conRotacion));
   });
 
-  it('con una celda enfocada, la letra IGUAL elige la pieza', async () => {
+  it('AC-BRD-021 AC-BRD-032 — con una celda enfocada, la letra IGUAL elige la pieza', async () => {
     // AC13: `targetEsCelda` apaga la barra y solo la barra. El `switch` del `onKeyDown` de
     // la celda cierra con `default: return`, asi que una letra no la maneja nadie mas y no
     // hay doble disparo que evitar — vetarla ahi apagaria el atajo justo donde mas sirve.
@@ -947,7 +947,7 @@ describe('App — el tablero se toca con el teclado', () => {
     expect(motor.startClock).not.toHaveBeenCalled();
   });
 
-  it('con el foco en una celda, sacar el mouse de la grilla no apaga el fantasma', async () => {
+  it('AC-ACC-022 — con el foco en una celda, sacar el mouse de la grilla no apaga el fantasma', async () => {
     // LA regla de desempate: mientras el foco del DOM este adentro del tablero, el foco
     // manda sobre el mouse. Sin ella el mouse apagaria el fantasma de la celda enfocada y
     // el roving tabindex se quedaria sin ancla — o sea que "la celda enfocada es el hover"
@@ -965,7 +965,7 @@ describe('App — el tablero se toca con el teclado', () => {
     expect(notaDelFantasma(container)).toBe(conFoco);
   });
 
-  it('un click del mouse NO le saca el mando al mouse: el fantasma sigue al cursor', async () => {
+  it('AC-ACC-023 — un click del mouse NO le saca el mando al mouse: el fantasma sigue al cursor', async () => {
     // La otra dirección de la misma regla, y el bug que costó el review: un `div` con
     // `tabIndex` es enfocable POR CLICK, así que sin el `preventDefault` del `mousedown`
     // el primer click prendía `focoEnTablero` y desde ahí el mouse quedaba inerte — el
@@ -997,7 +997,7 @@ describe('App — el fondo, un solo valor', () => {
   // al mismo hex en el `div` raiz— y nada ataba las dos copias. Un grep del hex tampoco lo
   // delataba, porque la segunda copia estaba escrita como nombre de clase y no como color.
   // El hex no se escribe aca por eso mismo: su unica aparicion en `src/` es el token.
-  it('el div raiz pinta lo mismo que el body, y ninguno de los dos es transparente', async () => {
+  it('AC-PNL-030 — el div raiz pinta lo mismo que el body, y ninguno de los dos es transparente', async () => {
     const { container } = await render(<App />);
     // El primer hijo del contenedor y no `div.min-h-screen`: esa clase paso a ser
     // `h-[100dvh] overflow-hidden`. Buscarlo por posicion en vez de por una clase de
@@ -1020,7 +1020,7 @@ describe('App — el fondo, un solo valor', () => {
 });
 
 describe('App — el tablero crece hasta la pantalla', () => {
-  it('no scrollea ninguno de los dos ejes, en escritorio ni en telefono', async () => {
+  it('AC-FIT-008 — no scrollea ninguno de los dos ejes, en escritorio ni en telefono', async () => {
     // La mitad del AC1 que solo se puede ver montando la app entera: el tablero mide lo que
     // el contenedor mide, y los dos flotantes van encima sin empujarlo. Se prueban los dos
     // extremos de la tabla del spec — el escritorio grande y el telefono en vertical, que
@@ -1039,7 +1039,7 @@ describe('App — el tablero crece hasta la pantalla', () => {
     }
   });
 
-  it('la grilla que se dibuja es la que sale del viewport', async () => {
+  it('AC-FIT-010 — la grilla que se dibuja es la que sale del viewport', async () => {
     // El extremo chico de la tabla: 5 columnas por 9 filas en un telefono en vertical,
     // contra las 26 x 15 de un escritorio. Es el numero que hasta el 031 era 10 x 6 en los
     // dos.
@@ -1052,7 +1052,7 @@ describe('App — el tablero crece hasta la pantalla', () => {
     expect(celdas(container).length).toBe(esperado.w * esperado.h);
   });
 
-  it('la pieza 13 no entra, y se dice', async () => {
+  it('AC-ACC-028 AC-BRD-004 — la pieza 13 no entra, y se dice', async () => {
     // El tope que hasta el 031 lo garantizaba el area: con 154 celdas entrarian 30 piezas y
     // el circuito exacto es `O(n^2 * 2^n)`. Es el unico rechazo que no se explica solo —una
     // jugada invalida se ve, porque el fantasma sale rosa— asi que se anuncia.
@@ -1084,7 +1084,7 @@ describe('App — el tablero crece hasta la pantalla', () => {
     expect(conPieza()).toBe(SHAPES.I.length * MAX_PIEZAS);
   });
 
-  it('achicar la ventana no borra piezas: vuelven enteras al agrandarla', async () => {
+  it('AC-FIT-021 — achicar la ventana no borra piezas: vuelven enteras al agrandarla', async () => {
     // El repo no tiene deshacer y arrastrar el borde de una ventana no es
     // un gesto de edicion. La pieza que deja de entrar se guarda: no se dibuja, no suena, y
     // vuelve identica cuando hay lugar.
@@ -1118,7 +1118,7 @@ describe('App — el tablero crece hasta la pantalla', () => {
     expect(nombres()).toEqual(antes);
   });
 
-  it('la pieza que queda a medias tampoco recibe clicks: la celda vacia se comporta como vacia', async () => {
+  it('AC-BRD-016 AC-FIT-022 — la pieza que queda a medias tampoco recibe clicks: la celda vacia se comporta como vacia', async () => {
     // El caso que el AC8 de arriba no toca: ahi la ventana deja la pieza ENTERA afuera, y
     // aca la deja **a medias** —dos celdas adentro de la grilla nueva y tres afuera—, que
     // es el unico estado donde el modelo y lo que se ve pueden discrepar. La pieza no se
@@ -1170,7 +1170,7 @@ describe('App — el tablero crece hasta la pantalla', () => {
     await vi.waitFor(() => expect(conPieza()).toBe(SHAPES.I.length));
   });
 
-  it('achicar la ventana no deja al tablero sin ancla de tabulacion', async () => {
+  it('AC-ACC-014 AC-FIT-024 — achicar la ventana no deja al tablero sin ancla de tabulacion', async () => {
     // El OTRO estado que la grilla nueva puede dejar apuntando afuera, y que no es una
     // pieza: el cursor. Lo escriben el mouse y el foco y ninguno de los dos se
     // entera de un `resize`, asi que el par guardado puede caer fuera de `dims`.

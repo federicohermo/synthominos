@@ -90,7 +90,7 @@ describe('Playhead — el montaje', () => {
     expect(capa.compareDocumentPosition(cabeza) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('arranca oculta: sin reloj no hay nada que marcar', async () => {
+  it('AC-PLY-029 — arranca oculta: sin reloj no hay nada que marcar', async () => {
     const { container } = await render(<Playhead />);
     const [, cabeza] = capas(container);
     // Montarla visible en (0,0) senalaria una celda que no suena hasta el primer cuadro.
@@ -99,7 +99,7 @@ describe('Playhead — el montaje', () => {
 });
 
 describe('Playhead — la cabeza', () => {
-  it('salta a la celda del offset, en celdas de `--cell`', async () => {
+  it('AC-FIT-018 AC-PLY-030 — salta a la celda del offset, en celdas de `--cell`', async () => {
     fuente.marcas = [nota(3, 2)];
     fuente.offset = 0;
     const { container } = await render(<Playhead />);
@@ -119,7 +119,7 @@ describe('Playhead — la cabeza', () => {
     expect(en(180)).toBe(`matrix(1, 0, 0, 1, ${3 * 180}, ${2 * 180})`);
   });
 
-  it('los tres kinds tienen tres bordes distintos, y el click no pinta afuera', async () => {
+  it('AC-PLY-032 — los tres kinds tienen tres bordes distintos, y el click no pinta afuera', async () => {
     // Nota fuerte, cruce intermedio, click tenue: si dos de los tres se vieran igual, el
     // recorrido mentiria sobre cual de las tres cosas paso.
     const sombraDe = async (kind: Marca['kind']) => {
@@ -167,7 +167,7 @@ describe('Playhead — la cabeza', () => {
     expect(cabeza.style.display).toBe('none');
   });
 
-  it('no reescribe el DOM cuando la celda no cambio', async () => {
+  it('AC-PLY-030 — no reescribe el DOM cuando la celda no cambio', async () => {
     // La clave de lo ULTIMO escrito es lo que baja de 60 escrituras por segundo a entre
     // 4 y 11, y lo que hace que en pausa el loop no toque el DOM ni una vez.
     fuente.marcas = [nota(2, 2), nota(2, 2)];
@@ -210,7 +210,7 @@ describe('Playhead — el velo', () => {
     expect(parseFloat(cs().paddingTop) / 180).toBeCloseTo(2 / CELL_PX_OBJETIVO, 3);
   });
 
-  it('una celda se destapa cuando la cabeza la PISA, no cuando arranca el ciclo', async () => {
+  it('AC-PLY-034 — una celda se destapa cuando la cabeza la PISA, no cuando arranca el ciclo', async () => {
     // Es lo unico que hace visible que el orden de reproduccion no es el de colocacion.
     fuente.velo = [tapada('F', 1, 0, 3)];
     fuente.marcas = [nota(0, 0), nota(1, 0), nota(2, 0), nota(1, 0)];
@@ -230,7 +230,7 @@ describe('Playhead — el velo', () => {
     expect(tapa.style.display).toBe('none');
   });
 
-  it('el `>=` cubre el cuadro perdido: la pestana oculta no deja la celda tapada', async () => {
+  it('AC-PLY-034 — el `>=` cubre el cuadro perdido: la pestana oculta no deja la celda tapada', async () => {
     fuente.velo = [tapada('F', 1, 0, 2)];
     fuente.marcas = [nota(0, 0), nota(1, 0), nota(2, 0), nota(3, 0), nota(4, 0)];
     fuente.offset = 4;   // se salteo el 2 entero
@@ -242,7 +242,7 @@ describe('Playhead — el velo', () => {
     expect(tapa.style.display).toBe('none');
   });
 
-  it('una pieza encolada, sin offset, se destapa entera en el swap', async () => {
+  it('AC-PLY-034 — una pieza encolada, sin offset, se destapa entera en el swap', async () => {
     // No hay instante que esperar: todavia no entro al ciclo.
     fuente.velo = [tapada('L', 5, 5, null)];
     fuente.marcas = [nota(5, 5)];

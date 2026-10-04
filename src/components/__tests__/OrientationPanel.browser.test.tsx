@@ -52,7 +52,7 @@ const orientacion = (over: Partial<PropsDeOrientacion> = {}): PropsDeOrientacion
 });
 
 describe('OrientationPanel', () => {
-  it('son las doce, cada una con su letra', async () => {
+  it('AC-PNL-013 — son las doce, cada una con su letra', async () => {
     const { container } = await render(<OrientationPanel orientacion={orientacion()} />);
     const botones = container.querySelectorAll('button');
     expect(botones.length).toBe(PIEZAS.length);
@@ -61,7 +61,7 @@ describe('OrientationPanel', () => {
     }
   });
 
-  it('el nombre accesible dice la orientacion ACTUAL, no la canonica', async () => {
+  it('AC-ACC-009 — el nombre accesible dice la orientacion ACTUAL, no la canonica', async () => {
     // La miniatura muestra como esta puesta la pieza, asi que el lector de pantalla
     // tiene que decir lo mismo que el ojo ve.
     const a = await render(<OrientationPanel orientacion={orientacion({
@@ -76,7 +76,7 @@ describe('OrientationPanel', () => {
     await expect.element(page.getByRole('button', { name: 'Z, rotación 180°' })).toBeVisible();
   });
 
-  it('020 — cada miniatura dice y dibuja SU orientacion, no la de la pieza en la mano', async () => {
+  it('AC-ACC-009 AC-PNL-032 — cada miniatura dice y dibuja SU orientacion, no la de la pieza en la mano', async () => {
     // AC4. Doce orientaciones distintas de una: si el panel siguiera leyendo un solo par
     // para las doce, once de estos nombres saldrian mal.
     const distintas = Object.fromEntries(
@@ -94,7 +94,7 @@ describe('OrientationPanel', () => {
     }
   });
 
-  it('020 — rotar UNA pieza deja las otras once exactamente como estaban', async () => {
+  it('AC-PNL-032 — rotar UNA pieza deja las otras once exactamente como estaban', async () => {
     // AC3, el criterio que le da nombre al spec: hasta el 019 rotar movia 11 de las 12
     // miniaturas. Se comparan los nombres Y las celdas pintadas, que es lo que atrapa el
     // caso «el `aria-label` sigue a su ranura pero el dibujo sigue a otra».
@@ -123,7 +123,7 @@ describe('OrientationPanel', () => {
     }
   });
 
-  it('rotar NO mueve un pixel de la grilla, que es para lo que la caja es fija', async () => {
+  it('AC-PNL-013 — rotar NO mueve un pixel de la grilla, que es para lo que la caja es fija', async () => {
     // El bug que la caja fija existe para evitar: con pistas automaticas la `I` sola
     // pasa de 5 celdas de ancho a 1 al rotar y hace saltar la fila entera. Se mide el
     // ancho de CADA boton en las cuatro rotaciones y los dos espejos.
@@ -163,7 +163,7 @@ describe('OrientationPanel', () => {
     expect(mezcla.altos, 'doce orientaciones distintas').toEqual(base.altos);
   });
 
-  it('la caja mide 5 × MINI_CELL_PX, y no lo que ocupe la pieza', async () => {
+  it('AC-PNL-013 — la caja mide 5 × MINI_CELL_PX, y no lo que ocupe la pieza', async () => {
     // Se afirma el TAMANO y no solo la cantidad de pistas: con `min-content` las cinco
     // pistas siguen existiendo pero colapsan a cero, y el test de "rotar no mueve nada"
     // sigue pasando porque colapsan todas igual. Lo verifico un pase de mutacion — ese
@@ -182,7 +182,7 @@ describe('OrientationPanel', () => {
     }
   });
 
-  it('la forma se pinta del color de la pieza, y el fondo del boton NO', async () => {
+  it('AC-PNL-014 — la forma se pinta del color de la pieza, y el fondo del boton NO', async () => {
     // El fondo del boton es el canal de "seleccionada": pintarlo del color de pieza
     // dejaria a la paleta sin decir cual esta activa.
     const { container } = await render(<OrientationPanel orientacion={orientacion({ selected: 'F' })} />);
@@ -194,7 +194,7 @@ describe('OrientationPanel', () => {
     expect(getComputedStyle(boton).backgroundColor).not.toBe(PIECE_COLOR.F.bg);
   });
 
-  it('el borde se INVIERTE con el estado, y los dos colores son distintos', async () => {
+  it('AC-PNL-014 — el borde se INVIERTE con el estado, y los dos colores son distintos', async () => {
     // No es cosmetica: en cada estado falla un conjunto DISJUNTO de piezas contra el
     // piso 3:1 de WCAG 1.4.11, y un solo color no cubre los dos fondos.
     const bordeDe = async (selected: PieceKey, mira: PieceKey) => {
@@ -219,14 +219,14 @@ describe('OrientationPanel', () => {
     expect(suelta).not.toBe('');
   });
 
-  it('el click entrega la pieza que se apreto', async () => {
+  it('AC-PNL-015 — el click entrega la pieza que se apreto', async () => {
     const onSelect = vi.fn();
     await render(<OrientationPanel orientacion={orientacion({ onSelect })} />);
     await page.getByRole('button', { name: 'W, rotación 0°' }).click();
     expect(onSelect).toHaveBeenCalledWith('W');
   });
 
-  it('las doce declaran aria-pressed y exactamente una esta en true', async () => {
+  it('AC-ACC-008 — las doce declaran aria-pressed y exactamente una esta en true', async () => {
     // El fondo del boton es "el canal de seleccionada" (comentario de arriba), y hasta
     // ahora era el UNICO: sin `aria-pressed` esa informacion no llegaba al arbol de
     // accesibilidad. Se cuentan los doce y no solo el seleccionado, porque una asercion

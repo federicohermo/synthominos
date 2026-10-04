@@ -109,15 +109,17 @@ describe('audit: the link between criterion and test', () => {
 });
 
 describe('citedIds: only the title counts', () => {
-  it('the title of describe, it, test and each, with any quote', () => {
+  it('the title of describe, it, test, each, skipIf and runIf, with any quote', () => {
     const text = [
       `describe("${ac(1)} and ${ac(2)}", () => {`,
       `  it.each([1, 2])('${ac(3)} — %s', () => {});`,
       '  test(`' + ac(4) + ' — with \\` inside`, () => {});',
       `  // ${ac(5)} in a comment does not count`,
       `  it('no citation', () => { expect('${ac(6)}').toBe(1); });`,
+      `  it.skipIf(SLOW)('${ac(7)} — measured', () => {});`,
+      `  test.runIf(FAST)("${ac(8)} — measured", () => {});`,
     ].join('\n');
-    expect([...citedIds(text)].sort()).toEqual([ac(1), ac(2), ac(3), ac(4)]);
+    expect([...citedIds(text)].sort()).toEqual([ac(1), ac(2), ac(3), ac(4), ac(7), ac(8)]);
   });
 });
 

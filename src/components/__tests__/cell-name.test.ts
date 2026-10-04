@@ -14,7 +14,7 @@ import { REGIMEN } from '../../domain/constants/music.constants.ts';
  * tambien es una decision, y sin este archivo viviria sin test adentro de
  * `Board.tsx`.
  */
-describe('cellNameFor — el nombre accesible de una celda', () => {
+describe('AC-ACC-026 — cellNameFor — el nombre accesible de una celda', () => {
   it('celda libre: solo la coordenada y "libre", sin nota ni paso', () => {
     expect(cellNameFor(3, 2, null)).toBe('fila 3, columna 4, libre');
   });
@@ -52,7 +52,7 @@ describe('cellNameFor — el nombre accesible de una celda', () => {
  * Las cinco frases de la region `aria-live` (AC10): las cuatro ediciones de `EDICION`
  * mas el desmuteo, que es la otra mitad de `mutear`.
  */
-describe('anuncioDeEdicion — lo que dice la region aria-live', () => {
+describe('AC-ACC-027 — anuncioDeEdicion — lo que dice la region aria-live', () => {
   it('colocar y colocar muteada se distinguen por el estado en que queda la pieza', () => {
     expect(anuncioDeEdicion(EDICION.colocar, 'F', 3, 2, false))
       .toBe('pieza F colocada en fila 3, columna 4');

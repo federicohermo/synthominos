@@ -97,7 +97,7 @@ describe('compone `rotateN` y `reflect`, no los reimplementa', () => {
     }
   });
 
-  it('el orden de la cadena es rotar y DESPUÉS reflejar', () => {
+  it('AC-PCS-014 — el orden de la cadena es rotar y DESPUÉS reflejar', () => {
     // Invertirlo compila y da la orientación equivocada en 48 de las 96. Este test
     // busca una pieza donde las dos cadenas difieren, para que la afirmación no sea
     // vacía, y verifica que `miniCells` sigue la que usan `App.tsx`, `invariants.ts`

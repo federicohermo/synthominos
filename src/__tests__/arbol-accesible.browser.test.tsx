@@ -157,7 +157,7 @@ const SOLO_SIMBOLOS = /^[^\p{L}\p{N}]+$/u;
 const señas = (el: Element) => `<${el.tagName.toLowerCase()}${el.getAttribute('role') ? ` role="${el.getAttribute('role')}"` : ''}> "${el.textContent ?? ''}"`;
 
 describe('El arbol de accesibilidad de la app entera', () => {
-  it('todo control tiene nombre accesible, y se recorren todos', async () => {
+  it('AC-ACC-002 — todo control tiene nombre accesible, y se recorren todos', async () => {
     const { container } = await render(<App />);
     const controles = [...container.querySelectorAll(CONTROLES)];
 
@@ -180,7 +180,7 @@ describe('El arbol de accesibilidad de la app entera', () => {
     }
   });
 
-  it('ningun control que alterna se llama como el estado que ya anuncia', async () => {
+  it('AC-ACC-006 — ningun control que alterna se llama como el estado que ya anuncia', async () => {
     const { container } = await render(<App />);
     const toggles = [...container.querySelectorAll('[aria-pressed]')];
 

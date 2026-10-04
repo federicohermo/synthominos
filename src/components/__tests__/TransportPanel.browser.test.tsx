@@ -31,7 +31,7 @@ const transporte = (over: Partial<PropsDeTransporte> = {}): PropsDeTransporte =>
 });
 
 describe('TransportPanel', () => {
-  it('en pausa: el boton ofrece reproducir, y lo dice con el glifo y con el nombre', async () => {
+  it('AC-PLY-001 — en pausa: el boton ofrece reproducir, y lo dice con el glifo y con el nombre', async () => {
     const onTogglePlay = vi.fn();
     await render(<TransportPanel transporte={transporte({ onTogglePlay })} />);
 
@@ -46,7 +46,7 @@ describe('TransportPanel', () => {
     expect(onTogglePlay).toHaveBeenCalledTimes(1);
   });
 
-  it('corriendo: el mismo boton ofrece pausar, con el idioma de lo activo', async () => {
+  it('AC-PLY-001 — corriendo: el mismo boton ofrece pausar, con el idioma de lo activo', async () => {
     await render(<TransportPanel transporte={transporte({ playing: true })} />);
 
     const boton = page.getByRole('button', { name: 'Pausa' });
@@ -82,7 +82,7 @@ describe('TransportPanel', () => {
     expect(container.textContent).toContain('bpm');
   });
 
-  it('el reset dice `↺` y su nombre accesible dice las DOS cosas que hace', async () => {
+  it('AC-ACC-003 AC-PNL-026 — el reset dice `↺` y su nombre accesible dice las DOS cosas que hace', async () => {
     // El boton perdio la palabra `Reset`, que era todo su nombre
     // accesible: un glifo no lo es. El nombre nuevo nombra las dos mitades porque las dos
     // pasan —vacia el tablero y frena el transporte—, y el `title` dice exactamente lo
@@ -102,7 +102,7 @@ describe('TransportPanel', () => {
     expect(onTogglePlay).not.toHaveBeenCalled();
   });
 
-  it('el metronomo es solo-icono, se llama por lo que alterna y lo anuncia con aria-pressed', async () => {
+  it('AC-ACC-005 AC-PNL-026 — el metronomo es solo-icono, se llama por lo que alterna y lo anuncia con aria-pressed', async () => {
     // La asercion que el 019 le saca a `PiecePalette` y que llega ACA en vez de
     // desaparecer. El componente es presentacional, asi que `aria-pressed` sigue a la
     // prop: se compara entre dos renders y no clickeando y esperando que se actualice
@@ -142,7 +142,7 @@ describe('TransportPanel', () => {
   // y no solo "el atributo esta escrito". El nombre va anclado con regex porque
   // `getByRole` empareja por SUBCADENA, que es el mismo tropiezo que
   // `PiecePalette.browser.test.tsx:93-94` ya dejo anotado.
-  it('el slider de Tempo tiene nombre accesible "Tempo" y anuncia su valor con la unidad', async () => {
+  it('AC-ACC-004 — el slider de Tempo tiene nombre accesible "Tempo" y anuncia su valor con la unidad', async () => {
     await render(<TransportPanel transporte={transporte({ tempo: 110 })} />);
 
     const slider = page.getByRole('slider', { name: /^Tempo$/ });
@@ -154,7 +154,7 @@ describe('TransportPanel', () => {
     expect(slider.element().getAttribute('aria-label')).toBeNull();
   });
 
-  it('aria-valuetext sigue al tempo: mismo numero que pinta el span visible, con su unidad', async () => {
+  it('AC-ACC-004 — aria-valuetext sigue al tempo: mismo numero que pinta el span visible, con su unidad', async () => {
     await render(<TransportPanel transporte={transporte({ tempo: 96 })} />);
 
     const slider = page.getByRole('slider', { name: /^Tempo$/ });

@@ -22,7 +22,7 @@ const VEL = 0.8;
 const REL = RELEASE_INTERVALS * intervalDuration(110);
 
 describe('scheduler + sintesis integrados', () => {
-  it('los disparos se oyen donde el scheduler dijo (+-6 ms)', async () => {
+  it('AC-PLY-010 — los disparos se oyen donde el scheduler dijo (+-6 ms)', async () => {
     const state: ClockState = { origin: 0.5, scheduledUntil: 0 };
     // Una sola nota: hit y onset coinciden por construccion. Y un ciclo de 16
     // intervalos es un compas exacto, o sea el periodo de antes: a
@@ -79,7 +79,7 @@ describe('scheduler + sintesis integrados', () => {
     expect(peakNear(d, click + CLICK_SECONDS + 0.03)).toBe(0);
   });
 
-  it('el cruce por celda ocupada suena su altura, mas corto y mas suave', async () => {
+  it('AC-PLY-019 — el cruce por celda ocupada suena su altura, mas corto y mas suave', async () => {
     const bpm = 110;
     const interval = intervalDuration(bpm);
     const rel = RELEASE_INTERVALS * interval;
@@ -148,7 +148,7 @@ describe('scheduler + sintesis integrados', () => {
 });
 
 describe('analizador', () => {
-  it('el nodo es transparente: la senal que sale es la misma', async () => {
+  it('AC-SPC-002 — el nodo es transparente: la senal que sale es la misma', async () => {
     // No verifica el analisis —getByteFrequencyData no rinde nada util offline,
     // por eso el mapeo vive en spectrum.ts— sino la unica parte del AC1 que se
     // puede afirmar sin escuchar: insertar el nodo en serie no altera el audio.

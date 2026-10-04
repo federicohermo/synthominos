@@ -19,7 +19,7 @@ const visible = (rotation: number, mirror: boolean) => {
 };
 
 describe('textoDeOrientacion — las ocho combinaciones', () => {
-  it('sin reflejar dice los grados y nada más', () => {
+  it('AC-PNL-016 — sin reflejar dice los grados y nada más', () => {
     expect([0, 1, 2, 3].map(r => textoDeOrientacion(r, false))).toEqual([
       { grados: '0°', reflejada: null },
       { grados: '90°', reflejada: null },
@@ -28,7 +28,7 @@ describe('textoDeOrientacion — las ocho combinaciones', () => {
     ]);
   });
 
-  it('reflejada agrega la palabra, y los grados no cambian', () => {
+  it('AC-PNL-016 — reflejada agrega la palabra, y los grados no cambian', () => {
     // La reflexión no rota: el espejo es otra transformación y el texto lo dice sumando,
     // no corrigiendo el número.
     expect([0, 1, 2, 3].map(r => textoDeOrientacion(r, true))).toEqual([
@@ -39,7 +39,7 @@ describe('textoDeOrientacion — las ocho combinaciones', () => {
     ]);
   });
 
-  it('las ocho son distintas entre sí', () => {
+  it('AC-PNL-016 — las ocho son distintas entre sí', () => {
     const ocho = [false, true].flatMap(m => [0, 1, 2, 3].map(r => visible(r, m)));
     expect(new Set(ocho).size).toBe(8);
   });
@@ -53,7 +53,7 @@ describe('donde la miniatura no puede decirlo, el texto sí', () => {
   const forma = (p: PieceKey, r: number, m: boolean) =>
     miniCells(p, r, m).map(([x, y]) => `${x},${y}`).sort().join('|');
 
-  it('para `I T U V W X` hay pares con la MISMA forma, o sea que el criterio no es vacuo', () => {
+  it('AC-PNL-017 — para `I T U V W X` hay pares con la MISMA forma, o sea que el criterio no es vacuo', () => {
     // Si esto diera cero pares, el test de abajo pasaría sin verificar nada: es el
     // guardián del guardián.
     const pares = CIEGAS.flatMap(p => {
@@ -66,7 +66,7 @@ describe('donde la miniatura no puede decirlo, el texto sí', () => {
     expect(pares.filter(x => x.p === 'X')).toHaveLength(28);
   });
 
-  it('cada uno de esos pares da textos distintos', () => {
+  it('AC-PNL-017 — cada uno de esos pares da textos distintos', () => {
     for (const p of CIEGAS) {
       const ocho = [false, true].flatMap(m => [0, 1, 2, 3].map(r => ({ r, m, f: forma(p, r, m) })));
       for (const [i, a] of ocho.entries()) {

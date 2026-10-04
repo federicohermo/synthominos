@@ -147,7 +147,7 @@ describe('audio() — el singleton y su grafo', () => {
     expect(MASTER_GAIN).toBeGreaterThan(0);
   });
 
-  it('sin Web Audio devuelve null y avisa, en vez de romper la app', async () => {
+  it('AC-PLY-004 — sin Web Audio devuelve null y avisa, en vez de romper la app', async () => {
     // La app «queda usable pero muda», que es lo que promete el docblock. Se verifica
     // porque es una promesa sobre un navegador que no tenemos, y la unica forma de
     // saber que se cumple es fabricarlo.
@@ -169,7 +169,7 @@ describe('audio() — el singleton y su grafo', () => {
     warn.mockRestore();
   });
 
-  it('el fallo avisa UNA vez y no una por click', async () => {
+  it('AC-PLY-004 — el fallo avisa UNA vez y no una por click', async () => {
     // Sin la marca de «ya fallo», cada llamada reintenta el constructor: y las llamadas
     // vienen del usuario tocando el instrumento, asi que la consola se llenaba a razon
     // de un warning por click. Se cuenta el warn y no se mira `audio()`, porque lo que
@@ -193,14 +193,14 @@ describe('audio() — el singleton y su grafo', () => {
 });
 
 describe('readSpectrum() — el buffer reusado', () => {
-  it('devuelve null mientras no haya senal que mirar', async () => {
+  it('AC-SPC-003 — devuelve null mientras no haya senal que mirar', async () => {
     const e = await motor();
     // Sin contexto todavia: `readSpectrum` NO lo crea, a proposito — su llamador es un
     // loop de dibujo y crearlo ahi seria hacerlo sin gesto del usuario.
     expect(e.readSpectrum()).toBeNull();
   });
 
-  it('es el MISMO array entre llamadas, que es lo que su docblock advierte', async () => {
+  it('AC-SPC-004 — es el MISMO array entre llamadas, que es lo que su docblock advierte', async () => {
     const e = await motor();
     e.audio();
     const a = e.readSpectrum();
@@ -328,7 +328,7 @@ describe('el reloj', () => {
     expect(e.clockRunning()).toBe(true);
   });
 
-  it('el primer arranque pone en vigencia la pendiente y cuenta el swap', async () => {
+  it('AC-PLY-015 — el primer arranque pone en vigencia la pendiente y cuenta el swap', async () => {
     const e = await conReloj();
     e.setSequence(CICLO);
     e.setClicksAudible(true);
@@ -347,7 +347,7 @@ describe('el reloj', () => {
     });
   });
 
-  it('con los clicks apagados el ciclo sigue igual: es mezcla, no modelo', async () => {
+  it('AC-PLY-021 — con los clicks apagados el ciclo sigue igual: es mezcla, no modelo', async () => {
     const e = await conReloj();
     e.setSequence(CICLO);
     e.setClicksAudible(false);
@@ -373,19 +373,19 @@ describe('el reloj', () => {
 });
 
 describe('playheadOffset()', () => {
-  it('null en pausa, aunque el contexto exista', async () => {
+  it('AC-PLY-029 — null en pausa, aunque el contexto exista', async () => {
     const e = await motor();
     e.audio();
     expect(e.playheadOffset()).toBeNull();
   });
 
-  it('null con el reloj andando y la secuencia vacia', async () => {
+  it('AC-PLY-029 — null con el reloj andando y la secuencia vacia', async () => {
     const e = await conReloj();
     e.startClock();
     expect(e.playheadOffset()).toBeNull();
   });
 
-  it('null mientras `origin` todavia es futuro, y un numero despues', async () => {
+  it('AC-PLY-029 — null mientras `origin` todavia es futuro, y un numero despues', async () => {
     const e = await conReloj();
     e.setSequence(CICLO);
     e.startClock();
@@ -451,7 +451,7 @@ describe('playheadOffset()', () => {
     expect(off!).toBeLessThan(CICLO.length);
   });
 
-  it('null con el contexto suspendido, aunque el reloj siga andando', async () => {
+  it('AC-PLY-029 — null con el contexto suspendido, aunque el reloj siga andando', async () => {
     const e = await conReloj();
     e.setSequence(CICLO);
     e.startClock();
@@ -517,7 +517,7 @@ describe('outputLatency — la cadena que TypeScript cree innecesaria', () => {
 });
 
 describe('tick() — el despacho de las tres clases', () => {
-  it('las tres ramas del `kind` se recorren en un ciclo con las tres', async () => {
+  it('AC-PLY-023 — las tres ramas del `kind` se recorren en un ciclo con las tres', async () => {
     // No hay forma de oir desde un test, asi que lo que se afirma es que el ciclo con
     // nota, cruce y click mudo corre entero y con los clicks ENCENDIDOS —que es la
     // unica rama con condicion— sin dejar el motor en un estado invalido.
@@ -562,7 +562,7 @@ describe('tick() — el despacho de las tres clases', () => {
     expect(e.clockRunning()).toBe(true);
   });
 
-  it('con el grafo a medio construir, el motor NO dice que arranco', async () => {
+  it('AC-PLY-003 — con el grafo a medio construir, el motor NO dice que arranco', async () => {
     // Este test llego a afirmar lo contrario, y el estado que describia era
     // alcanzable de verdad: si `createGain()` falla, `audio()` cae al `catch` y devuelve
     // null PERO `ctx` ya quedaba asignado, asi que el `if (ctx) return ctx` de la

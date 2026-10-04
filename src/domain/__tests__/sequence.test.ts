@@ -137,11 +137,11 @@ describe('el teselado que usan los tests', () => {
 });
 
 describe('bordes', () => {
-  it('un tablero vacio no suena y su ciclo mide cero', () => {
+  it('AC-CIR-013 — un tablero vacio no suena y su ciclo mide cero', () => {
     expect(buildSequence([], REGIMEN.escala, GRID_DEFAULT)).toEqual({ steps: [], clicks: [], order: [], length: 0 });
   });
 
-  it('con una sola pieza no hay clicks: el recorrido existe ENTRE piezas', () => {
+  it('AC-CIR-013 — con una sola pieza no hay clicks: el recorrido existe ENTRE piezas', () => {
     // Salio de escuchar, no de planificar: el plan queria cerrar el ciclo con el
     // salto de la pieza a si misma —de su salida a su entrada— y eso metia clicks
     // que caian SOBRE la propia pieza, porque el `pathBetween` del 009 ignoraba los
@@ -168,7 +168,7 @@ describe('bordes', () => {
     }
   });
 
-  it('la pieza sola se repite CONTIGUA consigo misma, sin pisarse', () => {
+  it('AC-CIR-013 — la pieza sola se repite CONTIGUA consigo misma, sin pisarse', () => {
     // El largo es 5 y no 4 aunque las cinco notas abarquen 4 intervalos: con 4, la
     // ultima nota de una vuelta y la primera de la siguiente caerian en el mismo
     // instante. Con 5 la repeticion cae un intervalo despues de la ultima nota, que
@@ -234,7 +234,7 @@ describe('las puertas de una pieza', () => {
     expect(distintas).toBe(53);
   });
 
-  it('entrada y salida nunca son la misma celda, en las 96 orientaciones', () => {
+  it('AC-CIR-008 — entrada y salida nunca son la misma celda, en las 96 orientaciones', () => {
     // Quien protege hoy a `routeBetween` del caso degenerado son otras dos cosas: que
     // dos piezas no se solapen —el tramo va de la salida de una a la entrada de OTRA—
     // y que con una sola pieza no haya tramo (la guarda de `n === 1` en
@@ -318,7 +318,7 @@ describe('`cellsByPlayOrder`: la celda de cada nota', () => {
 });
 
 describe('`noteAtCell`: que nota hay en una celda', () => {
-  it('es exactamente la que el tablero PINTA, en las 96 orientaciones', () => {
+  it('AC-MUS-016 — es exactamente la que el tablero PINTA, en las 96 orientaciones', () => {
     // Los dos extremos de la misma cadena: `components/Board.tsx` la deriva a mano para
     // DIBUJAR la nota de una celda, y esta pura es la que la deriva para SONAR cuando el
     // recorrido la pisa. Si las dos se corrieran, la celda diria una altura y pisarla
@@ -336,7 +336,7 @@ describe('`noteAtCell`: que nota hay en una celda', () => {
     }
   });
 
-  it('null si la celda no es de la pieza', () => {
+  it('AC-MUS-016 — null si la celda no es de la pieza', () => {
     // No es un borde decorativo: es lo que deja que `buildSequence` pregunte por
     // cualquier celda del camino sin averiguar antes si hay algo abajo.
     const f = colocar('F', 0, false, 1, 1);
@@ -345,7 +345,7 @@ describe('`noteAtCell`: que nota hay en una celda', () => {
     for (const c of f.cells) expect(noteAtCell(f, c, REGIMEN.escala)).not.toBeNull();
   });
 
-  it('sale del arpegio ASCENDENTE y no del que ya trae el retrogrado', () => {
+  it('AC-MUS-025 — sale del arpegio ASCENDENTE y no del que ya trae el retrogrado', () => {
     // La trampa cara: el arpegio de la pieza viene en orden de REPRODUCCION, o sea con
     // el retrogrado ya aplicado si esta reflejada. Indexar ESE array con el grado de la
     // celda lee la forma al derecho contra un arpegio al reves. Con la `L` reflejada las
@@ -360,7 +360,7 @@ describe('`noteAtCell`: que nota hay en una celda', () => {
     expect(real.filter((n, k) => n !== espejado[k])).toHaveLength(4);
   });
 
-  it('bajo `orden` devuelve la nota del regimen de la pieza, no la de `escala`', () => {
+  it('AC-MUS-016 — bajo `orden` devuelve la nota del regimen de la pieza, no la de `escala`', () => {
     // De `noteAtCell` sale el `Click.note` de un cruce: la altura que suena al PISAR una
     // celda ocupada. Si se quedara en `escala` mientras el tablero toca `orden`, la
     // celda diria una altura y pisarla sonaria otra — el bug que el docblock de la pura
@@ -399,7 +399,7 @@ describe('`noteAtCell`: que nota hay en una celda', () => {
 });
 
 describe('las puertas siguen la melodia, tambien con reflexion (D9)', () => {
-  it('el caso testigo `L`/0/reflejada: entrada [0,0] y salida [1,3] — el 009 daba al reves', () => {
+  it('AC-CIR-008 — el caso testigo `L`/0/reflejada: entrada [0,0] y salida [1,3] — el 009 daba al reves', () => {
     // Medido con `describe_piece` y `simulate_board` antes de escribir el arreglo:
     // [1,3] es el grado 0 (D4) y [0,0] el grado 4 (B4); con retrogrado la primera
     // nota que suena es B4. El 009 entraba por [1,3], o sea por la ULTIMA nota, y el
@@ -411,7 +411,7 @@ describe('las puertas siguen la melodia, tambien con reflexion (D9)', () => {
     expect(notaPintadaEn(l, gates(l).entrada)).toBe(notasDe(l)[0]);
   });
 
-  it('en las 96 orientaciones la entrada es la celda de la primera nota y la salida la de la ultima', () => {
+  it('AC-CIR-008 — en las 96 orientaciones la entrada es la celda de la primera nota y la salida la de la ultima', () => {
     for (const k of PIECES) {
       for (let rot = 0; rot < 4; rot++) {
         for (const mirror of [false, true]) {
@@ -520,7 +520,7 @@ const CUATRO = [
 ];
 
 describe('el orden es el del circuito mas corto, no el de colocacion', () => {
-  it('con cuatro piezas el circuito reordena la colocacion y sale mas barato', () => {
+  it('AC-CIR-009 — con cuatro piezas el circuito reordena la colocacion y sale mas barato', () => {
     expect(CUATRO.every((p, i) => isValid(p.cells, CUATRO.slice(0, i), GRID_DEFAULT))).toBe(true);
     expect(ordenDe(CUATRO)).toEqual([0, 3, 2, 1]);
     expect(costoDelCircuito([0, 3, 2, 1], CUATRO)).toBe(19);
@@ -537,7 +537,7 @@ describe('el orden es el del circuito mas corto, no el de colocacion', () => {
     expect(buildSequence(CUATRO, REGIMEN.escala, GRID_DEFAULT).length).toBe(4 * (CELLS_PER_PIECE - 1) + 19);
   });
 
-  it('ningun otro circuito es mas corto, verificado por fuerza bruta hasta 7 piezas', () => {
+  it('AC-CIR-010 — ningun otro circuito es mas corto, verificado por fuerza bruta hasta 7 piezas', () => {
     // Held-Karp contra la enumeracion completa: es lo unico que distingue "exacto" de
     // "heuristica que casi siempre acierta". Se corta en 7 porque 7! ya son 720
     // circuitos por tablero y el valor del test no crece con el octavo.
@@ -554,7 +554,7 @@ describe('el orden es el del circuito mas corto, no el de colocacion', () => {
 });
 
 describe('dos piezas adyacentes quedan contiguas', () => {
-  it('con salto 1 no hay clicks y la nota siguiente cae un intervalo despues de la ultima', () => {
+  it('AC-CIR-011 — con salto 1 no hay clicks y la nota siguiente cae un intervalo despues de la ultima', () => {
     // `L` sale por (2,0) y `N` entra por (3,0); `N` sale por (2,3) y `L` entra por
     // (1,3). Los dos tramos del circuito miden 1, asi que el patron queda contiguo en
     // los dos sentidos y no hay silencio en ninguna costura.
@@ -583,7 +583,7 @@ describe('dos piezas adyacentes quedan contiguas', () => {
 });
 
 describe('los offsets y los clicks', () => {
-  it('cada pieza abarca 4 intervalos y encima se suma el salto a la siguiente', () => {
+  it('AC-CIR-012 — cada pieza abarca 4 intervalos y encima se suma el salto a la siguiente', () => {
     for (const board of PREFIJOS) {
       const seq = buildSequence(board, REGIMEN.escala, GRID_DEFAULT);
       const orden = ordenDe(board);
@@ -596,7 +596,7 @@ describe('los offsets y los clicks', () => {
     }
   });
 
-  it('el ciclo cierra sumando tambien el salto de la ultima pieza a la primera', () => {
+  it('AC-CIR-012 — el ciclo cierra sumando tambien el salto de la ultima pieza a la primera', () => {
     // Sin ese tramo el loop se cerraria antes de tiempo y la vuelta al principio se
     // escucharia como un corte.
     //
@@ -611,7 +611,7 @@ describe('los offsets y los clicks', () => {
     }
   });
 
-  it('un salto de d deja exactamente d-1 clicks, y son las celdas del camino', () => {
+  it('AC-CIR-014 — un salto de d deja exactamente d-1 clicks, y son las celdas del camino', () => {
     // La cantidad NO se calcula aparte: es el largo del camino. Es lo que hace
     // imposible que la celda que se dibuja y la que suena discrepen (D8).
     //
@@ -630,7 +630,7 @@ describe('los offsets y los clicks', () => {
     }
   });
 
-  it('los clicks van estrictamente crecientes y ninguno pisa el instante de una nota', () => {
+  it('AC-CIR-015 — los clicks van estrictamente crecientes y ninguno pisa el instante de una nota', () => {
     // Sin esta garantia dos clicks podrian caer en el mismo intervalo, y el motor
     // —que solo ve el offset— los agendaria a los dos: dos veces CLICK_VELOCITY es el
     // 62 % de una nota y rompe justamente lo que D4 pide. La celda no le hace falta al
@@ -678,7 +678,7 @@ const CON_X = [colocar('X', 0, false, 1, 1), colocar('F', 0, false, 3, 2), coloc
 const manhattanEntre = (a: Cell, b: Cell): number => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
 
 describe('el cruce lleva la altura de la celda que pisa', () => {
-  it('atravesar la X suena con las notas de la X, celda por celda', () => {
+  it('AC-CIR-016 — atravesar la X suena con las notas de la X, celda por celda', () => {
     expect(CON_X.every((p, i) => isValid(p.cells, CON_X.slice(0, i), GRID_DEFAULT))).toBe(true);
     const equis = CON_X[0];
     expect(equis.cells).toEqual([[1, 0], [0, 1], [1, 1], [2, 1], [1, 2]]);
@@ -708,7 +708,7 @@ describe('el cruce lleva la altura de la celda que pisa', () => {
     expect(vacia?.note).toBeUndefined();
   });
 
-  it('en los 12 prefijos: hay `note` si y solo si la celda estaba ocupada', () => {
+  it('AC-CIR-017 — en los 12 prefijos: hay `note` si y solo si la celda estaba ocupada', () => {
     // La garantia entera: ningun click inventa una altura sobre una celda vacia, y
     // ninguno se calla sobre una ocupada.
     for (const board of PREFIJOS) {
@@ -721,7 +721,7 @@ describe('el cruce lleva la altura de la celda que pisa', () => {
     }
   });
 
-  it('el teselado lleno: sin una sola celda vacia, los 13 clicks llevan altura', () => {
+  it('AC-CIR-017 — el teselado lleno: sin una sola celda vacia, los 13 clicks llevan altura', () => {
     // El caso limite del modelo. Con las 60 celdas ocupadas el peso no puede evitar nada
     // y todo click pisa: el recorrido no se apaga cuando no puede esquivar, sigue
     // sonando y ahora dice sobre que.
@@ -732,7 +732,7 @@ describe('el cruce lleva la altura de la celda que pisa', () => {
 });
 
 describe('las notas de cada paso', () => {
-  it('salen de la pieza con el retrogrado ya aplicado', () => {
+  it('AC-MUS-017 — salen de la pieza con el retrogrado ya aplicado', () => {
     // Reflejar invierte el ORDEN EN QUE SUENAN las notas, y eso lo aplica `arpeggioFor`.
     // Volver a invertir aca desharia la reflexion.
     const v = colocar('V', 0, true, 2, 2);
@@ -752,7 +752,7 @@ describe('las notas de cada paso', () => {
 });
 
 describe('determinismo', () => {
-  it('el mismo tablero da siempre la misma secuencia', () => {
+  it('AC-CIR-022 — el mismo tablero da siempre la misma secuencia', () => {
     // Sin esto dos tableros identicos podrian sonar distinto segun como el motor de
     // JS recorrio el `for`. No hay `Math.random`, ni fecha, ni flotantes: la cuenta
     // entera es lo que lo garantiza.
@@ -762,7 +762,7 @@ describe('determinismo', () => {
     }
   });
 
-  it('ante dos circuitos de igual costo gana el de indices menores', () => {
+  it('AC-CIR-021 — ante dos circuitos de igual costo gana el de indices menores', () => {
     // El indice es el TERCER criterio y solo decide cuando los dos anteriores empatan,
     // asi que el tablero tiene que empatar en costo **Y** en pasos. Medido: F, Z, Y dejan
     // dos circuitos, 0→1→2 y 0→2→1, los dos a costo 19 y 14 pasos.
@@ -790,7 +790,7 @@ describe('determinismo', () => {
     expect(ordenDe(board)).toEqual([0, 1, 2]);
   });
 
-  it('el ORDEN DE COLOCACION no cambia lo que suena: 120 permutaciones, un solo ciclo', () => {
+  it('AC-CIR-020 — el ORDEN DE COLOCACION no cambia lo que suena: 120 permutaciones, un solo ciclo', () => {
     // La propiedad que el 009 promete —"la geometria decide el orden"— y que el 011 casi
     // rompe sin querer. Encontrada probando la app, no leyendo codigo.
     //
@@ -850,7 +850,7 @@ describe('determinismo', () => {
       .map((o) => pasosDelCircuito(o, armar([0, 1, 2, 3, 4]))).sort((a, b) => a - b)[0]).toBe(21);
   });
 
-  it('el circuito elegido es el lexicograficamente menor entre todos los optimos', () => {
+  it('AC-CIR-021 — el circuito elegido es el lexicograficamente menor entre todos los optimos', () => {
     for (const board of [CUATRO, ...PREFIJOS.slice(1, 7)]) {
       const todos = circuitos(board.length);
       const optimo = Math.min(...todos.map((o) => costoDelCircuito(o, board)));
@@ -910,7 +910,7 @@ describe('el tablero lleno', () => {
   const EN_CI = !!process.env.CI;
   const NO_ES_MEDIBLE = BAJO_COVERAGE || EN_CI;
 
-  it.skipIf(NO_ES_MEDIBLE)('AC10 — 12 piezas se resuelven en menos de 5 ms (mediana de 21 corridas)', () => {
+  it.skipIf(NO_ES_MEDIBLE)('AC-CIR-023 — 12 piezas se resuelven en menos de 5 ms (mediana de 21 corridas)', () => {
     // Mediana y no una sola corrida: una pausa de GC en una maquina cargada se come el
     // margen entero. La mediana de 21 deja 10 corridas para que se la coman sin que el
     // test parpadee.
@@ -936,7 +936,7 @@ describe('el tablero lleno', () => {
     expect(mediana).toBeLessThan(5);
   });
 
-  it.skipIf(NO_ES_MEDIBLE)('031 AC6 — el MISMO presupuesto sobre el tablero de una pantalla de 1920x1080', () => {
+  it.skipIf(NO_ES_MEDIBLE)('AC-CIR-024 — el MISMO presupuesto sobre el tablero de una pantalla de 1920x1080', () => {
     // El presupuesto de arriba mide 12 piezas sobre 60 celdas. El tablero
     // sale del viewport, asi que el peor caso realista de escritorio es **26 x 15 = 390
     // celdas**, 6,5 veces mas grande — y el Dijkstra de `routeBetween` es `O(N^2)`.
@@ -984,7 +984,7 @@ describe('el tablero lleno', () => {
     expect(mediana).toBeLessThan(8);
   });
 
-  it.skipIf(NO_ES_MEDIBLE)('AC8 — la matriz de 12x12 rutas se mantiene despreciable (mediana de 21 corridas)', () => {
+  it.skipIf(NO_ES_MEDIBLE)('la matriz de 12x12 rutas se mantiene despreciable (mediana de 21 corridas)', () => {
     // El pedazo que encarecio el cruce, medido aparte y con su propio tope: son las
     // 144 rutas con las que `buildSequence` arma la matriz que ordena el circuito. El
     // 009 hacia 144 restas; hoy son 144 Dijkstras sobre 60 celdas.
@@ -1054,7 +1054,7 @@ const mutando = (board: readonly PlacedPiece[], i: number): PlacedPiece[] =>
   board.map((p, k) => k === i ? { ...p, muted: true } : p);
 
 describe('mutear no mueve el circuito', () => {
-  it('mismo orden de visita, mismos offsets y mismo largo del ciclo', () => {
+  it('AC-CIR-018 — mismo orden de visita, mismos offsets y mismo largo del ciclo', () => {
     const normal = buildSequence(CUATRO, REGIMEN.escala, GRID_DEFAULT);
     for (let i = 0; i < CUATRO.length; i++) {
       const muteada = buildSequence(mutando(CUATRO, i), REGIMEN.escala, GRID_DEFAULT);
@@ -1070,7 +1070,7 @@ describe('mutear no mueve el circuito', () => {
     expect(muteada.steps).toEqual(normal.steps.filter((s) => s.pieceId !== id));
   });
 
-  it('los clicks del RECORRIDO caen en los mismos offsets y las mismas celdas', () => {
+  it('AC-CIR-018 — los clicks del RECORRIDO caen en los mismos offsets y las mismas celdas', () => {
     const normal = buildSequence(CUATRO, REGIMEN.escala, GRID_DEFAULT);
     const muteada = buildSequence(mutando(CUATRO, 0), REGIMEN.escala, GRID_DEFAULT);
     // Los offsets que la pieza muteada pasa a ocupar son exactamente los de su arpegio.
@@ -1092,7 +1092,7 @@ describe('mutear no mueve el circuito', () => {
 });
 
 describe('la pieza muteada emite cinco clicks mudos y ningun paso', () => {
-  it('los cinco caen donde estaban sus notas, celda por celda', () => {
+  it('AC-PLY-024 — los cinco caen donde estaban sus notas, celda por celda', () => {
     const normal = buildSequence(CUATRO, REGIMEN.escala, GRID_DEFAULT);
     const muteada = buildSequence(mutando(CUATRO, 0), REGIMEN.escala, GRID_DEFAULT);
     const paso = normal.steps.find((s) => s.pieceId === CUATRO[0].id)!;
@@ -1115,7 +1115,7 @@ describe('la pieza muteada emite cinco clicks mudos y ningun paso', () => {
 });
 
 describe('una sola pieza muteada va por el retorno temprano y tampoco suena', () => {
-  it('cinco clicks mudos, cero pasos y el ciclo del arpegio', () => {
+  it('AC-PLY-025 — cinco clicks mudos, cero pasos y el ciclo del arpegio', () => {
     // `n === 1` arma su `Step` sin pasar por el bucle (`sequence.ts`), asi que una
     // implementacion que solo tocara el bucle dejaria a este —el unico tablero que se
     // puede mutear entero— como el unico que suena.
@@ -1131,7 +1131,7 @@ describe('una sola pieza muteada va por el retorno temprano y tampoco suena', ()
 });
 
 describe('un cruce sobre una pieza muteada no suena', () => {
-  it('los cruces sobre la X pierden su altura al mutearla', () => {
+  it('AC-PLY-026 — los cruces sobre la X pierden su altura al mutearla', () => {
     // `CON_X` es el tablero donde el recorrido PISA la `X`, y esos cruces suenan la
     // floritura — que es exactamente la nota que el muteo apaga.
     const normal = buildSequence(CON_X, REGIMEN.escala, GRID_DEFAULT);
@@ -1155,8 +1155,8 @@ describe('un cruce sobre una pieza muteada no suena', () => {
   });
 });
 
-describe('D4 — dos eventos no caen nunca en el mismo instante, tampoco con muteo', () => {
-  it('ningun offset se repite entre clicks ni choca con una nota', () => {
+describe('dos eventos no caen nunca en el mismo instante, tampoco con muteo', () => {
+  it('AC-CIR-015 — ningun offset se repite entre clicks ni choca con una nota', () => {
     // La garantia es del 009 y este spec mete una clase nueva de click adentro del mismo
     // intervalo que ocupa un arpegio. Si dos coincidieran, el motor agendaria
     // los dos y las amplitudes se sumarian.

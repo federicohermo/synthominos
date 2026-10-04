@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs';
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
 describe('index.html', () => {
-  it('declara el idioma de la interfaz, que es el que se habla adentro', () => {
+  it('AC-ACC-001 — declara el idioma de la interfaz, que es el que se habla adentro', () => {
     // Un lector de pantalla usa `lang` para elegir el motor de voz. Con `en`
     // —la herencia de la plantilla de Create React App— «Reflexión» y «rotación 90°»
     // se pronunciaban con fonetica inglesa, incluido el `aria-label` de las miniaturas,

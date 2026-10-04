@@ -55,7 +55,7 @@ const pintados = (canvas: HTMLCanvasElement): number => {
 };
 
 describe('Spectrum — el montaje', () => {
-  it('monta un canvas dimensionado por el layout, no por atributos', async () => {
+  it('AC-SPC-020 — monta un canvas dimensionado por el layout, no por atributos', async () => {
     const { container } = await render(<Spectrum />);
     const canvas = container.querySelector('canvas')!;
 
@@ -67,7 +67,7 @@ describe('Spectrum — el montaje', () => {
     expect(canvas.height).toBe(Math.round(rect.height * window.devicePixelRatio));
   });
 
-  it('el reposo y la senal se dibujan DISTINTO, y el reposo lo dice con palabras', async () => {
+  it('AC-SPC-016 — el reposo y la senal se dibujan DISTINTO, y el reposo lo dice con palabras', async () => {
     // Lo que separa los dos estados NO es cuanta tinta hay —medido: el reposo pinta las
     // 48 ranuras de alto completo, o sea la misma area que las barras al maximo— sino
     // que el reposo escribe. Una linea plana al ras del canvas se lee igual que "el
@@ -93,7 +93,7 @@ describe('Spectrum — el montaje', () => {
     }
   });
 
-  it('al desmontar corta el loop y suelta el observer', async () => {
+  it('AC-SPC-025 — al desmontar corta el loop y suelta el observer', async () => {
     const desconectar = vi.spyOn(ResizeObserver.prototype, 'disconnect');
     const cancelar = vi.spyOn(window, 'cancelAnimationFrame');
     const { unmount } = await render(<Spectrum />);
@@ -114,7 +114,7 @@ describe('drawBars / drawIdle — lo que se dibuja', () => {
     return c;
   };
 
-  it('una barra en cero no pinta nada, y una minima igual se ve', () => {
+  it('AC-SPC-013 — una barra en cero no pinta nada, y una minima igual se ve', () => {
     // `MIN_BAR` existe porque por debajo de eso no se ve que hay algo: una barra con
     // senal tiene que dejar tinta aunque su valor sea casi cero.
     const c = lienzo();
@@ -130,7 +130,7 @@ describe('drawBars / drawIdle — lo que se dibuja', () => {
     expect(conMinima).toBeLessThanOrEqual(Math.ceil(200 / 3) * MIN_BAR);
   });
 
-  it('el reposo pinta las 48 ranuras y el texto', () => {
+  it('AC-SPC-015 — el reposo pinta las 48 ranuras y el texto', () => {
     const c = lienzo();
     const g = c.getContext('2d')!;
     const escrito = vi.spyOn(g, 'fillText');
@@ -141,7 +141,7 @@ describe('drawBars / drawIdle — lo que se dibuja', () => {
     escrito.mockRestore();
   });
 
-  it('las barras respetan el `GAP` entre ranuras', () => {
+  it('AC-SPC-014 — las barras respetan el `GAP` entre ranuras', () => {
     const c = lienzo();
     const g = c.getContext('2d')!;
     const rects = vi.spyOn(g, 'fillRect');
@@ -154,13 +154,13 @@ describe('drawBars / drawIdle — lo que se dibuja', () => {
 });
 
 describe('iniciarEspectro — las guardas y el dpr', () => {
-  it('sin canvas no arranca nada, y su limpieza no explota', () => {
+  it('AC-SPC-026 — sin canvas no arranca nada, y su limpieza no explota', () => {
     // Es lo que tiene un `ref.current` recien montado. Con el loop adentro del
     // componente este camino no lo podia ejercer nadie.
     expect(() => loop.iniciarEspectro(null)()).not.toThrow();
   });
 
-  it('sin contexto 2d tampoco: la app queda muda, no rota', () => {
+  it('AC-SPC-026 — sin contexto 2d tampoco: la app queda muda, no rota', () => {
     // `getContext('2d')` devuelve null cuando el navegador no puede darlo. Se fabrica
     // ese navegador, porque es la unica forma de saber que la guarda hace lo que dice.
     const canvas = canvasSuelto();
@@ -174,7 +174,7 @@ describe('iniciarEspectro — las guardas y el dpr', () => {
     }
   });
 
-  it('un canvas sin padre se observa a si mismo', () => {
+  it('AC-SPC-024 — un canvas sin padre se observa a si mismo', () => {
     // El observer mira el CONTENEDOR y no el canvas —cambiarle width/height dentro del
     // propio callback puede realimentarlo— y cae al canvas cuando no hay contenedor.
     const suelto = document.createElement('canvas');
@@ -189,7 +189,7 @@ describe('iniciarEspectro — las guardas y el dpr', () => {
     }
   });
 
-  it('un dpr que no vale cae a 1 en vez de dejar el canvas en cero', () => {
+  it('AC-SPC-021 — un dpr que no vale cae a 1 en vez de dejar el canvas en cero', () => {
     const canvas = canvasSuelto(120, 60);
     const antes = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio');
     Object.defineProperty(window, 'devicePixelRatio', { get: () => 0, configurable: true });
@@ -205,7 +205,7 @@ describe('iniciarEspectro — las guardas y el dpr', () => {
     }
   });
 
-  it('el cambio de densidad re-mide Y re-arma la media query', () => {
+  it('AC-SPC-022 — el cambio de densidad re-mide Y re-arma la media query', () => {
     // El `ResizeObserver` no cubre el dpr: arrastrar la ventana a un monitor con otra
     // densidad cambia `devicePixelRatio` sin cambiar un pixel CSS, asi que el observer
     // no dispara y el canvas se queda con el backing store de la pantalla anterior. Y
@@ -248,7 +248,7 @@ describe('iniciarEspectro — las guardas y el dpr', () => {
     }
   });
 
-  it('el ResizeObserver re-mide cuando el contenedor cambia de tamano', async () => {
+  it('AC-SPC-023 — el ResizeObserver re-mide cuando el contenedor cambia de tamano', async () => {
     const canvas = canvasSuelto(120, 60);
     const limpiar = loop.iniciarEspectro(canvas);
     try {
@@ -267,7 +267,7 @@ describe('iniciarEspectro — el reposo no redibuja de balde', () => {
   // reposo" cubriria las dos primeras y fallaria muda en la tercera -es la
   // diferencia que separa el arreglo correcto de cambiar una falla muda por otra.
 
-  it('reposo -> reposo: tras el primer cuadro, mas cuadros no vuelven a tocar el canvas', async () => {
+  it('AC-SPC-017 — reposo -> reposo: tras el primer cuadro, mas cuadros no vuelven a tocar el canvas', async () => {
     const canvas = canvasSuelto();
     const limpiar = loop.iniciarEspectro(canvas);
     try {
@@ -295,7 +295,7 @@ describe('iniciarEspectro — el reposo no redibuja de balde', () => {
     }
   });
 
-  it('un resize invalida la clave y vuelve a dibujar el reposo', async () => {
+  it('AC-SPC-018 — un resize invalida la clave y vuelve a dibujar el reposo', async () => {
     const canvas = canvasSuelto();
     const limpiar = loop.iniciarEspectro(canvas);
     try {
@@ -320,7 +320,7 @@ describe('iniciarEspectro — el reposo no redibuja de balde', () => {
     }
   });
 
-  it('senal -> reposo: cuando readSpectrum vuelve a null, redibuja el reposo y no deja las barras congeladas', async () => {
+  it('AC-SPC-019 — senal -> reposo: cuando readSpectrum vuelve a null, redibuja el reposo y no deja las barras congeladas', async () => {
     const canvas = canvasSuelto();
     const limpiar = loop.iniciarEspectro(canvas);
     try {

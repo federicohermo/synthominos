@@ -82,7 +82,7 @@ describe('el registro', () => {
 });
 
 describe('describe_piece', () => {
-  test('AC4 — Z rotada 270° y reflejada', () => {
+  test('Z rotada 270° y reflejada', () => {
     const r = call(describePiece, { piece: 'Z', rotation: 3, mirror: true });
     assert.deepEqual((r.notes as { name: string }[]).map(n => n.name), ['D#6', 'C#6', 'A#5', 'G#5', 'F#5']);
     assert.equal(r.anchorIndex, 2);
@@ -92,7 +92,7 @@ describe('describe_piece', () => {
     assert.equal(r.retrograde, true);
   });
 
-  test('AC5 — las 96 combinaciones dan 5 celdas y 5 notas, y ninguna falla', () => {
+  test('las 96 combinaciones dan 5 celdas y 5 notas, y ninguna falla', () => {
     for (const piece of PIECE_KEYS) {
       for (let rotation = 0; rotation < 4; rotation++) {
         for (const mirror of [false, true]) {
@@ -106,7 +106,7 @@ describe('describe_piece', () => {
     }
   });
 
-  test('la reflexion SIEMPRE invierte las notas, en las 48 combinaciones', () => {
+  test('AC-MUS-017 — la reflexion SIEMPRE invierte las notas, en las 48 combinaciones', () => {
     for (const piece of PIECE_KEYS) {
       for (let rotation = 0; rotation < 4; rotation++) {
         const derecho = call(describePiece, { piece, rotation });
@@ -141,7 +141,7 @@ describe('describe_piece', () => {
     }
   });
 
-  test('AC9 — `cellMap` le pone grado, paso y nota a cada celda, sin tocar `cells`', () => {
+  test('`cellMap` le pone grado, paso y nota a cada celda, sin tocar `cells`', () => {
     // Los dos casos del AC, releidos con el camino del spec 012: en la X la tonica cae
     // en un brazo y no en el centro —el centro tiene cuatro vecinos, y arrancar ahi
     // obligaria a tres saltos en vez de dos—, y la F es la unica pieza cuyo camino
@@ -206,7 +206,7 @@ describe('describe_piece', () => {
     }
   });
 
-  test('AC12 — la reflexion invierte `notes` y NO invierte `cellMap`', () => {
+  test('la reflexion invierte `notes` y NO invierte `cellMap`', () => {
     // El retrogrado es del ORDEN DE REPRODUCCION. La nota de una celda sale del
     // arpegio ascendente, asi que reflejar mueve la celda de lugar en el tablero
     // pero le deja el mismo grado. Indexar `notes` en vez de `ascending` daria
@@ -231,7 +231,7 @@ describe('describe_piece', () => {
     );
   });
 
-  test('AC9 (spec 017) — los dos regimenes dan respuestas distintas y cada una dice cual es', () => {
+  test('los dos regimenes dan respuestas distintas y cada una dice cual es', () => {
     // Sin el `regimen` en la respuesta, la tool seria ambigua en 36 de las 48
     // combinaciones: dos preguntas iguales con dos respuestas correctas y ninguna
     // forma de saber cual se contesto.
@@ -257,7 +257,7 @@ describe('describe_piece', () => {
     assert.notDeepEqual(notaDe(orden), notaDe(escala));
   });
 
-  test('AC4 (spec 017) — a rotacion 0 los dos regimenes dan lo mismo', () => {
+  test('a rotacion 0 los dos regimenes dan lo mismo', () => {
     // La propiedad que hace AUDITABLE la comparacion, verificada tambien del lado de
     // la tool: si divergieran acá, el server estaria componiendo otra cosa.
     for (const piece of PIECE_KEYS) {
@@ -267,7 +267,7 @@ describe('describe_piece', () => {
     }
   });
 
-  test('AC11 (spec 017) — sin `regimen` contesta `escala`, que es el de la app', () => {
+  test('sin `regimen` contesta `escala`, que es el de la app', () => {
     const porOmision = call(describePiece, { piece: 'F', rotation: 2 });
     assert.equal(porOmision.regimen, 'escala');
     assert.deepEqual(porOmision.notes, call(describePiece, { piece: 'F', rotation: 2, regimen: 'escala' }).notes);
@@ -275,7 +275,7 @@ describe('describe_piece', () => {
 });
 
 describe('check_invariants', () => {
-  test('AC6 — los siete chequeos, por separado y en verde', () => {
+  test('los siete chequeos, por separado y en verde', () => {
     const r = call(checkInvariants, {});
     assert.equal(r.ok, true);
     const checks = r.checks as { name: string; ok: boolean; failures: string[] }[];
@@ -385,7 +385,7 @@ describe('simulate_board', () => {
     { piece: 'N', at: [2, 4] },
   ];
 
-  test('AC1 — el orden es el del circuito, no el de colocacion', () => {
+  test('el orden es el del circuito, no el de colocacion', () => {
     // Tres `I` verticales en las columnas 0, 9 y 5, colocadas en ESE orden: el
     // recorrido las visita de izquierda a derecha (1, 3, 2) y vuelve por la
     // costura. Es la propiedad entera del spec en un caso: mover una pieza
@@ -421,7 +421,7 @@ describe('simulate_board', () => {
     });
   });
 
-  test('AC7 — un salto de d celdas da d-1 clicks equiespaciados, cada uno con su celda', () => {
+  test('un salto de d celdas da d-1 clicks equiespaciados, cada uno con su celda', () => {
     const r = call(simulateBoard, { pieces: BASE });
     const hops = ruta(r).hops;
     assert.deepEqual(hops.map(h => h.distance), [6, 4, 8]);
@@ -457,7 +457,7 @@ describe('simulate_board', () => {
     }
   });
 
-  test('AC4 — el empalme entre dos ciclos tiene el mismo espaciado que el interior', () => {
+  test('el empalme entre dos ciclos tiene el mismo espaciado que el interior', () => {
     // El ciclo no tiene marca de inicio: el salto de la ultima pieza a la primera
     // se calcula con la misma regla que los demas. Medido de la forma mas fuerte
     // posible: el recorrido ocupa TODOS sus intervalos sin huecos, asi que la linea
@@ -575,7 +575,7 @@ describe('simulate_board', () => {
     }
   });
 
-  test('AC8 — fuera del tablero: invalida, con motivo, sin puertas y sin ciclo', () => {
+  test('fuera del tablero: invalida, con motivo, sin puertas y sin ciclo', () => {
     const r = call(simulateBoard, { pieces: [{ piece: 'I', at: [9, 0] }] });
     const p = (r.placements as { valid: boolean; reason: string; gates?: unknown }[])[0];
     assert.equal(p.valid, false);
@@ -587,7 +587,7 @@ describe('simulate_board', () => {
     assert.deepEqual(ruta(r), { order: [], hops: [] });
   });
 
-  test('AC8 — solapada: el motivo nombra contra que pieza se choco', () => {
+  test('solapada: el motivo nombra contra que pieza se choco', () => {
     const r = call(simulateBoard, { pieces: [{ piece: 'F', at: [2, 1] }, { piece: 'F', at: [2, 1] }] });
     const ps = r.placements as { id: string; valid: boolean; reason?: string }[];
     assert.equal(ps[0].valid, true);
@@ -662,7 +662,7 @@ describe('simulate_board', () => {
     assert.equal(cuentas(r).total, 3 * ciclo(r).intervals);
   });
 
-  test('AC9 (spec 017) — el regimen mueve las alturas y NO el circuito, y la respuesta lo dice', () => {
+  test('AC-MUS-015 — el regimen mueve las alturas y NO el circuito, y la respuesta lo dice', () => {
     // Las tres piezas de `BASE` rotadas, para que el regimen tenga algo que mover: a
     // rotacion 0 los dos son identicos por D2 y este test pasaria vacio.
     const rotadas = [
@@ -689,12 +689,12 @@ describe('simulate_board', () => {
     assert.notDeepEqual(notas(orden), notas(escala));
   });
 
-  test('AC11 (spec 017) — sin `regimen` simula `escala`, que es el de la app', () => {
+  test('sin `regimen` simula `escala`, que es el de la app', () => {
     const porOmision = call(simulateBoard, { pieces: BASE });
     assert.equal(porOmision.regimen, 'escala');
   });
 
-  test('AC12 del spec 014 — una pieza muteada reporta sus clicks y no su arpegio', () => {
+  test('AC-PLY-024 — una pieza muteada reporta sus clicks y no su arpegio', () => {
     // La tool es una fachada sobre `buildSequence`, asi que esto no verifica la regla
     // del muteo —eso vive en `src/domain/__tests__/sequence.test.ts`— sino que la
     // fachada la deje pasar entera: sin `muted` en el schema, la entrada se caia en

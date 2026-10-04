@@ -14,7 +14,7 @@ import type { RegimenDeRotacion } from '../types/music.types.ts';
 const PIECES = Object.keys(BASE_MAP) as PieceKey[];
 
 describe('midiFor', () => {
-  it('ancla C4 en 60', () => {
+  it('AC-MUS-003 — ancla C4 en 60', () => {
     expect(midiFor(0, 4)).toBe(60);
     expect(midiFor(9, 4)).toBe(69);   // A4
   });
@@ -25,7 +25,7 @@ describe('midiFor', () => {
 });
 
 describe('midiName', () => {
-  it('es la inversa de midiFor sobre las 12 clases y varias octavas', () => {
+  it('AC-MUS-003 — es la inversa de midiFor sobre las 12 clases y varias octavas', () => {
     for (let o = 0; o <= 8; o++) {
       for (let pc = 0; pc < 12; pc++) {
         expect(midiName(midiFor(pc, o))).toBe(`${CHROMATIC[pc]}${o}`);
@@ -35,7 +35,7 @@ describe('midiName', () => {
 });
 
 describe('notesForRotation', () => {
-  it('cada rotacion usa su formula, sobre C', () => {
+  it('AC-MUS-005 — cada rotacion usa su formula, sobre C', () => {
     const base = midiFor(0, DEFAULT_OCTAVE);
     expect(notesForRotation(0, DEFAULT_OCTAVE, 0, REGIMEN.escala)).toEqual(PENT_MAJOR.map(iv => base + iv));
     expect(notesForRotation(0, DEFAULT_OCTAVE, 1, REGIMEN.escala)).toEqual(PENT_MINOR.map(iv => base + iv));
@@ -72,7 +72,7 @@ describe('notesForRotation', () => {
     expect(notesForRotation(0, DEFAULT_OCTAVE, -5, REGIMEN.orden)).toEqual(rot0);
   });
 
-  it('devuelve 5 notas distintas y ascendentes para las 96 combinaciones', () => {
+  it('AC-MUS-001 AC-MUS-006 — devuelve 5 notas distintas y ascendentes para las 96 combinaciones', () => {
     for (const p of PIECES) {
       for (let rot = 0; rot < 4; rot++) {
         const ns = notesForRotation(BASE_MAP[p], DEFAULT_OCTAVE, rot, REGIMEN.escala);
@@ -94,7 +94,7 @@ describe('notesForRotation', () => {
     }
   });
 
-  it('el corrimiento de octava sube la nota en vez de envolverla', () => {
+  it('AC-MUS-004 — el corrimiento de octava sube la nota en vez de envolverla', () => {
     // Z (tonica B = 11) + la sexta mayor (9) pasa de B: la nota sube de octava en
     // vez de volver al grave. Es decision de diseno, no un bug.
     const ns = notesForRotation(BASE_MAP.Z, DEFAULT_OCTAVE, 0, REGIMEN.escala);
@@ -103,7 +103,7 @@ describe('notesForRotation', () => {
     expect(midiName(ns[4])).toBe('G#5');
   });
 
-  it('el ambito nunca supera una decima', () => {
+  it('AC-MUS-006 — el ambito nunca supera una decima', () => {
     for (const p of PIECES) {
       for (let rot = 0; rot < 4; rot++) {
         const ns = notesForRotation(BASE_MAP[p], DEFAULT_OCTAVE, rot, REGIMEN.escala);
@@ -156,7 +156,7 @@ describe('regimen `escala` — que sobrevive a rotar (caracterizacion)', () => {
   // es la referencia contra la que se compara, no un caso mas.
   const ROTACIONES = [1, 2, 3];
 
-  it('36 de 180 celdas conservan su nota, con la descomposicion 24 / 12 / 0', () => {
+  it('AC-MUS-010 — 36 de 180 celdas conservan su nota, con la descomposicion 24 / 12 / 0', () => {
     const porRotacion = ROTACIONES.map(rot =>
       PIECES.reduce((n, p) =>
         n + SHAPES[p].reduce((m, _c, k) => m + (notaDeCelda(p, rot, k, REGIMEN.escala) === notaDeCelda(p, 0, k, REGIMEN.escala) ? 1 : 0), 0), 0));
@@ -169,7 +169,7 @@ describe('regimen `escala` — que sobrevive a rotar (caracterizacion)', () => {
     expect(porRotacion.reduce((a, b) => a + b, 0)).toBe(36);
   });
 
-  it('el grado 0 conserva la tonica en las rotaciones 1 y 2, y NO en la 3', () => {
+  it('AC-MUS-010 — el grado 0 conserva la tonica en las rotaciones 1 y 2, y NO en la 3', () => {
     // Es la propiedad que hace que `BASE_MAP` se escuche como identidad: rotar una
     // pieza cambia su escala pero la deja anclada a su nota. La rotacion 3 es la
     // unica excepcion, y la produce la transposicion +7.
@@ -209,7 +209,7 @@ describe('los dos regimenes de rotacion', () => {
     }
   });
 
-  it('en `orden` la rotacion r corre el arpegio r posiciones sobre la pentatonica mayor', () => {
+  it('AC-MUS-007 — en `orden` la rotacion r corre el arpegio r posiciones sobre la pentatonica mayor', () => {
     for (const p of PIECES) {
       const base = desdeLaFormula(p, PENT_MAJOR, 0);
       for (let rot = 0; rot < 4; rot++) {
@@ -219,7 +219,7 @@ describe('los dos regimenes de rotacion', () => {
     }
   });
 
-  it('a rotacion 0 los dos regimenes son identicos, sobre las 12 piezas', () => {
+  it('AC-MUS-008 — a rotacion 0 los dos regimenes son identicos, sobre las 12 piezas', () => {
     // Es lo que hace AUDITABLE la comparacion (D2): los dos regimenes tienen un origen
     // comun y divergen recien al rotar. Con cualquier otra formula fija en `orden` los
     // dos sistemas no se tocarian en ningun punto y comparar seria comparar dos
@@ -230,7 +230,7 @@ describe('los dos regimenes de rotacion', () => {
     }
   });
 
-  it('los dos difieren en 36 de las 48 combinaciones, y las 12 que coinciden son las de rotacion 0', () => {
+  it('AC-MUS-008 — los dos difieren en 36 de las 48 combinaciones, y las 12 que coinciden son las de rotacion 0', () => {
     const distintas: string[] = [];
     for (const p of PIECES) {
       for (let rot = 0; rot < 4; rot++) {
@@ -244,7 +244,7 @@ describe('los dos regimenes de rotacion', () => {
     expect(distintas.every(clave => !clave.endsWith('/0'))).toBe(true);
   });
 
-  it('`orden` deja a cada pieza con UN solo conjunto de alturas: 12 conjuntos contra 43', () => {
+  it('AC-MUS-009 — `orden` deja a cada pieza con UN solo conjunto de alturas: 12 conjuntos contra 43', () => {
     // Es la medida de lo que el regimen simplifica, y el costo de la variedad que
     // `escala` compra: dos piezas cualesquiera del tablero pueden no compartir ni una
     // nota, asi que lo que se escucha depende menos de como se armo el circuito que de
@@ -256,7 +256,7 @@ describe('los dos regimenes de rotacion', () => {
     expect(conjuntos(REGIMEN.orden).size).toBe(12);
   });
 
-  it('en `orden` NINGUNA celda conserva su nota al rotar: 0 de 180', () => {
+  it('AC-MUS-010 — en `orden` NINGUNA celda conserva su nota al rotar: 0 de 180', () => {
     // El cero esta GARANTIZADO, no medido de casualidad: un corrimiento ciclico de
     // `k != 0` sobre `n` elementos tiene puntos fijos solo si `gcd(k, n) > 1`, y aca
     // `n` es `NOTES_PER_PIECE`. Se verifica el gcd ANTES de contar, para que el test
@@ -275,7 +275,7 @@ describe('los dos regimenes de rotacion', () => {
     expect(conservadas).toBe(0);
   });
 
-  it('en `orden` el arpegio deja de subir siempre: un descenso de 9 semitonos exactos', () => {
+  it('AC-MUS-006 AC-MUS-011 — en `orden` el arpegio deja de subir siempre: un descenso de 9 semitonos exactos', () => {
     // D6, medido y NO previsto. La nota de arriba vuelve abajo, y siempre la misma
     // distancia: el techo de `PENT_MAJOR` esta a 9 de la tonica. No es «hasta 9».
     // Esta escrito como test y no solo en el spec porque es lo que la escucha del 017
@@ -302,7 +302,7 @@ describe('los dos regimenes de rotacion', () => {
     expect(Math.min(...pasos)).toBeGreaterThan(0);
   });
 
-  it('en `orden` el registro se angosta 7 semitonos por arriba: C4..G#5 contra C4..D#6', () => {
+  it('AC-MUS-011 — en `orden` el registro se angosta 7 semitonos por arriba: C4..G#5 contra C4..D#6', () => {
     // La otra mitad de D6, y su causa esta escrita: la formula fija no tiene la
     // transposicion +7 de la rotacion 3, que es lo que en `escala` empuja a las piezas
     // de tonica alta casi una octava mas arriba. Es consecuencia declarada del pedido,
@@ -328,7 +328,7 @@ describe('degreeByCellIndex', () => {
     }
   });
 
-  it('el arpegio recorre las 12 piezas enteras, sin pasar por encima de ninguna celda', () => {
+  it('AC-MUS-018 — el arpegio recorre las 12 piezas enteras, sin pasar por encima de ninguna celda', () => {
     // El pedido: de una nota a la siguiente se llega a una celda que se
     // TOCA con la anterior. Ortogonal donde la forma da; en diagonal en las cuatro que
     // no pueden —`F`, `T`, `Y` y `X`, cuyo grafo de celdas es un arbol con un nodo de
@@ -346,7 +346,7 @@ describe('degreeByCellIndex', () => {
     }
   });
 
-  it('el caso testigo: la U colocada en (7,4) se recorre sin saltar', () => {
+  it('AC-MUS-020 — el caso testigo: la U colocada en (7,4) se recorre sin saltar', () => {
     // La colocacion de las capturas del pedido: `U` rotada 90°, ancla en (7,4). Antes
     // del 012 la segunda nota caia en (8,5) —dos celdas mas abajo, cruzando el hueco
     // de la U— y las tres siguientes desandaban el camino.
@@ -356,7 +356,7 @@ describe('degreeByCellIndex', () => {
     expect(orden).toEqual([[8, 3], [7, 3], [7, 4], [7, 5], [8, 5]]);
   });
 
-  it('en I, X y Z el grado 0 ya NO es la celda del centroide', () => {
+  it('AC-MUS-021 — en I, X y Z el grado 0 ya NO es la celda del centroide', () => {
     // Es un cambio deliberado: en la `I` arrancar por el centro de una
     // linea de cinco obliga a un salto de 4 celdas que la forma no necesita. El grado 0
     // pasa a ser por donde el recorrido ENTRA a la pieza, no el centro de la figura.
@@ -373,7 +373,7 @@ describe('degreeByCellIndex', () => {
 });
 
 describe('que decide hoy el orden angular', () => {
-  it('elige la DIRECCION del camino, y se ejerce en las 12 piezas', () => {
+  it('AC-MUS-022 — elige la DIRECCION del camino, y se ejerce en las 12 piezas', () => {
     // Un camino y su inverso encadenan los mismos pasos, asi que los tres primeros
     // criterios los dejan empatados SIEMPRE. Lo que rompe el empate es el rango
     // angular: gana el recorrido que arranca por la celda de rango mas chico. Con el
@@ -390,7 +390,7 @@ describe('que decide hoy el orden angular', () => {
     }
   });
 
-  it('la celda parada sobre el centroide sigue saliendo del anillo, aunque ya no gane el grado 0', () => {
+  it('AC-MUS-022 — la celda parada sobre el centroide sigue saliendo del anillo, aunque ya no gane el grado 0', () => {
     // `Math.atan2(0, 0)` devuelve `0` en silencio: sin la excepcion, la celda central
     // de `I`, `X` y —desde el spec 036— `Z` entraria al anillo como si estuviera al este
     // y correria el rango de todas las demas — o sea, cambiaria la direccion del
@@ -400,7 +400,7 @@ describe('que decide hoy el orden angular', () => {
     }
   });
 
-  it('a igual angulo gana el indice menor: el desempate se ejerce en F, I y T', () => {
+  it('AC-MUS-022 — a igual angulo gana el indice menor: el desempate se ejerce en F, I y T', () => {
     // Las tres piezas con celdas colineales al centroide. El criterio esta ESCRITO en
     // el comparador y no delegado a que el `sort` sea estable — con la estabilidad
     // garantizada desde ES2019 el resultado seria el mismo, pero la regla no estaria
@@ -412,7 +412,7 @@ describe('que decide hoy el orden angular', () => {
 });
 
 describe('playOrderByCellIndex — el paso de cada celda', () => {
-  it('sin reflexion es el grado, y con reflexion su inverso exacto', () => {
+  it('AC-MUS-026 — sin reflexion es el grado, y con reflexion su inverso exacto', () => {
     // Es la definicion entera de la funcion, y es tambien la unica diferencia entre
     // los dos numeros por celda del modelo: el grado dice QUE nota, el paso dice
     // CUANDO. La reflexion mueve el segundo y no el primero.
@@ -432,7 +432,7 @@ describe('playOrderByCellIndex — el paso de cada celda', () => {
     }
   });
 
-  it('`arpeggioFor` indexado por PASO da la misma nota que el ascendente por GRADO', () => {
+  it('AC-MUS-026 — `arpeggioFor` indexado por PASO da la misma nota que el ascendente por GRADO', () => {
     // Las dos parejas correctas, y la razon de que no se puedan cruzar: en una pieza
     // reflejada `ascendente[paso]` daria la nota espejada. `Board.tsx` usa la segunda
     // pareja para la nota y el paso solo para el numero de la esquina; esto es lo que
@@ -465,7 +465,7 @@ describe('playOrderByCellIndex — el paso de cada celda', () => {
 });
 
 describe('el mapeo se arrastra por indice sobre las 96 orientaciones', () => {
-  it('la celda k de la forma transformada sigue siendo la celda k de la canonica', () => {
+  it('AC-MUS-023 — la celda k de la forma transformada sigue siendo la celda k de la canonica', () => {
     // Lo que sostiene el arrastre es que `rotateN` y `reflect` son `map`, y se
     // verifica DESANDANDO la transformacion en vez de recalculando el grado: si la
     // celda k vuelve a su lugar canonico, entonces el grado calculado sobre la forma
@@ -483,7 +483,7 @@ describe('el mapeo se arrastra por indice sobre las 96 orientaciones', () => {
     }
   });
 
-  it('recalcular el grado sobre la forma ya transformada NO es equivalente: difiere en 53 de las 96', () => {
+  it('AC-MUS-023 — recalcular el grado sobre la forma ya transformada NO es equivalente: difiere en 53 de las 96', () => {
     // Rotar corre el origen del angulo, y el angulo sigue eligiendo la DIRECCION del
     // camino: por eso el recalculo sigue dando otra permutacion en mas de la mitad de
     // las orientaciones, y escribir el AC3 como
@@ -506,8 +506,8 @@ describe('el mapeo se arrastra por indice sobre las 96 orientaciones', () => {
   });
 });
 
-describe('AC5/D4 — el camino sobrevive a las 8 orientaciones', () => {
-  it('las distancias del arpegio no cambian al rotar, reflejar ni trasladar', () => {
+describe('el camino sobrevive a las 8 orientaciones', () => {
+  it('AC-MUS-023 — las distancias del arpegio no cambian al rotar, reflejar ni trasladar', () => {
     // Es lo que hace que el mapeo pueda seguir calculandose sobre la forma canonica y
     // arrastrandose por indice: rotar, reflejar y normalizar son isometrias de la
     // grilla, asi que preservan la distancia Manhattan y con ella la adyacencia. Un
@@ -531,7 +531,7 @@ describe('AC5/D4 — el camino sobrevive a las 8 orientaciones', () => {
 });
 
 describe('la reflexion no cambia la nota de una celda', () => {
-  it('la celda de grado g muestra la nota g del arpegio ASCENDENTE, no del retrogrado', () => {
+  it('AC-MUS-025 — la celda de grado g muestra la nota g del arpegio ASCENDENTE, no del retrogrado', () => {
     // Reflejar invierte el ORDEN EN QUE SUENAN las notas, no cual nota le toca a cada
     // celda: por eso `notesForRotation` no recibe la reflexion y la lectura visual
     // sale siempre del arpegio ascendente. Si saliera del ya invertido, las cuatro
@@ -615,7 +615,7 @@ const TONICA_EN: Record<PieceKey, number> = {
 };
 
 describe('la referencia congelada', () => {
-  it('las 12 piezas suenan celda por celda como la tabla', () => {
+  it('AC-MUS-024 — las 12 piezas suenan celda por celda como la tabla', () => {
     for (const p of PIECES) {
       const leida = SHAPES[p].map((_, k) => midiName(notaDeCelda(p, 0, k, REGIMEN.escala)));
       expect(leida).toEqual(REFERENCIA[p].map(([, nombre]) => nombre));
@@ -628,7 +628,7 @@ describe('la referencia congelada', () => {
     }
   });
 
-  it('la celda del grado 0 suena la tonica de la pieza', () => {
+  it('AC-MUS-002 — la celda del grado 0 suena la tonica de la pieza', () => {
     for (const p of PIECES) {
       const k = TONICA_EN[p];
       expect(degreeByCellIndex(SHAPES[p])[k]).toBe(0);

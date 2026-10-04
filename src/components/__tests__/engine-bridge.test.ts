@@ -53,7 +53,7 @@ const CON_CRUCE = [colocar('X', 0, false, 1, 1), colocar('F', 0, false, 3, 2), c
 
 const SECUENCIA = buildSequence(CON_CRUCE, REGIMEN.escala, GRID_DEFAULT);
 
-describe('AC2/AC3 — proyectarAlMotor deja caer lo que el motor no puede ver', () => {
+describe('proyectarAlMotor deja caer lo que el motor no puede ver', () => {
   it('un `Step` conserva `offset` y `notes`, y NO lleva `pieceId`', () => {
     const proyectada = proyectarAlMotor(SECUENCIA);
 
@@ -137,19 +137,19 @@ const motorFalso = (corriendo: boolean) => {
 };
 
 describe('alternarTransporte devuelve lo que el motor dice, no lo que se le pidió', () => {
-  it('en pausa pide arrancar, y si arrancó devuelve `true`', () => {
+  it('AC-PLY-002 — en pausa pide arrancar, y si arrancó devuelve `true`', () => {
     const { motor, pedidos } = motorFalso(true);
     expect(alternarTransporte(false, motor)).toBe(true);
     expect(pedidos).toEqual(['arrancar']);
   });
 
-  it('corriendo pide frenar, y si frenó devuelve `false`', () => {
+  it('AC-PLY-002 — corriendo pide frenar, y si frenó devuelve `false`', () => {
     const { motor, pedidos } = motorFalso(false);
     expect(alternarTransporte(true, motor)).toBe(false);
     expect(pedidos).toEqual(['frenar']);
   });
 
-  it('AC10 — se pidió arrancar y el reloj NO arrancó: devuelve `false`', () => {
+  it('AC-PLY-003 — se pidió arrancar y el reloj NO arrancó: devuelve `false`', () => {
     // La rama que el ítem de deuda más viejo del repo esperaba, y la
     // que pedía «extraer el handler de `App.tsx` o agregar testing-library». Acá se
     // cierra por la primera vía: `arrancar` es un no-op silencioso cuando el motor no

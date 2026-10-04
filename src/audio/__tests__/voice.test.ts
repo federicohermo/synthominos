@@ -51,7 +51,7 @@ describe('midiToHz', () => {
 });
 
 describe('sintesis', () => {
-  it('la frecuencia renderizada es la pedida (+-1 Hz)', async () => {
+  it('AC-PLY-009 — la frecuencia renderizada es la pedida (+-1 Hz)', async () => {
     const d = await renderVoice(0.05, 0.5);
     expect(zeroCrossHz(d, 0.2, 0.3)).toBeCloseTo(440, 0);
   });
@@ -81,7 +81,7 @@ describe('sintesis', () => {
     expect(peakNear(d, at + dur + REL + 0.1)).toBe(0);
   });
 
-  it('la nota empieza donde se la agendo (+-1 ms)', async () => {
+  it('AC-PLY-009 — la nota empieza donde se la agendo (+-1 ms)', async () => {
     const at = 0.1;
     const d = await renderVoice(at, 0.3);
     expect(Math.abs(firstAudible(d) - at)).toBeLessThan(0.001);
@@ -116,7 +116,7 @@ describe('dur en intervalos (la envolvente no se movio)', () => {
     expect(peakNear(d, at + dur + REL + 0.1)).toBe(0);
   });
 
-  it('a 60 bpm la nota dura mas que a 160: `dur` sigue al tempo, no es un literal fijo', async () => {
+  it('AC-PLY-018 — a 60 bpm la nota dura mas que a 160: `dur` sigue al tempo, no es un literal fijo', async () => {
     const at = 0.1;
     const durLento = NOTE_INTERVALS * intervalDuration(60);     // 1 * 0.25    = 0.250 s
     const durRapido = NOTE_INTERVALS * intervalDuration(160);   // 1 * 0.09375 = 0.09375 s
@@ -144,7 +144,7 @@ describe('scheduleClick — el cruce por una celda vacia', () => {
     expect(Math.abs(firstAudible(d) - at)).toBeLessThan(0.001);
   });
 
-  it('dura CLICK_SECONDS y nada mas: no invade el intervalo siguiente', async () => {
+  it('AC-PLY-020 — dura CLICK_SECONDS y nada mas: no invade el intervalo siguiente', async () => {
     const at = 0.1;
     const d = await renderClick(at);
     expect(peakNear(d, at - 0.03)).toBe(0);
@@ -154,7 +154,7 @@ describe('scheduleClick — el cruce por una celda vacia', () => {
     expect(peakNear(d, at + 0.002)).toBeGreaterThan(CLICK_VELOCITY * 0.75);
   });
 
-  it('TIENE altura, y es CLICK_MIDI: cruza el cero a la tasa de una nota, no de ruido', async () => {
+  it('AC-PLY-020 — TIENE altura, y es CLICK_MIDI: cruza el cero a la tasa de una nota, no de ruido', async () => {
     const at = 0.1;
     const d = await renderClick(at);
     // Este test llego a decir lo contrario —exigia `> 4000`, que es la tasa
@@ -174,7 +174,7 @@ describe('scheduleClick — el cruce por una celda vacia', () => {
     expect(Math.abs(hz - midiToHz(CLICK_MIDI)) / midiToHz(CLICK_MIDI)).toBeLessThan(0.02);
   });
 
-  it('suena mas bajo que una nota: acompana el recorrido, no compite', async () => {
+  it('AC-PLY-020 — suena mas bajo que una nota: acompana el recorrido, no compite', async () => {
     const at = 0.1;
     const click = peakNear(await renderClick(at), at + 0.002);
     const nota = peakNear(await renderVoice(at, 0.15), at + DEFAULT_VOICE.attack);
@@ -193,7 +193,7 @@ describe('scheduleClick — el cruce por una celda vacia', () => {
 });
 
 describe('el release en intervalos (cierre del seguimiento del 008)', () => {
-  it('la cola sigue al tempo: el solape del arpegio ya no crece con el bpm', async () => {
+  it('AC-PLY-018 — la cola sigue al tempo: el solape del arpegio ya no crece con el bpm', async () => {
     // La propiedad que el numero en segundos rompia. Voces simultaneas =
     // `(NOTE_INTERVALS * intervalo + release) / intervalo`, o sea `1 + RELEASE_INTERVALS`
     // — un numero SIN bpm adentro. Se mide como cola: cuanto sobrevive la nota despues

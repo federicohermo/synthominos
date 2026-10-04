@@ -51,7 +51,7 @@ function tap_(target: EventTarget, key: string, init: KeyboardEventInit = {}) {
 }
 
 describe('useAtajosDeTeclado', () => {
-  it('Shift rota y Ctrl refleja, al SOLTAR y con el tap limpio', async () => {
+  it('AC-BRD-024 — Shift rota y Ctrl refleja, al SOLTAR y con el tap limpio', async () => {
     const a = acciones();
     await renderHook(() => useAtajosDeTeclado(a, tap()));
 
@@ -64,7 +64,7 @@ describe('useAtajosDeTeclado', () => {
     expect(a.transporte).not.toHaveBeenCalled();
   });
 
-  it('la barra alterna el transporte y le frena el default (que es scrollear)', async () => {
+  it('AC-BRD-028 — la barra alterna el transporte y le frena el default (que es scrollear)', async () => {
     const a = acciones();
     await renderHook(() => useAtajosDeTeclado(a, tap()));
 
@@ -74,7 +74,7 @@ describe('useAtajosDeTeclado', () => {
     expect(e.defaultPrevented).toBe(true);
   });
 
-  it('la barra con auto-repeat frena el default pero NO alterna dos veces', async () => {
+  it('AC-BRD-028 — la barra con auto-repeat frena el default pero NO alterna dos veces', async () => {
     // Las dos preguntas son distintas a proposito: no hay accion, pero cada `keydown`
     // repetido trae su propio default de scrollear.
     const a = acciones();
@@ -86,7 +86,7 @@ describe('useAtajosDeTeclado', () => {
     expect(e.defaultPrevented).toBe(true);
   });
 
-  it('sobre un boton o un input, el evento es del navegador y no nuestro', async () => {
+  it('AC-BRD-029 — sobre un boton o un input, el evento es del navegador y no nuestro', async () => {
     // Es lo que deja que la barra active el boton que tiene el foco en vez de alternar
     // el transporte dos veces. Las dos ramas de `esControl`, por separado.
     const a = acciones();
@@ -101,7 +101,7 @@ describe('useAtajosDeTeclado', () => {
     expect(a.transporte).not.toHaveBeenCalled();
   });
 
-  it('una tecla cualquiera ensucia el tap: Ctrl+C no da vuelta la reflexion', async () => {
+  it('AC-BRD-024 — una tecla cualquiera ensucia el tap: Ctrl+C no da vuelta la reflexion', async () => {
     const a = acciones();
     const t = tap(true);
     await renderHook(() => useAtajosDeTeclado(a, t));
@@ -128,7 +128,7 @@ describe('useAtajosDeTeclado', () => {
     expect(a.seleccionar).not.toHaveBeenCalled();
   });
 
-  it('la letra elige la pieza y NO arranca el transporte', async () => {
+  it('AC-BRD-017 — la letra elige la pieza y NO arranca el transporte', async () => {
     // El segundo `expect` es el que importa: la rama de la letra puesta como un `if`
     // suelto DESPUES de la cadena de `despachar` —en vez de antes del `else transporte()`—
     // selecciona la pieza y ademas arranca el instrumento, y eso pasa typecheck y lint sin
@@ -165,7 +165,7 @@ describe('useRuedaRota', () => {
     return e;
   };
 
-  it('la rueda rota Y FRENA EL SCROLL — el listener no es pasivo', async () => {
+  it('AC-BRD-023 — la rueda rota Y FRENA EL SCROLL — el listener no es pasivo', async () => {
     const el = tablero();
     const alRotar = vi.fn();
     await renderHook(() => useRuedaRota({ current: el }, alRotar, tap()));
@@ -196,7 +196,7 @@ describe('useRuedaRota', () => {
     registro.mockRestore();
   });
 
-  it('Ctrl+rueda es el zoom del navegador: no rota, no frena el default', async () => {
+  it('AC-BRD-023 — Ctrl+rueda es el zoom del navegador: no rota, no frena el default', async () => {
     const el = tablero();
     const alRotar = vi.fn();
     const t = tap(true);
@@ -210,7 +210,7 @@ describe('useRuedaRota', () => {
     expect(t.current).toBe(false);
   });
 
-  it('un scroll horizontal puro no rota ni le saca el scroll al tablero', async () => {
+  it('AC-BRD-023 — un scroll horizontal puro no rota ni le saca el scroll al tablero', async () => {
     // Este nodo es el `overflow-x-auto` con el que se recorre la grilla debajo de `md`:
     // frenarle el default seria dejar sin scroll horizontal al unico que lo tiene.
     const el = tablero();

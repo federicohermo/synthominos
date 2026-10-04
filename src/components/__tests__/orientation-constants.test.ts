@@ -13,12 +13,12 @@ import { SHAPES } from '../../domain/constants/pieces.constants.ts';
  * intenta dibujar la miniatura. Derivada, la atrapa esto.
  */
 describe('020 AC6 — las doce arrancan a 0° sin reflejar', () => {
-  it('hay una ranura por pieza de `SHAPES`, ni una más ni una menos', () => {
+  it('AC-PCS-018 — hay una ranura por pieza de `SHAPES`, ni una más ni una menos', () => {
     expect(Object.keys(ORIENTACIONES_INICIALES).sort()).toEqual(Object.keys(SHAPES).sort());
     expect(Object.keys(ORIENTACIONES_INICIALES)).toHaveLength(12);
   });
 
-  it('las doce están en el arranque, y el arranque es 0° sin reflejar', () => {
+  it('AC-PCS-018 — las doce están en el arranque, y el arranque es 0° sin reflejar', () => {
     expect(ORIENTACION_INICIAL).toEqual({ rotation: ROTACION.cero, mirror: false });
     for (const [pieza, o] of Object.entries(ORIENTACIONES_INICIALES)) {
       expect(o, pieza).toEqual(ORIENTACION_INICIAL);

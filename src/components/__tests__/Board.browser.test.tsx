@@ -93,7 +93,7 @@ const enIndice = (container: HTMLElement, x: number, y: number) => celdas(contai
 const baldosa = (celda: HTMLElement) => celda.firstElementChild as HTMLElement;
 
 describe('Board', () => {
-  it('son GRID_W × GRID_H celdas, y cada una mide lo que dice `--cell`', async () => {
+  it('AC-FIT-013 — son GRID_W × GRID_H celdas, y cada una mide lo que dice `--cell`', async () => {
     const { container } = await render(<Board {...props()} />);
     expect(celdas(container).length).toBe(GRID_W * GRID_H);
 
@@ -107,7 +107,7 @@ describe('Board', () => {
     }
   });
 
-  it('021 AC18 — las medidas de la baldosa son RAZONES: al techo dan las mismas que al piso', async () => {
+  it('AC-FIT-014 AC-FIT-015 — las medidas de la baldosa son RAZONES: al techo dan las mismas que al piso', async () => {
     // No solo las dos fuentes. De la reserva, el aire, el redondeo y la posicion del `#N`
     // depende que la baldosa «se lea como una ficha y no como un casillero»: si crecieran
     // solo las letras, a celda 180 la nota quedaria apretada contra un aire de 2 px.
@@ -144,7 +144,7 @@ describe('Board', () => {
     expect(alPiso.pasoTamano * CELL_PX_OBJETIVO).toBeCloseTo(13, 0);
   });
 
-  it('021 AC20 — el borde de 1 px NO escala, y sigue separando al techo', async () => {
+  it('AC-FIT-016 — el borde de 1 px NO escala, y sigue separando al techo', async () => {
     // Es el unico numero fijo que sobrevive: un filete es un delimitador y no un elemento
     // tipografico, y en `calc()` daria fracciones que el navegador redondea distinto por
     // arista — sobre 60 celdas adyacentes, un enrejado irregular.
@@ -156,7 +156,7 @@ describe('Board', () => {
     }
   });
 
-  it('la grilla mide lo que dicen `dims` y `--cell`, y nada scrollea', async () => {
+  it('AC-FIT-009 — la grilla mide lo que dicen `dims` y `--cell`, y nada scrollea', async () => {
     // Lo que este test llego a verificar era lo contrario: que el tablero
     // SCROLLEARA cuando no entraba, para no achicar la celda. Hoy no puede no entrar
     // —`grillaPara` elige `cols` y `rows` contra la caja, asi que `cols * cell <= vw`— y
@@ -201,7 +201,7 @@ describe('Board', () => {
     expect(b.className).toContain('shadow-sm');
   });
 
-  it('la pieza MUTEADA cae al blanco y conserva su nota y su #N', async () => {
+  it('AC-BRD-012 — la pieza MUTEADA cae al blanco y conserva su nota y su #N', async () => {
     // El canal es la AUSENCIA de color, y no uno de los dos obvios: el color es
     // identidad de pieza y la opacidad la usa `Playhead` para el velo del estreno.
     const [x, y] = colocar('F', 2, 2).cells[0];
@@ -219,7 +219,7 @@ describe('Board', () => {
     expect(celda.getAttribute('title')).toMatch(new RegExp(`^\\(${x},${y}\\) · .+ · paso \\d$`));
   });
 
-  it('el choque contra una pieza colocada gana sobre el color', async () => {
+  it('AC-BRD-013 — el choque contra una pieza colocada gana sobre el color', async () => {
     // El color de pieza es IDENTIDAD y pierde contra cualquier ESTADO.
     const pieza = colocar('F', 2, 2);
     const [x, y] = pieza.cells[0];
@@ -231,7 +231,7 @@ describe('Board', () => {
     expect(b.style.background).toBe('');
   });
 
-  it('el fantasma es gris cuando entra y rosa cuando no', async () => {
+  it('AC-BRD-013 — el fantasma es gris cuando entra y rosa cuando no', async () => {
     const gris = await render(<Board {...props({ previewCells: [[5, 5] as Cell], previewValid: true })} />);
     expect(baldosa(enIndice(gris.container, 5, 5)).className).toContain('bg-slate-300');
     await gris.unmount();
@@ -301,7 +301,7 @@ describe('Board', () => {
     expect(onContextMenu).toHaveBeenCalled();
   });
 
-  it('el cursor dice "aca no entra" salvo donde el click EDITA', async () => {
+  it('AC-BRD-015 — el cursor dice "aca no entra" salvo donde el click EDITA', async () => {
     // Sobre una celda propia la jugada de colocar es invalida —la pieza se choca consigo
     // misma— pero el click no coloca, borra. Sin `hoverEdita` el cursor diria lo
     // contrario de lo que pasa justo donde el gesto es destructivo.
@@ -342,7 +342,7 @@ const tecla = (el: HTMLElement, key: string, init: KeyboardEventInit = {}) => {
 };
 
 describe('Board — el teclado y el foco', () => {
-  it('es un `grid` de seis filas por diez celdas, con UNA sola parada de tabulacion', async () => {
+  it('AC-ACC-012 — es un `grid` de seis filas por diez celdas, con UNA sola parada de tabulacion', async () => {
     // Filas de verdad y no `display: contents`: `role="grid"` exige `role="row"`, y la
     // tecnica del envoltorio transparente tiene historial de SACAR el nodo del arbol de
     // accesibilidad en varios navegadores — o sea fallar en silencio, justo en lo que este
@@ -358,7 +358,7 @@ describe('Board — el teclado y el foco', () => {
     expect(celdas(container).filter(c => c.tabIndex === 0).length).toBe(1);
   });
 
-  it('el `0` arranca en la primera celda y viaja con el cursor', async () => {
+  it('AC-ACC-014 — el `0` arranca en la primera celda y viaja con el cursor', async () => {
     // Con el cursor apagado el ancla es la (0,0), para que `Tab` siga teniendo por donde
     // entrar; con cursor, el `0` esta donde esta el cursor.
     const sinCursor = await render(<Board {...props()} />);
@@ -370,7 +370,7 @@ describe('Board — el teclado y el foco', () => {
     expect(enIndice(conCursor.container, 0, 0).tabIndex).toBe(-1);
   });
 
-  it('las flechas mueven el foco una celda y frenan el default, sin salirse de la grilla', async () => {
+  it('AC-ACC-015 — las flechas mueven el foco una celda y frenan el default, sin salirse de la grilla', async () => {
     const { container } = await render(<Board {...props({ hover: [0, 0] as Cell })} />);
     const origen = enIndice(container, 0, 0);
     origen.focus();
@@ -411,7 +411,7 @@ describe('Board — el teclado y el foco', () => {
     expect(document.activeElement).toBe(enIndice(container, 0, 3));
   });
 
-  it('una tecla que no es del tablero no frena nada ni mueve el foco', async () => {
+  it('AC-ACC-018 — una tecla que no es del tablero no frena nada ni mueve el foco', async () => {
     // `Shift` y `Ctrl` siguen rotando y reflejando con una celda enfocada: el tablero se
     // queda la barra, el `Enter` y las flechas, y deja pasar todo lo demas.
     const { container } = await render(<Board {...props()} />);
@@ -421,7 +421,7 @@ describe('Board — el teclado y el foco', () => {
     expect(document.activeElement).toBe(celda);
   });
 
-  it('`Enter` y `Espacio` hacen lo que el click, y con `Alt` lo que `Alt`+click', async () => {
+  it('AC-ACC-019 — `Enter` y `Espacio` hacen lo que el click, y con `Alt` lo que `Alt`+click', async () => {
     // Las cuatro salen de `accionDeClick` porque las cuatro entran por el MISMO
     // `onCellClick` que el `onClick`: la regla no se escribe una segunda vez.
     const onCellClick = vi.fn();
@@ -438,7 +438,7 @@ describe('Board — el teclado y el foco', () => {
     expect(onCellClick).toHaveBeenLastCalledWith(3, 1, true);
   });
 
-  it('el foco entra a una celda y sale del tablero, y saltar entre celdas NO es salir', async () => {
+  it('AC-ACC-021 — el foco entra a una celda y sale del tablero, y saltar entre celdas NO es salir', async () => {
     const onFoco = vi.fn();
     const { container } = await render(<Board {...props({ onFoco })} />);
     const celda = enIndice(container, 2, 4);
@@ -458,7 +458,7 @@ describe('Board — el teclado y el foco', () => {
     await vi.waitFor(() => expect(onFoco).toHaveBeenLastCalledWith(null));
   });
 
-  it('con el tablero enfocado el mouse queda INERTE, y sin foco escribe el cursor', async () => {
+  it('AC-ACC-022 — con el tablero enfocado el mouse queda INERTE, y sin foco escribe el cursor', async () => {
     // AC16 del otro lado: mientras el foco esta adentro, manda el foco. Sin foco el mouse
     // escribe el cursor como siempre.
     const onCellEnter = vi.fn();
@@ -482,7 +482,7 @@ describe('Board — el teclado y el foco', () => {
     expect(document.activeElement).toBe(ancla);
   });
 
-  it('el anillo es de TECLADO: se pinta con el foco adentro y no bajo el mouse', async () => {
+  it('AC-ACC-024 AC-FIT-017 — el anillo es de TECLADO: se pinta con el foco adentro y no bajo el mouse', async () => {
     // Dos propiedades y no una: un `outline` de CSS tiene un solo color, y abajo puede
     // haber el `#FFFF00` de la `V` o el `#0000FF` de la `W`.
     const conMouse = await render(<Board {...props({ hover: [4, 2] as Cell })} />);
@@ -515,7 +515,7 @@ describe('Board — el teclado y el foco', () => {
     expect(celdas(conFoco.container).filter(c => c.style.outline !== '').length).toBe(1);
   });
 
-  it('el anillo NO agranda la region scrolleable, que es lo que `scale` haria', async () => {
+  it('AC-ACC-025 — el anillo NO agranda la region scrolleable, que es lo que `scale` haria', async () => {
     // La medicion que el repo ya pago para la cabeza lectora: `scale` cuenta para el
     // overflow scrolleable y hace aparecer las dos barras. `outline` y `box-shadow` son
     // ink overflow, y dibujados hacia adentro ni siquiera asoman de la caja.
@@ -536,7 +536,7 @@ describe('Board — el teclado y el foco', () => {
     expect([despues.scrollWidth, despues.scrollHeight]).toEqual(medida);
   });
 
-  it('cada celda tiene nombre accesible, y el fantasma NO lo cambia', async () => {
+  it('AC-ACC-026 — cada celda tiene nombre accesible, y el fantasma NO lo cambia', async () => {
     // El `title` deja de ser el unico texto y pasa a ser el eco del nombre: lo que anuncia
     // el lector de pantalla es el `aria-label`, con la coordenada en prosa y el total del
     // paso, que es lo que el `title` no dice.

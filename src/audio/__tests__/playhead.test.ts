@@ -13,36 +13,36 @@ import { offsetAt } from '../playhead.ts';
  */
 
 describe('offsetAt', () => {
-  it('dentro del primer ciclo avanza un intervalo por intervalo', () => {
+  it('AC-PLY-027 — dentro del primer ciclo avanza un intervalo por intervalo', () => {
     for (let k = 0; k < 8; k++) expect(offsetAt(10 + k * 0.25, 10, 0.25, 8)).toBe(k);
   });
 
-  it('es entero: no interpola dentro del intervalo (D6)', () => {
+  it('AC-PLY-027 — es entero: no interpola dentro del intervalo (D6)', () => {
     expect(offsetAt(10 + 0.999 * 0.25, 10, 0.25, 8)).toBe(0);
     expect(offsetAt(10 + 1.001 * 0.25, 10, 0.25, 8)).toBe(1);
   });
 
-  it('en el borde del ciclo vuelve a 0, no a 8', () => {
+  it('AC-PLY-027 — en el borde del ciclo vuelve a 0, no a 8', () => {
     expect(offsetAt(10 + 7 * 0.25, 10, 0.25, 8)).toBe(7);
     expect(offsetAt(10 + 8 * 0.25, 10, 0.25, 8)).toBe(0);
     expect(offsetAt(10 + 9 * 0.25, 10, 0.25, 8)).toBe(1);
   });
 
-  it('varios ciclos adelante sigue dentro del rango', () => {
+  it('AC-PLY-027 — varios ciclos adelante sigue dentro del rango', () => {
     expect(offsetAt(10 + (5 * 8 + 3) * 0.25, 10, 0.25, 8)).toBe(3);
     expect(offsetAt(10 + (1000 * 8 + 6) * 0.25, 10, 0.25, 8)).toBe(6);
     // Un ciclo realista: 55 intervalos son las 8 piezas medidas.
     expect(offsetAt(10 + (37 * 55 + 54) * 0.25, 10, 0.25, 55)).toBe(54);
   });
 
-  it('ciclo 0: null, porque `x % 0` en JS es NaN', () => {
+  it('AC-PLY-028 — ciclo 0: null, porque `x % 0` en JS es NaN', () => {
     // Es el tablero vacio, y se alcanza con solo apretar play.
     expect(offsetAt(11, 10, 0.25, 0)).toBeNull();
     expect(offsetAt(11, 10, 0.25, -3)).toBeNull();
     expect(offsetAt(11, 10, 0.25, 0.5)).toBeNull();
   });
 
-  it('t anterior al origin: entero no negativo, no el -1 del % de JS', () => {
+  it('AC-PLY-028 — t anterior al origin: entero no negativo, no el -1 del % de JS', () => {
     // La ventana de CLOCK_START_DELAY entre startClock y el primer onset.
     expect(offsetAt(10 - 0.05, 10, 0.25, 8)).toBe(7);
     expect(offsetAt(10 - 0.25, 10, 0.25, 8)).toBe(7);
@@ -66,12 +66,12 @@ describe('offsetAt', () => {
     }
   });
 
-  it('intervalo no positivo: null en vez de dividir por cero', () => {
+  it('AC-PLY-028 — intervalo no positivo: null en vez de dividir por cero', () => {
     expect(offsetAt(11, 10, 0, 8)).toBeNull();
     expect(offsetAt(11, 10, -0.25, 8)).toBeNull();
   });
 
-  it('argumentos no finitos: null', () => {
+  it('AC-PLY-028 — argumentos no finitos: null', () => {
     expect(offsetAt(NaN, 10, 0.25, 8)).toBeNull();
     expect(offsetAt(11, NaN, 0.25, 8)).toBeNull();
     expect(offsetAt(11, 10, NaN, 8)).toBeNull();
@@ -82,7 +82,7 @@ describe('offsetAt', () => {
     expect(offsetAt(11, 10, 0.25, Infinity)).toBeNull();
   });
 
-  it('barrido con instantes que no caen en la grilla: nunca NaN', () => {
+  it('AC-PLY-028 — barrido con instantes que no caen en la grilla: nunca NaN', () => {
     for (const ciclo of [1, 5, 8, 55]) {
       for (let k = -60; k < 240; k++) {
         const v = offsetAt(10 + k * 0.0341, 10, 0.25, ciclo) ?? NaN;

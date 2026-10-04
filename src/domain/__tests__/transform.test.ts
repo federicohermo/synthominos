@@ -15,12 +15,12 @@ const sameCell = (a: Cell, b: Cell) => a[0] + 0 === b[0] + 0 && a[1] + 0 === b[1
 const sameCells = (a: Cell[], b: Cell[]) => a.length === b.length && a.every((c, i) => sameCell(c, b[i]));
 
 describe('rotate90', () => {
-  it('mapea [x,y] a [y,-x] preservando el orden del array', () => {
+  it('AC-PCS-010 — mapea [x,y] a [y,-x] preservando el orden del array', () => {
     const cells: Cell[] = [[0,0],[1,0],[2,3]];
     expect(sameCells(rotate90(cells), [[0,0],[0,-1],[3,-2]])).toBe(true);
   });
 
-  it('cuatro rotaciones normalizadas vuelven a la forma original', () => {
+  it('AC-PCS-009 — cuatro rotaciones normalizadas vuelven a la forma original', () => {
     for (const p of PIECES) {
       expect(sameCells(rotateN(SHAPES[p], 4), normalize(SHAPES[p]))).toBe(true);
     }
@@ -68,11 +68,11 @@ describe('rotateN', () => {
 });
 
 describe('reflect', () => {
-  it('espeja en x y renormaliza', () => {
+  it('AC-PCS-013 — espeja en x y renormaliza', () => {
     expect(sameCells(reflect([[0,0],[1,0],[2,1]]), [[2,0],[1,0],[0,1]])).toBe(true);
   });
 
-  it('es involutiva sobre una forma normalizada', () => {
+  it('AC-PCS-013 — es involutiva sobre una forma normalizada', () => {
     for (const p of PIECES) {
       const base = normalize(SHAPES[p]);
       expect(sameCells(reflect(reflect(base)), base)).toBe(true);
@@ -306,7 +306,7 @@ const porIndice = (cells: readonly Cell[]) => cells.map((_, k) => k);
 const alReves = (cells: readonly Cell[]) => cells.map((_, k) => cells.length - 1 - k);
 
 describe('pathThroughCells', () => {
-  it('coincide con la fuerza bruta sobre las 12 piezas', () => {
+  it('AC-MUS-019 — coincide con la fuerza bruta sobre las 12 piezas', () => {
     for (const p of PIECES) {
       for (const desempate of [porIndice, alReves]) {
         const rank = desempate(SHAPES[p]);
@@ -352,7 +352,7 @@ describe('pathThroughCells', () => {
     }
   });
 
-  it('la diagonal se tolera pero no se prefiere: solo cuatro piezas la usan', () => {
+  it('AC-MUS-018 — la diagonal se tolera pero no se prefiere: solo cuatro piezas la usan', () => {
     // Un paso diagonal mide 2 en Manhattan, o sea el doble que uno recto, asi que el
     // segundo criterio lo evita donde la forma permite ir en cruz. Las cuatro que la
     // usan son las que no admiten recorrido ortogonal: tienen un nodo con 3 o 4 vecinos
@@ -367,7 +367,7 @@ describe('pathThroughCells', () => {
     }
   });
 
-  it('el criterio del paso largo al principio sigue decidiendo: la Y', () => {
+  it('AC-MUS-019 — el criterio del paso largo al principio sigue decidiendo: la Y', () => {
     // Con la diagonal aceptada, el tercer criterio no separa "continuo" de
     // "cortado" — todos los pasos llegan a una celda que se toca. Se queda porque es lo
     // unico que separa las dos versiones de la `Y`, las dos con un solo paso diagonal y

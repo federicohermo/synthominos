@@ -108,7 +108,7 @@ describe('PiecePalette', () => {
     expect(container.textContent).toContain('tónica C');
   });
 
-  it('los seis botones que el 019 borra NO estan en el DOM', async () => {
+  it('AC-PNL-020 — los seis botones que el 019 borra NO estan en el DOM', async () => {
     // La contraparte falsable de AC1. Los nombres van ANCLADOS: `getByRole` empareja por
     // subcadena, y el `aria-label` de las doce miniaturas dice «rotación 180°», asi que un
     // `/180°/` suelto encontraria la miniatura y este test no fallaria nunca.
@@ -139,7 +139,7 @@ describe('PiecePalette', () => {
       .not.toContain('OFF');
   });
 
-  it('el regimen es la fila `Rotación`, con sus DOS botones simetricos', async () => {
+  it('AC-ACC-007 — el regimen es la fila `Rotación`, con sus DOS botones simetricos', async () => {
     // Asciende de segunda linea a fila propia: la frase que completaba —«Rotación … cambia
     // escala / orden»— se quedo sin sujeto al borrarse los cuatro grados. Sigue siendo un
     // `role="group"` con nombre, y sigue sin ser un ON/OFF: ninguno de los dos valores es
@@ -209,7 +209,7 @@ describe('PiecePalette', () => {
     expect(container.textContent).not.toContain('reflejada');
   });
 
-  it('020 — el boton `0°` pide volver la pieza en la mano al arranque', async () => {
+  it('AC-PNL-021 — el boton `0°` pide volver la pieza en la mano al arranque', async () => {
     // AC7. El panel es presentacional: lo unico que se puede verificar aca es que el gesto
     // llegue al callback del shell, y que el boton tenga nombre — la etiqueta visible dice
     // solo los grados, pero resetea tambien la reflexion, asi que el nombre accesible es el
@@ -231,7 +231,7 @@ describe('PiecePalette', () => {
     expect(onResetOrientacion).toHaveBeenCalledTimes(1);
   });
 
-  it('la linea de orientacion reserva su renglon y no salta con el peor caso', async () => {
+  it('AC-PNL-019 — la linea de orientacion reserva su renglon y no salta con el peor caso', async () => {
     // Mismo bug que la linea de notas: si envuelve, mueve todo lo que tiene debajo justo
     // cuando lo estas tocando. El peor caso de largo es `270° · reflejada`.
     const alto = async (o: { rotation: 0 | 1 | 2 | 3; mirror: boolean }) => {
@@ -257,7 +257,7 @@ describe('PiecePalette', () => {
     expect(corto.h).toBe(Math.round(corto.interlineado));
   });
 
-  it('021 — el encabezado es un BOTON que pliega, y plegado deja solo el encabezado', async () => {
+  it('AC-ACC-010 — el encabezado es un BOTON que pliega, y plegado deja solo el encabezado', async () => {
     // Un `<button>` y no un `<h2>` con `onClick`: es un control, y un control que solo
     // existe para el mouse es justo la deuda que este spec ya agranda por otro lado.
     const onToggle = vi.fn();

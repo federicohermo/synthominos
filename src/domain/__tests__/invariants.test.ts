@@ -10,43 +10,43 @@ import type { Cell } from '../types/transform.types.ts';
 import type { PieceKey } from '../types/pieces.types.ts';
 
 describe('los siete chequeos sobre las 96 combinaciones', () => {
-  it('orden del array', () => {
+  it('AC-PCS-015 — orden del array', () => {
     const r = checkArrayOrder();
     expect(r.failures).toEqual([]);
     expect(r.ok).toBe(true);
   });
 
-  it('ancla', () => {
+  it('AC-PCS-016 — ancla', () => {
     const r = checkAnchors();
     expect(r.failures).toEqual([]);
     expect(r.ok).toBe(true);
   });
 
-  it('formas', () => {
+  it('AC-PCS-001 — formas', () => {
     const r = checkShapes();
     expect(r.failures).toEqual([]);
     expect(r.ok).toBe(true);
   });
 
-  it('BASE_MAP', () => {
+  it('AC-MUS-002 — BASE_MAP', () => {
     const r = checkBaseMap();
     expect(r.failures).toEqual([]);
     expect(r.ok).toBe(true);
   });
 
-  it('notas', () => {
+  it('AC-MUS-001 — notas', () => {
     const r = checkNotes();
     expect(r.failures).toEqual([]);
     expect(r.ok).toBe(true);
   });
 
-  it('piezas distintas', () => {
+  it('AC-PCS-003 — piezas distintas', () => {
     const r = checkDistinct();
     expect(r.failures).toEqual([]);
     expect(r.ok).toBe(true);
   });
 
-  it('letras', () => {
+  it('AC-PCS-006 — letras', () => {
     const r = checkLetters();
     expect(r.failures).toEqual([]);
     expect(r.ok).toBe(true);
@@ -107,7 +107,7 @@ describe('los chequeos detectan una regresion', () => {
     });
   });
 
-  it('checkShapes NO acepta la conexion por diagonal', () => {
+  it('AC-PCS-002 — checkShapes NO acepta la conexion por diagonal', () => {
     conFormaMutada('I', [[0,0],[1,0],[2,0],[3,0],[4,1]], () => {
       expect(checkShapes().ok).toBe(false);
     });
@@ -150,7 +150,7 @@ describe('los chequeos detectan una regresion', () => {
    * porque ninguno compara dos FORMAS: el unico que cruza piezas es `checkBaseMap`, y
    * las cruza por su tonica.
    */
-  it('checkDistinct ve la Z que era la N reflejada', () => {
+  it('AC-PCS-004 — checkDistinct ve la Z que era la N reflejada', () => {
     conFormaMutada('Z', [[0,1],[1,1],[1,0],[2,0],[3,0]], () => {
       expect(checkShapes().ok).toBe(true);   // el chequeo 3 no la ve, y ese es el punto
 
@@ -167,7 +167,7 @@ describe('los chequeos detectan una regresion', () => {
    * Sin el `sort()` de `canonicalKey` esta `N` —la misma pieza, otro orden— se leeria
    * como una pieza nueva y el duplicado real pasaria.
    */
-  it('checkDistinct compara el conjunto y no el orden del array', () => {
+  it('AC-PCS-005 — checkDistinct compara el conjunto y no el orden del array', () => {
     conFormaMutada('N', [[3,1],[2,1],[1,1],[1,0],[0,0]], () => {
       const r = checkDistinct();
       expect(r.ok).toBe(true);
@@ -195,7 +195,7 @@ describe('los chequeos detectan una regresion', () => {
    * Las dos mitades de la afirmacion van en el MISMO test a proposito: que el chequeo
    * nuevo de rojo no vale nada si no se ve, al lado, que el viejo se queda en verde.
    */
-  it('checkLetters ve una L intercambiada con la Y, que checkDistinct no ve', () => {
+  it('AC-PCS-007 — checkLetters ve una L intercambiada con la Y, que checkDistinct no ve', () => {
     conLetrasIntercambiadas('L', 'Y', () => {
       const distinct = checkDistinct();
       expect(distinct.ok).toBe(true);          // el chequeo 6 no lo ve, y ese es el punto
@@ -218,7 +218,7 @@ describe('los chequeos detectan una regresion', () => {
    * busqueda no encuentra nada —acá, cinco celdas desconectadas— decir «es el undefined»
    * mandaria a revisar una pieza que no tiene nada que ver.
    */
-  it('checkLetters no le inventa letra a una forma que no es un pentomino', () => {
+  it('AC-PCS-008 — checkLetters no le inventa letra a una forma que no es un pentomino', () => {
     conFormaMutada('Z', [[0,0],[1,0],[2,0],[3,0],[9,9]], () => {
       const r = checkLetters();
       expect(r.ok).toBe(false);

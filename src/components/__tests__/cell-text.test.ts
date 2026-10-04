@@ -24,7 +24,7 @@ const PIECES = Object.keys(SHAPES) as PieceKey[];
  * tiene el suyo: lo que `components/` decide tambien es una decision.
  */
 describe('cellTextFor — el texto de una celda, en las 96 orientaciones', () => {
-  it('el numero es el PASO y no el grado', () => {
+  it('AC-MUS-026 — el numero es el PASO y no el grado', () => {
     // El bug, exactamente. Con `mirror` las dos numeraciones difieren en 4 de las 5
     // celdas —`4 - g === g` solo en g=2—, asi que pedir el grado se ve enseguida; sin
     // `mirror` son el mismo numero, que es por lo que el error tardo un spec en salir.
@@ -39,7 +39,7 @@ describe('cellTextFor — el texto de una celda, en las 96 orientaciones', () =>
     }
   });
 
-  it('la NOTA sale del grado contra el ascendente, y la reflexion no la mueve', () => {
+  it('AC-MUS-025 — la NOTA sale del grado contra el ascendente, y la reflexion no la mueve', () => {
     // La otra mitad del par, y el cruce inverso: numerar bien pero pedir la nota con
     // `arpeggioFor(...)[paso]` compila y devuelve la nota espejada. Que reflejar deje
     // las 5 notas donde estaban es lo que dice que la celda pinta el ascendente.
@@ -53,7 +53,7 @@ describe('cellTextFor — el texto de una celda, en las 96 orientaciones', () =>
     }
   });
 
-  it('la celda del `#0` lleva la primera nota que suena, y la del `#4` la ultima', () => {
+  it('AC-MUS-026 — la celda del `#0` lleva la primera nota que suena, y la del `#4` la ultima', () => {
     // La promesa que la pantalla hace: la cabeza lectora entra por el `#0`. Cruza las
     // dos derivaciones —el numero por un lado, la nota por el otro— contra el orden de
     // reproduccion real, que es lo unico que ninguna de las dos conoce sola.
@@ -80,7 +80,7 @@ describe('cellTextFor — el texto de una celda, en las 96 orientaciones', () =>
     expect(cellTextFor('L', 0, false, REGIMEN.escala)).toBe(cellTextFor('L', 0, false, REGIMEN.escala));
   });
 
-  it('el memo tampoco cruza REGIMENES: el regimen esta en la clave', () => {
+  it('AC-MUS-014 — el memo tampoco cruza REGIMENES: el regimen esta en la clave', () => {
     // El `Map` es de modulo, sobrevive al render y no lo mira ningun linter: sin el
     // regimen en la clave, cambiarlo re-derivaria el audio y dejaria las celdas
     // mostrando las notas del regimen anterior para siempre. Es AC7 verde en el audio y
@@ -100,7 +100,7 @@ describe('cellTextFor — el texto de una celda, en las 96 orientaciones', () =>
     expect(cellTextFor('L', 1, false, REGIMEN.orden)).toBe(cellTextFor('L', 1, false, REGIMEN.orden));
   });
 
-  it('el caso del reporte: la `L` reflejada entra por el `#0` en B4', () => {
+  it('AC-MUS-027 — el caso del reporte: la `L` reflejada entra por el `#0` en B4', () => {
     // El testigo del bug, tal como se ve en pantalla. `L`/0/reflejada tiene sus celdas
     // en [1,0] [1,1] [1,2] [1,3] [0,0], y la ultima —la que la cabeza pisa primero—
     // decia `#4`. Es el unico test del archivo que fija numeros a mano: los otros

@@ -58,21 +58,21 @@ const readme = leer('README.md');
 describe('el nombre de la app esta sincronizado', () => {
   const nombre = manifest.name;
 
-  it('el manifest declara un nombre no vacio', () => {
+  it('AC-PNL-029 — el manifest declara un nombre no vacio', () => {
     expect(nombre).toBeTruthy();
   });
 
-  it('el `<title>` del `index.html` dice el mismo nombre', () => {
+  it('AC-PNL-029 — el `<title>` del `index.html` dice el mismo nombre', () => {
     // Es lo que se ve en la pestaña y en el historial. Salio de la plantilla como
     // «React App»; que quede desincronizado lo devuelve a nombrar otra cosa.
     expect(extraer(html, /<title>([^<]+)<\/title>/, 'index.html')).toBe(nombre);
   });
 
-  it('el encabezado del README dice el mismo nombre', () => {
+  it('AC-PNL-029 — el encabezado del README dice el mismo nombre', () => {
     expect(extraer(readme, /^#\s+(.+)$/m, 'README.md')).toBe(nombre);
   });
 
-  it('el `short_name` del manifest es el nombre o una version mas corta de el', () => {
+  it('AC-PNL-029 — el `short_name` del manifest es el nombre o una version mas corta de el', () => {
     // La spec de PWA quiere `short_name` para cuando no entra `name`, asi que se
     // permite que sea mas corto — pero tiene que ser el MISMO nombre recortado y no
     // otro, que es como quedaria si alguien cambia uno solo de los dos campos.

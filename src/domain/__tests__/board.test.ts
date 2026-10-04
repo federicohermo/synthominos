@@ -27,7 +27,7 @@ const piezaEn = (id: string, cells: Cell[]): PlacedPiece =>
   ({ id, piece: 'I', rotation: 0, mirror: false, cells, muted: false });
 
 describe('cellsAt', () => {
-  it('la celda de agarre cae exactamente donde se clickeo', () => {
+  it('AC-BRD-001 — la celda de agarre cae exactamente donde se clickeo', () => {
     // Es la propiedad que hace que colocar se sienta preciso, y la que sostiene la
     // fase por pieza: si el ancla se corriera, la columna leida
     // despues seria otra.
@@ -70,7 +70,7 @@ describe('isValid', () => {
     expect(isValid([[0,0],[1,0],[2,0]], [], GRID_DEFAULT)).toBe(true);
   });
 
-  it('rechaza por cada uno de los cuatro bordes', () => {
+  it('AC-BRD-003 — rechaza por cada uno de los cuatro bordes', () => {
     expect(isValid([[-1,0]], [], GRID_DEFAULT)).toBe(false);                 // izquierda
     expect(isValid([[0,-1]], [], GRID_DEFAULT)).toBe(false);                 // arriba
     expect(isValid([[GRID_W,0]], [], GRID_DEFAULT)).toBe(false);             // derecha
@@ -89,7 +89,7 @@ describe('isValid', () => {
     expect(isValid([[2,3],[3,3],[4,3]], placed, GRID_DEFAULT)).toBe(true);   // justo debajo, libre
   });
 
-  it('mira TODAS las piezas colocadas, no solo la primera', () => {
+  it('AC-BRD-003 — mira TODAS las piezas colocadas, no solo la primera', () => {
     const placed = [piezaEn('1', [[0,0]]), piezaEn('2', [[5,5]])];
     expect(isValid([[5,5]], placed, GRID_DEFAULT)).toBe(false);
   });
@@ -107,7 +107,7 @@ describe('isValid', () => {
 });
 
 describe('031 — `cabeEn`: si la pieza entra ENTERA en el tablero de ahora', () => {
-  it('la que entra entera si, y no le importa lo que haya colocado', () => {
+  it('AC-FIT-019 — la que entra entera si, y no le importa lo que haya colocado', () => {
     // No mira solapamiento a proposito: es la pregunta «se dibuja o no», y dos piezas
     // solapadas no pueden existir —`isValid` no las deja entrar—.
     const p = piezaEn('a', [[0,0],[1,0],[2,0],[3,0],[4,0]]);
@@ -115,7 +115,7 @@ describe('031 — `cabeEn`: si la pieza entra ENTERA en el tablero de ahora', ()
     expect(cabeEn(p, { w: 5, h: 5 })).toBe(true);
   });
 
-  it('la que se pasa por UNA celda no entra, y por cualquiera de los cuatro bordes', () => {
+  it('AC-FIT-019 — la que se pasa por UNA celda no entra, y por cualquiera de los cuatro bordes', () => {
     // Es la mitad que decide que se dibuja: «tres celdas adentro y dos
     // afuera» tiene que dar false, o el tablero mostraria media pieza que el circuito no
     // visita.
@@ -125,7 +125,7 @@ describe('031 — `cabeEn`: si la pieza entra ENTERA en el tablero de ahora', ()
     expect(cabeEn(piezaEn('a', [[0,-1],[0,0]]), GRID_DEFAULT)).toBe(false);          // arriba
   });
 
-  it('la misma pieza entra o no segun el tablero, que es para lo que existe', () => {
+  it('AC-FIT-020 — la misma pieza entra o no segun el tablero, que es para lo que existe', () => {
     // El caso central: la ventana se achica y la pieza deja de entrar sin
     // que la pieza cambie. Achicar y volver a agrandar la devuelve.
     const alBorde = piezaEn('a', [[7,1],[8,1],[9,1]]);
@@ -391,14 +391,14 @@ const todosLosMinimos = (a: Cell, b: Cell, board: readonly PlacedPiece[]): Cell[
 };
 
 describe('routeBetween — el tablero vacio', () => {
-  it('las dos esquinas de la costura estan a un paso', () => {
+  it('AC-CIR-001 — las dos esquinas de la costura estan a un paso', () => {
     // Es la definicion del repliegue: (0,0) y (9,5) son las mas lejanas de la grilla y
     // la costura las vuelve vecinas. Un paso son cero celdas en el medio.
     expect(routeBetween([0, 0], [GRID_W - 1, GRID_H - 1], [], GRID_DEFAULT)).toEqual({ path: [], steps: 1, cost: 0, crossed: [] });
     expect(routeBetween([GRID_W - 1, GRID_H - 1], [0, 0], [], GRID_DEFAULT)).toEqual({ path: [], steps: 1, cost: 0, crossed: [] });
   });
 
-  it('la distancia maxima del tablero es 12, no 14', () => {
+  it('AC-CIR-001 — la distancia maxima del tablero es 12, no 14', () => {
     // 14 es el diametro Manhattan de una grilla 10x6 sin costura. Con la arista extra
     // ningun par supera 12: el que era el par mas lejano ahora mide 1.
     //
@@ -459,7 +459,7 @@ describe('routeBetween — el tablero vacio', () => {
     expect(fallas).toEqual([]);
   });
 
-  it('el camino tiene exactamente una celda menos que los pasos', () => {
+  it('AC-CIR-003 — el camino tiene exactamente una celda menos que los pasos', () => {
     // El invariante del largo del 009, ahora sobre la respuesta unica de D3: los tres
     // valores salen de la misma llamada, asi que no hay dos cuentas que atar.
     let aseverados = 0;
@@ -472,7 +472,7 @@ describe('routeBetween — el tablero vacio', () => {
     expect(aseverados).toBe(3540);
   });
 
-  it('AC7b — es un camino de verdad: celdas adyacentes de a pares y ninguna repetida', () => {
+  it('AC-CIR-003 — es un camino de verdad: celdas adyacentes de a pares y ninguna repetida', () => {
     // El largo solo no alcanza: un array del tamano correcto con celdas salteadas lo
     // cumpliria igual. Se mide sobre el recorrido COMPLETO —con a y b en las puntas—
     // porque la costura puede caer entre dos celdas intermedias.
@@ -489,7 +489,7 @@ describe('routeBetween — el tablero vacio', () => {
     expect(fallas).toEqual([]);
   });
 
-  it('no incluye ni el origen ni el destino', () => {
+  it('AC-CIR-003 — no incluye ni el origen ni el destino', () => {
     expect(routeBetween([0, 0], [3, 0], [], GRID_DEFAULT).path).toEqual([[1, 0], [2, 0]]);
   });
 
@@ -502,7 +502,7 @@ describe('routeBetween — el tablero vacio', () => {
     expect(routeBetween([0, 0], [3, 2], [], GRID_DEFAULT).path).toEqual([[0, 1], [0, 2], [1, 2], [2, 2]]);
   });
 
-  it('AC7b — el borde de la costura: el origen ya ES la esquina', () => {
+  it('el borde de la costura: el origen ya ES la esquina', () => {
     // Es donde fallaba la version del 009 que excluia los extremos tramo por tramo: el
     // primer tramo se queda sin celdas propias y la esquina de llegada, que en el camino
     // completo es intermedia, se perdia.
@@ -511,13 +511,13 @@ describe('routeBetween — el tablero vacio', () => {
     expect(r.path).toEqual([[GRID_W - 1, GRID_H - 1]]);
   });
 
-  it('AC7b — el borde de la costura: el destino ya ES la esquina', () => {
+  it('el borde de la costura: el destino ya ES la esquina', () => {
     const r = routeBetween([GRID_W - 1, GRID_H - 2], [0, 0], [], GRID_DEFAULT);
     expect(r.steps).toBe(2);
     expect(r.path).toEqual([[GRID_W - 1, GRID_H - 1]]);
   });
 
-  it('AC7b — el borde de la costura: origen y destino son las dos esquinas', () => {
+  it('el borde de la costura: origen y destino son las dos esquinas', () => {
     expect(routeBetween([0, 0], [GRID_W - 1, GRID_H - 1], [], GRID_DEFAULT).path).toEqual([]);
     expect(routeBetween([GRID_W - 1, GRID_H - 1], [0, 0], [], GRID_DEFAULT).path).toEqual([]);
   });
@@ -556,7 +556,7 @@ describe('el caso testigo: el recorrido deja de pisar la puerta de la pieza que 
     expect(isValid(TESTIGO_Y.cells, [TESTIGO_P], GRID_DEFAULT)).toBe(true);
   });
 
-  it('el tramo de la P a la Y no pisa [7,1]', () => {
+  it('AC-CIR-004 — el tramo de la P a la Y no pisa [7,1]', () => {
     // Las puertas van escritas a mano y no derivadas con `gates`: la salida de la `P` es
     // [3,1] y la entrada de la `Y` es [8,2] (medido con `simulate_board`). Derivarlas aca
     // ataria este test al modulo de la secuencia, que es el que las usa.
@@ -571,7 +571,7 @@ describe('el caso testigo: el recorrido deja de pisar la puerta de la pieza que 
     expect(r.path.some((c) => misma(c, [7, 1]))).toBe(false);
   });
 
-  it('...y esquivarla CUESTA dos intervalos, que es el precio que fija CROSS_COST', () => {
+  it('AC-CIR-004 — ...y esquivarla CUESTA dos intervalos, que es el precio que fija CROSS_COST', () => {
     // Sin obstaculos el tramo mide 6; esquivando mide 8. Los dos intervalos de mas son
     // dos silencios agregados al ciclo para no pisar una celda que suena.
     expect(routeBetween([3, 1], [8, 2], [], GRID_DEFAULT).steps).toBe(6);
@@ -621,7 +621,7 @@ describe('ningun cruce evitable, contrastado contra una implementacion de refere
     }
   });
 
-  it('el costo, los pasos y el camino coinciden con la referencia', () => {
+  it('AC-CIR-005 — el costo, los pasos y el camino coinciden con la referencia', () => {
     // AC2 en su forma falsable: si existiera un camino mas barato —o uno del mismo costo
     // que pisara menos y ganara el desempate— la referencia lo encontraria. El corolario
     // es que la desigualdad de AC2 es ESTRICTA: con exactamente `CROSS_COST - 1` pasos de
@@ -667,7 +667,7 @@ describe('ningun cruce evitable, contrastado contra una implementacion de refere
     expect(fallas).toEqual([]);
   });
 
-  it('el COSTO es simetrico aunque el camino no tenga por que serlo', () => {
+  it('AC-CIR-006 — el COSTO es simetrico aunque el camino no tenga por que serlo', () => {
     // Lo que sostiene la simetria es que el peso lo paguen solo las intermedias: `a -> b`
     // y `b -> a` suman sobre el MISMO conjunto de celdas. Los pasos si pueden diferir,
     // porque entre dos caminos del mismo costo el desempate puede quedarse con uno de
@@ -684,7 +684,7 @@ describe('ningun cruce evitable, contrastado contra una implementacion de refere
 });
 
 describe('determinismo y desempate', () => {
-  it('el mismo tablero y el mismo par dan siempre la misma ruta', () => {
+  it('AC-CIR-022 — el mismo tablero y el mismo par dan siempre la misma ruta', () => {
     // No hay `Math.random` ni fechas: la igualdad `peso + resto === restante` del
     // desempate es exacta, y el orden de las piezas en `placed` no puede cambiarla porque
     // lo unico que se lee de ellas es que celdas ocupan.
@@ -696,7 +696,7 @@ describe('determinismo y desempate', () => {
     }
   });
 
-  it('con el empate EJERCIDO gana el lexicograficamente menor de todos, no de los que se probaron', () => {
+  it('AC-CIR-007 — con el empate EJERCIDO gana el lexicograficamente menor de todos, no de los que se probaron', () => {
     // Los pares van elegidos para que el empate exista de verdad: se enumeran TODOS los
     // caminos de costo minimo y el test se cae si hay uno solo, que es la forma en que un
     // test de desempate pasa por verde sin desempatar nada.
@@ -715,7 +715,7 @@ describe('determinismo y desempate', () => {
     }
   });
 
-  it('el desempate compara el PREFIJO entero y no solo la primera celda', () => {
+  it('AC-CIR-007 — el desempate compara el PREFIJO entero y no solo la primera celda', () => {
     // La trampa que el spec deja escrita: fijar el orden de exploracion, o desempatar
     // mirando la vecina que relaja, alcanza para la PRIMERA celda y no para el resto.
     // Estos pares tienen mas de un camino minimo que arranca por la misma celda, asi que
@@ -731,7 +731,7 @@ describe('determinismo y desempate', () => {
 });
 
 describe('031 — la costura sale de las dimensiones', () => {
-  it('son siempre las dos esquinas opuestas del tablero que haya', () => {
+  it('AC-CIR-002 — son siempre las dos esquinas opuestas del tablero que haya', () => {
     // AC11. El tablero de 10 x 6 dejo de ser el unico, asi que `(0,0)`-`(9,5)` dejo de
     // poder ser una constante: la costura es «las dos esquinas», y eso se lee en cualquier
     // tamano.
@@ -740,7 +740,7 @@ describe('031 — la costura sale de las dimensiones', () => {
     }
   });
 
-  it('la celda de la costura es vecina de la otra punta, y solo ella', () => {
+  it('AC-CIR-002 — la celda de la costura es vecina de la otra punta, y solo ella', () => {
     // La costura como propiedad OBSERVABLE y no como par de coordenadas: en un tablero de
     // 26 x 15 la esquina `(25,14)` esta a 39 pasos de `(0,0)` por la grilla y a UNO por la
     // costura. Y su vecina de al lado no: la costura es una arista, no un toroide.
@@ -751,7 +751,7 @@ describe('031 — la costura sale de las dimensiones', () => {
   });
 });
 
-describe('031 AC7 — la cache de distancias no cambia una sola ruta', () => {
+describe('la cache de distancias no cambia una sola ruta', () => {
   it('un rutador compartido contesta lo mismo que uno nuevo por consulta', () => {
     // El unico riesgo de la cache es que una `dist[]` guardada para un destino se lea desde
     // un origen para el que no valia. Se contrasta contra la version sin cache, que es

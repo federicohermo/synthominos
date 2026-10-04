@@ -44,20 +44,20 @@ const html = leer('index.html');
 describe('el color de fondo esta sincronizado fuera de `src/`', () => {
   const token = color(css, /--color-fondo:\s*(#[0-9a-fA-F]{3,8})\s*;/, 'src/styles/index.css');
 
-  it('el token existe y es un color escrito', () => {
+  it('AC-PNL-030 — el token existe y es un color escrito', () => {
     // Si `@theme` desaparece, Tailwind deja de generar `bg-fondo` y el `div` raiz queda
     // transparente: el fondo lo taparia el `body` y no se veria nada raro en pantalla.
     expect(token).toMatch(/^#[0-9a-f]{6}$/);
     expect(css).toContain('var(--color-fondo)');
   });
 
-  it('`theme_color` y `background_color` del manifest dicen el token', () => {
+  it('AC-PNL-030 — `theme_color` y `background_color` del manifest dicen el token', () => {
     const m = JSON.parse(manifest) as { theme_color: string; background_color: string };
     expect(m.theme_color.toLowerCase()).toBe(token);
     expect(m.background_color.toLowerCase()).toBe(token);
   });
 
-  it('la `<meta name="theme-color">` del `index.html` dice el token', () => {
+  it('AC-PNL-030 — la `<meta name="theme-color">` del `index.html` dice el token', () => {
     const meta = color(html, /<meta\s+name="theme-color"\s+content="(#[0-9a-fA-F]{3,8})"/, 'index.html');
     expect(meta).toBe(token);
   });

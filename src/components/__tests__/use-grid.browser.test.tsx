@@ -45,7 +45,7 @@ describe('useGrilla', () => {
     expect(result.current).toEqual(esperado.dims);
   });
 
-  it('mide la CAJA y no `innerWidth`, que es lo que los hace ser el mismo número', async () => {
+  it('AC-FIT-011 — mide la CAJA y no `innerWidth`, que es lo que los hace ser el mismo número', async () => {
     // Dos nodos de tamaños distintos en el mismo viewport: si el hook leyera la ventana,
     // los dos escribirían lo mismo. La caja del raíz mide `100dvh`, y en iOS `innerHeight`
     // incluye la barra del navegador — con la fórmula recibiendo uno y la caja teniendo el
@@ -60,7 +60,7 @@ describe('useGrilla', () => {
     expect(a.result.current).not.toEqual(b.result.current);
   });
 
-  it('un `resize` reescribe las dos cosas: la celda y las dimensiones', async () => {
+  it('AC-FIT-012 — un `resize` reescribe las dos cosas: la celda y las dimensiones', async () => {
     const ref = nodo(1000, 600);
     const { result, unmount } = await renderHook(() => useGrilla(ref));
     const antes = result.current;

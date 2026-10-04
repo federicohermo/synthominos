@@ -79,10 +79,13 @@ function readSpec(file: SourceFile, findings: string[]): Spec {
   return { file: file.path, code, status, criteria };
 }
 
-/** The IDs cited in a test title: the first string argument of `describe`, `it` or `test`. */
+/**
+ * The IDs cited in a test title: the first string argument of `describe`, `it` or `test`, also
+ * after `.each(…)`, `.skipIf(…)` or `.runIf(…)`.
+ */
 export function citedIds(text: string): Set<string> {
   const cited = new Set<string>();
-  const titles = /\b(?:describe|it|test)(?:\.each\([\s\S]*?\))?\(\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/g;
+  const titles = /\b(?:describe|it|test)(?:\.(?:each|skipIf|runIf)\([\s\S]*?\))?\(\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/g;
   for (const m of text.matchAll(titles)) for (const id of m[2].match(AC) ?? []) cited.add(id);
   return cited;
 }
