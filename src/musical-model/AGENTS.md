@@ -14,8 +14,7 @@ The modules of the model are pure: no React, no Web Audio, no DOM.
 `pieces/transform.ts` (geometry) and `invariants.ts` (the checks),
 `board-editing/placement.ts` (the rules of placement), `musical-model/music.ts` (the
 musical model), and `circuit/routing.ts` (the graph of the board) and `sequence.ts` (the
-circuit and the cycle offsets). The data of a module lives next to it in `<module>.constants.ts`,
-and its types in `<module>.types.ts`.
+circuit and the cycle offsets).
 
 ## El orden del array de celdas
 
@@ -99,8 +98,8 @@ las dos puntas.
 
 **El tamaño del tablero es un parámetro, no una constante** (spec 031). `GRID_W`/`GRID_H` y `SEAM` se
 fueron: el tablero mide lo que entra en la pantalla, así que `isValid`, `routeBetween` y
-`buildSequence` reciben un `Dims` y la costura la deriva `costuraDe(dims)`. Lo que queda en
-`constants/` son los tres bordes —`GRID_MIN` (5×5, la caja más chica donde entra cualquier pentominó),
+`buildSequence` reciben un `Dims` y la costura la deriva `costuraDe(dims)`. Lo que queda
+son los tres bordes —`GRID_MIN` (5×5, la caja más chica donde entra cualquier pentominó),
 `GRID_DEFAULT` (10×6, el tablero de referencia que usan el MCP server y los tests) y `MAX_PIEZAS`—.
 
 **`MAX_PIEZAS` es 12 y no es una preferencia**: hasta el 031 ese tope lo garantizaba el área (60 ÷ 5) y

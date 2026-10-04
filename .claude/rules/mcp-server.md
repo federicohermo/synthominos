@@ -23,7 +23,7 @@ Es tooling: no entra al bundle ni al deploy.
   asserted.
 - **Un resource tampoco copia números: los importa.** Es la misma regla que la de arriba, del otro lado
   del protocolo. `resources/constantes.ts` no tiene un solo literal numérico — las 14 constantes vienen
-  de los `*.constants.ts` de `src/`, agrupadas por archivo con shorthand de propiedad
+  de los módulos de `src/`, agrupadas por archivo con shorthand de propiedad
   para que la clave **sea** el identificador importado. Si aparece la tentación de tipear un valor acá,
   falta un export en `src/`, y eso es un cambio de `src/` en su propio commit. Cada constante viaja con
   **la ruta del archivo que la define**: sin eso el resource es otra copia, sólo que generada. Y **sin
