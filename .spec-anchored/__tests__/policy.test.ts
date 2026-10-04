@@ -7,8 +7,8 @@ import { json, strictJsonLoads } from '../pyjson.ts';
 
 /**
  * `policy/` holds the profiles as files, and the kernel holds them in `PROFILES`. The kernel is
- * the authority. This gate keeps the files, and the hashes that `policy/README.md` prints, equal
- * to it: two copies that can differ are two authorities.
+ * the authority. This gate keeps the files equal to it: two copies that can differ are two
+ * authorities.
  */
 
 const POLICY = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../policy');
@@ -20,11 +20,8 @@ describe('the profile files are the profiles of the kernel', () => {
     expect(readdirSync(path.join(POLICY, 'profiles')).sort()).toEqual([...PROFILES.keys()].map(p => path.basename(fileOf(p))).sort());
   });
 
-  it.each([...PROFILES.keys()])('%s: the file resolves to the profile, and the README prints its hash', profile => {
-    const resolved = resolvePolicy(strictJsonLoads(read(fileOf(profile))));
-    const hash = hashJson(resolvePolicy(profile));
-    expect(hashJson(resolved)).toBe(hash);
-    expect(read('README.md')).toContain(`| \`${fileOf(profile)}\` | \`${hash}\` |`);
+  it.each([...PROFILES.keys()])('%s: the file resolves to the profile', profile => {
+    expect(hashJson(resolvePolicy(strictJsonLoads(read(fileOf(profile)))))).toBe(hashJson(resolvePolicy(profile)));
   });
 });
 

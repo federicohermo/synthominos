@@ -137,6 +137,20 @@ The traps, measured in this repo and in the one this harness comes from:
 - **Rerun every command this skill hands out before you hand it out.** A broken command spreads
   N times.
 
+### The gates of a lane
+
+Each lane is the Owner of one run of the implementation protocol, in supervised mode: the profile
+`supervised-local/v1` and the adapter `implement-feature`. A lane is a sub-agent, so two things it
+cannot do itself go through the parent:
+
+| The lane needs | What happens |
+|---|---|
+| An answer of the person, or the approval of its fingerprint | The lane stops and returns the question, or the plan with its fingerprint. The parent collects them from every lane and asks the person once. Then it resumes each lane (`SendMessage`) with the answer. |
+| To dispatch `general-code-reviewer` or `mutation-hardener` | A sub-agent cannot start another agent. The lane writes the target file and returns its absolute path. The parent dispatches the agent, and resumes the lane with the path of the handoff. The lane inspects the diff and takes what it accepts: it is still the Owner. |
+
+Dispatch the hardening agents of several lanes in one message. The run folder of a lane is in its
+worktree: `.agent-runs/<run-id>/`.
+
 ### When a lane is done
 
 > A lane ends with its PRs open and no criterion without a citing test. Not before.

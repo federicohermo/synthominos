@@ -37,17 +37,16 @@ Run one command in each shell call.
 
 ## The eligible target
 
-The eligible target is each file that:
+```bash
+node .agents/scripts/mutation-target.ts <base_sha> --report
+```
 
-- changed between `base_sha` and the input candidate, and
-- matches the `mutate` list of `stryker.config.json`.
-
-Stryker runs the `node` test project only. A changed file that only a browser test covers is not
-eligible: a `.tsx` component, `playback/engine.ts`, a module that needs a canvas or a real
-`AudioContext`. List each one in `not_eligible` with its reason. That is a limit of the tool, and
+It prints two lists. `eligible` is your target. `notEligible` is the changed product code that
+Stryker cannot judge: only a browser test covers it, or its tests do not run in Vitest. Copy that
+list to `not_eligible` of the handoff, each file with its reason. It is a limit of the tool, and
 the Owner reviews it. Do not add or widen an exclusion to make a file leave the target.
 
-If no changed file is eligible, return `MUTATION_NOT_APPLICABLE` with that list.
+If `eligible` is empty, return `MUTATION_NOT_APPLICABLE` with the other list.
 
 ## The loop
 

@@ -20,7 +20,7 @@ export type Tree = ReadonlyMap<string, string>;
 
 /** Canonical files that skills carry, byte for byte. A skill is self-contained. */
 export const COPIES: ReadonlyMap<string, readonly string[]> = new Map(([
-  ['.agents/skills/to-spec/no-debt.md', ['to-issue', 'implement-feature', 'implement-batch', 'pr-review', 'pr-review-batch'], ''],
+  ['.agents/skills/to-spec/no-debt.md', ['to-issue', 'implement-feature', 'implement-batch', 'implement-orchestrated', 'implement-backlog', 'pr-review', 'pr-review-batch'], ''],
   ['.agents/skills/pr-review/findings.md', ['pr-review-batch'], ''],
   ['.agents/scripts/task-brief.ts', ['to-issue'], 'scripts/'],
   ['.agents/scripts/brief.ts', ['to-issue'], 'scripts/'],
@@ -256,7 +256,7 @@ export function sync(args: readonly string[], disk: Disk): 0 | 1 {
 }
 
 /** Folders the real disk never walks. */
-const SKIPPED = new Set(['node_modules', '.git', 'dist', 'coverage', '.vercel', 'worktrees']);
+const SKIPPED = new Set(['node_modules', '.git', 'dist', 'coverage', '.vercel', 'worktrees', '.stryker-tmp']);
 
 /** Every file under `dir`, as POSIX paths relative to `root`. */
 function walk(root: string, dir: string): string[] {

@@ -36,26 +36,12 @@ Reviews of spec conformance, security, performance and architecture are outside 
 | `NAMED_BLOCKER` | The run stopped. A comment on the issue names the blocker and its evidence. |
 | `NO_CHANGE_REQUIRED` | The repo already does what the issue asks. The evidence is corroborated. There is no PR. |
 
-The kinds of blocker are `AMBIGUITY`, `MISSING_ORACLE`, `TRUTH_CONFLICT`, `SCOPE_VIOLATION`,
-`SPEC_CHANGE_REQUIRED`, `SPEC_STALE`, `GRAPH_DECISION_REQUIRED`, `ENVIRONMENT` and
-`REPEATED_FAILURE`.
+`validate-result` knows the kinds of blocker, and names them when it refuses one.
 
 A run never says that its PR is merged, deployed or validated in production.
 
-## The commands of this repo
-
-| Need | Command |
-|---|---|
-| The full gate | `pnpm verify` |
-| One test file | `pnpm exec vitest run --project node <file>`, or `--project browser` for a `*.browser.test.tsx` |
-| Coverage, with its gate at 100 | `pnpm coverage` |
-| Mutation of a target | `pnpm mutation --mutate <file>[,<file>]` |
-| Property tests | They are Vitest tests that use `fast-check`. `pnpm verify` runs them. |
-| Complexity | The ESLint rule `complexity`, in `pnpm lint` |
-| Duplication | Not applicable: the repo has no duplication tool. Say so in the report. |
-| The kernel | `node .spec-anchored/spec-anchored.ts <command>` |
-
-The verdict of a command is its exit code. Detail: `docs/guides/verification.md`.
+The repo has no duplication tool: where the bundle this protocol comes from asks for a duplication
+check, say in the report that it is not applicable.
 
 ## Phase 0: preflight
 
@@ -80,7 +66,7 @@ The verdict of a command is its exit code. Detail: `docs/guides/verification.md`
 4. Confirm the repository, the branch, the base commit, who owns the issue, and the failures
    that exist before the run. The branch starts at `origin/staging` and its prefix is the issue
    type. A worktree opens only under `.claude/worktrees/`.
-5. Create `.agent-runs/<run-id>/` in the main checkout. The run id is `RUN-<issue>-<UTC time>`,
+5. Create `.agent-runs/<run-id>/` at the root of the checkout you work in. The run id is `RUN-<issue>-<UTC time>`,
    for example `RUN-138-20261004T2130Z`. Every artifact of the run goes there. Nothing goes under
    `.claude/` or `.codex/`. The folder is ignored by git.
 
@@ -146,7 +132,7 @@ Work the approved plan on the typed branch, in commits a person can review.
 - Write the test first, and see it fail for the expected reason. The rule is
   `.agents/rules/testing.md`.
 - A test title cites the criterion it verifies: `AC-<COD>-###`.
-- Use only the commands of the table above.
+- Use only the scripts of `package.json` and the kernel. Do not improvise a tool.
 - `specs/` is read-only. One exception: a supervised run may write the semantic amendment that
   the human approved, on the exact paths the manifest grants. Every other mode stops with
   `SPEC_CHANGE_REQUIRED`.
@@ -174,8 +160,11 @@ which failures existed before the run and which are new. A required gate stays g
 Before the hardening passes, bring the durable artifacts up to date: the docs that the change made
 false, the checkboxes of the issue, the `AC → test → result` lines for the PR.
 
-A change to what a contract means goes back to Phase 3: it voids the plan and the approval. A new
-rule for the harness is a proposal in the PR body. A run does not write `.agents/`.
+A change to what a contract means goes back to Phase 3: it voids the plan and the approval.
+
+The diff of a run never holds a file of the harness: the scope check refuses it. A rule that the
+harness lacks lands in its own `harness/` PR. A supervised Owner opens it in the same run. In every
+other mode the Owner proposes it in a comment on the issue.
 
 ## Phase 7: general code review and repair
 
@@ -206,9 +195,10 @@ counterexample it found.
 
 Dispatch `mutation-hardener` in a new isolated worktree, against the candidate the Owner accepted.
 
-The eligible target is the set of changed files that the `mutate` list of `stryker.config.json`
-covers. Stryker runs the `node` test project only. A file that only a browser test covers is not
-eligible: the agent names it in its report as a limit of the tool, and the Owner reviews it.
+The eligible target is what `node .agents/scripts/mutation-target.ts <base_sha> --report` prints:
+the changed files that the `mutate` list of `stryker.config.json` covers. A changed file of the
+product that the list leaves out is a limit of the tool: the agent names it in its report, and the
+Owner reviews it.
 
 The agent works until, on the eligible target:
 

@@ -105,17 +105,14 @@ The floor for every test of the product. What `pnpm verify` runs is in
 4. **Do not mock the boundary you prove.** A test of the engine runs a real `AudioContext`. A test
    of the shell may replace the engine, because its subject is the shell.
 5. **The test title cites the criterion**: `AC-<COD>-###`, for each criterion of a contract.
-6. **Coverage is 100 on four metrics.** A branch no test reaches is deleted or made reachable.
-7. **A file in the `mutate` list of `stryker.config.json` has no actionable surviving mutant.**
-   A mutant is equivalent, or beyond the tool, only when a person agrees. The agent that found it
-   cannot approve it.
+6. **A branch no test reaches is deleted or made reachable.** No comment skips it.
+7. **A surviving mutant is killed by a test of behavior, or by simpler code.** It is equivalent, or
+   beyond the tool, only when a person agrees. The agent that found it cannot approve it.
 8. **A function with a wide input space has a property test**, with `fast-check`: a transform of
    a piece, a route, a parser, a validator. An example test shows one case. A property shows the
    rule.
 9. **A property that fails keeps its seed and its counterexample** as a permanent example test.
-10. **A time budget is skipped under coverage and under Stryker.** There the test measures the
-    instrumentation, not the product. `pnpm test` runs it.
-11. **Never delete, weaken or skip a test, a threshold, a fixture or a mutation setting to turn a
+10. **Never delete, weaken or skip a test, a threshold, a fixture or a mutation setting to turn a
     gate green.** A test that is wrong is fixed, with the reason in the commit.
-12. **Report the command, its exit code and the output that matters.** Name each check you did not
+11. **Report the command, its exit code and the output that matters.** Name each check you did not
     run.

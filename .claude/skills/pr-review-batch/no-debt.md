@@ -16,7 +16,7 @@ discharges, and discharging has a closed list of forms.
 | **review** (`pr-review`, `pr-review-batch`) | with everything they found discharged, verified, committed and pushed |
 | **contract** (`to-spec`) | with the whole behavior of the capability in criteria an agent can close. A gap is an `OQ-<COD>-###`, never an invented value |
 | **plan** (`to-issue`) | with the issue published, its boundaries measured against today's tree, and its type and spec declared |
-| **implementation** (`implement-feature`, `implement-batch`) | with everything the issue asks done, the PR open, and a test that names each criterion it delivers |
+| **implementation** (`implement-feature`, `implement-batch`, `implement-orchestrated`, `implement-backlog`) | with everything the issue asks done, the PR open, and a test that names each criterion it delivers |
 
 **Discharged does not mean put into this PR.** Where the fix lands is a separate decision from
 whether it is done. Mixing the two breaks the review.

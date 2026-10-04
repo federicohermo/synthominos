@@ -3,8 +3,8 @@
 The two internal agents work from an input that does not move, each in its own worktree. Their
 commits are proposals until the Owner inspects and accepts them.
 
-Every file here lives in `.agent-runs/<run-id>/` of the main checkout. Give the agent the absolute
-path of that folder.
+Every file here lives in the run folder, `.agent-runs/<run-id>/` of the checkout of the Owner. Give
+the agent the absolute path of that folder.
 
 ## The target: what the Owner gives an agent
 
@@ -154,17 +154,6 @@ class and the reason.
   ]
 }
 ```
-
-## When the final candidate is valid
-
-- The Owner accepted each handoff that applies.
-- The mutation report names the exact final candidate.
-- `pnpm verify` exits 0 on it, and the scope check accepts its diff.
-- No edit came after the mutation pass. An edit sends the run back to both passes.
-
-`result.json` binds the final candidate to the three files: `general_hardening_report_sha256`,
-`mutation_hardening_report_sha256` and `owner_disposition_sha256`. A `NO_CHANGE_REQUIRED` terminal
-carries `no_change_corroboration_sha256`, the hash of `general-handoff.json`.
 
 A review from outside the run is a separate artifact on the PR. It never replaces the inspection
 of the Owner.
