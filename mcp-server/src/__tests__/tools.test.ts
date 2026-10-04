@@ -6,7 +6,7 @@ import { checkInvariants, pieceOf } from '../tools/checkInvariants.ts';
 import { simulateBoard, nombreDeHz } from '../tools/simulateBoard.ts';
 import { findSymbol } from '../tools/findSymbol.ts';
 import { PIECE_KEYS } from '../pieces.ts';
-import { routeBetween } from '../../../src/board-editing/domain/board.ts';
+import { routeBetween } from '../../../src/circuit/domain/routing.ts';
 import { SHAPES, CELLS_PER_PIECE } from '../../../src/pieces/domain/pieces.constants.ts';
 import { NOTES_PER_PIECE, REGIMEN } from '../../../src/musical-model/domain/music.constants.ts';
 import type { Cell } from '../../../src/pieces/domain/transform.types.ts';

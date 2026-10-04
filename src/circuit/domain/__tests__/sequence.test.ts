@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { buildSequence, cellsByPlayOrder, gates, noteAtCell } from '../sequence.ts';
-import { cellsAt, isValid, routeBetween } from '../../../board-editing/domain/board.ts';
+import { cellsAt, isValid } from '../../../board-editing/domain/board.ts';
+import { routeBetween } from '../routing.ts';
 import { degreeByCellIndex, notesForRotation, playOrderByCellIndex } from '../../../musical-model/domain/music.ts';
 import { rotateN, reflect } from '../../../pieces/domain/transform.ts';
 import { SHAPES, ANCHOR_INDEX, CELLS_PER_PIECE } from '../../../pieces/domain/pieces.constants.ts';
 import { BASE_MAP, DEFAULT_OCTAVE, REGIMEN } from '../../../musical-model/domain/music.constants.ts';
-import { CROSS_COST, GRID_DEFAULT } from '../../../board-editing/domain/board.constants.ts';
+import { GRID_DEFAULT } from '../../../board-editing/domain/board.constants.ts';
+import { CROSS_COST } from '../routing.constants.ts';
 import type { Cell } from '../../../pieces/domain/transform.types.ts';
 import type { PieceKey } from '../../../pieces/domain/pieces.types.ts';
 import type { PlacedPiece } from '../../../board-editing/domain/board.types.ts';

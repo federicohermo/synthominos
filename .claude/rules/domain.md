@@ -83,10 +83,10 @@ esté**: el instrumento se toca de memoria o no se toca.
 **El tablero se repliega sobre sí mismo**: `(0,0)` y la esquina opuesta son adyacentes (una costura extra sobre la
 grilla, spec 009), y el orden de reproducción sale de un circuito exacto (Held-Karp) sobre esas
 distancias. Desde el spec 011 la distancia entre dos celdas **ya no es función solo de esas dos
-celdas**: `routeBetween(a, b, placed, dims)` (`board-editing/domain/board.ts`) reemplaza a `cellDistance` y `pathBetween`
+celdas**: `routeBetween(a, b, placed, dims)` (`circuit/domain/routing.ts`) reemplaza a `cellDistance` y `pathBetween`
 —los dos dejaron de existir, junto con `bestRoute` y el const-object `ROUTE`— y devuelve
 `{ path, steps, cost, crossed }` en una sola llamada: el camino de costo mínimo sobre las celdas del tablero,
-con las intermedias ocupadas pagando `CROSS_COST` (`board-editing/domain/board.constants.ts`) en vez de
+con las intermedias ocupadas pagando `CROSS_COST` (`circuit/domain/routing.constants.ts`) en vez de
 las dos puntas.
 
 **El tamaño del tablero es un parámetro, no una constante** (spec 031). `GRID_W`/`GRID_H` y `SEAM` se

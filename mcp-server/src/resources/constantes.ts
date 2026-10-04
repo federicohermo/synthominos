@@ -1,4 +1,5 @@
-import { GRID_MIN, GRID_DEFAULT, MAX_PIEZAS, CROSS_COST } from '../../../src/board-editing/domain/board.constants.ts';
+import { GRID_MIN, GRID_DEFAULT, MAX_PIEZAS } from '../../../src/board-editing/domain/board.constants.ts';
+import { CROSS_COST } from '../../../src/circuit/domain/routing.constants.ts';
 import { CELLS_PER_PIECE } from '../../../src/pieces/domain/pieces.constants.ts';
 import { NOTES_PER_PIECE, DEFAULT_OCTAVE, DEFAULT_REGIMEN } from '../../../src/musical-model/domain/music.constants.ts';
 import { PASOS_MAX } from '../../../src/circuit/domain/sequence.constants.ts';
@@ -26,7 +27,11 @@ import { jsonResource, type ResourceDef } from './types.ts';
 const POR_ARCHIVO = [
   {
     archivo: 'src/board-editing/domain/board.constants.ts',
-    constantes: { GRID_MIN, GRID_DEFAULT, MAX_PIEZAS, CROSS_COST },
+    constantes: { GRID_MIN, GRID_DEFAULT, MAX_PIEZAS },
+  },
+  {
+    archivo: 'src/circuit/domain/routing.constants.ts',
+    constantes: { CROSS_COST },
   },
   {
     archivo: 'src/pieces/domain/pieces.constants.ts',
@@ -55,7 +60,7 @@ const POR_ARCHIVO = [
  *
  * **La forma la decide la pregunta que trae a alguien aca**, que es "cuanto vale X y donde
  * lo edito". Sobre un mapa eso es una lectura; sobre la lista agrupada hay que recorrer los
- * seis grupos buscando en cual cayo. La lista sigue siendo la FUENTE —es donde la ruta se
+ * grupos buscando en cual cayo. La lista sigue siendo la FUENTE —es donde la ruta se
  * escribe una sola vez— y esto es su indice.
  *
  * Que cada constante lleve su `archivo` al lado es lo que la separa de otra copia, solo que
