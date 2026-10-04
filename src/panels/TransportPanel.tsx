@@ -1,5 +1,15 @@
-import { TEMPO_MIN, TEMPO_MAX } from '../board-fit/layout.constants.ts';
-import type { PropsDeTransporte } from './panel.types.ts';
+import { TEMPO_MIN, TEMPO_MAX } from '../playback/engine.ts';
+
+/** El transporte del instrumento: tempo, play/pausa, los clicks del recorrido y el reset. */
+export interface PropsDeTransporte {
+  tempo: number;
+  playing: boolean;
+  clicks: boolean;
+  onTempo: (bpm: number) => void;
+  onTogglePlay: () => void;
+  onToggleClicks: () => void;
+  onReset: () => void;
+}
 
 /**
  * El transporte del instrumento: tempo, play/pausa, el recorrido en el vacio y el reset.

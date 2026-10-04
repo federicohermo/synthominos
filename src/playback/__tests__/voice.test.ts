@@ -1,10 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { midiToHz, scheduleVoice, scheduleClick } from '../voice.ts';
-import { intervalDuration } from '../scheduler.ts';
 import {
-  DEFAULT_VOICE, NOTE_INTERVALS, RELEASE_INTERVALS, DEFAULT_VELOCITY,
-  CLICK_VELOCITY, CLICK_SECONDS, CLICK_MIDI,
-} from '../voice.constants.ts';
+  midiToHz,
+  scheduleVoice,
+  scheduleClick,
+  DEFAULT_VOICE,
+  NOTE_INTERVALS,
+  RELEASE_INTERVALS,
+  DEFAULT_VELOCITY,
+  CLICK_VELOCITY,
+  CLICK_SECONDS,
+  CLICK_MIDI,
+} from '../voice.ts';
+import { intervalDuration } from '../scheduler.ts';
 import { offline, peakNear, zeroCrossHz, firstAudible } from './test-context.ts';
 
 const A4 = 69;

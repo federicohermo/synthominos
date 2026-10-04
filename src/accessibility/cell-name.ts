@@ -1,7 +1,7 @@
-import { EDICION } from '../board-editing/input.constants.ts';
-import type { PieceKey } from '../pieces/pieces.types.ts';
-import type { CellText } from '../musical-model/cell-text.types.ts';
-import type { Edicion } from '../board-editing/input.types.ts';
+import { EDICION } from '../board-editing/input.ts';
+import type { PieceKey } from '../pieces/pieces.ts';
+import type { CellText } from '../musical-model/cell-text.ts';
+import type { Edicion } from '../board-editing/input.ts';
 
 // El ULTIMO paso, no cuantos hay: los pasos van de 0 a 4 y el nombre dice ese rango tal
 // cual, sin renumerar. Es la regla que `Board.tsx` ya tiene escrita para el `#N` que
@@ -38,7 +38,7 @@ const coordenada = (x: number, y: number) => `fila ${y + 1}, columna ${x + 1}`;
  * caso que la FIRMA inventaria por su cuenta. `cellNameFor` tendria que decidir que
  * decir ahi sin que ese estado exista nunca del otro lado, que es la misma clase de
  * problema por la que `PlacedPiece.muted` es obligatorio y no `muted?: boolean`
- * (ver su doc en `board-editing/board.types.ts`): una firma mas permisiva que la
+ * (ver su doc en `board-editing/placement.ts`): una firma mas permisiva que la
  * realidad es una rama de codigo que ningun llamador real va a ejercer, y que
  * igual hay que mantener en 100% de cobertura inventandole un test.
  */

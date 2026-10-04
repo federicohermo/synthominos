@@ -1,7 +1,7 @@
 import { useLayoutEffect, useState } from 'react';
 import type { RefObject } from 'react';
-import { GRID_DEFAULT } from '../board-editing/board.constants.ts';
-import type { Dims } from '../board-editing/board.types.ts';
+import { GRID_DEFAULT } from '../board-editing/placement.ts';
+import type { Dims } from '../board-editing/placement.ts';
 import { grillaPara } from './grid-fit.ts';
 
 /**

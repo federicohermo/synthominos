@@ -1,17 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { page, userEvent } from 'vitest/browser';
-import { SHAPES, ANCHOR_INDEX } from '../pieces/pieces.constants.ts';
+import { SHAPES, ANCHOR_INDEX } from '../pieces/pieces.ts';
 import { grillaPara } from '../board-fit/grid-fit.ts';
-import { MAX_PIEZAS } from '../board-editing/board.constants.ts';
-import { REGIMEN } from '../musical-model/music.constants.ts';
-import { DEFAULT_BPM } from '../playback/engine.constants.ts';
-import { arpeggioFor } from '../musical-model/music.ts';
-import { cellsAt } from '../board-editing/placement.ts';
+import { MAX_PIEZAS, cellsAt } from '../board-editing/placement.ts';
+import { REGIMEN, arpeggioFor } from '../musical-model/music.ts';
+import { DEFAULT_BPM } from '../playback/engine.ts';
 import { rotateN, reflect } from '../pieces/transform.ts';
-import type { PieceKey } from '../pieces/pieces.types.ts';
+import type { PieceKey } from '../pieces/pieces.ts';
 import type { ReactNode } from 'react';
-import type { PropsDeOrientacion } from '../panels/panel.types.ts';
+import type { PropsDeOrientacion } from '../panels/OrientationPanel.tsx';
 
 /**
  * El shell, entero y en un navegador.
@@ -45,7 +43,7 @@ const motor = vi.hoisted(() => {
     cycleGeneration: () => 0,
   };
 });
-vi.mock('../playback/engine.ts', () => motor);
+vi.mock('../playback/engine.ts', async (importActual) => ({ ...await importActual<typeof import('../playback/engine.ts')>(), ...motor }));
 
 /**
  * Cuantas veces se EJECUTA el panel de las doce miniaturas (AC6 y AC7).

@@ -1,9 +1,33 @@
-import { degreeByCellIndex, playOrderByCellIndex, notesForRotation, midiName } from './music.ts';
-import { SHAPES } from '../pieces/pieces.constants.ts';
-import { BASE_MAP, DEFAULT_OCTAVE } from './music.constants.ts';
-import type { PieceKey } from '../pieces/pieces.types.ts';
-import type { RegimenDeRotacion } from './music.types.ts';
-import type { CellText } from './cell-text.types.ts';
+import {
+  degreeByCellIndex,
+  playOrderByCellIndex,
+  notesForRotation,
+  midiName,
+  BASE_MAP,
+  DEFAULT_OCTAVE,
+} from './music.ts';
+import { SHAPES } from '../pieces/pieces.ts';
+import type { PieceKey } from '../pieces/pieces.ts';
+import type { RegimenDeRotacion } from './music.ts';
+
+/**
+ * Lo que una celda MUESTRA: su nota y su paso.
+ *
+ * Cruza el limite entre `cell-text.ts`, que lo deriva, y `Board.tsx`, que lo pinta — por
+ * eso vive aca y no adentro del modulo, igual que `Marca` para la cabeza lectora.
+ */
+export interface CellText {
+  /**
+   * El PASO: en que lugar del orden de reproduccion suena la celda (`0..4`). Es el
+   * `#N` de la esquina, y la reflexion lo mueve.
+   */
+  step: number;
+  /**
+   * El nombre de la nota que suena en la celda (`"C4"`, `"D#5"`, …). Sale del GRADO
+   * contra el arpegio ascendente, y la reflexion NO lo mueve.
+   */
+  note: string;
+}
 
 // El memo de `cellTextFor`, explicado en su doc: 192 entradas como maximo desde el spec
 // 017 —96 orientaciones x 2 regimenes—, y una por orientacion en vez de una por render.
@@ -46,7 +70,7 @@ const memo = new Map<string, readonly CellText[]>();
  * reflexiones x 2 regimenes son 192 entradas—, asi que el memo vive en el modulo y no
  * adentro del componente: asi sobrevive al render en vez de rearmarse en cada uno. No
  * es estado de la app —no lo puede observar nadie, y para la misma entrada devuelve
- * siempre lo mismo—, es el mismo argumento con el que `palette.constants.ts` guarda
+ * siempre lo mismo—, es el mismo argumento con el que `palette.ts` guarda
  * `fg` en vez de recalcular la luminancia.
  *
  * La REFLEXION entra en la clave. Sin ella la primera orientacion renderizada le

@@ -1,11 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { collectHits, collectWindow, barDuration, intervalDuration } from '../scheduler.ts';
+import {
+  collectHits,
+  collectWindow,
+  barDuration,
+  intervalDuration,
+  LOOKAHEAD,
+  TICK_MS,
+  HIT,
+} from '../scheduler.ts';
 import { offsetAt } from '../playhead-offset.ts';
-import { midiToHz, scheduleVoice } from '../voice.ts';
-import { LOOKAHEAD, TICK_MS, HIT } from '../scheduler.constants.ts';
-import { CLOCK_START_DELAY } from '../engine.constants.ts';
-import { RELEASE_INTERVALS } from '../voice.constants.ts';
-import type { Sequence, ClockState, Hit } from '../scheduler.types.ts';
+import { midiToHz, scheduleVoice, RELEASE_INTERVALS } from '../voice.ts';
+import { CLOCK_START_DELAY } from '../scheduler.ts';
+import type { Sequence, ClockState, Hit } from '../scheduler.ts';
 import { offline, detectOnsets } from './test-context.ts';
 
 const A4 = 69;

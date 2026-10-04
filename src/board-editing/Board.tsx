@@ -1,18 +1,24 @@
 import type { CSSProperties, FocusEvent, KeyboardEvent, MouseEvent, RefObject } from 'react';
 import { occupantAt, occupantCellIndex } from './placement.ts';
-import type { Cell } from '../pieces/transform.types.ts';
-import type { PieceKey } from '../pieces/pieces.types.ts';
-import type { PlacedPiece, Dims } from './board.types.ts';
-import type { RegimenDeRotacion } from '../musical-model/music.types.ts';
+import type { Cell } from '../pieces/transform.ts';
+import type { PieceKey } from '../pieces/pieces.ts';
+import type { PlacedPiece, Dims } from './placement.ts';
+import type { RegimenDeRotacion } from '../musical-model/music.ts';
 import { cellTextFor } from '../musical-model/cell-text.ts';
 import { cellNameFor } from '../accessibility/cell-name.ts';
 import type { CeldaOcupada } from '../accessibility/cell-name.ts';
-import type { CellText } from '../musical-model/cell-text.types.ts';
+import type { CellText } from '../musical-model/cell-text.ts';
 import {
-  NOTA_RAZON, PASO_RAZON, AIRE_RAZON, RADIO_RAZON, RESERVA_RAZON,
-  PASO_ABAJO_RAZON, PASO_DERECHA_RAZON,
-  ANILLO_FOCO_CLARO_RAZON, ANILLO_FOCO_OSCURO_RAZON,
-} from '../board-fit/layout.constants.ts';
+  NOTA_RAZON,
+  PASO_RAZON,
+  AIRE_RAZON,
+  RADIO_RAZON,
+  RESERVA_RAZON,
+  PASO_ABAJO_RAZON,
+  PASO_DERECHA_RAZON,
+  ANILLO_FOCO_CLARO_RAZON,
+  ANILLO_FOCO_OSCURO_RAZON,
+} from '../board-fit/grid-fit.ts';
 
 /**
  * Lo que mide `n` celdas, en CSS. Es la unica forma en que este archivo habla de
@@ -25,7 +31,7 @@ import {
  * fuente, asi que un `w-[calc(var(--cell)*1)]` interpolado no se generaria.
  */
 const celdas = (n: number) => `calc(var(--cell) * ${n})`;
-import { PIECE_COLOR } from '../pieces/palette.constants.ts';
+import { PIECE_COLOR } from '../pieces/palette.ts';
 import Playhead from '../playback/Playhead.tsx';
 
 /**
@@ -444,13 +450,13 @@ export default function Board({
             // enfocada: `scale` cuenta para el overflow SCROLLEABLE del contenedor, asi que
             // le hacia aparecer las dos barras de desplazamiento al `overflow-x-auto` de
             // arriba. Esta medido en el repo, y no aca sino en el docblock de
-            // `playback/playhead.constants.ts`, que lo pago para la cabeza
+            // `playback/playhead-loop.ts`, que lo pago para la cabeza
             // lectora: con la cabeza en (9,5) y `scale(1.10)` el `scrollHeight` pasaba de
             // 378 a 381. `outline` y `box-shadow` son ink overflow — pintan sin agrandar.
             //
             // Va por estilo inline y no por clase porque los dos anchos salen de una
             // constante, y Tailwind escanea el fuente: un `outline-[${N}px]` interpolado no
-            // se generaria. El reparto de las dos bandas esta en `layout.constants.ts`.
+            // se generaria. El reparto de las dos bandas esta en `grid-fit.ts`.
             //
             // Los dos son RAZONES de la celda y no dos numeros de 2 px, y
             // el motivo es el reparto mismo: las bandas se miden en «aires» —una sobre el

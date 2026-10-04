@@ -1,13 +1,17 @@
-import type { Cell } from '../pieces/transform.types.ts';
-import type { PlacedPiece, Dims } from '../board-editing/board.types.ts';
-import type { Step, Click, Visita, Sequence } from './sequence.types.ts';
-import type { RegimenDeRotacion } from '../musical-model/music.types.ts';
+import type { Cell } from '../pieces/transform.ts';
+import type { PlacedPiece, Dims } from '../board-editing/placement.ts';
+import type { RegimenDeRotacion } from '../musical-model/music.ts';
 import { occupantAt, occupantCellIndex } from '../board-editing/placement.ts';
 import { rutador } from './routing.ts';
-import { degreeByCellIndex, playOrderByCellIndex, arpeggioFor, notesForRotation } from '../musical-model/music.ts';
-import { SHAPES, CELLS_PER_PIECE } from '../pieces/pieces.constants.ts';
-import { BASE_MAP, DEFAULT_OCTAVE } from '../musical-model/music.constants.ts';
-import { PASOS_MAX } from './sequence.constants.ts';
+import {
+  degreeByCellIndex,
+  playOrderByCellIndex,
+  arpeggioFor,
+  notesForRotation,
+  BASE_MAP,
+  DEFAULT_OCTAVE,
+} from '../musical-model/music.ts';
+import { SHAPES, CELLS_PER_PIECE } from '../pieces/pieces.ts';
 
 /**
  * El tablero como recorrido: de un conjunto de piezas colocadas a una secuencia.
@@ -19,6 +23,108 @@ import { PASOS_MAX } from './sequence.constants.ts';
  * motor: asi el mismo tablero suena siempre igual y mover el tempo estira el patron
  * en vez de reordenarlo.
  */
+
+/**
+ * La base con la que `claveDeTramo` empaqueta costo y pasos en un entero.
+ *
+ * **Tiene que ser mayor que la SUMA de los pasos del circuito entero, no que los de un
+ * tramo.** Held-Karp suma claves y compara sumas, asi que lo que no puede acarrear al
+ * campo del costo es el total: 12 tramos de a lo sumo 60 pasos —el tablero tiene 60
+ * celdas y un camino no repite ninguna— dan 720. De ahi 1024, la potencia de dos que lo
+ * pasa con margen.
+ *
+ * Achicarlo a 60 "porque ningun tramo mide mas" es el error que este docblock existe
+ * para evitar: el acarreo no falla ruidosamente, ordena mal el circuito y el tablero
+ * suena distinto sin que nada se ponga en rojo.
+ */
+export const PASOS_MAX = 1024;
+
+/**
+ * Una pieza dentro del circuito: cuando arranca su arpegio y que cinco notas toca.
+ *
+ * `offset` va en INTERVALOS, no en segundos: la unidad es la celda recorrida (spec
+ * 008) y el dominio no conoce el tempo. Convertir a tiempo es del motor, y que la
+ * cuenta viva en enteros es lo que hace que el mismo tablero suene siempre igual —
+ * no hay acumulacion de error de punto flotante que dependa del orden de la suma.
+ *
+ * `pieceId` y no la `PlacedPiece` entera para que el motor pueda reconciliar dos
+ * secuencias sin conocer la geometria: es la unica parte de la pieza que la capa de
+ * audio necesita, y llevarse el resto la ataria al dominio.
+ *
+ * `notes` ya viene en ORDEN DE REPRODUCCION: si la pieza se coloco reflejada, el
+ * retrogrado ya lo aplico `arpeggioFor` —la unica derivacion de pieza a arpegio del
+ * dominio—, asi que `buildSequence` lo toma tal cual y no vuelve a invertir nada.
+ */
+export interface Step {
+  pieceId: string;
+  offset: number;
+  notes: number[];
+}
+
+/**
+ * Una celda cruzada por el recorrido: donde suena, cuando, y con que altura si la
+ * celda estaba ocupada.
+ *
+ * La `cell` no es decorativa aunque el motor solo necesite el `offset`. Es lo que
+ * permite que la garantia de "dos clicks no caen nunca en el mismo instante" se
+ * verifique en el dominio, que es donde se puede distinguir un click de otro: si
+ * dos coincidieran, el motor los agendaria a los dos y las amplitudes se sumarian,
+ * que es exactamente lo que D4 pide evitar. Tambien es lo que deja que la celda que
+ * se ilumina y la que suena salgan del MISMO dato (D8).
+ *
+ * `note` es el MIDI de la celda pisada cuando el recorrido no pudo esquivar una
+ * pieza, y no esta cuando la celda estaba vacia. Es opcional y NO una
+ * union discriminada, y aca esa es la forma correcta justamente por la `cell`: la
+ * altura es un DERIVADO de ella —`noteAtCell` del ocupante, o nada si no hay
+ * ocupante—, asi que "sin `note`" significa exactamente "esa celda estaba vacia" y
+ * ninguna construccion puede producir la combinacion equivocada. En `audio/` la
+ * decision es la contraria y va union discriminada: alla la celda no viaja, y sin
+ * ella nada atajaria un click con altura que no deberia tenerla.
+ */
+export interface Click {
+  offset: number;
+  cell: Cell;
+  note?: number;
+}
+
+/**
+ * Una pieza dentro del circuito, suene o no: cuando le toca.
+ *
+ * Es lo que `steps` no puede contestar, porque una pieza MUTEADA no emite `Step`. El
+ * muteo no la saca del recorrido —sigue ocupando su lugar y
+ * su tiempo, y el circuito la sigue visitando—, asi que leer el orden de visita de
+ * `steps` pasaria por alto justamente a las piezas que no suenan. Sin muteo las dos
+ * listas son la misma, que es por lo que este campo no siempre existio.
+ *
+ * `offset` esta acá y en `Step` para las piezas que suenan, y no pueden discrepar: las
+ * dos salen de la MISMA variable del mismo bucle de `buildSequence`, en la misma
+ * iteracion. Es duplicacion de escritura, no de derivacion.
+ */
+export interface Visita {
+  pieceId: string;
+  offset: number;
+}
+
+/**
+ * El circuito entero, listo para agendar: los arpegios, los clicks, el orden de visita
+ * y el largo del ciclo.
+ *
+ * `length` es el ciclo COMPLETO —incluye el salto de la ultima pieza de vuelta a la
+ * primera—, asi que no es el offset del ultimo paso sino donde el recorrido vuelve
+ * a empezar. Sin ese salto el loop se cerraria antes de tiempo y la costura se
+ * escucharia.
+ *
+ * `order` lleva TODAS las piezas y `steps` solo las que suenan: una
+ * pieza muteada esta en el primero y no en el segundo. Con el tablero sin mutear nada
+ * son la misma lista en el mismo orden, que es lo que hace que `order` se pueda comparar
+ * campo por campo entre las dos versiones de un tablero.
+ */
+export interface Sequence {
+  steps: Step[];
+  clicks: Click[];
+  order: Visita[];
+  length: number;
+}
 
 /**
  * Las celdas de la pieza en ORDEN DE REPRODUCCION: `[j]` es la celda donde suena la
@@ -42,7 +148,7 @@ import { PASOS_MAX } from './sequence.constants.ts';
  *
  * Que la inversion viva en el dominio y no en el consumidor es lo que hace que `[j]`
  * case con `notes[j]` sin que nadie vuelva a invertir — es la regla que
- * `sequence.types.ts` ya declara para `Step.notes`, sostenida por las dos puntas.
+ * `sequence.ts` ya declara para `Step.notes`, sostenida por las dos puntas.
  *
  * Existe porque `Step` no lleva celdas: ir de la nota `j` a la celda donde se ve era
  * una derivacion que solo estaba adentro de `gates`, y para los grados 0 y 4 nada

@@ -2,15 +2,18 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { page } from 'vitest/browser';
 import Board from '../Board.tsx';
-import { CELL_PX_OBJETIVO, ANILLO_FOCO_CLARO_RAZON, ANILLO_FOCO_OSCURO_RAZON } from '../../board-fit/layout.constants.ts';
-import { GRID_DEFAULT } from '../board.constants.ts';
-import { SHAPES, ANCHOR_INDEX } from '../../pieces/pieces.constants.ts';
-import { REGIMEN } from '../../musical-model/music.constants.ts';
-import { cellsAt } from '../placement.ts';
+import {
+  CELL_PX_OBJETIVO,
+  ANILLO_FOCO_CLARO_RAZON,
+  ANILLO_FOCO_OSCURO_RAZON,
+} from '../../board-fit/grid-fit.ts';
+import { GRID_DEFAULT, cellsAt } from '../placement.ts';
+import { SHAPES, ANCHOR_INDEX } from '../../pieces/pieces.ts';
+import { REGIMEN } from '../../musical-model/music.ts';
 import { rotateN } from '../../pieces/transform.ts';
-import type { PieceKey } from '../../pieces/pieces.types.ts';
-import type { PlacedPiece } from '../board.types.ts';
-import type { Cell } from '../../pieces/transform.types.ts';
+import type { PieceKey } from '../../pieces/pieces.ts';
+import type { PlacedPiece } from '../placement.ts';
+import type { Cell } from '../../pieces/transform.ts';
 
 /**
  * El tablero: 60 celdas, cinco tonos y un `title` por celda.

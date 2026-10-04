@@ -77,7 +77,7 @@ import graph holds that invariant, not a comment. This is what makes the audio t
 
 **Modules contain behavior. Data, types and fixed values live in the folder of their role.** A layer
 `.ts` file has functions and nothing else. The file repeats the module name with the role suffix:
-`Cell` is not in `types/index.ts`, it is in `pieces/transform.types.ts`, the contract of the
+`Cell` is not in `types/index.ts`, it is in `pieces/transform.ts`, the contract of the
 module `transform.ts`.
 
 | Role | Folder | File |
@@ -237,9 +237,9 @@ no comment of the repo. A comment that needs them names the mechanism instead of
 ### Domain types
 
 ```ts
-// pieces/transform.types.ts
+// pieces/transform.ts
 export type Cell = [number, number];       // [x, y], y grows downward
-// pieces/pieces.types.ts
+// pieces/pieces.ts
 export type PieceKey = 'F' | 'I' | … ;     // declared explicitly, not derived
 ```
 
@@ -259,14 +259,14 @@ The replacement for any closed set puts its two halves in the role folders. This
 for the rotation:
 
 ```ts
-// pieces/orientation.constants.ts  — the value
+// pieces/orientation.ts  — the value
 export const ROTACION = { cero: 0, noventa: 1, ciento_ochenta: 2, doscientos_setenta: 3 } as const;
-// pieces/orientation.types.ts          — the type
+// pieces/orientation.ts          — the type
 export type Rotacion = (typeof ROTACION)[keyof typeof ROTACION];
 ```
 
-The other closed sets are `ACCION` and `EDICION` (`board-editing/input.constants.ts`),
-`MARCA` (`route.constants.ts`) and `REGIMEN` (`musical-model/music.constants.ts`).
+The other closed sets are `ACCION` and `EDICION` (`board-editing/input.ts`),
+`MARCA` (`route-source.ts`) and `REGIMEN` (`musical-model/music.ts`).
 
 ### The language of identifiers
 

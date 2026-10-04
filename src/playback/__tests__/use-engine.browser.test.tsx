@@ -1,14 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from 'vitest-browser-react';
 import { buildSequence } from '../../circuit/sequence.ts';
-import { cellsAt } from '../../board-editing/placement.ts';
+import { cellsAt, GRID_DEFAULT } from '../../board-editing/placement.ts';
 import { rotateN } from '../../pieces/transform.ts';
-import { SHAPES, ANCHOR_INDEX } from '../../pieces/pieces.constants.ts';
-import { REGIMEN, DEFAULT_REGIMEN } from '../../musical-model/music.constants.ts';
+import { SHAPES, ANCHOR_INDEX } from '../../pieces/pieces.ts';
+import { REGIMEN, DEFAULT_REGIMEN } from '../../musical-model/music.ts';
 import { proyectarAlMotor } from '../engine-bridge.ts';
-import type { PieceKey } from '../../pieces/pieces.types.ts';
-import type { PlacedPiece } from '../../board-editing/board.types.ts';
-import { GRID_DEFAULT } from '../../board-editing/board.constants.ts';
+import type { PieceKey } from '../../pieces/pieces.ts';
+import type { PlacedPiece } from '../../board-editing/placement.ts';
 
 /**
  * Los cuatro efectos que salieron de `App.tsx`.

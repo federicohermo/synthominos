@@ -1,14 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { proyectarAlMotor, alternarTransporte } from '../engine-bridge.ts';
 import { buildSequence } from '../../circuit/sequence.ts';
-import { cellsAt } from '../../board-editing/placement.ts';
+import { cellsAt, GRID_DEFAULT } from '../../board-editing/placement.ts';
 import { rotateN, reflect } from '../../pieces/transform.ts';
-import { SHAPES, ANCHOR_INDEX } from '../../pieces/pieces.constants.ts';
-import { REGIMEN } from '../../musical-model/music.constants.ts';
-import type { PieceKey } from '../../pieces/pieces.types.ts';
-import type { PlacedPiece } from '../../board-editing/board.types.ts';
-import type { MotorDeTransporte } from '../engine.types.ts';
-import { GRID_DEFAULT } from '../../board-editing/board.constants.ts';
+import { SHAPES, ANCHOR_INDEX } from '../../pieces/pieces.ts';
+import { REGIMEN } from '../../musical-model/music.ts';
+import type { PieceKey } from '../../pieces/pieces.ts';
+import type { PlacedPiece } from '../../board-editing/placement.ts';
+import type { MotorDeTransporte } from '../engine-bridge.ts';
 
 /**
  * `engine-bridge.ts` es el único puente entre el `Sequence` del dominio y el del motor.

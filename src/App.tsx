@@ -1,31 +1,37 @@
 import { useMemo, useState, useRef, useCallback } from "react";
-import { playNow } from "./playback/engine.ts";
-import { DEFAULT_BPM } from "./playback/engine.constants.ts";
+import { playNow, DEFAULT_BPM } from "./playback/engine.ts";
 import { rotateN, reflect } from "./pieces/transform.ts";
-import { arpeggioFor } from "./musical-model/music.ts";
-import { cabeEn, cellsAt, isValid, occupantAt } from "./board-editing/placement.ts";
+import { arpeggioFor, DEFAULT_REGIMEN } from "./musical-model/music.ts";
+import { cabeEn, cellsAt, isValid, occupantAt, MAX_PIEZAS } from "./board-editing/placement.ts";
 import { buildSequence } from "./circuit/sequence.ts";
-import { SHAPES, ANCHOR_INDEX } from "./pieces/pieces.constants.ts";
-import { MAX_PIEZAS } from "./board-editing/board.constants.ts";
-import { DEFAULT_REGIMEN } from "./musical-model/music.constants.ts";
-import type { Cell } from "./pieces/transform.types.ts";
-import type { PieceKey } from "./pieces/pieces.types.ts";
-import type { PlacedPiece } from "./board-editing/board.types.ts";
-import type { RegimenDeRotacion } from "./musical-model/music.types.ts";
+import { SHAPES, ANCHOR_INDEX } from "./pieces/pieces.ts";
+import type { Cell } from "./pieces/transform.ts";
+import type { PieceKey } from "./pieces/pieces.ts";
+import type { PlacedPiece } from "./board-editing/placement.ts";
+import type { RegimenDeRotacion } from "./musical-model/music.ts";
 import PiecePalette from "./panels/PiecePalette.tsx";
 import Board from "./board-editing/Board.tsx";
 import Spectrum from "./spectrum/Spectrum.tsx";
 import { alternarTransporte } from "./playback/engine-bridge.ts";
-import { MOTOR, frenarTransporte, reiniciarRecorrido, useMotorSincronizado } from "./playback/use-engine.ts";
+import {
+  MOTOR,
+  frenarTransporte,
+  reiniciarRecorrido,
+  useMotorSincronizado,
+} from "./playback/use-engine.ts";
 import { useAtajosDeTeclado, useRuedaRota } from "./board-editing/use-input.ts";
 import { useGrilla } from "./board-fit/use-grid.ts";
 import {
-  rotacionPorRueda, siguienteRotacion, reflejaElContextMenu, accionDeClick, esLaPiezaEnLaMano,
+  rotacionPorRueda,
+  siguienteRotacion,
+  reflejaElContextMenu,
+  accionDeClick,
+  esLaPiezaEnLaMano,
+  EDICION,
 } from "./board-editing/input.ts";
 import { anuncioDeEdicion } from "./accessibility/cell-name.ts";
-import { EDICION } from "./board-editing/input.constants.ts";
-import { ORIENTACION_INICIAL, ORIENTACIONES_INICIALES } from "./pieces/orientation.constants.ts";
-import type { MemoriaDeOrientacion, Orientacion } from "./pieces/orientation.types.ts";
+import { ORIENTACION_INICIAL, ORIENTACIONES_INICIALES } from "./pieces/orientation.ts";
+import type { MemoriaDeOrientacion, Orientacion } from "./pieces/orientation.ts";
 
 /**
  * Pentomino Music — prototipo de instrumento, no un juego con reglas de resolucion.

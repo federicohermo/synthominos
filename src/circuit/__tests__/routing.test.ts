@@ -1,13 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { cellsAt, isValid, occupantAt } from '../../board-editing/placement.ts';
-import { routeBetween, rutador, costuraDe } from '../routing.ts';
+import { cellsAt, isValid, occupantAt, GRID_DEFAULT } from '../../board-editing/placement.ts';
+import { routeBetween, rutador, costuraDe, CROSS_COST } from '../routing.ts';
 import { rotateN, reflect } from '../../pieces/transform.ts';
-import { SHAPES, ANCHOR_INDEX } from '../../pieces/pieces.constants.ts';
-import { GRID_DEFAULT } from '../../board-editing/board.constants.ts';
-import { CROSS_COST } from '../routing.constants.ts';
-import type { Cell } from '../../pieces/transform.types.ts';
-import type { PieceKey } from '../../pieces/pieces.types.ts';
-import type { PlacedPiece } from '../../board-editing/board.types.ts';
+import { SHAPES, ANCHOR_INDEX } from '../../pieces/pieces.ts';
+import type { Cell } from '../../pieces/transform.ts';
+import type { PieceKey } from '../../pieces/pieces.ts';
+import type { PlacedPiece } from '../../board-editing/placement.ts';
 
 /**
  * Todo este archivo mide el tablero de REFERENCIA, que es el de 10 x 6 de siempre.

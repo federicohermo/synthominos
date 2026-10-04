@@ -1,15 +1,15 @@
-import type { Sequence, ClockState } from './scheduler.types.ts';
-import { midiToHz, scheduleVoice, scheduleClick } from './voice.ts';
-import { collectWindow, intervalDuration } from './scheduler.ts';
+import type { Sequence, ClockState } from './scheduler.ts';
+import {
+  midiToHz,
+  scheduleVoice,
+  scheduleClick,
+  NOTE_INTERVALS,
+  RELEASE_INTERVALS,
+  GRACE_INTERVALS,
+  GRACE_VELOCITY,
+} from './voice.ts';
+import { collectWindow, intervalDuration, LOOKAHEAD, TICK_MS, HIT, CLOCK_START_DELAY } from './scheduler.ts';
 import { offsetAt } from './playhead-offset.ts';
-import {
-  NOTE_INTERVALS, RELEASE_INTERVALS, GRACE_INTERVALS, GRACE_VELOCITY,
-} from './voice.constants.ts';
-import { LOOKAHEAD, TICK_MS, HIT } from './scheduler.constants.ts';
-import {
-  MASTER_GAIN, DEFAULT_BPM, PLAY_DELAY, CLOCK_START_DELAY,
-  FFT_SIZE, SMOOTHING,
-} from './engine.constants.ts';
 
 /**
  * Capa de aplicacion del audio: los singletons y la API que consume la UI.
@@ -21,6 +21,34 @@ import {
  *
  * NO es un barrel: no re-exporta voice ni scheduler en bloque.
  */
+
+/** Ganancia del master. */
+export const MASTER_GAIN = 0.3;
+
+/** Tempo inicial. Lo comparten el motor y el estado de la UI: es un solo numero. */
+export const DEFAULT_BPM = 110;
+
+/**
+ * Margen al disparar ya mismo, para no agendar en el pasado.
+ *
+ * En SEGUNDOS y no en intervalos, a diferencia de todo lo musical (`NOTE_INTERVALS`,
+ * `RELEASE_INTERVALS`, los offsets de la secuencia): esto no es musica sino una latencia
+ * de AGENDA — cuanto futuro hace falta para que el evento no llegue tarde. No tiene
+ * relacion con el pulso y no debe estirarse con el tempo: a 60 bpm un margen mas grande
+ * no serviria de nada y a 160 uno mas chico seguiria sin alcanzar. Es la misma excepcion
+ * deliberada que `CLICK_SECONDS`, por otro motivo.
+ */
+export const PLAY_DELAY = 0.02;
+
+/** 128 bins (fftSize / 2). Suficiente para visualizar, insuficiente para afinar. */
+export const FFT_SIZE = 256;
+
+/** Promediado temporal entre lecturas: sin el la animacion tiembla; de mas, es melaza. */
+export const SMOOTHING = 0.8;
+
+/** Extremos del slider de tempo, en bpm. El valor inicial es DEFAULT_BPM del motor. */
+export const TEMPO_MIN = 60;
+export const TEMPO_MAX = 160;
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;

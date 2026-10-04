@@ -34,7 +34,7 @@ tester.run('comment-anchor', regla, {
       // la ruta. Exigir la ruta exacta convertiria las 309 citas vivas en 309
       // problemas de formato.
       name: 'la ruta puede estar mal si el archivo existe',
-      code: '// ver constants/pieces.constants.ts',
+      code: '// ver constants/pieces.ts',
     },
     { name: 'lib.*.d.ts es de TypeScript', code: '// el tipo lo trae lib.dom.d.ts, no este repo' },
     { name: 'node:* es un builtin', code: '// se lee con node:fs para no depender de nada' },

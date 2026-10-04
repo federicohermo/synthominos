@@ -1,12 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { midiToHz, scheduleVoice, scheduleClick } from '../voice.ts';
-import { collectHits, intervalDuration } from '../scheduler.ts';
-import { FFT_SIZE, SMOOTHING } from '../engine.constants.ts';
-import { HIT } from '../scheduler.constants.ts';
 import {
-  CLICK_SECONDS, RELEASE_INTERVALS, NOTE_INTERVALS, GRACE_INTERVALS, GRACE_VELOCITY,
-} from '../voice.constants.ts';
-import type { ClockState } from '../scheduler.types.ts';
+  midiToHz,
+  scheduleVoice,
+  scheduleClick,
+  CLICK_SECONDS,
+  RELEASE_INTERVALS,
+  NOTE_INTERVALS,
+  GRACE_INTERVALS,
+  GRACE_VELOCITY,
+} from '../voice.ts';
+import { collectHits, intervalDuration, HIT } from '../scheduler.ts';
+import { FFT_SIZE, SMOOTHING } from '../engine.ts';
+import type { ClockState } from '../scheduler.ts';
 import { offline, peakNear, detectOnsets, zeroCrossHz, SR } from './test-context.ts';
 
 const A4 = 69;

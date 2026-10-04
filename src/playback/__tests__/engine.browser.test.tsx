@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { HIT } from '../scheduler.constants.ts';
-import { DEFAULT_BPM, MASTER_GAIN, FFT_SIZE } from '../engine.constants.ts';
-import { TICK_MS } from '../scheduler.constants.ts';
-import type { Sequence } from '../scheduler.types.ts';
+import { HIT, TICK_MS } from '../scheduler.ts';
+import { DEFAULT_BPM, MASTER_GAIN, FFT_SIZE } from '../engine.ts';
+import type { Sequence } from '../scheduler.ts';
 
 /**
  * El motor, contra Web Audio de VERDAD.

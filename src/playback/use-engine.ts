@@ -1,14 +1,18 @@
 import { useEffect } from 'react';
 import {
-  setSequence, setBpm, setClicksAudible,
-  startClock, stopClock, clockRunning,
+  setSequence,
+  setBpm,
+  setClicksAudible,
+  startClock,
+  stopClock,
+  clockRunning,
 } from './engine.ts';
 import { buildSequence } from '../circuit/sequence.ts';
-import { DEFAULT_REGIMEN } from '../musical-model/music.constants.ts';
-import { GRID_DEFAULT } from '../board-editing/board.constants.ts';
-import type { Sequence } from '../circuit/sequence.types.ts';
-import type { PlacedPiece } from '../board-editing/board.types.ts';
-import type { MotorDeTransporte } from './engine.types.ts';
+import { DEFAULT_REGIMEN } from '../musical-model/music.ts';
+import { GRID_DEFAULT } from '../board-editing/placement.ts';
+import type { Sequence } from '../circuit/sequence.ts';
+import type { PlacedPiece } from '../board-editing/placement.ts';
+import type { MotorDeTransporte } from './engine-bridge.ts';
 import { proyectarAlMotor } from './engine-bridge.ts';
 import { encolar, reiniciar } from './route-source.ts';
 

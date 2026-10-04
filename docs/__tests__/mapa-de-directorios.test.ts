@@ -9,7 +9,7 @@ import { join, dirname, resolve, relative } from 'node:path';
  * ahi.
  *
  * Ya estaba roto cuando se escribio, y por eso existe: **cinco** archivos no
- * aparecian —los tres de `audio/constants/`, `musical-model/music.types.ts` y
+ * aparecian —los tres de `audio/constants/`, `musical-model/music.ts` y
  * `mcp-server/src/symbols.ts`—, y tres de esos cinco estaban a nivel de carpeta y sin
  * extension («voice · scheduler · engine»), que es la forma en la que un mapa se
  * desactualiza sin que se note: dice algo parecido a la verdad.

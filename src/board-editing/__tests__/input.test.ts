@@ -1,15 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import {
-  rotacionPorRueda, siguienteRotacion, accionDeTecla, frenaElDefault, abreTapLimpio,
-  reflejaElContextMenu, accionDeClick, esLaPiezaEnLaMano, piezaDeTecla,
+  rotacionPorRueda,
+  siguienteRotacion,
+  accionDeTecla,
+  frenaElDefault,
+  abreTapLimpio,
+  reflejaElContextMenu,
+  accionDeClick,
+  esLaPiezaEnLaMano,
+  piezaDeTecla,
+  ACCION,
+  EDICION,
 } from '../input.ts';
-import { ROTACION } from '../../pieces/orientation.constants.ts';
-import type { Rotacion } from '../../pieces/orientation.types.ts';
-import { ACCION, EDICION } from '../input.constants.ts';
-import { SHAPES } from '../../pieces/pieces.constants.ts';
-import type { EventoDeTecla } from '../input.types.ts';
-import type { PieceKey } from '../../pieces/pieces.types.ts';
-import type { PlacedPiece } from '../board.types.ts';
+import { ROTACION } from '../../pieces/orientation.ts';
+import type { Rotacion } from '../../pieces/orientation.ts';
+import { SHAPES } from '../../pieces/pieces.ts';
+import type { EventoDeTecla } from '../input.ts';
+import type { PieceKey } from '../../pieces/pieces.ts';
+import type { PlacedPiece } from '../placement.ts';
 
 /**
  * Las decisiones de los cinco gestos y del sexto que agregó el 018 —la letra que elige

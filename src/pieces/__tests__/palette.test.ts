@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { PIECE_COLOR, CONTRAST_LC, LC_EXCEPCIONES } from '../palette.constants.ts';
-import { BASE_MAP } from '../../musical-model/music.constants.ts';
-import type { PieceKey } from '../pieces.types.ts';
+import { PIECE_COLOR, CONTRAST_LC, LC_EXCEPCIONES } from '../palette.ts';
+import { BASE_MAP } from '../../musical-model/music.ts';
+import type { PieceKey } from '../pieces.ts';
 
 /**
  * AC7: el texto de cada celda contrasta con el color de su pieza.
@@ -9,7 +9,7 @@ import type { PieceKey } from '../pieces.types.ts';
  * Es el primer test de `ui/` y es PURO: constantes y aritmetica, sin DOM y
  * sin React. Corre en el `environment: 'node'` que ya usa el resto del repo.
  *
- * La formula esta reimplementada aca a proposito. Si `palette.constants.ts`
+ * La formula esta reimplementada aca a proposito. Si `palette.ts`
  * exportara un `contraste()` y el test lo llamara, el test verificaria que la tabla
  * es consistente consigo misma; recalculando desde `bg` verifica lo unico que
  * importa: que `fg` siga siendo el mejor de negro/blanco DESPUES de que alguien
@@ -21,7 +21,7 @@ import type { PieceKey } from '../pieces.types.ts';
  * 4.5:1, y elegia mal: sobre los fondos saturados de tono medio (`I`, `P`, `T`, `U`,
  * `X`) declaraba ganador al negro con numeros que APCA pone bien debajo del piso de
  * legibilidad. El detalle del cambio, con las mediciones, esta en el doc de
- * `palette.constants.ts`. APCA es el algoritmo candidato de WCAG 3 y modela la
+ * `palette.ts`. APCA es el algoritmo candidato de WCAG 3 y modela la
  * polaridad —texto claro sobre fondo oscuro no es simetrico de su inverso—, que es
  * justo lo que 2.1 no hace y lo que este caso necesitaba.
  */

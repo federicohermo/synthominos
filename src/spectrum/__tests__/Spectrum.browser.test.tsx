@@ -20,7 +20,7 @@ vi.mock('../../playback/engine.ts', () => ({ readSpectrum: () => motor.bins }));
 
 const Spectrum = (await import('../Spectrum.tsx')).default;
 const loop = await import('../spectrum-loop.ts');
-const { GAP, MIN_BAR, IDLE_TEXT } = await import('../spectrum.constants.ts');
+const { GAP, MIN_BAR, IDLE_TEXT } = await import('../spectrum-loop.ts');
 
 /** Dos cuadros: el loop lee, dibuja y vuelve a agendar en el mismo `draw`. */
 const cuadro = () =>

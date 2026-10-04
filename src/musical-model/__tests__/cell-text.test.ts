@@ -1,11 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { cellTextFor } from '../cell-text.ts';
 import {
-  arpeggioFor, degreeByCellIndex, midiName, notesForRotation, playOrderByCellIndex,
+  arpeggioFor,
+  degreeByCellIndex,
+  midiName,
+  notesForRotation,
+  playOrderByCellIndex,
+  BASE_MAP,
+  DEFAULT_OCTAVE,
+  REGIMEN,
 } from '../music.ts';
-import { SHAPES, CELLS_PER_PIECE } from '../../pieces/pieces.constants.ts';
-import { BASE_MAP, DEFAULT_OCTAVE, REGIMEN } from '../music.constants.ts';
-import type { PieceKey } from '../../pieces/pieces.types.ts';
+import { SHAPES, CELLS_PER_PIECE } from '../../pieces/pieces.ts';
+import type { PieceKey } from '../../pieces/pieces.ts';
 
 const PIECES = Object.keys(SHAPES) as PieceKey[];
 

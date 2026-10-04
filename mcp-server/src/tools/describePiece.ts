@@ -3,10 +3,19 @@ import { defineTool, json } from './types.ts';
 import { renderAscii, renderCellNumbers, sizeOf } from '../render.ts';
 import { PIECE_KEYS } from '../pieces.ts';
 import { rotateN, reflect } from '../../../src/pieces/transform.ts';
-import { notesForRotation, midiName, degreeByCellIndex, playOrderByCellIndex } from '../../../src/musical-model/music.ts';
-import { SHAPES, ANCHOR_INDEX } from '../../../src/pieces/pieces.constants.ts';
-import { BASE_MAP, CHROMATIC, DEFAULT_OCTAVE, REGIMEN, DEFAULT_REGIMEN } from '../../../src/musical-model/music.constants.ts';
-import type { RegimenDeRotacion } from '../../../src/musical-model/music.types.ts';
+import {
+  notesForRotation,
+  midiName,
+  degreeByCellIndex,
+  playOrderByCellIndex,
+  BASE_MAP,
+  CHROMATIC,
+  DEFAULT_OCTAVE,
+  REGIMEN,
+  DEFAULT_REGIMEN,
+} from '../../../src/musical-model/music.ts';
+import { SHAPES, ANCHOR_INDEX } from '../../../src/pieces/pieces.ts';
+import type { RegimenDeRotacion } from '../../../src/musical-model/music.ts';
 
 /**
  * Forma + sonido de una pieza en una orientacion.

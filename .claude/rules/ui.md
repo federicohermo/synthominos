@@ -26,7 +26,7 @@ salieron a `playhead-loop.ts` y `spectrum-loop.ts` sin cambiar una línea de com
 
 Desde ese spec `ui/` tiene **dos clases de test y las dos corren con `pnpm test`**: los `.ts`
 puros en el proyecto `node` —`input.ts`, `cell-text.ts`, `cell-name.ts`, `piece-mini.ts`,
-`orientation-text.ts`, `route-source.ts`, `engine-bridge.ts`, `palette.constants.ts` y los dos
+`orientation-text.ts`, `route-source.ts`, `engine-bridge.ts`, `palette.ts` y los dos
 `-loop.ts`— y los
 `*.browser.test.tsx` en un
 Chromium de verdad, que es donde se verifican los seis componentes, `App.tsx` y los dos hooks. El
@@ -84,7 +84,7 @@ con nodos que crea y destruye él mismo.
 - **`key` por id, nunca por índice**, en listas de elementos removibles.
 - **Un solo export por `.tsx`.** `react-refresh/only-export-components` lo exige. Los tipos de props
   que se comparten entre un contenedor y sus paneles van a `ui/*.types.ts`
-  (`panel.types.ts`); los que no se comparten quedan inline y sin exportar. Es la misma regla que
+  (`OrientationPanel.tsx`); los que no se comparten quedan inline y sin exportar. Es la misma regla que
   mantuvo al dominio sin tests mientras vivía acá, y la que le sacó al shell sus seis `useEffect` con
   el spec 022.
 - **Lo que sale de una constante va por estilo inline, no por clase.** Tailwind escanea el fuente: una
@@ -120,7 +120,7 @@ distinta y ahí no tiene que pasar nada.
 
 ## El árbol de accesibilidad dice lo que el color pinta
 
-`DESIGN.md` titula «El color comunica identidad, nunca estado» y `palette.constants.ts` mide contraste
+`DESIGN.md` titula «El color comunica identidad, nunca estado» y `palette.ts` mide contraste
 con APCA contra un piso de Lc 60 — un rigor que casi ningún proyecto tiene. Lo que no se cubría es el
 canal donde no hay color. El spec 025 lo midió sobre `src/`: **cero** `aria-pressed`, **cero**
 `aria-checked` y **cero** `role=` en los 22 botones y el `input` de la app.
@@ -238,7 +238,7 @@ operación destructiva sin ninguna otra vía y sin deshacer
   [DESIGN.md](../../DESIGN.md).
 
 - **Lo prohibido es `transform: scale`**, y el repo ya lo midió: el docblock de
-  `playback/playhead.constants.ts` lo dice para la cabeza lectora —«`scale` AGRANDA la caja
+  `playback/playhead-loop.ts` lo dice para la cabeza lectora —«`scale` AGRANDA la caja
   a efectos de overflow y `box-shadow` es *ink overflow*: pinta afuera sin agrandar nada»—, y cuando se
   midió el síntoma eran las dos barras del `overflow-x-auto` de `Board`, con el `scrollHeight` pasando
   de 378 a 381. Desde el spec 031 ese contenedor no scrollea y quien recorta es el `overflow-hidden`

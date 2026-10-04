@@ -13,7 +13,7 @@ del spec 007 y **no se copian acá**, para que no haya dos fuentes que se contra
 ## Un color por pieza
 
 Cada pentominó tiene un color y una tónica, y son la misma identidad vista de dos maneras. Los valores
-viven en `src/pieces/palette.constants.ts`:
+viven en `src/pieces/palette.ts`:
 
 | Pieza | Tónica | `bg` | Texto | Lc |
 |---|---|---|---|---|
@@ -320,7 +320,7 @@ gris y no verde.
 ### Los escalones de grosor
 
 El grosor es el único canal, así que las clases de evento se distinguen **por cantidad de borde** y por
-nada más. Los valores viven en `src/playback/playhead.constants.ts`:
+nada más. Los valores viven en `src/playback/playhead-loop.ts`:
 
 | Qué suena | Hacia adentro | Hacia afuera | Se lee como |
 |---|---|---|---|

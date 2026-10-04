@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { ROTACION, ORIENTACION_INICIAL, ORIENTACIONES_INICIALES } from '../orientation.constants.ts';
-import { SHAPES } from '../pieces.constants.ts';
+import { ROTACION, ORIENTACION_INICIAL, ORIENTACIONES_INICIALES } from '../orientation.ts';
+import { SHAPES } from '../pieces.ts';
 
 /**
  * La memoria de orientación, en el proyecto `node`: el módulo es puro y no

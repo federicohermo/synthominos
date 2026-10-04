@@ -7,12 +7,12 @@ import { simulateBoard, nombreDeHz } from '../tools/simulateBoard.ts';
 import { findSymbol } from '../tools/findSymbol.ts';
 import { PIECE_KEYS } from '../pieces.ts';
 import { routeBetween } from '../../../src/circuit/routing.ts';
-import { SHAPES, CELLS_PER_PIECE } from '../../../src/pieces/pieces.constants.ts';
-import { NOTES_PER_PIECE, REGIMEN } from '../../../src/musical-model/music.constants.ts';
-import type { Cell } from '../../../src/pieces/transform.types.ts';
-import type { PlacedPiece } from '../../../src/board-editing/board.types.ts';
+import { SHAPES, CELLS_PER_PIECE } from '../../../src/pieces/pieces.ts';
+import { NOTES_PER_PIECE, REGIMEN } from '../../../src/musical-model/music.ts';
+import type { Cell } from '../../../src/pieces/transform.ts';
+import type { PlacedPiece } from '../../../src/board-editing/placement.ts';
 import type { ToolDef } from '../tools/types.ts';
-import { GRID_DEFAULT } from '../../../src/board-editing/board.constants.ts';
+import { GRID_DEFAULT } from '../../../src/board-editing/placement.ts';
 
 /**
  * Estos tests miran el FORMATO de las respuestas, que es lo unico que el server

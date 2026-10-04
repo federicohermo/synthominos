@@ -52,8 +52,8 @@ El porqué de cada decisión, con las mediciones que la respaldan, está en
   (`routeBetween`) puede cruzar una celda ocupada, y esa celda **suena su nota** —una floritura más
   corta y más suave que la nota de pieza—; ese cruce con altura **no se apaga con
   `setClicksAudible`**: es modelo, no mezcla (D6 del spec 011).
-- **El motor distingue tres clases de evento, no dos.** `HIT` (`playback/scheduler.constants.ts`)
-  pasa de dos a tres claves, y el union `Hit` (`playback/scheduler.types.ts`) gana una tercera rama
+- **El motor distingue tres clases de evento, no dos.** `HIT` (`playback/scheduler.ts`)
+  pasa de dos a tres claves, y el union `Hit` (`playback/scheduler.ts`) gana una tercera rama
   con su propio `hz` —no un `hz?: number` sobre la rama del click—. La construye `collectHits` en
   `playback/scheduler.ts`; `engine.ts` solo la despacha. La `Sequence` sigue sin llevar `Cell` ni ningún
   otro tipo de `domain/` —ni con `import type`—, pero desde el spec 011 **ya no es cierto que para

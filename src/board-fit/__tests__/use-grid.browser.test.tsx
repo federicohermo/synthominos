@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { renderHook } from 'vitest-browser-react';
 import { useGrilla } from '../use-grid.ts';
 import { grillaPara } from '../grid-fit.ts';
-import { GRID_MIN } from '../../board-editing/board.constants.ts';
+import { GRID_MIN } from '../../board-editing/placement.ts';
 import type { RefObject } from 'react';
 
 /**

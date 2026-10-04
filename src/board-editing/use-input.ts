@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import type { RefObject } from 'react';
-import { accionDeTecla, frenaElDefault, abreTapLimpio, piezaDeTecla } from './input.ts';
-import { ACCION } from './input.constants.ts';
-import type { PieceKey } from '../pieces/pieces.types.ts';
+import { accionDeTecla, frenaElDefault, abreTapLimpio, piezaDeTecla, ACCION } from './input.ts';
+import type { PieceKey } from '../pieces/pieces.ts';
 
 /**
  * Los dos efectos de entrada directa: el teclado sobre `window` y la rueda

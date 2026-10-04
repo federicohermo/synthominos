@@ -1,17 +1,16 @@
-import { midiName } from '../musical-model/music.ts';
-import { CHROMATIC, BASE_MAP } from '../musical-model/music.constants.ts';
-import { REGIMEN } from '../musical-model/music.constants.ts';
+import { midiName, CHROMATIC, BASE_MAP, REGIMEN } from '../musical-model/music.ts';
 import { textoDeOrientacion } from './orientation-text.ts';
 import OrientationPanel from './OrientationPanel.tsx';
 import TransportPanel from './TransportPanel.tsx';
-import type { PropsDeOrientacion, PropsDeTransporte } from './panel.types.ts';
+import type { PropsDeOrientacion } from './OrientationPanel.tsx';
+import type { PropsDeTransporte } from './TransportPanel.tsx';
 
 /**
  * El DOCK de piezas: el panel que flota sobre el tablero, pegado al borde derecho.
  *
  * Presentacional: sin estado, sin efectos. Recibe TRES objetos en vez de dieciseis props
  * planas —`orientacion`, `transporte` y el del plegado—, y cada panel recibe solo el
- * suyo; el criterio de reparto esta en `types/panel.types.ts`. El del plegado es estado
+ * suyo; el criterio de reparto esta en el docblock de `PropsDeOrientacion`, en `OrientationPanel.tsx`. El del plegado es estado
  * del shell como todo lo demas.
  *
  * ## De tarjeta en una columna a dock flotante

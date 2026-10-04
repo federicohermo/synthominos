@@ -151,7 +151,7 @@ lo que le entregan. El shell llama a `buildSequence(placed, regimen)` en un `use
 `proyectarAlMotor` (`playback/engine-bridge.ts`) lo lleva a la `Sequence` del motor, que **no lleva celdas**:
 
 ```ts
-// playback/scheduler.types.ts
+// playback/scheduler.ts
 export interface Sequence {
   steps: { offset: number; notes: number[] }[];   // sin pieceId: el motor no tiene a quién devolvérselo
   clicks: { offset: number; note?: number }[];     // sin cell, pero desde el spec 011 SÍ con altura
@@ -237,7 +237,7 @@ los eventos de un ciclo son clicks.
 
 Sobre celda **ocupada** suena la nota de esa celda —la misma que la celda muestra
 desde el spec 007— como una floritura: más corta y más suave que la nota de una pieza
-(`GRACE_INTERVALS`, `GRACE_VELOCITY` en `voice.constants.ts`, junto a `NOTE_INTERVALS` y no a
+(`GRACE_INTERVALS`, `GRACE_VELOCITY` en `voice.ts`, junto a `NOTE_INTERVALS` y no a
 `CLICK_SECONDS`, porque a diferencia del click sí tiene altura), agendada con `scheduleVoice` — no
 hace falta una función nueva. Con 8 piezas un ciclo tiene ~15 eventos intermedios contra 40 notas
 (`research.md` del spec 009, §4) — sin ellos, un salto de varias celdas es un silencio mudo de casi un
@@ -257,7 +257,7 @@ obstáculos: medido, entre el 71 % y el 88 % de los tramos pisaban una pieza, y 
 12 piezas caían ahí los 21 clicks del ciclo. Esquivar las piezas dejó de ser "un spec propio" —así lo
 anotaba el 009 en su tabla de riesgos— y es exactamente lo que hace el 011: `routeBetween` no es un
 BFS que rodea a cualquier costo, es un camino de **costo mínimo** con peso 1 en celda vacía y
-`CROSS_COST = 5` (`board-editing/board.constants.ts`) en celda ocupada, así que
+`CROSS_COST = 5` (`board-editing/placement.ts`) en celda ocupada, así que
 rodea cuando el rodeo sale barato y cruza —sonando la nota— cuando rodear cuesta más caro. El
 interruptor de clicks queda, pero ya no es la única mitigación: la mitigación de fondo es el peso.
 

@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { miniCells } from '../piece-mini.ts';
 import { rotateN, reflect, normalize } from '../transform.ts';
-import { SHAPES, CELLS_PER_PIECE } from '../pieces.constants.ts';
-import { MINI_BOX } from '../../board-fit/layout.constants.ts';
-import type { PieceKey } from '../pieces.types.ts';
+import { SHAPES, CELLS_PER_PIECE } from '../pieces.ts';
+import { MINI_BOX } from '../piece-mini.ts';
+import type { PieceKey } from '../pieces.ts';
 
 /**
  * `miniCells` es la única aritmética nueva, y es de la clase que **compila igual cuando

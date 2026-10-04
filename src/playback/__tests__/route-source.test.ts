@@ -1,13 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { buildSequence, cellsByPlayOrder } from '../../circuit/sequence.ts';
-import { cellsAt } from '../../board-editing/placement.ts';
+import { cellsAt, GRID_DEFAULT } from '../../board-editing/placement.ts';
 import { rotateN, reflect } from '../../pieces/transform.ts';
-import { SHAPES, ANCHOR_INDEX, CELLS_PER_PIECE } from '../../pieces/pieces.constants.ts';
-import { REGIMEN } from '../../musical-model/music.constants.ts';
-import { MARCA } from '../route.constants.ts';
-import type { PieceKey } from '../../pieces/pieces.types.ts';
-import type { PlacedPiece } from '../../board-editing/board.types.ts';
-import { GRID_DEFAULT } from '../../board-editing/board.constants.ts';
+import { SHAPES, ANCHOR_INDEX, CELLS_PER_PIECE } from '../../pieces/pieces.ts';
+import { REGIMEN } from '../../musical-model/music.ts';
+import { MARCA } from '../route-source.ts';
+import type { PieceKey } from '../../pieces/pieces.ts';
+import type { PlacedPiece } from '../../board-editing/placement.ts';
 
 /**
  * `route-source.ts` es donde vive AC9 —que la cabeza dibuje el circuito que SUENA y no

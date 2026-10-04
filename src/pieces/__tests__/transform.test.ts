@@ -1,12 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import { rotate90, normalize, rotateN, reflect, centroid, angleFromCentroid, pathThroughCells } from '../transform.ts';
-import { SHAPES } from '../pieces.constants.ts';
+import {
+  rotate90,
+  normalize,
+  rotateN,
+  reflect,
+  centroid,
+  angleFromCentroid,
+  pathThroughCells,
+} from '../transform.ts';
+import { SHAPES } from '../pieces.ts';
 // El mismo numero que usa `degreeByCellIndex` para decidir "esta celda cae sobre el
 // centroide", y no una copia local: es la misma pregunta, y dos epsilon que tienen
 // que coincidir sin que nada los sincronice es el patron que las constantes evitan.
-import { DEGREE_EPSILON } from '../../musical-model/music.constants.ts';
-import type { Cell } from '../transform.types.ts';
-import type { PieceKey } from '../pieces.types.ts';
+import { DEGREE_EPSILON } from '../../musical-model/music.ts';
+import type { Cell } from '../transform.ts';
+import type { PieceKey } from '../pieces.ts';
 
 const PIECES = Object.keys(SHAPES) as PieceKey[];
 

@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { AIRE_RAZON, RADIO_RAZON } from '../board-fit/layout.constants.ts';
-import { NOTA } from './playhead.constants.ts';
-import { iniciarCabeza, borde } from './playhead-loop.ts';
+import { AIRE_RAZON, RADIO_RAZON } from '../board-fit/grid-fit.ts';
+import { NOTA, iniciarCabeza, borde } from './playhead-loop.ts';
 
 /** Lo que mide `n` celdas, en CSS. Ver `Board.tsx` y `playhead-loop.ts`. */
 const celdas = (n: number) => `calc(var(--cell) * ${n})`;

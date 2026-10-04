@@ -1,4 +1,4 @@
-import type { PieceKey } from './pieces.types.ts';
+import type { PieceKey } from './pieces.ts';
 
 /**
  * El color de cada pieza: fondo y texto que va encima.

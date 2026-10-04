@@ -92,7 +92,7 @@ distancias. Desde el spec 011 la distancia entre dos celdas **ya no es función 
 celdas**: `routeBetween(a, b, placed, dims)` (`circuit/routing.ts`) reemplaza a `cellDistance` y `pathBetween`
 —los dos dejaron de existir, junto con `bestRoute` y el const-object `ROUTE`— y devuelve
 `{ path, steps, cost, crossed }` en una sola llamada: el camino de costo mínimo sobre las celdas del tablero,
-con las intermedias ocupadas pagando `CROSS_COST` (`circuit/routing.constants.ts`) en vez de
+con las intermedias ocupadas pagando `CROSS_COST` (`circuit/routing.ts`) en vez de
 las dos puntas.
 
 **El tamaño del tablero es un parámetro, no una constante** (spec 031). `GRID_W`/`GRID_H` y `SEAM` se

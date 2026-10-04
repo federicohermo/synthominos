@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { grillaPara } from '../grid-fit.ts';
-import { CELL_PX_OBJETIVO, NOTA_RAZON, PASO_RAZON } from '../layout.constants.ts';
-import { GRID_MIN } from '../../board-editing/board.constants.ts';
+import { grillaPara, CELL_PX_OBJETIVO, NOTA_RAZON, PASO_RAZON } from '../grid-fit.ts';
+import { GRID_MIN } from '../../board-editing/placement.ts';
 
 /**
  * La única parte que se puede verificar sin navegador: la fórmula.

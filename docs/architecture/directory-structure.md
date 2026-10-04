@@ -145,23 +145,23 @@ src/
 │   │   ├── transform.ts          # rotate90 · normalize · rotateN · reflect · centroid ·
 │   │   │                         #   angleFromCentroid · pathThroughCells
 │   │   ├── invariants.ts         # the seven checks of the model + checkAll
-│   │   ├── transform.types.ts    #   Cell
-│   │   ├── pieces.types.ts       #   PieceKey
-│   │   ├── pieces.constants.ts   #   SHAPES · ANCHOR_INDEX
-│   │   └── invariants.constants.ts #   ROTATIONS
+│   │   ├── transform.ts    #   Cell
+│   │   ├── pieces.ts       #   PieceKey
+│   │   ├── pieces.ts   #   SHAPES · ANCHOR_INDEX
+│   │   └── invariants.ts #   ROTATIONS
 │   └── ui/
 │       ├── piece-mini.ts         # the shape of a piece centered in the 5×5 box of the palette,
 │       │                         #   rotated and reflected. Outside the .tsx so it can be tested
-│       ├── orientation.constants.ts # ROTACION, the initial orientation and the twelve slots
+│       ├── orientation.ts # ROTACION, the initial orientation and the twelve slots
 │       │                         #   derived from SHAPES
-│       ├── orientation.types.ts  # Rotacion · Orientacion · MemoriaDeOrientacion
-│       └── palette.constants.ts  # the 12 colors and their text color (see DESIGN.md)
+│       ├── orientation.ts  # Rotacion · Orientacion · MemoriaDeOrientacion
+│       └── palette.ts  # the 12 colors and their text color (see DESIGN.md)
 │
 ├── board-editing/                # place, remove, mute, and the gestures that do it
 │   ├── domain/
 │   │   ├── placement.ts              # cellsAt · isValid · cabeEn · occupantAt · occupantCellIndex
-│   │   ├── board.types.ts        #   PlacedPiece · Dims
-│   │   └── board.constants.ts    #   GRID_MIN · GRID_DEFAULT · MAX_PIEZAS
+│   │   ├── placement.ts        #   PlacedPiece · Dims
+│   │   └── placement.ts    #   GRID_MIN · GRID_DEFAULT · MAX_PIEZAS
 │   │                             #   (the board size is a parameter)
 │   └── ui/
 │       ├── Board.tsx             # the grid that `dims` gives: color per piece, note per cell, and the
@@ -170,8 +170,8 @@ src/
 │       │                         #   and click on a cell
 │       ├── use-input.ts          # the two input effects: keyboard and wheel. They receive callbacks,
 │       │                         #   not setters, and the tapLimpio of the shell
-│       ├── input.constants.ts    # ACCION and EDICION: what a gesture can ask for
-│       └── input.types.ts        # Accion · Edicion · the event fields the pure functions read
+│       ├── input.ts    # ACCION and EDICION: what a gesture can ask for
+│       └── input.ts        # Accion · Edicion · the event fields the pure functions read
 │
 ├── board-fit/                    # how many cells fit in the screen, and the size of each one
 │   └── ui/
@@ -179,7 +179,7 @@ src/
 │       │                         #   Pure, outside the hook so it can be tested without a browser
 │       ├── use-grid.ts           # measures the root container, writes the cell into --cell and
 │       │                         #   returns the dimensions as state
-│       └── layout.constants.ts   # CELL_PX_OBJETIVO (the target size, 73) and the ratios that make
+│       └── grid-fit.ts   # CELL_PX_OBJETIVO (the target size, 73) and the ratios that make
 │                                 #   the tile proportional · MINI_BOX · MINI_CELL_PX ·
 │                                 #   MINI_PISTA_PX · TEMPO_MIN · TEMPO_MAX · the two ratios of the
 │                                 #   cell focus ring
@@ -188,12 +188,12 @@ src/
 │   ├── domain/
 │   │   ├── music.ts              # midiFor · midiName · notesForRotation · arpeggioFor ·
 │   │   │                         #   degreeByCellIndex · angularRank
-│   │   ├── music.types.ts        #   RegimenDeRotacion, derived from REGIMEN
-│   │   └── music.constants.ts    #   CHROMATIC · PENT_* · BASE_MAP · DEFAULT_OCTAVE
+│   │   ├── music.ts        #   RegimenDeRotacion, derived from REGIMEN
+│   │   └── music.ts    #   CHROMATIC · PENT_* · BASE_MAP · DEFAULT_OCTAVE
 │   └── ui/
 │       ├── cell-text.ts          # what each cell shows: its note (by degree) and its #N (by step).
 │       │                         #   Outside the .tsx so it can be tested
-│       └── cell-text.types.ts    # CellText: what a cell shows
+│       └── cell-text.ts    # CellText: what a cell shows
 │
 ├── circuit/                      # the order of the pieces, the legs between them, the silences
 │   └── domain/
@@ -202,10 +202,10 @@ src/
 │       ├── sequence.ts           # buildSequence (the circuit, Held-Karp, and the cycle offsets),
 │       │                         #   cellsByPlayOrder, gates (the two doors; simulate_board uses them)
 │       │                         #   and noteAtCell, the note on one cell
-│       ├── routing.types.ts      #   Ruta
-│       ├── routing.constants.ts  #   CROSS_COST
-│       ├── sequence.types.ts     #   Step · Click · Sequence
-│       └── sequence.constants.ts #   PASOS_MAX
+│       ├── routing.ts      #   Ruta
+│       ├── routing.ts  #   CROSS_COST
+│       ├── sequence.ts     #   Step · Click · Sequence
+│       └── sequence.ts #   PASOS_MAX
 │
 ├── playback/                     # the transport, and the sound in time
 │   ├── audio/                    # Web Audio; speaks MIDI, knows neither the domain nor the UI
@@ -214,10 +214,10 @@ src/
 │   │   │                         #   barDuration · intervalDuration
 │   │   ├── engine.ts             # singletons and the API the UI consumes
 │   │   ├── playhead-offset.ts           # offsetAt: the offset arithmetic of the playhead
-│   │   ├── voice.types.ts · scheduler.types.ts
-│   │   ├── voice.constants.ts    #   the envelope, the three velocities and the click
-│   │   ├── scheduler.constants.ts #  LOOKAHEAD · TICK_MS · the subdivision · HIT
-│   │   ├── engine.constants.ts   #   MASTER_GAIN · DEFAULT_BPM · the two delays · the FFT
+│   │   ├── voice.ts · scheduler.ts
+│   │   ├── voice.ts    #   the envelope, the three velocities and the click
+│   │   ├── scheduler.ts #  LOOKAHEAD · TICK_MS · the subdivision · HIT
+│   │   ├── engine.ts   #   MASTER_GAIN · DEFAULT_BPM · the two delays · the FFT
 │   │   └── __tests__/test-context.ts # render and measurement helpers (not a test)
 │   └── ui/
 │       ├── engine-bridge.ts      # the two pure functions of the bridge to the engine: proyectarAlMotor
@@ -225,16 +225,16 @@ src/
 │       │                         #   alternarTransporte, which returns what the engine says
 │       ├── use-engine.ts         # the four reconciliation effects: tempo, clicks, the sequence
 │       │                         #   against the board, and unmount
-│       ├── engine.types.ts       # MotorDeTransporte · SequenceDelMotor
+│       ├── engine-bridge.ts       # MotorDeTransporte · SequenceDelMotor
 │       ├── Playhead.tsx          # playhead: rAF + imperative style, no props
 │       ├── playhead-loop.ts      # the loop of the playhead and of the veil, outside the .tsx so it
 │       │                         #   can be exported and tested
-│       ├── playhead.constants.ts # the three border widths, their table by MarcaKind and the
+│       ├── playhead-loop.ts # the three border widths, their table by MarcaKind and the
 │       │                         #   veil classes
 │       ├── route-source.ts       # singleton outside React (not a component): mirrors the active/
 │       │                         #   pending pair of the engine with the domain Sequence, with cells
-│       ├── route.constants.ts    # MARCA: the states of a cell under the playhead
-│       └── route.types.ts        # Marca · CeldaPorEstrenar
+│       ├── route-source.ts    # MARCA: the states of a cell under the playhead
+│       └── route-source.ts        # Marca · CeldaPorEstrenar
 │
 ├── spectrum/                     # the signal on screen
 │   ├── audio/
@@ -242,7 +242,7 @@ src/
 │   └── ui/
 │       ├── Spectrum.tsx          # spectrum canvas: rAF + HiDPI, no props
 │       ├── spectrum-loop.ts      # the loop outside the .tsx: drawBars, drawIdle and iniciarEspectro
-│       └── spectrum.constants.ts # BAR_COUNT · GAP · MIN_BAR · IDLE_TEXT
+│       └── spectrum-loop.ts # BAR_COUNT · GAP · MIN_BAR · IDLE_TEXT
 │
 ├── panels/                       # the dock and its two panels
 │   └── ui/
@@ -252,7 +252,7 @@ src/
 │       ├── TransportPanel.tsx    # tempo, play/pause, the empty-board tour and reset
 │       ├── orientation-text.ts   # the orientation in words, in two fragments: the visible line of
 │       │                         #   the panel and the aria-label of the thumbnails
-│       └── panel.types.ts        # PropsDeOrientacion · PropsDeTransporte
+│       └── OrientationPanel.tsx        # PropsDeOrientacion · PropsDeTransporte
 │
 └── accessibility/                # keyboard and the accessible tree
     └── ui/
@@ -426,4 +426,4 @@ on which trigger) is in [conventions.md](../guides/conventions.md).
 - **Domain constants**: `SCREAMING_SNAKE_CASE` (`SHAPES`, `BASE_MAP`, `ANCHOR_INDEX`, `MAX_PIEZAS`).
 - **Types and interfaces**: `PascalCase` (`Cell`, `PieceKey`, `PlacedPiece`).
 - **Role files**: repeat the name of their module with the role suffix
-  (`transform.ts` → `transform.types.ts`, `transform.constants.ts`, `__tests__/transform.test.ts`).
+  (`transform.ts` → `transform.ts`, `transform.constants.ts`, `__tests__/transform.test.ts`).

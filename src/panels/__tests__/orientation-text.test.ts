@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { textoDeOrientacion } from '../orientation-text.ts';
 import { miniCells } from '../../pieces/piece-mini.ts';
-import type { PieceKey } from '../../pieces/pieces.types.ts';
+import type { PieceKey } from '../../pieces/pieces.ts';
 
 /**
  * La línea que el panel pone en lugar de los cuatro botones de grados.

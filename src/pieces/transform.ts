@@ -1,4 +1,3 @@
-import type { Cell } from './transform.types.ts';
 
 /**
  * Geometria de las piezas: rotacion, reflexion y normalizacion.
@@ -14,6 +13,9 @@ import type { Cell } from './transform.types.ts';
  * `y` crece hacia ABAJO: son coordenadas de grilla, no cartesianas, asi que el
  * recorrido angular va en sentido horario en pantalla.
  */
+
+/** Celda de la grilla, `[x, y]`. `y` crece hacia ABAJO: son coordenadas de grilla, no cartesianas. */
+export type Cell = [number, number];
 
 /** Rotacion de 90°. Produce `-0` cuando `x = 0`; ver `sameCell` en invariants.ts. */
 export function rotate90(cells: Cell[]): Cell[] { return cells.map(([x,y]): Cell => [y, -x]); }

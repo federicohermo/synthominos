@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-react';
-import { CELL_PX_OBJETIVO } from '../../board-fit/layout.constants.ts';
-import { MARCA } from '../route.constants.ts';
-import type { Marca, CeldaPorEstrenar } from '../route.types.ts';
+import { CELL_PX_OBJETIVO } from '../../board-fit/grid-fit.ts';
+import { MARCA } from '../route-source.ts';
+import type { Marca, CeldaPorEstrenar } from '../route-source.ts';
 
 /**
  * La cabeza lectora y el velo, dibujados a mano sobre la grilla.
@@ -40,17 +40,19 @@ const fuente = vi.hoisted(() => ({
   offset: null as number | null,
 }));
 
-vi.mock('../route-source.ts', () => ({
+vi.mock('../route-source.ts', async (importActual) => ({
+  ...await importActual<typeof import('../route-source.ts')>(),
   rutaActiva: () => fuente.marcas,
   velo: () => fuente.velo,
 }));
-vi.mock('../engine.ts', () => ({
+vi.mock('../engine.ts', async (importActual) => ({
+  ...await importActual<typeof import('../engine.ts')>(),
   playheadOffset: () => fuente.offset,
 }));
 
 const Playhead = (await import('../Playhead.tsx')).default;
 const { iniciarCabeza, borde } = await import('../playhead-loop.ts');
-const { NOTA } = await import('../playhead.constants.ts');
+const { NOTA } = await import('../playhead-loop.ts');
 
 /** Dos cuadros: el bucle lee, dibuja y vuelve a agendar en el mismo `draw`. */
 const cuadro = () =>

@@ -1,11 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { cabeEn, cellsAt, isValid, occupantAt, occupantCellIndex } from '../placement.ts';
+import {
+  cabeEn,
+  cellsAt,
+  isValid,
+  occupantAt,
+  occupantCellIndex,
+  GRID_DEFAULT,
+} from '../placement.ts';
 import { rotateN, reflect } from '../../pieces/transform.ts';
-import { SHAPES, ANCHOR_INDEX } from '../../pieces/pieces.constants.ts';
-import { GRID_DEFAULT } from '../board.constants.ts';
-import type { Cell } from '../../pieces/transform.types.ts';
-import type { PieceKey } from '../../pieces/pieces.types.ts';
-import type { PlacedPiece } from '../board.types.ts';
+import { SHAPES, ANCHOR_INDEX } from '../../pieces/pieces.ts';
+import type { Cell } from '../../pieces/transform.ts';
+import type { PieceKey } from '../../pieces/pieces.ts';
+import type { PlacedPiece } from '../placement.ts';
 
 /**
  * Todo este archivo mide el tablero de REFERENCIA, que es el de 10 x 6 de siempre.

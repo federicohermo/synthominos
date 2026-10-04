@@ -2,19 +2,31 @@ import { z } from 'zod';
 import { defineTool, json } from './types.ts';
 import { PIECE_KEYS } from '../pieces.ts';
 import { rotateN, reflect } from '../../../src/pieces/transform.ts';
-import { cellsAt, isValid, occupantAt } from '../../../src/board-editing/placement.ts';
-import { midiName } from '../../../src/musical-model/music.ts';
+import {
+  cellsAt,
+  isValid,
+  occupantAt,
+  GRID_DEFAULT,
+  GRID_MIN,
+  MAX_PIEZAS,
+} from '../../../src/board-editing/placement.ts';
+import { midiName, REGIMEN, DEFAULT_REGIMEN } from '../../../src/musical-model/music.ts';
 import { buildSequence, gates } from '../../../src/circuit/sequence.ts';
-import { SHAPES, ANCHOR_INDEX, CELLS_PER_PIECE } from '../../../src/pieces/pieces.constants.ts';
-import { GRID_DEFAULT, GRID_MIN, MAX_PIEZAS } from '../../../src/board-editing/board.constants.ts';
-import { REGIMEN, DEFAULT_REGIMEN } from '../../../src/musical-model/music.constants.ts';
-import type { Cell } from '../../../src/pieces/transform.types.ts';
-import type { PlacedPiece, Dims } from '../../../src/board-editing/board.types.ts';
-import { collectHits, barDuration, intervalDuration } from '../../../src/playback/scheduler.ts';
+import { SHAPES, ANCHOR_INDEX, CELLS_PER_PIECE } from '../../../src/pieces/pieces.ts';
+import type { Cell } from '../../../src/pieces/transform.ts';
+import type { PlacedPiece, Dims } from '../../../src/board-editing/placement.ts';
+import {
+  collectHits,
+  barDuration,
+  intervalDuration,
+  LOOKAHEAD,
+  TICK_MS,
+  HIT,
+  CLOCK_START_DELAY,
+} from '../../../src/playback/scheduler.ts';
 import { midiToHz } from '../../../src/playback/voice.ts';
-import { LOOKAHEAD, TICK_MS, HIT } from '../../../src/playback/scheduler.constants.ts';
-import { DEFAULT_BPM, CLOCK_START_DELAY } from '../../../src/playback/engine.constants.ts';
-import type { Sequence, ClockState, Hit } from '../../../src/playback/scheduler.types.ts';
+import { DEFAULT_BPM } from '../../../src/playback/engine.ts';
+import type { Sequence, ClockState, Hit } from '../../../src/playback/scheduler.ts';
 
 /**
  * Que suena un tablero, sin escucharlo.

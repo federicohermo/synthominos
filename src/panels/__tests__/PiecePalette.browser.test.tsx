@@ -2,10 +2,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { page } from 'vitest/browser';
 import Dock from '../PiecePalette.tsx';
-import { REGIMEN } from '../../musical-model/music.constants.ts';
-import { ORIENTACIONES_INICIALES } from '../../pieces/orientation.constants.ts';
-import type { PropsDeOrientacion, PropsDeTransporte } from '../panel.types.ts';
-import type { MemoriaDeOrientacion } from '../../pieces/orientation.types.ts';
+import { REGIMEN } from '../../musical-model/music.ts';
+import { ORIENTACIONES_INICIALES } from '../../pieces/orientation.ts';
+import type { PropsDeOrientacion } from '../OrientationPanel.tsx';
+import type { PropsDeTransporte } from '../TransportPanel.tsx';
+import type { MemoriaDeOrientacion } from '../../pieces/orientation.ts';
 
 /**
  * La tarjeta de piezas despues: las doce miniaturas, la fila del regimen, la

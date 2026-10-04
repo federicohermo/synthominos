@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { cellNameFor, anuncioDeEdicion } from '../cell-name.ts';
 import { cellTextFor } from '../../musical-model/cell-text.ts';
-import { EDICION } from '../../board-editing/input.constants.ts';
-import { REGIMEN } from '../../musical-model/music.constants.ts';
+import { EDICION } from '../../board-editing/input.ts';
+import { REGIMEN } from '../../musical-model/music.ts';
 
 /**
  * Los cuatro casos del AC8: celda libre, ocupada, ocupada y muteada, y el criterio de

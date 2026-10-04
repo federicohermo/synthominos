@@ -1,5 +1,5 @@
-import type { PieceKey } from '../../src/pieces/pieces.types.ts';
-import { SHAPES } from '../../src/pieces/pieces.constants.ts';
+import type { PieceKey } from '../../src/pieces/pieces.ts';
+import { SHAPES } from '../../src/pieces/pieces.ts';
 
 /**
  * Las 12 letras, sacadas de `SHAPES` y **no escritas de nuevo**: si el dominio

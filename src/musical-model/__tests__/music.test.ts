@@ -1,15 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { angularRank, arpeggioFor, degreeByCellIndex, midiFor, midiName, notesForRotation, playOrderByCellIndex } from '../music.ts';
+import {
+  angularRank,
+  arpeggioFor,
+  degreeByCellIndex,
+  midiFor,
+  midiName,
+  notesForRotation,
+  playOrderByCellIndex,
+  BASE_MAP,
+  CHROMATIC,
+  DEFAULT_OCTAVE,
+  DEGREE_EPSILON,
+  PENT_MAJOR,
+  PENT_MINOR,
+  PENT_BLUES5,
+  REGIMEN,
+  NOTES_PER_PIECE,
+} from '../music.ts';
 import { centroid, normalize, pathThroughCells, reflect, rotateN } from '../../pieces/transform.ts';
 import { cellsAt } from '../../board-editing/placement.ts';
-import {
-  BASE_MAP, CHROMATIC, DEFAULT_OCTAVE, DEGREE_EPSILON, PENT_MAJOR, PENT_MINOR, PENT_BLUES5,
-  REGIMEN, NOTES_PER_PIECE,
-} from '../music.constants.ts';
-import { ANCHOR_INDEX, SHAPES } from '../../pieces/pieces.constants.ts';
-import type { Cell } from '../../pieces/transform.types.ts';
-import type { PieceKey } from '../../pieces/pieces.types.ts';
-import type { RegimenDeRotacion } from '../music.types.ts';
+import { ANCHOR_INDEX, SHAPES } from '../../pieces/pieces.ts';
+import type { Cell } from '../../pieces/transform.ts';
+import type { PieceKey } from '../../pieces/pieces.ts';
+import type { RegimenDeRotacion } from '../music.ts';
 
 const PIECES = Object.keys(BASE_MAP) as PieceKey[];
 

@@ -1,13 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  checkArrayOrder, checkAnchors, checkShapes, checkBaseMap, checkNotes, checkDistinct,
-  checkLetters, checkAll,
+  checkArrayOrder,
+  checkAnchors,
+  checkShapes,
+  checkBaseMap,
+  checkNotes,
+  checkDistinct,
+  checkLetters,
+  checkAll,
+  PENTOMINOS_CANONICOS,
 } from '../invariants.ts';
-import { SHAPES } from '../pieces.constants.ts';
-import { BASE_MAP, PENT_MAJOR, REGIMEN } from '../../musical-model/music.constants.ts';
-import { PENTOMINOS_CANONICOS } from '../invariants.constants.ts';
-import type { Cell } from '../transform.types.ts';
-import type { PieceKey } from '../pieces.types.ts';
+import { SHAPES } from '../pieces.ts';
+import { BASE_MAP, PENT_MAJOR, REGIMEN } from '../../musical-model/music.ts';
+import type { Cell } from '../transform.ts';
+import type { PieceKey } from '../pieces.ts';
 
 describe('los siete chequeos sobre las 96 combinaciones', () => {
   it('AC-PCS-015 — orden del array', () => {
@@ -335,9 +341,9 @@ describe('los chequeos detectan una regresion', () => {
 
   it('checkBaseMap ve que sobra una clase de altura', async () => {
     vi.resetModules();
-    vi.doMock('../../musical-model/music.constants.ts', async () => {
-      const real = await vi.importActual<typeof import('../../musical-model/music.constants.ts')>(
-        '../../musical-model/music.constants.ts',
+    vi.doMock('../../musical-model/music.ts', async () => {
+      const real = await vi.importActual<typeof import('../../musical-model/music.ts')>(
+        '../../musical-model/music.ts',
       );
       // Trece clases para doce piezas: la biyeccion se cae del lado que ningun otro
       // chequeo mira, porque cada tonica sigue estando en rango y sin repetirse.
@@ -349,7 +355,7 @@ describe('los chequeos detectan una regresion', () => {
       expect(r.ok).toBe(false);
       expect(r.failures.some(f => f.includes('12 piezas para 13 clases'))).toBe(true);
     } finally {
-      vi.doUnmock('../../musical-model/music.constants.ts');
+      vi.doUnmock('../../musical-model/music.ts');
       vi.resetModules();
     }
   });
@@ -389,9 +395,9 @@ describe('los chequeos detectan una regresion', () => {
    */
   it('checkNotes ve que NOTES_PER_PIECE dejo de coincidir con CELLS_PER_PIECE', async () => {
     vi.resetModules();
-    vi.doMock('../../musical-model/music.constants.ts', async () => {
-      const real = await vi.importActual<typeof import('../../musical-model/music.constants.ts')>(
-        '../../musical-model/music.constants.ts',
+    vi.doMock('../../musical-model/music.ts', async () => {
+      const real = await vi.importActual<typeof import('../../musical-model/music.ts')>(
+        '../../musical-model/music.ts',
       );
       return { ...real, NOTES_PER_PIECE: 4 };
     });
@@ -402,7 +408,7 @@ describe('los chequeos detectan una regresion', () => {
       expect(r.failures.some(f => f.includes('tienen que ser iguales'))).toBe(true);
       expect(r.failures.some(f => f.includes('5 notas y deberian ser 4'))).toBe(true);
     } finally {
-      vi.doUnmock('../../musical-model/music.constants.ts');
+      vi.doUnmock('../../musical-model/music.ts');
       vi.resetModules();
     }
   });

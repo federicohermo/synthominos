@@ -1,16 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { buildSequence, cellsByPlayOrder, gates, noteAtCell } from '../sequence.ts';
-import { cellsAt, isValid } from '../../board-editing/placement.ts';
-import { routeBetween } from '../routing.ts';
-import { degreeByCellIndex, notesForRotation, playOrderByCellIndex } from '../../musical-model/music.ts';
+import { cellsAt, isValid, GRID_DEFAULT } from '../../board-editing/placement.ts';
+import { routeBetween, CROSS_COST } from '../routing.ts';
+import {
+  degreeByCellIndex,
+  notesForRotation,
+  playOrderByCellIndex,
+  BASE_MAP,
+  DEFAULT_OCTAVE,
+  REGIMEN,
+} from '../../musical-model/music.ts';
 import { rotateN, reflect } from '../../pieces/transform.ts';
-import { SHAPES, ANCHOR_INDEX, CELLS_PER_PIECE } from '../../pieces/pieces.constants.ts';
-import { BASE_MAP, DEFAULT_OCTAVE, REGIMEN } from '../../musical-model/music.constants.ts';
-import { GRID_DEFAULT } from '../../board-editing/board.constants.ts';
-import { CROSS_COST } from '../routing.constants.ts';
-import type { Cell } from '../../pieces/transform.types.ts';
-import type { PieceKey } from '../../pieces/pieces.types.ts';
-import type { PlacedPiece } from '../../board-editing/board.types.ts';
+import { SHAPES, ANCHOR_INDEX, CELLS_PER_PIECE } from '../../pieces/pieces.ts';
+import type { Cell } from '../../pieces/transform.ts';
+import type { PieceKey } from '../../pieces/pieces.ts';
+import type { PlacedPiece } from '../../board-editing/placement.ts';
 
 const PIECES = Object.keys(SHAPES) as PieceKey[];
 

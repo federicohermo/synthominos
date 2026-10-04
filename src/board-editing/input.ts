@@ -1,9 +1,7 @@
-import { ACCION, EDICION } from './input.constants.ts';
-import { SHAPES } from '../pieces/pieces.constants.ts';
-import type { Accion, Edicion, EventoDeTecla, EventoDeModificador } from './input.types.ts';
-import type { PieceKey } from '../pieces/pieces.types.ts';
-import type { Rotacion } from '../pieces/orientation.types.ts';
-import type { PlacedPiece } from './board.types.ts';
+import { SHAPES } from '../pieces/pieces.ts';
+import type { PieceKey } from '../pieces/pieces.ts';
+import type { Rotacion } from '../pieces/orientation.ts';
+import type { PlacedPiece } from './placement.ts';
 
 /**
  * La DECISIÓN de cada gesto de entrada, separada del cableado que la ejecuta.
@@ -28,6 +26,134 @@ import type { PlacedPiece } from './board.types.ts';
  * AC6: en macOS `Ctrl`+click ES el click derecho, y este repo se desarrolla en Windows,
  * donde ese cruce no se puede ver a ojo. El test es la única forma de atraparlo.
  */
+
+/** Las cuatro acciones de entrada: ver `ACCION` en `input.ts`. */
+export type Accion = (typeof ACCION)[keyof typeof ACCION];
+
+/** Lo que pide un click sobre una celda: ver `EDICION` en `input.ts`. */
+export type Edicion = (typeof EDICION)[keyof typeof EDICION];
+
+/**
+ * Los campos de un evento de teclado que la decisión necesita — y ninguno más.
+ *
+ * No es el `KeyboardEvent` del DOM a propósito: los tests de `src/` corren en
+ * `environment: 'node'` y no hay jsdom, así que una pura que reciba el evento no se
+ * puede testear sin fabricar uno. Recibiendo campos, las siete guardas quedan cubiertas
+ * en `environment: 'node'` y lo único que queda sin test es el cableado.
+ *
+ * Los dos `target*` y `tapLimpio` los calcula el llamador porque salen de afuera del
+ * evento: los primeros miran el `e.target` contra `HTMLButtonElement`/`HTMLInputElement`
+ * y contra el `role="gridcell"` más cercano —DOM que la pura no puede ver— y el último es
+ * estado entre eventos, que una pura por definición no tiene.
+ */
+export interface EventoDeTecla {
+  /**
+   * El `key` del DOM: `'Shift'`, `'Control'`, `' '` para la barra espaciadora y
+   * cualquiera de las doce letras de pentominó, en minúscula o en mayúscula.
+   */
+  key: string;
+  tipo: 'keydown' | 'keyup';
+  /** El auto-repeat del sistema. Solo lo ejerce la barra, que es la única en `keydown`. */
+  repeat: boolean;
+  /**
+   * Los tres modificadores que le devuelven el evento entero al navegador o al sistema.
+   *
+   * Obligatorios y sin `?`: un campo opcional deja que un llamador nuevo se olvide de
+   * llenarlo y la guarda se apague sola, en silencio — el mismo criterio con el que el
+   * régimen se quedó sin default de parámetro.
+   *
+   * `shiftKey` **no** entra, y no es un olvido: ninguna decisión de estas puras lo mira.
+   * `Shift`+`f` selecciona igual (AC3 del 018) porque la letra ensucia el tap y de eso ya
+   * se ocupa `abreTapLimpio`, que recibe su propio evento con los cuatro modificadores.
+   */
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+  /**
+   * El foco está sobre un `<button>` o un `<input>`: el navegador se queda **todo**.
+   *
+   * Todas las teclas, sin excepción: escribir en el slider de tempo no rota la pieza y la
+   * barra activa el control armado por la vía nativa, sin un `blur()` a mano.
+   */
+  targetEsControl: boolean;
+  /**
+   * El foco está sobre una celda del tablero: el tablero se queda **la barra, el `Enter` y
+   * las flechas**, y nada más.
+   *
+   * Es una pregunta DISTINTA de `targetEsControl`, no una versión más ancha de la misma, y
+   * ahí está la decisión: `targetEsControl` apaga todas las teclas porque el
+   * evento entero es del navegador; esta apaga las que el tablero enfocado maneja por su
+   * cuenta y **deja pasar el resto**. Con una celda enfocada, `Shift` tiene que seguir
+   * rotando y `Ctrl` reflejando — que es exactamente el gesto que la entrada directa fue a
+   * buscar: tocar sin ir al panel. Ensanchar `targetEsControl` para que también matcheara la celda
+   * arreglaba el doble disparo de la barra apagando los dos atajos por los que existe.
+   *
+   * De las tres teclas que nombra, esta pura sólo puede vetar la barra: el `Enter` y las
+   * flechas nunca fueron suyas y las maneja el `onKeyDown` de la celda, que es el único que
+   * sabe CUÁL celda tiene el foco.
+   */
+  targetEsCelda: boolean;
+  /** Mientras el modificador estuvo abajo no llegó otra tecla ni la rueda (D10). */
+  tapLimpio: boolean;
+}
+
+/**
+ * Los cuatro modificadores que un `keydown` reporta, más la tecla que lo produjo.
+ *
+ * Es lo único que hace falta para saber si el `keydown` ABRE un tap o lo ensucia, y va
+ * separado de `EventoDeTecla` porque esa pregunta se contesta antes: el tap es lo que
+ * `EventoDeTecla` recibe ya resuelto.
+ */
+export interface EventoDeModificador {
+  key: string;
+  shiftKey: boolean;
+  ctrlKey: boolean;
+  altKey: boolean;
+  metaKey: boolean;
+}
+
+/**
+ * Las cuatro acciones que un gesto de entrada puede pedirle al shell: rotar la pieza por
+ * colocar, alternar su reflexión, alternar el transporte o **seleccionar** otra pieza.
+ *
+ * `seleccionar` es la unica que no sale de un modificador: las
+ * doce letras eligen su pentominó. Va acá adentro y no como una cuarta rama suelta del
+ * cableado porque la decisión de QUÉ gesto es sigue siendo una sola pregunta —la que
+ * contesta `accionDeTecla`—, y sacarla de esta tabla la partiría en dos lugares.
+ *
+ * Const-object y no `enum` — el `erasableSyntaxOnly` del tsconfig los rechaza, y es la
+ * misma opción que permite que node cargue `src/` sin compilar. El precedente exacto
+ * es `MARCA` en `route-source.ts`, y vive acá y no en `input.ts` porque los módulos
+ * de este repo no declaran constantes.
+ *
+ * No hay una quinta acción `no-hacer-nada`: la ausencia de acción es `null`, y eso deja
+ * que el llamador use el mismo valor para decidir si hace `preventDefault` — si el
+ * handler se saltea el evento, el navegador tiene que quedárselo entero.
+ */
+export const ACCION = {
+  rotar: 'rotar',
+  reflejar: 'reflejar',
+  transporte: 'transporte',
+  seleccionar: 'seleccionar',
+} as const;
+
+/**
+ * Lo que un click sobre una celda le puede pedir al tablero.
+ *
+ * Cuatro y no dos: colocar y colocar-muteada son la misma edición del tablero pero
+ * distinto gesto de escucha —la muteada **no** dispara el arpegio de cortesía, porque se
+ * está poniendo justamente para que no suene— y separarlas acá es lo que evita que esa
+ * condición viva como un `if` suelto en el shell.
+ *
+ * La ausencia de acción sigue siendo `null`, igual que en `ACCION`: es el click sobre una
+ * pieza que **no** es la que está en la mano, que no hace nada — como antes de este spec.
+ */
+export const EDICION = {
+  quitar: 'quitar',
+  mutear: 'mutear',
+  colocar: 'colocar',
+  colocarMuteada: 'colocar-muteada',
+} as const;
 
 /**
  * La rotación que deja la rueda: abajo (`deltaY > 0`) suma 90°, arriba resta 90°.

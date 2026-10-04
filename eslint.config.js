@@ -115,7 +115,7 @@ const ZONAS = [
 /**
  * Los cuatro nodos que nombran un modulo por su ruta. Se listan los cuatro y no solo
  * `ImportDeclaration` porque las otras tres formas **existen hoy en el repo** —un
- * `export ... from` en `playback/engine.types.ts` y cuatro `import()` en los tests
+ * `export ... from` en `playback/engine-bridge.ts` y cuatro `import()` en los tests
  * que reimportan con `vi.resetModules()`— y una regla que cubre una sola de ellas es
  * exactamente la red que este spec vino a borrar: pasa en verde y se lee como completa.
  *
@@ -790,6 +790,19 @@ export default tseslint.config([
       // `docs/__tests__/enlaces-resueltos.test.ts`, que ademas cubre los enlaces a OTRO
       // archivo, que esta regla no mira.
       'markdown/no-missing-link-fragments': 'off',
+    },
+  },
+
+  {
+    // A constant or a type lives in the module that defines or produces it, so each value
+    // exists once. A file named for its role (`*.constants.ts`, `*.types.ts`) or a role
+    // folder is red from its first line: without this, the folder comes back in the next PR.
+    files: ['src/**/*.constants.ts', 'src/**/*.types.ts', 'src/**/constants/**', 'src/**/types/**'],
+    rules: {
+      'no-restricted-syntax': ['error', {
+        selector: 'Program',
+        message: 'A value or a type lives in the module that owns it: no *.constants.ts, *.types.ts, constants/ or types/ under src/.',
+      }],
     },
   },
 ])

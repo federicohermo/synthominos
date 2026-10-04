@@ -83,7 +83,7 @@ const motor = vi.hoisted(() => ({
   readSpectrum: () => null,
   cycleGeneration: () => 0,
 }));
-vi.mock('../playback/engine.ts', () => motor);
+vi.mock('../playback/engine.ts', async (importActual) => ({ ...await importActual<typeof import('../playback/engine.ts')>(), ...motor }));
 
 const App = (await import('../App.tsx')).default;
 

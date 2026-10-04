@@ -2,14 +2,14 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { page } from 'vitest/browser';
 import OrientationPanel from '../OrientationPanel.tsx';
-import { MINI_BOX, MINI_CELL_PX } from '../../board-fit/layout.constants.ts';
-import { PIECE_COLOR } from '../../pieces/palette.constants.ts';
-import { SHAPES } from '../../pieces/pieces.constants.ts';
-import { REGIMEN } from '../../musical-model/music.constants.ts';
-import { ORIENTACIONES_INICIALES } from '../../pieces/orientation.constants.ts';
-import type { PieceKey } from '../../pieces/pieces.types.ts';
-import type { PropsDeOrientacion } from '../panel.types.ts';
-import type { MemoriaDeOrientacion, Orientacion } from '../../pieces/orientation.types.ts';
+import { MINI_BOX, MINI_CELL_PX } from '../../pieces/piece-mini.ts';
+import { PIECE_COLOR } from '../../pieces/palette.ts';
+import { SHAPES } from '../../pieces/pieces.ts';
+import { REGIMEN } from '../../musical-model/music.ts';
+import { ORIENTACIONES_INICIALES } from '../../pieces/orientation.ts';
+import type { PieceKey } from '../../pieces/pieces.ts';
+import type { PropsDeOrientacion } from '../OrientationPanel.tsx';
+import type { MemoriaDeOrientacion, Orientacion } from '../../pieces/orientation.ts';
 
 /**
  * Las doce miniaturas.
