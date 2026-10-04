@@ -18,105 +18,34 @@ import commentAnchor from './eslint-rules/comment-anchor.mjs'
  */
 const ESTADO_GLOBAL = ['zustand', 'redux', '@reduxjs/toolkit', 'jotai', 'valtio', 'recoil', 'mobx', 'mobx-react-lite']
 
-/** React, para las dos capas que no pueden verlo. `react-dom/*` cubre `react-dom/client`. */
-const REACT = ['react', 'react-dom', 'react-dom/*']
-
 const GRUPO_ESTADO = {
   group: ESTADO_GLOBAL,
   message: 'Sin estado global: el estado vive en App.tsx y baja por props.',
 }
-const GRUPO_REACT = {
-  group: REACT,
-  message: 'domain/ y audio/ no conocen React: son puras y hablan MIDI, respectivamente.',
-}
 
 /**
- * The direction of dependency between the domain modules: for each one, the modules it may
- * NOT import.
- *
- * The levels, from the bottom up:
- *
- * - `transform` is the base: geometry with nothing above it.
- * - `board`, `routing` and `music` build on it. `music` does not know the other two: the
- *   board rules and the musical model are orthogonal, and that is a property of the
- *   instrument.
- * - `sequence` and `invariants` are the LEAVES: they may use everything below and do not
- *   import each other, so the graph has no cycle. If `invariants` must one day verify the
- *   sequence, move `sequence` one level down and keep the rule.
- *
- * The modules live in different capabilities, so this rule is the only place that orders
- * them. The zones resolve the path against the file system: every way to write a specifier
- * is covered.
- */
-const DOMAIN_MODULES = {
-  transform: './src/pieces/transform.ts',
-  board: './src/board-editing/placement.ts',
-  routing: './src/circuit/routing.ts',
-  music: './src/musical-model/music.ts',
-  sequence: './src/circuit/sequence.ts',
-  invariants: './src/pieces/invariants.ts',
-}
-const DOMAIN_DIRECTION = {
-  transform: ['board', 'routing', 'music', 'sequence', 'invariants'],
-  board: ['routing', 'music', 'sequence', 'invariants'],
-  routing: ['music', 'sequence', 'invariants'],
-  music: ['board', 'routing', 'sequence', 'invariants'],
-  sequence: ['invariants'],
-  invariants: ['sequence'],
-}
-
-/**
- * The forbidden zones, by path. One rule for the whole repo: in flat config an override
- * REPLACES a rule, so one block per layer would have to repeat every other zone.
- *
- * Each capability folder holds its layers as subfolders: `domain/`, `audio/`, `ui/`. The
- * globs apply the layer rule to every capability at once. `domain/` and `audio/` have no edge
- * between them: the engine speaks MIDI numbers and does not know what a pentomino is.
- *
- * `mcp-server/` is tooling, and the direction is one: it imports from `src/`, NEVER the reverse.
+ * The forbidden zones, by path. `mcp-server/` is tooling, and the direction is one: it imports
+ * from `src/`, NEVER the reverse.
  */
 const ZONAS = [
-  {
-    target: './src/*/domain/**',
-    from: ['./src/*/audio/**', './src/*/ui/**', './src/*.tsx'],
-    message: 'domain/ is pure: it does not know the audio or the UI.',
-  },
-  {
-    target: './src/*/audio/**',
-    from: ['./src/*/domain/**', './src/*/ui/**', './src/*.tsx'],
-    message: 'audio/ speaks MIDI and Web Audio; it does not know the domain or the UI.',
-  },
   {
     target: './src',
     from: './mcp-server',
     message: 'mcp-server/ is tooling: it imports from src/, never the reverse.',
   },
-  ...Object.entries(DOMAIN_DIRECTION).map(([module, forbidden]) => ({
-    target: DOMAIN_MODULES[module],
-    from: forbidden.map((m) => DOMAIN_MODULES[m]),
-    message: `The domain has one direction: ${module} may not import ${forbidden.join(', ')}.`,
-  })),
 ]
 
 /**
- * Las reglas que la documentacion declara y que hasta el spec 030 no verificaba nadie. Las
- * SEIS entran con selectores de esquery y sin agregar un plugin: las CUATRO que valen en
- * todo el repo viven en este array, y las dos que valen en una capa sola —`REGLA_CONSTANTES`
- * y `REGLA_EFECTOS`— viven abajo, cada una en su bloque.
+ * The rules the documentation states, as esquery selectors with no plugin. The ones for all of
+ * the repo live in this array; `REGLA_EFECTOS`, for `.tsx` files only, lives below in its block.
  *
- * Los dos numeros se cuentan, no se recuerdan: son las entradas de este array y las de los
- * dos `const` de abajo. El spec 049 los movio de cuatro y tres al sumar el barrel y los
- * efectos, y el docblock se desincroniza igual que la prosa que estas reglas verifican.
- *
- * Van juntas en un array compartido porque `no-restricted-syntax` tambien se REEMPLAZA entre
- * overrides: cada bloque de abajo que agrega la suya tiene que repetir estas cuatro o las
- * apaga para los archivos que matchea.
+ * They share one array because `no-restricted-syntax` is REPLACED between overrides: a block
+ * below that adds its own rule repeats these, or turns them off for the files it matches.
  */
 /**
  * Los cuatro nodos que nombran un modulo por su ruta. Se listan los cuatro y no solo
- * `ImportDeclaration` porque las otras tres formas **existen hoy en el repo** —un
- * `export ... from` en `playback/engine-bridge.ts` y cuatro `import()` en los tests
- * que reimportan con `vi.resetModules()`— y una regla que cubre una sola de ellas es
+ * `ImportDeclaration` porque las otras formas pueden aparecer —hoy hay cuatro `import()`
+ * en los tests que reimportan con `vi.resetModules()`— y una regla que cubre una sola de ellas es
  * exactamente la red que este spec vino a borrar: pasa en verde y se lee como completa.
  *
  * La medida que fijo la lista: `import-x/no-restricted-paths`, que resuelve rutas en vez de
@@ -181,67 +110,6 @@ const REGLAS_DEL_REPO = [
     message: 'Sin estado global: ni Context, ni Redux, ni Zustand. El estado vive en App.tsx.',
   },
 ]
-
-/**
- * "Los modulos no declaran constantes": un `.ts` de capa tiene funciones y nada mas, y los
- * valores fijos van a `<capa>/constants/`. El motivo esta medido y es viejo: antes habia
- * cuatro pares de numeros que tenian que coincidir y nada los sincronizaba.
- *
- * **Se aplica a `domain/` y `audio/`, no a `ui/`, y la linea es la del motivo.** Lo
- * que el problema medido describe es un valor que existe DOS VECES; una constante privada de
- * un solo componente no puede desincronizarse con nada. Verificado antes de acotarla: en
- * `ui/` habia siete —`BAR_COUNT`, `GAP`, `MIN_BAR` e `IDLE_TEXT` en `Spectrum.tsx`,
- * `BORDE_COLOR`, `VELO_CAJA` y `VELO_TAPA` en `Playhead.tsx`— documentadas donde estaban, con
- * docblocks que explican el MECANISMO de dibujo (por que `box-shadow` y no `transform: scale`,
- * por que las clases de Tailwind van enteras).
- *
- * **Hoy no queda ninguna, y el dato vale anotarlo porque desarma medio argumento.** El spec 029
- * saco los dos bucles de los `.tsx` a `playhead-loop.ts` y `spectrum-loop.ts`, eso dejo a las
- * siete en modulos de capa —donde la regla escrita SI aplicaba— y se mudaron a
- * los archivos de constantes de `ui/`, con los docblocks enteros. O sea que mudarlas no alejo ninguna
- * explicacion de su codigo, que era la mitad estetica del motivo. La mitad que sostiene la
- * linea es la otra, la medible: una constante privada de un solo archivo no se puede
- * desincronizar. Por eso el alcance no se reabre y `ui/` sigue afuera. En `domain/` y
- * `audio/`, en cambio, una constante es parte del modelo y `constants/` es su casa
- * documentada: las dos que quedaban fuera —`ROTATIONS` y `PASOS_MAX`— las mudo este spec.
- *
- * El selector mira `Literal`, `ArrayExpression` y `TemplateLiteral`, y NO `ObjectExpression`
- * ni `NewExpression`. Tampoco es una concesion: el spec 022 dejo escrito por que `MOTOR`
- * (`playback/use-engine.ts`) y `RUTA_VACIA` (`playback/route-source.ts`) viven en su
- * modulo y no en `constants/` — no son valores fijos sino cableado de funciones, y mandarlos
- * a `constants/` obligaria a esa carpeta —que hoy solo tiene datos— a importar el singleton
- * del `AudioContext`. La regla escrita apunta al numero magico; ensancharla a todo objeto
- * declararia deuda donde el repo ya decidio lo contrario, con el porque al lado.
- *
- * Y `kind='const'` no es decorativo: sin el, el selector engancha el estado mutable de modulo
- * —`let ctx: AudioContext | null = null` en `playback/engine.ts`— que no es una constante ni por
- * asomo. Medido: 21 hallazgos sin el ancla, 2 con el.
- */
-const INITS_FIJOS = ['Literal', 'ArrayExpression', 'TemplateLiteral']
-
-const DECLARADORES_FIJOS = [
-  ...INITS_FIJOS.map((tipo) => `VariableDeclarator[init.type='${tipo}']`),
-  // `-1` y `+5` no son un `Literal` sino un `UnaryExpression` con uno adentro. Se ancla el
-  // argumento para no enganchar un `!algo`, que no es un valor fijo sino una expresion.
-  "VariableDeclarator[init.type='UnaryExpression'][init.argument.type='Literal']",
-  // `5 as const` envuelve el valor en un `TSAsExpression`. Se repiten adentro los mismos
-  // tres tipos y no cualquiera, para que `{...} as const` siga afuera igual que `{...}`.
-  ...INITS_FIJOS.map((tipo) => `VariableDeclarator[init.type='TSAsExpression'][init.expression.type='${tipo}']`),
-]
-
-const REGLA_CONSTANTES = {
-  // Las dos raices son la misma declaracion con y sin `export`, y no listarlas a las dos
-  // invertia la regla: `export const X = 5` cuelga de un `ExportNamedDeclaration` y no del
-  // `Program`, asi que anclado solo en `Program >` el selector veia la constante **privada**
-  // y dejaba pasar la **exportada**. Justo al reves de lo que el motivo describe: un valor
-  // que existe dos veces tiene que ser importable para poder desincronizarse. `ROTATIONS` y
-  // `PASOS_MAX` se dejaron cazar por privadas; el caso que hizo el daño medido, no.
-  selector: DECLARADORES_FIJOS.flatMap((declarador) => [
-    `Program > VariableDeclaration[kind='const'] > ${declarador}`,
-    `Program > ExportNamedDeclaration > VariableDeclaration[kind='const'] > ${declarador}`,
-  ]).join(', '),
-  message: 'A module declares no constant: the fixed value goes in its sibling *.constants.ts.',
-}
 
 /**
  * "Un `.tsx` no declara la logica de un efecto." Hasta el spec 049 esta regla vivio solo en
@@ -371,17 +239,10 @@ export default tseslint.config([
       // decia «25 segundos» y ese era el lint de otro momento del repo: el numero viejo es
       // lo que hacia que la decision se leyera como opinable.
       //
-      // Lo que compraria ya lo compran las zonas de arriba: adentro de `domain/` la
-      // direccion es un DAG de tres niveles y cada arista que podria cerrar un ciclo esta
-      // prohibida por nombre, asi que un ciclo ahi no es improbable sino imposible. Fuera de
-      // `domain/` las capas tampoco se pueden ver entre si.
-      //
-      // **Lo unico que seguiria comprando es un ciclo entre hermanos sin zona**, y eso es lo
-      // que hay que mirar el dia que se revise: `src/<capability>/ui/` tiene trece `.ts` y seis
-      // `.tsx` sin zona declarada entre ellos, o sea que la condicion que el issue #58 fijo
-      // para revertir —«un subdirectorio con varios modulos hermanos sin zona propia»— ya se
-      // cumplia cuando se escribio. No cambio el repo; lo que se revisa cada vez es el
-      // precio.
+      // What it would buy: no zone orders the modules of `src/` any more, so a cycle between
+      // two of them passes lint. Run once by hand when the layer zones left
+      // (`eslint --rule '{"import-x/no-cycle":"error"}' src mcp-server/src`), it found ZERO
+      // cycles. What is checked each time it comes up is the price, against the cycles found.
       //
       // **Y hay una arista nueva que el spec 048 agrega, en contra:** su hook corre el lint
       // UNA VEZ POR TURNO sobre la lista de lo que cambio —4,42 s medidos para un archivo,
@@ -526,8 +387,8 @@ export default tseslint.config([
   },
 
   {
-    // React solo donde hay React. `domain/` y `audio/` tienen prohibido importarlo, asi que
-    // aplicarles las reglas de hooks era ruido.
+    // React only where React is: the hook rules read the `.tsx` files and the `use-*.ts`
+    // hooks, which are the only files with hooks.
     //
     // La clave es `configs.flat[...]` y no `configs[...]`: en el plugin 7.x el export de
     // arriba volvio a ser el de eslintrc —`plugins` como array de strings— y flat config lo
@@ -535,13 +396,13 @@ export default tseslint.config([
     // `rules-of-hooks` y `exhaustive-deps` entran las del React Compiler, que segun react.dev
     // salen por este plugin y no por uno separado, y sirven aunque el compilador no se
     // adopte. `set-state-in-effect` es literalmente el patron que el spec 022 concentro en
-    // `use-engine.ts`; `immutability` y `purity` son la version React de "domain/ es puro".
+    // `use-engine.ts`; `immutability` y `purity` son la version React de una funcion pura.
     files: ['src/**/*.tsx', 'src/**/use-*.ts'],
     extends: [reactHooks.configs.flat['recommended-latest']],
   },
   {
     // `only-export-components` solo tiene sentido donde puede haber un componente. Y lo
-    // mismo `jsx-a11y`, que lee JSX: `domain/` y `audio/` tienen prohibido importar React.
+    // mismo `jsx-a11y`, que lee JSX: solo un `.tsx` tiene JSX.
     //
     // **`strict` y no `recommended`**, con los dos numeros medidos a la vista: sobre este
     // codigo `recommended` da UN hallazgo y `strict` da DOS, y el segundo es en el mismo
@@ -615,27 +476,6 @@ export default tseslint.config([
       '@typescript-eslint/no-restricted-imports': ['error', { patterns: [GRUPO_ESTADO] }],
     },
   },
-  {
-    // Repite `GRUPO_ESTADO` porque el override lo REEMPLAZA: sin eso, agregarle a `domain/`
-    // su prohibicion de React lo dejaria libre de importar zustand. Es el mismo trap de
-    // siempre, y por eso los grupos son constantes con nombre y no listas escritas dos veces.
-    files: ['src/*/domain/**/*.ts', 'src/*/audio/**/*.ts'],
-    rules: {
-      '@typescript-eslint/no-restricted-imports': ['error', { patterns: [GRUPO_ESTADO, GRUPO_REACT] }],
-    },
-  },
-
-  {
-    // The fourth repo rule, only for the modules of the two pure layers. A `*.constants.ts`
-    // declares constants by definition, and a test one folder down is not matched. Why `ui/`
-    // stays out is written above, with the rule.
-    files: ['src/*/domain/*.ts', 'src/*/audio/*.ts'],
-    ignores: ['src/**/*.constants.ts'],
-    rules: {
-      'no-restricted-syntax': ['error', ...REGLAS_DEL_REPO, REGLA_CONSTANTES],
-    },
-  },
-
   {
     // La regla de los efectos, solo para la capa que puede tener un componente. Repite
     // `REGLAS_DEL_REPO` porque el override REEMPLAZA `no-restricted-syntax`: sin eso, este
