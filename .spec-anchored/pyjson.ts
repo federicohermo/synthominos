@@ -73,8 +73,8 @@ const numeric = (x: Json): bigint | number | null =>
  */
 export function pyEq(a: Json, b: Json): boolean {
   const na = numeric(a);
-  const nb = numeric(b);
-  return na !== null && nb !== null ? na == nb : a === b;
+  // A number never equals `null`, so the other side needs no check of its own.
+  return na === null ? a === b : na == numeric(b);
 }
 
 /** Python `x in sequence`. */
@@ -130,17 +130,16 @@ export function strip(s: string): string {
 
 /** `float.__repr__`: the shortest digits that round-trip, in Python's layout. */
 export function floatRepr(n: number): string {
-  if (!Number.isFinite(n)) return n > 0 ? 'inf' : '-inf';
-  if (n === 0) return Object.is(n, -0) ? '-0.0' : '0.0';
-  const sign = n < 0 ? '-' : '';
+  if (!Number.isFinite(n)) return n === Infinity ? 'inf' : '-inf';
+  const sign = n < 0 || Object.is(n, -0) ? '-' : '';
+  // `toExponential` writes the exponent with its sign: `1.5e+22`, `1e-7`, and `0e+0` for zero.
   const [mantissa, exponent] = Math.abs(n).toExponential().split('e');
   const digits = mantissa.replace('.', '');
   // The decimal point sits after `point` digits: the value is 0.digits × 10^point.
   const point = Number(exponent) + 1;
   if (point <= -4 || point > 16) {
-    const e = point - 1;
     const tail = digits.length > 1 ? `.${digits.slice(1)}` : '';
-    return `${sign}${digits[0]}${tail}e${e < 0 ? '-' : '+'}${String(Math.abs(e)).padStart(2, '0')}`;
+    return `${sign}${digits[0]}${tail}e${exponent[0]}${exponent.slice(1).padStart(2, '0')}`;
   }
   if (point <= 0) return `${sign}0.${'0'.repeat(-point)}${digits}`;
   if (point >= digits.length) return `${sign}${digits}${'0'.repeat(point - digits.length)}.0`;
@@ -154,15 +153,16 @@ function reprStr(s: string): string {
   const quote = s.includes("'") && !s.includes('"') ? '"' : "'";
   let out = quote;
   for (const ch of s) {
-    const c = ch.codePointAt(0) as number;
+    // The escape has the width its digits need: `\x7f`, `\u2028`, `\U000e0001`.
+    const hex = (ch.codePointAt(0) as number).toString(16);
     if (ch === quote || ch === '\\') out += `\\${ch}`;
     else if (ch === '\t') out += '\\t';
     else if (ch === '\n') out += '\\n';
     else if (ch === '\r') out += '\\r';
     else if (ch === ' ' || !UNPRINTABLE.test(ch)) out += ch;
-    else if (c <= 0xff) out += `\\x${c.toString(16).padStart(2, '0')}`;
-    else if (c <= 0xffff) out += `\\u${c.toString(16).padStart(4, '0')}`;
-    else out += `\\U${c.toString(16).padStart(8, '0')}`;
+    else if (hex.length <= 2) out += `\\x${hex.padStart(2, '0')}`;
+    else if (hex.length <= 4) out += `\\u${hex.padStart(4, '0')}`;
+    else out += `\\U${hex.padStart(8, '0')}`;
   }
   return out + quote;
 }
@@ -186,7 +186,8 @@ export const str = (x: Json): string => (typeof x === 'string' ? x : repr(x));
 // ---------------------------------------------------------------------------
 
 const NUMBER = /(-?(?:0|[1-9][0-9]*))(\.[0-9]+)?([eE][-+]?[0-9]+)?/y;
-const HEX4 = /^[0-9a-fA-F]{4}$/;
+/** No anchor: the reader tests a slice of four characters at most. */
+const HEX4 = /[0-9a-fA-F]{4}/;
 const ESCAPES: Record<string, string> = { '"': '"', '\\': '\\', '/': '/', b: '\b', f: '\f', n: '\n', r: '\r', t: '\t' };
 /** CPython refuses to convert a longer integer literal. */
 const MAX_INT_DIGITS = 4300;
@@ -203,7 +204,8 @@ class Reader {
   }
 
   skipWhitespace(): void {
-    while (this.pos < this.text.length && ' \t\n\r'.includes(this.text[this.pos])) this.pos++;
+    // Past the end the character is `undefined`, which the list does not hold.
+    while (' \t\n\r'.includes(this.text[this.pos])) this.pos++;
   }
 
   value(): Json {
@@ -253,7 +255,7 @@ class Reader {
         if (!HEX4.test(hex)) return this.fail('Invalid \\uXXXX escape');
         this.pos += 4;
         out += String.fromCharCode(Number.parseInt(hex, 16));
-      } else if (esc !== undefined && esc in ESCAPES) {
+      } else if (Object.hasOwn(ESCAPES, esc)) {
         out += ESCAPES[esc];
       } else {
         return this.fail('Invalid \\escape');
@@ -359,7 +361,7 @@ interface Layout {
 function float(n: number, layout: Layout): string {
   if (Number.isFinite(n)) return floatRepr(n);
   if (!layout.allowNan) throw new InputError(`Out of range float values are not JSON compliant: ${floatRepr(n)}`);
-  return n > 0 ? 'Infinity' : '-Infinity';
+  return n === Infinity ? 'Infinity' : '-Infinity';
 }
 
 function write(x: Json, layout: Layout, depth: number): string {
@@ -395,7 +397,7 @@ const LONE_SURROGATE = /\p{Cs}/u;
 /** `s.encode("utf-8")`: a lone surrogate has no UTF-8 form, and Python refuses it. */
 export function utf8(s: string): Buffer {
   if (LONE_SURROGATE.test(s)) throw new InputError("'utf-8' codec can't encode a surrogate: surrogates not allowed");
-  return Buffer.from(s, 'utf8');
+  return Buffer.from(s);
 }
 
 export const sha256Hex = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex');

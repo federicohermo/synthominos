@@ -34,3 +34,5 @@ A deliberate change to a rule of the kernel removes the cases it contradicts and
   module to hash a resolved policy. It adds no rule.
 - **The upstream mutation script** (`tests/test-mutants.py`) is not ported: Stryker mutates the
   port.
+- **A branch that cannot run is not ported**, and a pattern that another pattern of its table
+  already covers is dropped. Each place has a comment. The recorded outcomes do not change.

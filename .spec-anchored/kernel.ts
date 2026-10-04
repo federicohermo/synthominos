@@ -39,22 +39,15 @@ const MERGE_CLAIMS = ['merged', 'landed', 'auto-merged', 'merge_complete'];
 
 const TRUTH_ROOTS: readonly (readonly [string, readonly string[]])[] = [
   ['spec_semantics', ['specs/**']],
-  ['golden_oracle', ['**/golden/**', 'tests/golden/**', '**/*.golden', '**/goldens/**']],
-  ['metrics_baseline', ['.metrics-baseline.json', '**/.metrics-baseline.json']],
+  ['golden_oracle', ['**/golden/**', '**/*.golden', '**/goldens/**']],
+  ['metrics_baseline', ['**/.metrics-baseline.json']],
 ];
-/** For each truth type: the policy key, the list key, and the value that grants it. */
-const TRUTH_GRANT: Record<string, readonly [string, string, string]> = {
-  spec_semantics: ['policy', 'allowed_spec_paths', 'semantic-amendment'],
-  golden_oracle: ['golden_policy', 'allowed_golden_paths', 'gated'],
-  metrics_baseline: ['baseline_policy', 'allowed_baseline_paths', 'gated'],
-};
 /** `external_side_effect` has no pattern: no path can show it. It is declared, and review enforces it. */
 const PERMISSION_TRIGGERS: readonly (readonly [string, readonly string[]])[] = [
   ['dependency_change', ['**/requirements.txt', 'requirements/*.txt', '**/package.json', '**/package-lock.json',
     '**/yarn.lock', '**/pnpm-lock.yaml', '**/go.mod', '**/go.sum', '**/Cargo.toml', '**/Cargo.lock',
     '**/pyproject.toml', '**/poetry.lock', '**/uv.lock', '**/Gemfile', '**/Gemfile.lock', '**/pom.xml',
-    '**/build.gradle', '**/build.gradle.kts', '**/*.csproj', '**/composer.json', '**/composer.lock', '**/mix.exs',
-    'requirements.txt', 'package.json', 'go.mod', 'Cargo.toml', 'pyproject.toml', 'uv.lock', 'pom.xml', 'build.gradle']],
+    '**/build.gradle', '**/build.gradle.kts', '**/*.csproj', '**/composer.json', '**/composer.lock', '**/mix.exs']],
   ['schema_change', ['**/migrations/**', '**/schema.sql', '**/*.prisma', '**/schema.graphql', 'db/schema.rb',
     '**/schema.json', '**/openapi.yaml', '**/openapi.yml', '**/openapi.json', '**/*.proto', '**/swagger.yaml']],
   ['data_migration', ['**/migrations/**', '**/seeds/**', '**/fixtures/data/**', '**/migrate_*.py', '**/migrate-*.sql',
@@ -68,6 +61,9 @@ const PERMISSION_TRIGGERS: readonly (readonly [string, readonly string[]])[] = [
  * with no change here. `scripts/**` stays reserved so a new gate there is covered; the tests of
  * the product are not captured, only the suites of the harness.
  */
+// The operator at the start of `**/AGENTS.md` also matches no folder, so that pattern covers the
+// root file. The Python original lists the root spelling too. Here this table and the three above
+// keep one spelling for each file.
 const GOVERNANCE_FLOOR: readonly string[] = [
   // harness code and gates
   'scripts/**', '.spec-anchored/**', 'tests/_harness.py', 'tests/test_kernel*.py', 'tests/test_corpus*.py',
@@ -84,8 +80,8 @@ const GOVERNANCE_FLOOR: readonly string[] = [
   // doctrine
   'GUIDELINE*.md', 'AUTONOMY-PLAYBOOK.md', 'INSTALL.md', 'REVIEW-FINDINGS.md', 'sources-and-learnings.md',
   // operational context: a run that edits its own instructions works under the new ones
-  'AGENTS.md', '**/AGENTS.md', 'CLAUDE.md', '**/CLAUDE.md', 'CLAUDE-*.md', '**/CLAUDE-*.md', '.cursorrules',
-  'architecture/constitution.md', 'architecture/**/constitution*.md', '**/constitution.md',
+  '**/AGENTS.md', '**/CLAUDE.md', '**/CLAUDE-*.md', '.cursorrules',
+  'architecture/**/constitution*.md', '**/constitution.md',
   // eval definitions
   'EVALS*.md', 'evals/spec-anchored/**', 'eval-results/spec-anchored/**',
   // transient run state
@@ -97,11 +93,11 @@ function profile(fields: Record<string, unknown>): JsonObject {
   const mode = fields.execution_mode;
   const supervised = mode === 'supervised';
   const unowned = mode === 'autonomous' || mode === 'unattended';
-  const permissions = (open: boolean) =>
-    ({ dependency_change: open, schema_change: open, data_migration: open, external_side_effect: open });
   return json({
     // The manifest may only go BELOW these ceilings: a worker does not grant itself a permission.
-    permission_ceiling: permissions(supervised),
+    permission_ceiling: {
+      dependency_change: supervised, schema_change: supervised, data_migration: supervised, external_side_effect: supervised,
+    },
     denied_path_patterns: [],
     // An autonomous or unattended run needs roots issued outside the run.
     requires_scope_roots: unowned,
@@ -162,7 +158,8 @@ const DRIVE = /^[A-Za-z]:/;
 function endsInHardBreak(line: string): boolean {
   const cps = codePoints(line);
   let spaces = 0;
-  while (spaces < cps.length && cps[cps.length - 1 - spaces] === ' ') spaces++;
+  // Past the start of the line the index is -1, which holds no space: the loop needs no bound.
+  while (cps[cps.length - 1 - spaces] === ' ') spaces++;
   return spaces >= 2 && spaces < cps.length && !isPySpace(cps[cps.length - 1 - spaces]);
 }
 
@@ -215,7 +212,7 @@ export type PathKind = 'path' | 'exact' | 'pattern';
  * - `exact`: a literal path used as a GRANT. The operators of the matcher are refused.
  * - `pattern`: a glob expression. Only the implemented operators, and no look-alike punctuation.
  */
-export function canonicalViolation(value: Json, kind: PathKind = 'path'): string | null {
+export function canonicalViolation(value: Json, kind: PathKind): string | null {
   if (!isStr(value)) return 'not a string';
   if (value === '' || value !== strip(value)) return 'empty or padded';
   if (value.startsWith('/') || DRIVE.test(value)) return 'absolute path';
@@ -228,22 +225,29 @@ export function canonicalViolation(value: Json, kind: PathKind = 'path'): string
     if (segment === '.') return '`.` segment';
     if (segment === '..') return 'parent traversal';
   }
-  if (kind === 'path') return null;
-  if (kind === 'exact') {
+  return KIND_CHECKS[kind](value, segments);
+}
+
+/** What each kind adds to the checks every path passes. A kind this table lacks is a crash, not a pass. */
+const KIND_CHECKS: Record<PathKind, (value: string, segments: readonly string[]) => string | null> = {
+  path: () => null,
+  exact(value) {
     if (!hasAny(value, GLOB_CHARS)) return null;
     return `uses a matcher operator (${charsIn(value, GLOB_CHARS).join(', ')}) where an exact path is required — `
       + 'a grant is never half a glob';
-  }
-  const bad = charsIn(value, PATTERN_LOOKALIKE_CHARS);
-  if (bad.length > 0) {
-    return `uses ${bad.map(repr).join(', ')}, which looks like an operator but is matched literally `
-      + `(implemented operators: ${OPERATORS.map(([token]) => token).join(', ')}) — express it as an exact path instead`;
-  }
-  if (segments.some(segment => segment.includes('**') && segment !== '**')) {
-    return '`**` must be a complete segment, not part of one';
-  }
-  return null;
-}
+  },
+  pattern(value, segments) {
+    const bad = charsIn(value, PATTERN_LOOKALIKE_CHARS);
+    if (bad.length > 0) {
+      return `uses ${bad.map(repr).join(', ')}, which looks like an operator but is matched literally `
+        + `(implemented operators: ${OPERATORS.map(([token]) => token).join(', ')}) — express it as an exact path instead`;
+    }
+    if (segments.some(segment => segment.includes('**') && segment !== '**')) {
+      return '`**` must be a complete segment, not part of one';
+    }
+    return null;
+  },
+};
 
 const pathMode = (value: string): PathKind => (isPattern(value) ? 'pattern' : 'exact');
 
@@ -315,10 +319,9 @@ function monotonicMerge(base: JsonObject, overlay: JsonObject): JsonObject {
     }
     if (key === 'forbidden_path_patterns') {
       const patterns = strList(value, key);
-      for (const pattern of patterns) {
-        // The universal spellings are not canonical patterns, and they are legal here.
-        if (!['**', '*', '**/*'].includes(pattern)) policyPath(pattern, key, true);
-      }
+      // The Python original exempts the universal spellings `**`, `*` and `**/*` from this check.
+      // The check accepts the three, so the exemption changes nothing and is not ported.
+      for (const pattern of patterns) policyPath(pattern, key, true);
       const before = get(base, key) as string[];
       const dropped = before.filter(pattern => !patterns.includes(pattern));
       if (dropped.length > 0) {
@@ -421,7 +424,7 @@ export const canonicalJsonBytes = (value: Json): Buffer => utf8(canonicalJson(va
  * CRLF to LF, trailing whitespace stripped, blank edges removed. In strict mode a Markdown hard
  * break is REFUSED: normalizing it away lets two plans that render differently share one hash.
  */
-export function canonicalTextBytes(text: string, strict = true): Buffer {
+export function canonicalTextBytes(text: string, strict: boolean): Buffer {
   let lines = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n').split('\n');
   if (strict) {
     lines.forEach((line, i) => {
@@ -432,8 +435,9 @@ export function canonicalTextBytes(text: string, strict = true): Buffer {
     });
   }
   lines = lines.map(line => rstrip(line));
-  while (lines.length > 0 && lines[0] === '') lines.shift();
-  while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+  // An empty list has no first and no last line, so neither loop needs a bound.
+  while (lines[0] === '') lines.shift();
+  while (lines.at(-1) === '') lines.pop();
   return utf8(`${lines.join('\n')}\n`);
 }
 
@@ -542,7 +546,8 @@ const RECORD_FIELDS: Record<string, 'int' | 'str'> = {
 };
 
 const DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-const INSTANT = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$/;
+/** No `^`: the caller already matched `RFC3339` from the start, and this shape cannot begin later. */
+const INSTANT = /(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$/;
 
 /** A real instant, as `datetime.fromisoformat` of Python 3.13 reads it: the shape is not a calendar. */
 function isRealInstant(stamp: string): boolean {
@@ -610,7 +615,7 @@ export function verifyApproval(record: Json, bundle: Json, policy?: Json | Resol
   if (!pyEq(run, get(bundle, 'run_id'))) {
     v.push(`approval record names run ${repr(run)} but the bundle is for ${repr(get(bundle, 'run_id'))} (cross-run replay)`);
   }
-  const ticketRepository = str(getOr(bundle, 'ticket_ref', '')).split('#')[0];
+  const ticketRepository = str(get(bundle, 'ticket_ref')).split('#')[0];
   if (!pyEq(repository, ticketRepository)) {
     v.push(`approval record names repository ${repr(repository)} but the ticket lives in ${repr(ticketRepository)} `
       + '(cross-repository replay)');
@@ -651,7 +656,7 @@ function semanticScopeViolations(sem: Json): string[] {
 
 function nonStringEntries(sem: Json): string[] {
   if (!isDict(sem)) return [];
-  return SEMANTIC_KEYS.flatMap(k => (isList(get(sem, k)) ? (get(sem, k) as Json[]) : [])
+  return SEMANTIC_KEYS.flatMap(k => (stringsOf(get(sem, k)) as Json[])
     .filter(item => !isStr(item))
     .map(item => `semantic_scope.${k} contains a non-string entry (${typeName(item)})`));
 }
@@ -764,7 +769,7 @@ export type Change = readonly [status: string, path: string];
  * `git diff --name-status` to a list of changes. Fails closed. The NUL form (`-z`) is the only
  * unambiguous one when a file name can hold a space, a quote or a tab.
  */
-export function parseNameStatus(text: string, nul = false): Change[] {
+export function parseNameStatus(text: string, nul: boolean): Change[] {
   const out: Change[] = [];
   const paired = (status: string) => 'RC'.includes(status[0]);
   if (nul) {
@@ -814,9 +819,11 @@ function surfaceViolations(allowed: readonly string[], policy: ResolvedPolicy): 
   const roots = get(policy, 'authorized_scope_roots');
   const mode = get(policy, 'execution_mode') as string;
   if (truthy(roots)) {
-    const norm = (roots as string[]).map(r => rstrip(r, '/'));
+    // A root is a canonical path, so it has no final slash. The head of a pattern may have one:
+    // `src/pay/` starts with `src/pay/`, so the head needs no trim either.
+    const norm = roots as string[];
     for (const pattern of allowed) {
-      const head = rstrip(pattern.split('*')[0], '/');
+      const head = pattern.split('*')[0];
       if (!norm.some(r => head === r || head.startsWith(`${r}/`))) {
         v.push(`allowed_paths entry ${repr(pattern)} is outside every authorized scope root ${repr(norm)}`);
       }
@@ -860,7 +867,8 @@ function changeViolations(
   const matches = (patterns: Json) => stringsOf(patterns).some(p => match(path, p));
 
   // 1. The governance floor: no run edits the contracts of the machine, whatever the manifest says.
-  if (get(policy, 'governance') === 'deny' && GOVERNANCE_FLOOR.some(g => match(path, g))) {
+  //    Every profile says `governance: deny`, and no overlay may touch that key.
+  if (GOVERNANCE_FLOOR.some(g => match(path, g))) {
     return [`${path}: governance floor (the run cannot rewrite the contracts, policies, or gates that judge it - `
       + 'use the harness-hardening flow)'];
   }
@@ -874,11 +882,14 @@ function changeViolations(
   // 3. A permission binds wherever the path lands. A profile may add `protected_path_classes`.
   const triggers = new Map<string, readonly string[]>(PERMISSION_TRIGGERS);
   const extra = get(policy, 'protected_path_classes');
-  for (const [permission, patterns] of isDict(extra) ? extra : []) {
-    triggers.set(permission, [...(triggers.get(permission) ?? []), ...stringsOf(patterns)]);
+  if (isDict(extra)) {
+    for (const [permission, patterns] of extra) {
+      const builtIn = triggers.get(permission);
+      triggers.set(permission, builtIn === undefined ? stringsOf(patterns) : [...builtIn, ...stringsOf(patterns)]);
+    }
   }
   for (const [permission, patterns] of triggers) {
-    if (patterns.some(p => match(path, p)) && !truthy(getOr(permissions, permission, false))) {
+    if (patterns.some(p => match(path, p)) && !truthy(get(permissions, permission))) {
       v.push(`${path}: touches ${permission} which the manifest declares false`);
     }
   }
@@ -890,16 +901,17 @@ function changeViolations(
   const kinds = truthClasses(path);
   if (kinds.length > 0) {
     for (const kind of sortedStrings(kinds)) {
-      const [policyKey, listKey, granting] = TRUTH_GRANT[kind];
-      const ceiling = getOr(policy, kind, 'proposal-only');
+      const ceiling = get(policy, kind);
+      // Only spec semantics can be `gated`: every profile holds the oracle and the baseline at
+      // `human-only`, and an overlay only lowers a ceiling. So the grant below is the one of a spec.
       if (ceiling !== 'gated') {
         v.push(`${path}: the authorized profile allows ${kind} only as ${repr(ceiling)} - the manifest cannot raise `
           + 'its own ceiling');
-      } else if (!pyEq(getOr(tc, policyKey, 'none'), granting)) {
-        v.push(`${path}: ${kind} write requires truth_change.${policyKey} == ${repr(granting)} `
+      } else if (get(tc, 'policy') !== 'semantic-amendment') {
+        v.push(`${path}: ${kind} write requires truth_change.policy == 'semantic-amendment' `
           + '(a spec amendment never authorizes the oracle)');
-      } else if (!stringsOf(get(tc, listKey)).includes(path)) {
-        v.push(`${path}: ${kind} write outside ${listKey} (exact paths only)`);
+      } else if (!stringsOf(get(tc, 'allowed_spec_paths')).includes(path)) {
+        v.push(`${path}: ${kind} write outside allowed_spec_paths (exact paths only)`);
       }
     }
     return v;

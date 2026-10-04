@@ -73,6 +73,12 @@ describe('canonicalize', () => {
     expect(run('canonicalize', 'doc.json', '--kind', 'json').stdout()).toBe(`${hashJson(strictJsonLoads(FILES['doc.json']))}\n`);
   });
 
+  it('takes each value of `--kind` and `--emit` by name', () => {
+    const hash = `${hashText(FILES['plan.md'])}\n`;
+    expect(run('canonicalize', 'plan.md', '--kind', 'text', '--emit', 'hash')).toMatchObject({ code: 0, out: [hash] });
+    expect(run('canonicalize', 'plan.md', '--emit', 'bytes').out).toEqual([Buffer.from(FILES['plan.md'])]);
+  });
+
   it('emits the canonical bytes: sorted keys, no spaces, `1.0` kept', () => {
     const { code, out } = run('canonicalize', 'doc.json', '--kind', 'json', '--emit', 'bytes');
     expect(code).toBe(0);
@@ -180,10 +186,27 @@ describe('a wrong call exits 2, and a file that cannot be read exits 1', () => {
     [['canonicalize', 'plan.md', '--kind', 'yaml'], 'canonicalize: --kind must be one of json, text'],
     [['build-approval', 'bundle.json'], 'build-approval: --policy is required'],
     [['validate-scope', 'extra', '--manifest', 'm', '--changes', 'c', '--profile', 'p'], 'validate-scope: expected 0 file argument(s)'],
+    [['verify-approval', 'record.json', '--policy', 'supervised-local/v1'], 'verify-approval: --bundle is required'],
+    [['verify-approval', 'record.json', '--bundle', 'bundle.json'], 'verify-approval: --policy is required'],
+    [['validate-scope', '--changes', 'c', '--profile', 'p'], 'validate-scope: --manifest is required'],
+    [['validate-scope', '--manifest', 'm', '--profile', 'p'], 'validate-scope: --changes is required'],
+    [['validate-scope', '--manifest', 'm', '--changes', 'c'], 'validate-scope: --profile is required'],
+    // A key that every object inherits is not a command, not an option and not a choice.
+    [['toString', 'plan.md'], 'expected one of:'],
+    [['constructor'], 'expected one of:'],
+    [['canonicalize', 'plan.md', '--toString'], 'canonicalize: unknown option --toString'],
+    [['build-approval', 'bundle.json', '--policy'], 'build-approval: --policy needs a value'],
   ])('%j', (argv, message) => {
     const { code, err } = run(...argv);
     expect(code).toBe(2);
     expect(err.join('')).toContain(message);
+  });
+
+  it('a file named as a key that every object inherits is a file', () => {
+    const fake = fakeIo({ toString: FILES['plan.md'], constructor: FILES['plan.md'] });
+    expect(main(['canonicalize', 'toString'], fake.io)).toBe(0);
+    expect(main(['canonicalize', 'constructor', '--kind', 'text'], fake.io)).toBe(0);
+    expect(fake.stdout()).toBe(`${hashText(FILES['plan.md'])}\n`.repeat(2));
   });
 
   it('a missing file is a failure of the input, not a crash', () => {

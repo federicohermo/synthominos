@@ -25,5 +25,6 @@
   "jsonReporter": { "fileName": "reports/mutation/mutation.json" },
   "thresholds": { "high": 100, "low": 100, "break": 100 },
   "dryRunTimeoutMinutes": 30,
+  "timeoutMS": 60000,
   "tempDirName": ".stryker-tmp"
 }

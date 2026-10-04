@@ -46,28 +46,35 @@ const CHOICES: Record<string, readonly string[]> = { '--kind': ['json', 'text'],
 
 class UsageError extends Error {}
 
-interface Call { readonly command: string; readonly files: readonly string[]; readonly options: ReadonlyMap<string, string> }
+/** `options` holds each option that carries a value, and `flags` each one that does not. */
+interface Call {
+  readonly command: string;
+  readonly files: readonly string[];
+  readonly options: ReadonlyMap<string, string>;
+  readonly flags: ReadonlySet<string>;
+}
 
 function parse(argv: readonly string[]): Call {
+  // `Object.hasOwn`, and not `in` or a plain lookup: `toString` is a key of every object. With no
+  // argument at all the command is `undefined`, which is no key either.
   const [command, ...rest] = argv;
-  const spec = command === undefined ? undefined : COMMANDS[command];
-  if (command === undefined || spec === undefined) {
-    throw new UsageError(`expected one of: ${Object.keys(COMMANDS).join(', ')}`);
-  }
+  if (!Object.hasOwn(COMMANDS, command)) throw new UsageError(`expected one of: ${Object.keys(COMMANDS).join(', ')}`);
+  const spec = COMMANDS[command];
   const files: string[] = [];
   const options = new Map<string, string>();
+  const flags = new Set<string>();
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i];
-    if (!(arg in spec.options)) {
+    if (!Object.hasOwn(spec.options, arg)) {
       if (arg.startsWith('--')) throw new UsageError(`${command}: unknown option ${arg}`);
       files.push(arg);
     } else if (!spec.options[arg]) {
-      options.set(arg, 'true');
+      flags.add(arg);
     } else {
       i += 1;
       const value = rest[i];
       if (value === undefined) throw new UsageError(`${command}: ${arg} needs a value`);
-      if (arg in CHOICES && !CHOICES[arg].includes(value)) {
+      if (Object.hasOwn(CHOICES, arg) && !CHOICES[arg].includes(value)) {
         throw new UsageError(`${command}: ${arg} must be one of ${CHOICES[arg].join(', ')}`);
       }
       options.set(arg, value);
@@ -75,7 +82,7 @@ function parse(argv: readonly string[]): Call {
   }
   if (files.length !== spec.positional) throw new UsageError(`${command}: expected ${spec.positional} file argument(s)`);
   for (const name of spec.required) if (!options.has(name)) throw new UsageError(`${command}: ${name} is required`);
-  return { command, files, options };
+  return { command, files, options, flags };
 }
 
 /** Prints the violations, or the message of acceptance. */
@@ -88,7 +95,7 @@ function report(io: Io, violations: readonly string[], accepted: string): number
   return 1;
 }
 
-function run({ command, files, options }: Call, io: Io): number {
+function run({ command, files, options, flags }: Call, io: Io): number {
   const document = (path: string) => strictJsonLoads(io.read(path));
   const option = (name: string) => options.get(name) as string;
   // A policy is a profile id, or the artifact a launcher issued. It is resolved exactly once.
@@ -100,7 +107,7 @@ function run({ command, files, options }: Call, io: Io): number {
     const text = io.read(files[0]);
     const bytes = options.get('--kind') === 'json'
       ? canonicalJsonBytes(strictJsonLoads(text))
-      : canonicalTextBytes(text, !options.has('--allow-hard-breaks'));
+      : canonicalTextBytes(text, !flags.has('--allow-hard-breaks'));
     io.out(options.get('--emit') === 'bytes' ? bytes : `${sha256Hex(bytes)}\n`);
     return 0;
   }
@@ -118,7 +125,7 @@ function run({ command, files, options }: Call, io: Io): number {
   }
   if (command === 'validate-scope') {
     const manifest = document(option('--manifest'));
-    const changes = parseNameStatus(io.read(option('--changes')), options.has('--nul'));
+    const changes = parseNameStatus(io.read(option('--changes')), flags.has('--nul'));
     return report(io, validateScope(manifest, changes, policy('--profile')),
       `OK - ${changes.length} changed path(s) within the approved scope`);
   }
