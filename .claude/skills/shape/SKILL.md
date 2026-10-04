@@ -47,7 +47,7 @@ The interview is done when the frontier is empty and the user confirmed every re
 - **Ask every time: does this make the instrument more expressive?** It is an instrument, not a
   game. There is no score and no win condition. A change that makes it harder or more complex
   without more expression is a finding.
-- **Can the rule run without React or Web Audio?** If not, it will live in `components/` and be
+- **Can the rule run without React or Web Audio?** If not, it will live in `ui/` and be
   tested only in the `browser` project, through the DOM. Move it into `domain/`, where a `node`
   test exercises it. Decide this here, not during implementation.
 - **A fixed value is not invented in the interview.** It comes from the code, from a measurement,

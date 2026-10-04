@@ -21,7 +21,7 @@ const PIECES = Object.keys(SHAPES) as PieceKey[];
  *
  * Es el mismo tipo de test que `palette.test.ts` —puro, sin DOM y sin React, en el
  * `environment: 'node'` del resto del repo—, y por la misma razon que `route-source`
- * tiene el suyo: lo que `components/` decide tambien es una decision.
+ * tiene el suyo: lo que `ui/` decide tambien es una decision.
  */
 describe('cellTextFor — el texto de una celda, en las 96 orientaciones', () => {
   it('AC-MUS-026 — el numero es el PASO y no el grado', () => {

@@ -9,7 +9,7 @@ import type { Dims } from './board.types.ts';
  * 5 x 5 y no 4 x 4 porque 5 es el lado de la caja mas chica que contiene cualquier
  * pentomino en cualquiera de sus 8 orientaciones —el maximo en un eje lo pone sola la
  * `I`, 5x1 acostada y 1x5 parada—, o sea que abajo de 5 hay piezas que no entran en
- * ninguna posicion. Es el mismo argumento que `MINI_BOX` en `components/`, sobre otro
+ * ninguna posicion. Es el mismo argumento que `MINI_BOX` en `ui/`, sobre otro
  * dibujo: aquel es la caja donde se dibuja la miniatura y este es el tablero, y coinciden
  * porque los dos tienen que contener a la `I`.
  *

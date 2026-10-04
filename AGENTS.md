@@ -26,13 +26,15 @@ instrument more expressive?
 ## Architecture
 
 ```text
-types/ ← constants/ ← modules        inside each layer
-domain/ and audio/ never see each other; components/ and App.tsx import from both
+src/<capability>/{domain,audio,ui}/   one folder per contract in specs/, its layers inside
+domain/ and audio/ never see each other; ui/ and App.tsx import from both
 ```
 
+**The folder is the capability.** `src/circuit/` is the code of `specs/circuit/circuit.md`, and its
+generated `AGENTS.md` points there. A new file goes in the capability whose rule it implements.
 `domain/` is pure: no React, no Web Audio, no DOM. `audio/` speaks MIDI and does not know the
-domain. `components/` are presentational. `App.tsx` is the shell. Detail:
-[overview](./docs/architecture/overview.md) · [constitution](./docs/architecture/constitution.md).
+domain. `ui/` is presentational. `App.tsx` is the shell. Detail:
+[directory structure](./docs/architecture/directory-structure.md) · [constitution](./docs/architecture/constitution.md).
 
 ## Rules, and who verifies each
 
@@ -43,6 +45,7 @@ domain. `components/` are presentational. `App.tsx` is the shell. Detail:
 - **No `.only`, no `.skip`, no test without an assertion** — `@vitest/eslint-plugin`.
 - **A comment cites what resolves** — `local/comment-anchor`, `local/comment-shape`.
 - **Every criterion of a `ratified` spec is cited by a test title** — `specs/__tests__/specs.test.ts`.
+- **Each folder under `src/` is a contract, and each file sits in a layer** — the same gate.
 - **The branch prefix decides who writes `src/` and `mcp-server/src/`** — the hook
   `.agents/scripts/hook.ts`. Prefixes and hotfixes: [branches](./docs/infra/branches.md).
 - **A worktree of this repo opens only under `.claude/worktrees/`** — the same hook.

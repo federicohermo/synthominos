@@ -77,7 +77,7 @@ Write the contract against the code, not against memory.
    `simulate_board` or `check_invariants` before you derive the musical model by hand.
 2. Check that an ID is free: `rg -n "AC-<COD>-" specs/ src/ mcp-server/`.
 3. **Cite a fixed value by name; do not copy it.** The exact number lives in the code, under
-   `<layer>/constants/`.
+   `<layer>/*.constants.ts`.
 4. **A gap is an `OQ-<COD>-###`**, with why it is still open, who decides, and what it blocks.
    Never an invented value.
 5. **Measure in the process that runs the behavior.** A rule about sound is measured on an audio

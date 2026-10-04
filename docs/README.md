@@ -44,7 +44,7 @@ of five notes. The piece identity and its orientation give the notes.
 | React | 19.x | UI library |
 | TypeScript | 5.8 | Static types |
 | Tailwind CSS | 4.x | Utility-first styles, through `@tailwindcss/vite` |
-| Web Audio | n/a | Synthesis and scheduling, no library (`src/audio/`) |
+| Web Audio | n/a | Synthesis and scheduling, no library (`src/<capability>/audio/`) |
 
 ---
 

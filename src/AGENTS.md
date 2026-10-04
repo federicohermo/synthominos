@@ -176,9 +176,12 @@ largo y verdadero es barato; uno corto y podrido es caro.
 
 # Capa de dominio
 
-Puro: sin React, sin Web Audio, sin DOM. `transform.ts` (geometría), `board.ts` (las reglas del
-tablero), `music.ts` (el modelo musical), `sequence.ts` (el circuito y los offsets del ciclo) e
-`invariants.ts` (los chequeos). Los datos viven en `domain/constants/` y los tipos en `domain/types/`.
+Pure: no React, no Web Audio, no DOM. Each capability has its own `domain/` folder:
+`pieces/domain/transform.ts` (geometry) and `invariants.ts` (the checks),
+`board-editing/domain/board.ts` (the rules of placement), `musical-model/domain/music.ts` (the
+musical model), and `circuit/domain/routing.ts` (the graph of the board) and `sequence.ts` (the
+circuit and the cycle offsets). The data of a module lives next to it in `<module>.constants.ts`,
+and its types in `<module>.types.ts`.
 
 ## El orden del array de celdas
 
@@ -313,11 +316,11 @@ formalidad: un listener de `resize` es exactamente lo que la sección «Los list
 resolvía, y el shell se quedó con el `ref` y la llamada. **Ninguna función pura y ningún literal de
 dominio** — y eso ya no significa «se va a `domain/`»: un `.tsx` no puede exportar nada además del
 componente (`react-refresh/only-export-components`), así que lo que vive acá no se puede testear, pero
-el destino puede ser tanto `domain/` como un `.ts` de `components/`. Es lo que el spec 029 aplicó a los
+el destino puede ser tanto `domain/` como un `.ts` de `ui/`. Es lo que el spec 029 aplicó a los
 dos últimos lugares donde quedaba lógica encerrada: los bucles de `Playhead.tsx` y `Spectrum.tsx`
 salieron a `playhead-loop.ts` y `spectrum-loop.ts` sin cambiar una línea de comportamiento.
 
-Desde ese spec `components/` tiene **dos clases de test y las dos corren con `pnpm test`**: los `.ts`
+Desde ese spec `ui/` tiene **dos clases de test y las dos corren con `pnpm test`**: los `.ts`
 puros en el proyecto `node` —`input.ts`, `cell-text.ts`, `cell-name.ts`, `piece-mini.ts`,
 `orientation-text.ts`, `route-source.ts`, `engine-bridge.ts`, `palette.constants.ts` y los dos
 `-loop.ts`— y los
@@ -376,7 +379,7 @@ con nodos que crea y destruye él mismo.
   asincrónico; sincrónicos si la limpieza tiene que ganarle al re-montaje de StrictMode.
 - **`key` por id, nunca por índice**, en listas de elementos removibles.
 - **Un solo export por `.tsx`.** `react-refresh/only-export-components` lo exige. Los tipos de props
-  que se comparten entre un contenedor y sus paneles van a `components/types/*.types.ts`
+  que se comparten entre un contenedor y sus paneles van a `ui/*.types.ts`
   (`panel.types.ts`); los que no se comparten quedan inline y sin exportar. Es la misma regla que
   mantuvo al dominio sin tests mientras vivía acá, y la que le sacó al shell sus seis `useEffect` con
   el spec 022.
@@ -550,7 +553,7 @@ siendo lo correcto.
 El spec 013 fue el primero que agregó uno —hasta ahí el único `addEventListener` de `src/` era un
 `matchMedia` en `Spectrum.tsx`—, así que la regla la escribió él y la próxima se copia de esta.
 
-- **El listener global vive en un hook de `components/`, en un efecto propio** —`use-input.ts` desde
+- **El listener global vive en un hook de `ui/`, en un efecto propio** —`use-input.ts` desde
   el spec 022—, y el componente sobre el que escucha no gana ni estado ni efectos. El shell es quien
   tiene los setters, así que el hook recibe **callbacks y no setters**: así cambiar la forma del estado
   es cambiar el shell y no el hook.
@@ -576,7 +579,7 @@ El spec 013 fue el primero que agregó uno —hasta ahí el único `addEventList
   lo escriben los dos; vive en el shell, que es quien los compone. Meterlo adentro del hook que lo lee
   deja al otro sin forma de escribirlo, y ahí vuelve el bug de `Ctrl`+rueda del spec 013 sin que falle
   un solo test.
-- **La DECISIÓN del gesto se extrae como pura a `components/`**, recibiendo los campos del evento que
+- **La DECISIÓN del gesto se extrae como pura a `ui/`**, recibiendo los campos del evento que
   importan y no el evento. En un `.tsx` no se puede ni exportar, y como pura corre en el proyecto
   `node` —sin navegador, sin fabricar un `KeyboardEvent`— que es donde la decisión se verifica barata y
   exhaustiva. El precedente son `input.ts`, `cell-text.ts`, `route-source.ts` y `engine-bridge.ts`.

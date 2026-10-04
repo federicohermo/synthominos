@@ -114,7 +114,7 @@ export function occupantAt(placed: readonly PlacedPiece[], x: number, y: number)
  * Existe para que la derivacion celda→nota no viva adentro de `Board.tsx`. El
  * argumento no es de costo —cinco comparaciones por celda es irrelevante, midiera el
  * tablero 60 celdas o 390— sino de cobertura: cuando se escribio,
- * `components/` no tenia tests, asi que un `findIndex` ahi adentro dejaba verificado solo
+ * `ui/` no tenia tests, asi que un `findIndex` ahi adentro dejaba verificado solo
  * por captura el unico paso del que depende lo que se ve, y una captura no distingue un
  * mapeo correcto de uno corrido en uno. Hoy la capa tiene tests,
  * pero la pura sigue siendo mas barata de agotar que un render.

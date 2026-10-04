@@ -18,7 +18,7 @@ import { cycleGeneration } from '../audio/engine.ts';
  * circuito encolado mientras suena el viejo, justo durante los hasta 7,5 s de espera
  * que este spec existe para hacer visibles.
  *
- * Vive en `components/` y no en `audio/` por esa misma frontera: habla `Cell`. Es el
+ * Vive en `ui/` y no en `audio/` por esa misma frontera: habla `Cell`. Es el
  * mismo cruce que `proyectarAlMotor` (`playback/ui/engine-bridge.ts`) ya hace al proyectar la
  * secuencia para `setSequence`.
  *

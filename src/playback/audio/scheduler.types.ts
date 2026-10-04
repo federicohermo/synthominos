@@ -34,7 +34,7 @@ import type { HIT } from './scheduler.constants.ts';
  *
  * Por eso esta forma es la del dominio MENOS `pieceId` y MENOS `cell`:
  * `playback/ui/engine-bridge.ts` es el unico puente entre las dos capas y entrega la secuencia
- * dejando caer esos campos. Vive en `components/` porque es la unica capa que puede
+ * dejando caer esos campos. Vive en `ui/` porque es la unica capa que puede
  * importar los dos tipos `Sequence` —el override de eslint le prohibe a `domain/` ver
  * `audio/` y viceversa—, y es una PURA con test: escrita adentro del shell estaba
  * dos veces y no se podia exportar ni verificar. Es una

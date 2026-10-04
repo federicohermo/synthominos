@@ -5,9 +5,12 @@ paths:
 
 # Capa de dominio
 
-Puro: sin React, sin Web Audio, sin DOM. `transform.ts` (geometría), `board.ts` (las reglas del
-tablero), `music.ts` (el modelo musical), `sequence.ts` (el circuito y los offsets del ciclo) e
-`invariants.ts` (los chequeos). Los datos viven en `domain/constants/` y los tipos en `domain/types/`.
+Pure: no React, no Web Audio, no DOM. Each capability has its own `domain/` folder:
+`pieces/domain/transform.ts` (geometry) and `invariants.ts` (the checks),
+`board-editing/domain/board.ts` (the rules of placement), `musical-model/domain/music.ts` (the
+musical model), and `circuit/domain/routing.ts` (the graph of the board) and `sequence.ts` (the
+circuit and the cycle offsets). The data of a module lives next to it in `<module>.constants.ts`,
+and its types in `<module>.types.ts`.
 
 ## El orden del array de celdas
 

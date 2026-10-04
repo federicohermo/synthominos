@@ -81,7 +81,7 @@ someone must remember to make.
 Three properties make it worth it, and the three are the usual one:
 
 - **It imports; it does not copy.** `resources/constantes.ts` has no numeric literal. The 14 values
-  come from `src/domain/constants/` and `src/audio/constants/`, grouped by file with property
+  come from the `*.constants.ts` files of `src/<capability>/domain/` and `src/<capability>/audio/`, grouped by file with property
   shorthand. So the key **is** the imported identifier, and a rename breaks the import instead of
   lying.
 - **No `cacheHint`, by type.** `ResourceDef.config` is a bare `ResourceMetadata`, so a `cacheHint`

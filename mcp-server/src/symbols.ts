@@ -289,7 +289,7 @@ export interface CodeIndex {
  * Lee y parsea el codigo. Es la unica parte que toca el disco.
  *
  * `soloGrafo` son directorios de los que interesan las ARISTAS y no los simbolos:
- * hoy es `mcp-server/src/`, que importa 45 cosas de `src/domain/` y `src/audio/`.
+ * hoy es `mcp-server/src/`, que importa 45 cosas de `src/<capability>/domain/` y `src/<capability>/audio/`.
  * Sin ellos `usedBy` sub-reporta y la tool queda menos completa que el grep que
  * vino a reemplazar — un `grep notesForRotation` encuentra `describePiece.ts` y
  * el grafo, si no se lo indexa, no. Sus exports quedan afuera a proposito: el

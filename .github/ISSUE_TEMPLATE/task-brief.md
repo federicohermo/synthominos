@@ -35,7 +35,7 @@ labels: ""
 ## Contract
 
 <!-- Only if new signatures, types or data appear. Each one with its layer (`domain/`, `audio/`,
-     `components/`, `mcp-server/`) and its return type. The failure case sits next to the
+     `ui/`, `mcp-server/`) and its return type. The failure case sits next to the
      success case. -->
 
 ## File boundaries

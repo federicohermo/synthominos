@@ -27,13 +27,13 @@ agent.
 
 ### The dependency direction
 
-`src/` has four layers with **one direction**:
+`src/` has one folder per capability, and three layers inside each one, with **one direction**:
 
 ```text
-types/ ← constants/ ← modules              types/ imports nothing from outside types/
-transform.ts ← board.ts                    domain/ imports nothing from outside domain/
-             ← music.ts ← invariants.ts    audio/  imports nothing from outside audio/
-                                           components/ and App.tsx import from both
+src/<capability>/domain/   imports no audio/ and no ui/ of any capability
+src/<capability>/audio/    imports no domain/ and no ui/ of any capability
+src/<capability>/ui/       imports from both, and so does App.tsx
+domain modules:            transform ← board · routing · music ← sequence · invariants
 ```
 
 `domain/` and `audio/` are **siblings with no edge between them**: the engine speaks MIDI numbers and
@@ -44,26 +44,27 @@ does not know what a pentomino is.
 override per layer. A forbidden import added by hand fails `pnpm lint` with the message of its zone.
 This is tested from a module and from a test.
 
-**A path is not a string.** A rule on the import *string* needs patterns with `../` and `../../`,
-because `types/`, `constants/` and `__tests__/` sit one level below the modules. A new
-`domain/sub/x.ts` then stays uncovered until someone adds a pattern. Zones resolve the path against
-the filesystem, so a new folder is covered on its own.
+**A path is not a string.** A rule on the import *string* needs one pattern per depth of `../`, and
+a new folder stays uncovered until someone adds a pattern. Zones resolve the path against the
+filesystem, and their globs (`./src/*/domain/**`) cover a new capability on its own.
 
 **`no-restricted-imports` keeps the packages**, because an npm package has no path in the repo: React
 for `domain/` and `audio/`, and the global-state packages for all of `src/`. It uses the
 `typescript-eslint` variant and not the core one, because that variant also sees `import type`. A
 careless refactor uses `import type` to slip through.
 
-**`domain/` has an internal direction too, and the linter verifies it.** Without it, a `board.ts`
-that imports `sequence.ts` passes lint in silence. `DOMAIN_INTERNO` in `eslint.config.js` writes it
-module by module, in three levels:
+**The domain modules have a direction too, and the linter verifies it.** Without it, a `board.ts`
+that imports `sequence.ts` passes lint in silence. The modules live in different capabilities, so
+`DOMAIN_MODULES` and `DOMAIN_DIRECTION` in `eslint.config.js` write it module by module, in three
+levels:
 
-- `transform.ts` at the bottom.
-- `board.ts` and `music.ts` above it, and **they do not know each other**. The board rules and the
-  musical model are orthogonal: that is a property of the instrument.
-- `sequence.ts` and `invariants.ts` as leaves that do not import each other.
+- `transform.ts` (pieces) at the bottom.
+- `board.ts` (board-editing), `routing.ts` (circuit) and `music.ts` (musical-model) above it.
+  `music.ts` **does not know the other two**: the board rules and the musical model are orthogonal,
+  and that is a property of the instrument.
+- `sequence.ts` (circuit) and `invariants.ts` (pieces) as leaves that do not import each other.
 
-Those five rows expand to five **zones** of the same rule. So the flat-config trap does not apply
+Those six rows expand to six **zones** of the same rule. So the flat-config trap does not apply
 there: there is no override to overwrite. The trap is this: the most specific override replaces the
 previous one instead of adding to it. It still applies to the two `no-restricted-imports` blocks. That
 is why the groups are named constants (`GRUPO_ESTADO`, `GRUPO_REACT`) and not lists written twice.
@@ -81,23 +82,23 @@ module `transform.ts`.
 
 | Role | Folder | File |
 |---|---|---|
-| logic of one concern | the layer | `<module>.ts` |
-| a type that crosses a boundary | `<layer>/types/` | `<module>.types.ts` |
-| data or a fixed value | `<layer>/constants/` | `<module>.constants.ts` |
+| logic of one concern | `src/<capability>/<layer>/` | `<module>.ts` |
+| a type that crosses a boundary | next to its module | `<module>.types.ts` |
+| data or a fixed value | next to its module | `<module>.constants.ts` |
 | test of a module | `<layer>/__tests__/` | `<module>.test.ts` |
 | test helper | `<layer>/__tests__/` | descriptive name |
-| component | `components/` | `PascalCase.tsx`, only export |
+| component | `src/<capability>/ui/` | `PascalCase.tsx`, only export |
 | hook that wires a module | next to the module | `use-<module>.ts` |
 | hook with no module of its own | `<layer>/hooks/` | `useCamelCase.ts` |
 | validation of external data | `<layer>/schemas/` | `<module>.schema.ts` |
 | internal helper of a module | `<layer>/utils/` | `<module>.utils.ts` |
-| generic helper with no domain | `src/lib/` | `<topic>.ts` |
+| helper that two capabilities use | the capability that owns its rule | the other one imports it |
 
-**Modules do not declare constants.** A literal with a meaning goes to `constants/`. The only numbers
+**Modules do not declare constants.** A literal with a meaning goes to `<module>.constants.ts`. The only numbers
 left in a module are the ones that cannot have a name: an index `+ 1`, a `% 12` that is pitch-class
 arithmetic, the `440`/`69` that *defines* the MIDI anchor.
 
-**The linter verifies this in `domain/` and `audio/`, and not in `components/`.** The line follows
+**The linter verifies this in `domain/` and `audio/`, and not in `ui/`.** The line follows
 the reason in the next paragraph: the damage came from a value written in two places. A private
 constant of one component cannot get out of sync with anything.
 
@@ -108,7 +109,7 @@ nothing kept them in sync:
 - The tempo `110` was in the UI and in the engine.
 - The cell size lived next to a `w-7 h-7` that had to be worth the same.
 
-`components/` has no private constants today: all of them live in `components/constants/`, with
+`ui/` has no private constants today: all of them live in `ui/*.constants.ts`, with
 their docblocks whole. The scope of the linter does not change because of that. What holds the line
 is measurable: a private constant cannot get out of sync with anything. The selector does not look
 at `ObjectExpression` either: `MOTOR` and `RUTA_VACIA` are wiring of functions, not fixed values.
@@ -122,11 +123,11 @@ The `Props` of each component are the exception. They stay **inline and unexport
 - `input.ts` has the pure input functions, and `use-input.ts` has the two effects that wire them.
 
 The kebab-case name and the adjacency make the pair visible. The decision lives in the file without
-`use-`, and the wiring lives in the file with it. `components/hooks/` would split each pair across two
+`use-`, and the wiring lives in the file with it. `ui/hooks/` would split each pair across two
 folders for a naming convention. `hooks/` stays reserved for a hook that wires **no** module.
 
-**A role folder is created with its first file.** Today there is no `hooks/`, `utils/`, `schemas/` or
-`lib/`: they would be empty.
+**A role folder is created with its first file.** Today there is no `hooks/`, `utils/` or `schemas/`:
+they would be empty.
 
 <a id="growth-table"></a>
 
@@ -138,8 +139,12 @@ folders for a naming convention. `hooks/` stays reserved for a hook that wires *
 | validation of external data (persist, share by URL) | `<layer>/schemas/` + zod — **a decision for its own spec** |
 | an asset imported from code | `src/assets/` |
 | a provider or a router | `src/app/`, with `App.tsx` inside |
-| a second screen or mode | only then does `src/features/` make sense |
+| a second screen or mode | a capability of its own: a contract in `specs/`, then its folder |
 | state that two branches of the tree need | lift the state, or a single-purpose hook in `<layer>/hooks/` — **never** a global store |
+
+A folder under `src/` that is no capability is part of the shell. The spec gate rejects it until
+its name is in `SHELL`, in `.agents/scripts/specs.ts`: `src/testing/`, `src/assets/` and `src/app/`
+go there with their first file.
 
 ### No barrels, explicit extensions, no aliases
 
@@ -247,7 +252,7 @@ pass in silence.
 
 **The repo has none, and it cannot have one**: `tsconfig.app.json` has `erasableSyntaxOnly: true`,
 which rejects them with `TS1294`. This is not a restriction to lift. The same option keeps the code
-*type-strippable*, and that lets node load `src/domain/` without a build. An `enum` emits runtime
+*type-strippable*, and that lets node load `src/<capability>/domain/` without a build. An `enum` emits runtime
 code, so it stays out.
 
 The replacement for any closed set puts its two halves in the role folders. This is the closed set
@@ -316,7 +321,7 @@ but it is the kind of thing someone "fixes" by mistake.
   linter verifies it by **two** paths, because one is not enough:
   - the package (Redux, Zustand and similar), with `no-restricted-imports`;
   - the **call** to `createContext`. The package ban does not catch it: to import `react` in
-    `components/` is legitimate, so the ban there is on the call, not the import.
+    `ui/` is legitimate, so the ban there is on the call, not the import.
 - **What is not UI state does not go in state.** The id counter lives in a `useRef`, because a change
   to it must not re-render. The `AudioContext` and the engine sequence (the active one and the
   pending one) live in module singletons, because there is one per tab, not one per component.
@@ -340,7 +345,7 @@ the hook receives the result, not the rule.
 **The linter verifies it** (`no-restricted-syntax` on `src/**/*.tsx`). The counts today:
 
 - **Nine production effects.**
-  - Seven live in three hooks of `components/`: four reconciliation effects in `use-engine.ts`, two
+  - Seven live in three hooks of `ui/`: four reconciliation effects in `use-engine.ts`, two
     input effects in `use-input.ts`, and the viewport measure in `use-grid.ts`, a `useLayoutEffect`.
   - **Two live in a `.tsx`**: `Playhead.tsx` and `Spectrum.tsx`.
   - `App.tsx` declares none.

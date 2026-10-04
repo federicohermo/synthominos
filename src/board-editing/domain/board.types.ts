@@ -47,7 +47,7 @@ export interface PlacedPiece {
  * **Es un parámetro y no una constante.** El tablero medía `GRID_W × GRID_H` = 10 × 6 y las
  * funciones del dominio lo leían de `constants/board.constants.ts`; hoy mide lo que entra
  * en la pantalla —26 × 15 en un escritorio de 1920 × 1080— y quien lo sabe es la capa que
- * ve el viewport, que es `components/`. El dominio no puede leerlo de ningún lado: se lo
+ * ve el viewport, que es `ui/`. El dominio no puede leerlo de ningún lado: se lo
  * tienen que decir.
  *
  * Lo reciben las tres funciones que miran el tablero como un todo —`isValid`,

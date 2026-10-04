@@ -65,7 +65,7 @@ mecanismo. Sin adopción no hay ahorro, y lo único que decide la adopción es e
 ## Cuatro cosas que no son obvias
 
 **Los imports de `src/` llevan `.ts` explícito, y no es cosmético.** Node los necesita para resolver.
-Un import sin extensión dentro de `src/domain/` rompe este server y **no** rompe la app, porque Vite
+Un import sin extensión dentro de `src/<capability>/domain/` rompe este server y **no** rompe la app, porque Vite
 resuelve igual: el error sería invisible del lado del navegador. Lo ataja `pnpm mcp:test`.
 
 **El tsconfig incluye `DOM` en `lib` aunque el server nunca toque el DOM.** Typechequea la cadena
@@ -76,7 +76,7 @@ aritmética.
 **Nada de dominio se escribe acá.** Rotar, reflejar, colocar, validar, calcular notas y chequear
 invariantes viene todo de `src/`. Lo propio del server es el render ASCII, el parseo de los specs, el
 índice de símbolos y el formato de las respuestas. Si aparece la tentación de calcular una rotación o
-una escala en este paquete, es señal de que falta un export en `src/domain/` — y eso es un cambio de
+una escala en este paquete, es señal de que falta un export en `src/<capability>/domain/` — y eso es un cambio de
 `src/`, en su propio commit.
 
 **`typescript` es una dependencia de runtime, no de desarrollo.** `symbols.ts` la importa para parsear

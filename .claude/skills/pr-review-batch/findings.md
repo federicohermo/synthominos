@@ -25,7 +25,7 @@ says only how they land on a diff.
 ### Layers: the axis no tool sees
 
 The linter checks the direction of each import (`import-x/no-restricted-paths`). It does not
-check where a rule lives. A rule of the instrument written in `components/` or `App.tsx` passes
+check where a rule lives. A rule of the instrument written in `ui/` or `App.tsx` passes
 every node of `pnpm verify` and has no unit test of its own.
 
 The test: can the rule run without React, Web Audio or the DOM? If yes and it is not in
@@ -42,7 +42,7 @@ Do not report what `pnpm verify` already rejects. The PR cannot be green with it
 | The explicit `.ts`/`.tsx` extension, no barrels, no aliases | Comment and commit language, as `docs/guides/conventions.md` sets |
 | `enum`, `any`, `@ts-ignore`, `eslint-disable`, the `!` outside its overrides | A deletion sits in its own commit |
 | Global state (store packages and `createContext`) | A new value does not duplicate one that exists under another name |
-| Constants outside `<layer>/constants/` in `domain/` and `audio/` | A signature change reached the spec, the issue and the docs |
+| Constants outside `<layer>/*.constants.ts` in `domain/` and `audio/` | A signature change reached the spec, the issue and the docs |
 | `.only`, `.skip` and a test with no assertion | Each AC is falsifiable, and its test exercises it |
 | Comment shape and citations (`local/comment-*`), Markdown lint | The test sits in the right Vitest project for what it needs |
 | Coverage at 100 in the four metrics | |

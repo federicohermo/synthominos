@@ -1,6 +1,6 @@
 # Capa de Audio
 
-El motor vive en `src/audio/` y está construido directamente sobre Web Audio, sin librerías. Es la
+El motor vive en `src/<capability>/audio/` y está construido directamente sobre Web Audio, sin librerías. Es la
 parte del código con más decisiones no obvias.
 
 ## El grafo
@@ -43,7 +43,7 @@ testeable. Ahora lo sostiene el grafo de imports, y la zona del linter
 Efecto lateral: se puede importar `scheduler.ts` **sin** arrastrar el módulo de los singletons a un
 proceso de node.
 
-Los valores fijos de cada capa viven en `audio/constants/` y los tipos en `audio/types/`, con el nombre
+Los valores fijos de cada capa viven en `audio/*.constants.ts` y los tipos en `audio/*.types.ts`, con el nombre
 de su módulo. Ahí están, por ejemplo, la duración de la nota y su release: `NOTE_INTERVALS` y
 `RELEASE_INTERVALS` los fijan en intervalos, no en segundos, y `scheduleVoice` no tiene default para
 `dur` ni para `rel` —un default fijo sería una constante que ya no puede ser constante, porque las dos
@@ -209,7 +209,7 @@ más fina y su propio cambio.
 Un salto de `d` celdas entre la salida de una pieza y la entrada de la siguiente produce `d − 1`
 eventos intermedios, uno por celda del camino que devuelve `routeBetween(a, b, placed)`
 (`board-editing/domain/board.ts`). Sobre celda **vacía** suena una **campana de altura fija** de 50 ms a volumen
-bajo (`CLICK_MIDI`, `CLICK_VELOCITY`, `CLICK_SECONDS` en `audio/constants/`) — `scheduleClick` en
+bajo (`CLICK_MIDI`, `CLICK_VELOCITY`, `CLICK_SECONDS` en `audio/*.constants.ts`) — `scheduleClick` en
 `voice.ts` es la otra forma de sonido de la capa, aparte de `scheduleVoice`.
 
 Fue **ruido blanco** desde el spec 009 y hasta el 015, con un argumento explícito: un oscilador
@@ -576,7 +576,7 @@ Dos trampas que costaron un ciclo de tests cada una:
 ### En el navegador
 
 ```js
-const m = await import('/src/audio/engine.ts');   // en dev, mismo singleton
+const m = await import('/src/playback/audio/engine.ts');   // en dev, mismo singleton
 m.sequenceInfo();                                  // { steps, clicks, crosses, length } de la activa
 m.clockRunning();                                  // reloj
 m.audio().state;                                   // 'running' | 'suspended'

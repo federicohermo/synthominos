@@ -35,7 +35,7 @@ import { encolar, reiniciar } from './route-source.ts';
 /**
  * El transporte real, cableado al rol que espera `alternarTransporte`.
  *
- * Const de módulo y NO en `components/constants/`, pese a la regla del repo de que los
+ * Const de módulo y NO en un archivo de constantes de `ui/`, pese a la regla del repo de que los
  * módulos no declaran constantes: esa regla existe para los VALORES FIJOS que tenían que
  * coincidir en dos lados, y esto no es un valor sino el cableado de tres funciones
  * importadas de `playback/audio/engine.ts`. Mandarlo a `constants/`, que hoy sólo tiene datos, la
@@ -67,7 +67,7 @@ export function frenarTransporte(): void { stopClock(); }
  *
  * Va acá al lado de `frenarTransporte()` y por el mismo motivo, que es lo que este spec
  * arregla: el Reset tiene que hablarles a las dos colas, y éste es el único módulo de
- * `components/` por donde el shell le habla a las dos. Si `App.tsx` importara
+ * `ui/` por donde el shell le habla a las dos. Si `App.tsx` importara
  * `route-source.ts` para esta línea, la segunda cola se reiniciaría por un camino
  * distinto del de la primera — que es exactamente la asimetría que dejó al velo
  * dibujado sobre un tablero vacío.

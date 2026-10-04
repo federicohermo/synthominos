@@ -10,8 +10,10 @@ the code.
 
 ## One direction of dependency
 
-`types/ ← constants/ ← modules` inside each layer, and `domain/` and `audio/` never see each
-other. `components/` and `App.tsx` import from both. `import-x/no-restricted-paths` enforces it.
+The code of each capability lives in `src/<capability>/`, with the name of its contract, and its
+layers are subfolders. In every capability, `domain/` and `audio/` never see each other, and `ui/`
+and `App.tsx` import from both. `import-x/no-restricted-paths` enforces the direction; the spec gate
+enforces that each folder has a contract.
 
 ## The domain is pure
 

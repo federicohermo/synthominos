@@ -414,8 +414,9 @@ holds functions; its data, types and fixed values sit next to it in `<module>.co
 | new MCP server resource | `mcp-server/src/resources/` | `<resource>.ts` + one line in `resources/index.ts` |
 | rule the server must execute | `src/<capability>/domain/` | **not** in `mcp-server/`: it is a change to `src/`, in its own commit |
 
-**A role folder is created with its first file.** There is no `schemas/`, `utils/`, `hooks/` or
-`lib/`: they would be empty, and an empty folder is ceremony. The growth table (which folder appears
+**A role folder is created with its first file.** There is no `schemas/`, `utils/` or `hooks/`:
+they would be empty, and an empty folder is ceremony. There is no `lib/` or `shared/` at all: a
+helper belongs to a capability. The growth table (which folder appears
 on which trigger) is in [conventions.md](../guides/conventions.md).
 
 ## Naming

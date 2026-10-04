@@ -7,7 +7,7 @@ import type { REGIMEN } from './music.constants.ts';
  * el porque de que existan los dos.
  *
  * Derivado del const-object y no un `enum`: `erasableSyntaxOnly` rechaza los enums, y
- * es la misma opcion que permite que node cargue `src/domain/` sin compilar. Es el
+ * es la misma opcion que permite que node cargue `src/<capability>/domain/` sin compilar. Es el
  * mismo patron que `HitKind` sobre `HIT` y `MarcaKind` sobre `MARCA` — un conjunto
  * cerrado se escribe una sola vez, como valores, y el tipo se deriva.
  *

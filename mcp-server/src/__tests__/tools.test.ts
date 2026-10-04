@@ -18,7 +18,7 @@ import { GRID_DEFAULT } from '../../../src/board-editing/domain/board.constants.
  * Estos tests miran el FORMATO de las respuestas, que es lo unico que el server
  * aporta.
  *
- * Las reglas del dominio ya las cubren los tests de `src/domain/`, y duplicarlas aca
+ * Las reglas del dominio ya las cubren los tests de `src/<capability>/domain/`, y duplicarlas aca
  * seria duplicar tambien el criterio.
  *
  * La excepcion son los numeros del AC4 y el AC7: no verifican el dominio sino
@@ -376,7 +376,7 @@ describe('simulate_board', () => {
    *
    * `BASE` no sirve para eso desde el spec 012 —sus tramos dejaron de rozar nada cuando
    * las puertas se movieron— y este es el mismo tablero que usan los tests del cruce en
-   * `src/domain/` y en `src/components/`, a proposito: si el dia de mañana deja de
+   * `src/<capability>/domain/` y en `src/<capability>/ui/`, a proposito: si el dia de mañana deja de
    * cruzar, los tres fallan juntos y no queda uno verde afirmando lo contrario.
    */
   const CON_CRUCE = [

@@ -324,7 +324,7 @@ describe('`noteAtCell`: que nota hay en una celda', () => {
     // Los dos extremos de la misma cadena: `board-editing/ui/Board.tsx` la deriva a mano para
     // DIBUJAR la nota de una celda, y esta pura es la que la deriva para SONAR cuando el
     // recorrido la pisa. Si las dos se corrieran, la celda diria una altura y pisarla
-    // sonaria otra. `components/` no tiene tests, asi que este es el unico lugar donde
+    // sonaria otra. `ui/` no tiene tests, asi que este es el unico lugar donde
     // ese corrimiento se puede atrapar.
     for (const k of PIECES) {
       for (let rot = 0; rot < 4; rot++) {

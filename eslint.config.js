@@ -176,7 +176,7 @@ const REGLAS_DEL_REPO = [
   },
   {
     // La otra mitad de "sin estado global": el import de `react` es legitimo en
-    // components/, asi que lo que hay que prohibir es la llamada, no el paquete.
+    // ui/, asi que lo que hay que prohibir es la llamada, no el paquete.
     selector: "CallExpression[callee.name='createContext'], CallExpression[callee.property.name='createContext']",
     message: 'Sin estado global: ni Context, ni Redux, ni Zustand. El estado vive en App.tsx.',
   },
@@ -187,10 +187,10 @@ const REGLAS_DEL_REPO = [
  * valores fijos van a `<capa>/constants/`. El motivo esta medido y es viejo: antes habia
  * cuatro pares de numeros que tenian que coincidir y nada los sincronizaba.
  *
- * **Se aplica a `domain/` y `audio/`, no a `components/`, y la linea es la del motivo.** Lo
+ * **Se aplica a `domain/` y `audio/`, no a `ui/`, y la linea es la del motivo.** Lo
  * que el problema medido describe es un valor que existe DOS VECES; una constante privada de
  * un solo componente no puede desincronizarse con nada. Verificado antes de acotarla: en
- * `components/` habia siete —`BAR_COUNT`, `GAP`, `MIN_BAR` e `IDLE_TEXT` en `Spectrum.tsx`,
+ * `ui/` habia siete —`BAR_COUNT`, `GAP`, `MIN_BAR` e `IDLE_TEXT` en `Spectrum.tsx`,
  * `BORDE_COLOR`, `VELO_CAJA` y `VELO_TAPA` en `Playhead.tsx`— documentadas donde estaban, con
  * docblocks que explican el MECANISMO de dibujo (por que `box-shadow` y no `transform: scale`,
  * por que las clases de Tailwind van enteras).
@@ -198,10 +198,10 @@ const REGLAS_DEL_REPO = [
  * **Hoy no queda ninguna, y el dato vale anotarlo porque desarma medio argumento.** El spec 029
  * saco los dos bucles de los `.tsx` a `playhead-loop.ts` y `spectrum-loop.ts`, eso dejo a las
  * siete en modulos de capa —donde la regla escrita SI aplicaba— y se mudaron a
- * `components/constants/` con los docblocks enteros. O sea que mudarlas no alejo ninguna
+ * los archivos de constantes de `ui/`, con los docblocks enteros. O sea que mudarlas no alejo ninguna
  * explicacion de su codigo, que era la mitad estetica del motivo. La mitad que sostiene la
  * linea es la otra, la medible: una constante privada de un solo archivo no se puede
- * desincronizar. Por eso el alcance no se reabre y `components/` sigue afuera. En `domain/` y
+ * desincronizar. Por eso el alcance no se reabre y `ui/` sigue afuera. En `domain/` y
  * `audio/`, en cambio, una constante es parte del modelo y `constants/` es su casa
  * documentada: las dos que quedaban fuera —`ROTATIONS` y `PASOS_MAX`— las mudo este spec.
  *
@@ -255,7 +255,7 @@ const REGLA_CONSTANTES = {
  * que el spec 005 saco el dominio de `App.tsx`.
  *
  * Se ancla en el nombre y no en el import porque el import de `react` es legitimo en
- * `components/`: lo que hay que prohibir es la llamada, igual que con `createContext`.
+ * `ui/`: lo que hay que prohibir es la llamada, igual que con `createContext`.
  *
  * **Y nombra los DOS hooks, no solo `useEffect`.** El spec 049 lo escribio con uno; al
  * implementarlo aparecio que `use-grid.ts` monta su efecto con `useLayoutEffect` —el 021 lo
@@ -267,7 +267,7 @@ const REGLA_CONSTANTES = {
  */
 const REGLA_EFECTOS = {
   selector: "CallExpression[callee.name=/^use(Layout)?Effect$/]",
-  message: 'Un .tsx no declara la logica de un efecto: va a un modulo de components/ y el .tsx lo monta.',
+  message: 'Un .tsx no declara la logica de un efecto: va a un modulo de ui/ y el .tsx lo monta.',
 }
 
 export default tseslint.config([
@@ -377,7 +377,7 @@ export default tseslint.config([
       // `domain/` las capas tampoco se pueden ver entre si.
       //
       // **Lo unico que seguiria comprando es un ciclo entre hermanos sin zona**, y eso es lo
-      // que hay que mirar el dia que se revise: `src/components/` tiene trece `.ts` y seis
+      // que hay que mirar el dia que se revise: `src/<capability>/ui/` tiene trece `.ts` y seis
       // `.tsx` sin zona declarada entre ellos, o sea que la condicion que el issue #58 fijo
       // para revertir —«un subdirectorio con varios modulos hermanos sin zona propia»— ya se
       // cumplia cuando se escribio. No cambio el repo; lo que se revisa cada vez es el
@@ -661,7 +661,7 @@ export default tseslint.config([
   {
     // Los DOS `.tsx` que montan un efecto, nombrados uno por uno y no por glob. El
     // precedente es el de las tres aserciones no nulas de arriba, y el motivo de que sea por
-    // archivo es que un glob crece solo: `src/components/*.tsx` eximiria a todo componente
+    // archivo es que un glob crece solo: `src/<capability>/ui/*.tsx` eximiria a todo componente
     // futuro sin que nadie lo decida.
     //
     // Los dos cumplen el motivo de la regla y violan su letra, que es lo que los hace

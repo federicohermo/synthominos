@@ -40,8 +40,8 @@ import type { MemoriaDeOrientacion, Orientacion } from "./pieces/ui/orientation.
  *
  * Este archivo es el shell: estado, derivados, handlers y la composicion — y CERO
  * efectos. La geometria, la musica y las reglas del tablero viven en
- * `src/domain/`; el sonido en `src/audio/`; el JSX, en los componentes de
- * `src/components/`; y el puente con el motor, en `playback/ui/use-engine.ts` (los cuatro
+ * `src/<capability>/domain/`; el sonido en `src/<capability>/audio/`; el JSX, en los componentes de
+ * `src/<capability>/ui/`; y el puente con el motor, en `playback/ui/use-engine.ts` (los cuatro
  * de reconciliacion) y `board-editing/ui/use-input.ts` (los dos de entrada).
  *
  * Que los seis salieran de aca no fue prolijidad: en un `.tsx`
@@ -186,7 +186,7 @@ export default function App() {
   // El efecto que la escribe vive en `board-fit/ui/use-grid.ts` y no aca: desde el spec
   // 022 este shell **no declara un solo `useEffect`**, y un listener de `resize` es
   // exactamente el caso que `.claude/rules/ui.md` ya resuelve —el listener global vive en
-  // un hook de `components/`, con el `ref` creado en el shell—. El precedente literal es
+  // un hook de `ui/`, con el `ref` creado en el shell—. El precedente literal es
   // `useRuedaRota` recibiendo `boardRef`.
   const raizRef = useRef<HTMLDivElement | null>(null);
   // El hook **contesta** ademas de escribir: cuanto mide el tablero en

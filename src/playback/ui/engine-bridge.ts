@@ -5,7 +5,7 @@ import type { SequenceDelMotor, MotorDeTransporte } from './engine.types.ts';
  * Las dos puras del puente con el motor: proyectar la secuencia, y alternar el
  * transporte preguntándole qué pasó.
  *
- * Vive en `components/` y no en `domain/` ni en `audio/` porque es el único lugar
+ * Vive en `ui/` y no en `domain/` ni en `audio/` porque es el único lugar
  * del repo que puede importar los dos `Sequence`: el override de eslint le prohíbe
  * a cada una de esas dos capas ver a la otra, también como `import type`. Es el
  * mismo argumento por el que `route-source.ts` vive acá.

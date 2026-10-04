@@ -12,7 +12,7 @@ import type { Edicion } from '../../board-editing/ui/input.types.ts';
 // `#0` mientras el tooltip y el lector de pantalla dicen "paso 1". Dos canales diciendo
 // numeros distintos del mismo dato es exactamente lo que el repo evita.
 //
-// Vive como constante de modulo (permitido en `components/`, a diferencia de `domain/` y
+// Vive como constante de modulo (permitido en `ui/`, a diferencia de `domain/` y
 // `audio/`) para que `cellNameFor` no repita el literal sin decir por que existe.
 const ULTIMO_PASO = 4;
 

@@ -6,7 +6,7 @@ import type { PieceKey } from '../domain/pieces.types.ts';
  *
  * Const-object + union derivado, que es la forma que este repo usa para todo conjunto
  * cerrado: **nunca un `enum`**, que el `erasableSyntaxOnly` del tsconfig rechaza —y que es
- * la misma opción que permite que node cargue `src/domain/` sin compilar—.
+ * la misma opción que permite que node cargue `src/<capability>/domain/` sin compilar—.
  *
  * ## Qué cierra y qué no
  *
@@ -35,7 +35,7 @@ export interface Orientacion {
 /**
  * La orientación de cada una de las doce piezas.
  *
- * ## Por qué NO vive en `domain/types/`
+ * ## Por qué NO vive en un archivo de tipos de `domain/`
  *
  * Porque no es del modelo: es **estado del shell**, y el modelo ya tiene su propia
  * representación de lo mismo. Una pieza colocada guarda su rotación y su reflexión en

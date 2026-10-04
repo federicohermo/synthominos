@@ -27,7 +27,7 @@ export const PENT_BLUES5: number[] = [0,3,5,6,7];
  * comparar seria comparar dos instrumentos distintos.
  *
  * Const-object y no `enum`: `erasableSyntaxOnly` los rechaza, y es la misma opcion que
- * permite que node cargue `src/domain/` sin compilar —de lo que viven el MCP server y
+ * permite que node cargue `src/<capability>/domain/` sin compilar —de lo que viven el MCP server y
  * las mediciones del research—. El union type derivado vive en `types/music.types.ts`.
  */
 export const REGIMEN = { escala: 'escala', orden: 'orden' } as const;

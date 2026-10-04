@@ -37,7 +37,7 @@ el color de texto de seis piezas (`I`, `L`, `P`, `T`, `U`, `X`), y cambió porqu
 a la **pieza `T`**. La letra describe la forma, no el sonido — y el color va con la pieza, así que el
 amarillo verdoso de `F` es el color de un C.
 
-La paleta vive en `components/constants/` y **no** en el dominio: un color no cambia lo que suena. El
+La paleta vive en `ui/*.constants.ts` y **no** en el dominio: un color no cambia lo que suena. El
 dominio no sabe que `V` es amarilla, igual que no sabe que el tablero se dibuja con `div`s.
 
 ## El contraste es un test, no una inspección

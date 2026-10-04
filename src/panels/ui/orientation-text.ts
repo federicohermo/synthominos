@@ -43,7 +43,7 @@
  * que estaba escrito dos veces: partida la tarjeta, las dos copias ni siquiera comparten
  * archivo. Cada `.tsx` compone su formato con estos dos pedazos.
  *
- * El tipo va inline en la firma y no en `components/types/`: no es un tipo de props que
+ * El tipo va inline en la firma y no en un archivo de tipos de `ui/`: no es un tipo de props que
  * dos componentes se pasen, es la forma del retorno de una función. El precedente es
  * `reflejaElContextMenu(e: { ctrlKey: boolean })` en `input.ts`.
  */
