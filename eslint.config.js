@@ -359,7 +359,7 @@ export default tseslint.config([
     files: [
       'src/**/__tests__/**/*.{ts,tsx}', '__tests__/*.ts', 'docs/__tests__/*.ts',
       'specs/__tests__/*.ts', '.claude/scripts/__tests__/*.ts', '.agents/scripts/__tests__/*.ts',
-      'mcp-server/**/__tests__/**/*.ts',
+      '.spec-anchored/__tests__/*.ts', 'mcp-server/**/__tests__/**/*.ts',
     ],
     rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
   },
@@ -381,7 +381,7 @@ export default tseslint.config([
     // sea que recibian `window` y `document` definidos y `process` NO.
     files: [
       'mcp-server/**/*.ts', '__tests__/*.ts', 'docs/__tests__/*.ts',
-      'specs/__tests__/*.ts', '.claude/scripts/**/*.ts', '.agents/scripts/**/*.ts', '*.config.ts',
+      'specs/__tests__/*.ts', '.claude/scripts/**/*.ts', '.agents/scripts/**/*.ts', '.spec-anchored/**/*.ts', '*.config.ts',
     ],
     languageOptions: { globals: globals.node },
   },
@@ -535,7 +535,7 @@ export default tseslint.config([
     files: [
       'src/**/__tests__/**/*.{ts,tsx}', '__tests__/*.ts', 'docs/__tests__/*.ts',
       'specs/__tests__/*.ts', '.claude/scripts/__tests__/*.ts',
-      'eslint-rules/__tests__/*.ts', '.agents/scripts/__tests__/*.ts',
+      'eslint-rules/__tests__/*.ts', '.agents/scripts/__tests__/*.ts', '.spec-anchored/__tests__/*.ts',
     ],
     plugins: { vitest },
     rules: {
