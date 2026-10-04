@@ -2,11 +2,11 @@ import { z } from 'zod';
 import { defineTool, json } from './types.ts';
 import { renderAscii, renderCellNumbers, sizeOf } from '../render.ts';
 import { PIECE_KEYS } from '../pieces.ts';
-import { rotateN, reflect } from '../../../src/domain/transform.ts';
-import { notesForRotation, midiName, degreeByCellIndex, playOrderByCellIndex } from '../../../src/domain/music.ts';
-import { SHAPES, ANCHOR_INDEX } from '../../../src/domain/constants/pieces.constants.ts';
-import { BASE_MAP, CHROMATIC, DEFAULT_OCTAVE, REGIMEN, DEFAULT_REGIMEN } from '../../../src/domain/constants/music.constants.ts';
-import type { RegimenDeRotacion } from '../../../src/domain/types/music.types.ts';
+import { rotateN, reflect } from '../../../src/pieces/domain/transform.ts';
+import { notesForRotation, midiName, degreeByCellIndex, playOrderByCellIndex } from '../../../src/musical-model/domain/music.ts';
+import { SHAPES, ANCHOR_INDEX } from '../../../src/pieces/domain/pieces.constants.ts';
+import { BASE_MAP, CHROMATIC, DEFAULT_OCTAVE, REGIMEN, DEFAULT_REGIMEN } from '../../../src/musical-model/domain/music.constants.ts';
+import type { RegimenDeRotacion } from '../../../src/musical-model/domain/music.types.ts';
 
 /**
  * Forma + sonido de una pieza en una orientacion.
@@ -22,7 +22,7 @@ import type { RegimenDeRotacion } from '../../../src/domain/types/music.types.ts
  * Como se llama la formula que elige cada rotacion EN EL REGIMEN `escala`.
  *
  * Es una ETIQUETA, no la regla: quien elige la formula es `notesForRotation` en
- * `domain/music.ts`, y las notas de la respuesta salen de ahi. Si el mapeo
+ * `musical-model/domain/music.ts`, y las notas de la respuesta salen de ahi. Si el mapeo
  * rotacion→formula cambia alla, este texto hay que actualizarlo.
  *
  * Es uno de los DOS supuestos del server sobre el dominio que pueden quedar

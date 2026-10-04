@@ -1,8 +1,8 @@
 ---
 paths:
-  - "src/audio/**/*.ts"
-  - "src/components/Spectrum.tsx"
-  - "src/components/Playhead.tsx"
+  - "src/*/audio/**/*.ts"
+  - "src/spectrum/ui/Spectrum.tsx"
+  - "src/playback/ui/Playhead.tsx"
 ---
 
 # Capa de audio
@@ -49,13 +49,13 @@ El porqué de cada decisión, con las mediciones que la respaldan, está en
   (`routeBetween`) puede cruzar una celda ocupada, y esa celda **suena su nota** —una floritura más
   corta y más suave que la nota de pieza—; ese cruce con altura **no se apaga con
   `setClicksAudible`**: es modelo, no mezcla (D6 del spec 011).
-- **El motor distingue tres clases de evento, no dos.** `HIT` (`audio/constants/scheduler.constants.ts`)
-  pasa de dos a tres claves, y el union `Hit` (`audio/types/scheduler.types.ts`) gana una tercera rama
+- **El motor distingue tres clases de evento, no dos.** `HIT` (`playback/audio/scheduler.constants.ts`)
+  pasa de dos a tres claves, y el union `Hit` (`playback/audio/scheduler.types.ts`) gana una tercera rama
   con su propio `hz` —no un `hz?: number` sobre la rama del click—. La construye `collectHits` en
-  `audio/scheduler.ts`; `engine.ts` solo la despacha. La `Sequence` sigue sin llevar `Cell` ni ningún
+  `playback/audio/scheduler.ts`; `engine.ts` solo la despacha. La `Sequence` sigue sin llevar `Cell` ni ningún
   otro tipo de `domain/` —ni con `import type`—, pero desde el spec 011 **ya no es cierto que para
   sonar alcance con contar clicks**: `clicks` es `{ offset: number; note?: number }[]`.
-  `proyectarAlMotor` (`components/engine-bridge.ts`) sigue llevando `buildSequence(placed, regimen)`
+  `proyectarAlMotor` (`playback/ui/engine-bridge.ts`) sigue llevando `buildSequence(placed, regimen)`
   a esa versión antes de que `use-engine.ts` la pase a `setSequence`. Es D7/D8 del spec 009 más la
   ampliación del 011, y lo verifica `pnpm lint` con el override de capa.
 - **El swap de secuencia al cerrar el ciclo (spec 009) tiene la misma trampa que `startClock`.** Al
@@ -75,7 +75,7 @@ El porqué de cada decisión, con las mediciones que la respaldan, está en
   defensiva:** el swap se decide dentro del lookahead y deja `origin` en el borde, que todavía es futuro,
   así que sin ella la cabeza contesta la cola del ciclo nuevo —el offset MÁXIMO— mientras suena la vieja.
   La aritmética vive aparte, en
-  `audio/playhead.ts` (`offsetAt`, módulo euclídeo, `null` y nunca `NaN` en los tres degradados), por el
+  `playback/audio/playhead.ts` (`offsetAt`, módulo euclídeo, `null` y nunca `NaN` en los tres degradados), por el
   mismo motivo que `spectrum.ts`. Lo que no hay que romper: la posición está **compensada por la
   latencia de salida** (`outputLatency` → `baseLatency` → `0`) o la cabeza queda sistemáticamente
   adelantada, y `outputLatency` no es opcional en `lib.dom.d.ts` pese a que Firefox no lo implementa —la

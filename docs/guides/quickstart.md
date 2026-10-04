@@ -117,9 +117,9 @@ else.
 
 ### Add a piece or change a shape
 
-1. Edit `SHAPES` in `src/domain/constants/pieces.constants.ts`. Coordinates are `[x, y]`, and `y`
+1. Edit `SHAPES` in `src/pieces/domain/pieces.constants.ts`. Coordinates are `[x, y]`, and `y`
    grows **down**.
-2. To add a piece, add it to `PieceKey` in `domain/types/pieces.types.ts`. Then update `BASE_MAP`
+2. To add a piece, add it to `PieceKey` in `pieces/domain/pieces.types.ts`. Then update `BASE_MAP`
    (its tonic, in `music.constants.ts`) and `ANCHOR_INDEX` (its grab cell, as an index into the cell
    array). All three are `Record<PieceKey, …>`, so a missing entry **does not compile**.
 3. Make sure the grab cell is a **central** cell. It is the cell under the cursor. If it falls in a
@@ -127,7 +127,7 @@ else.
 
 ### Change how something sounds
 
-For the **timbre**, edit `DEFAULT_VOICE` in `src/audio/constants/voice.constants.ts` (ADSR and
+For the **timbre**, edit `DEFAULT_VOICE` in `src/playback/audio/voice.constants.ts` (ADSR and
 waveform). One edit is enough, because both playback paths go through `scheduleVoice()`. If you change
 the envelope shape, add an envelope test.
 

@@ -2,7 +2,7 @@
 
 Cómo se traduce una pieza colocada en cinco notas y en qué momento suena el recorrido que las conecta.
 Las cuatro primeras reglas viven en `src/domain/` —`music.ts`, `transform.ts` y sus constantes— y no
-dependen de React ni de la capa de audio; la quinta también es dominio puro (`domain/sequence.ts`), y es
+dependen de React ni de la capa de audio; la quinta también es dominio puro (`circuit/domain/sequence.ts`), y es
 la única que cruza a la capa de audio — proyectada a una `Sequence` sin celdas, porque el motor no ve
 qué es un pentominó (ver [audio.md](./audio.md#el-recorrido-en-el-scheduler)).
 
@@ -46,7 +46,7 @@ colocadas una por una, y una celda recorrida es un intervalo (la unidad del spec
 
 **El orden lo da el circuito más corto, no el orden de colocación.** Colocar una pieza en el medio de
 otras dos hace que suene entre las dos — es la propiedad que se quiere, y por eso manda la posición.
-`domain/sequence.ts` resuelve el circuito **exacto** (Held-Karp) sobre las piezas colocadas: un
+`circuit/domain/sequence.ts` resuelve el circuito **exacto** (Held-Karp) sobre las piezas colocadas: un
 vecino-más-cercano da recorridos 20,1 % más largos en promedio y hasta 79 % peor en el peor caso
 (`research.md` del spec 009, §3), y el exacto cuesta 1,87 ms con las 12 piezas posibles — el tope
 estructural, porque hay 12 pentominós libres y no se repiten.
@@ -103,7 +103,7 @@ sobre la celda**, y ésa es la propiedad del modelo. Además arranca **apagado**
 recorrido sobre el vacío se enciende desde el panel. Sobre celda **ocupada** suena
 la nota de esa celda —la misma altura que la celda muestra desde el spec 007— como una floritura más
 corta y más suave que la nota de una pieza (spec 011). `routeBetween(a, b, placed, dims)`
-(`domain/board.ts`)
+(`board-editing/domain/board.ts`)
 materializa esas celdas intermedias: es el camino de **costo mínimo** sobre las celdas del tablero —peso 1 en
 celda vacía, `CROSS_COST` en celda ocupada, con desempate lexicográfico explícito entre caminos de
 igual costo— y no la regla "primero en X, después en Y" de `pathBetween`, que dejó de existir junto con
@@ -123,7 +123,7 @@ ver [audio.md](./audio.md#reconciliación-de-loops).
 **Retroalimentación visual del recorrido.** Esta sección anotaba como limitación conocida que no había
 ninguna: hoy se oía el recorrido pero no se leía. El [spec
 010](https://github.com/federicohermo/pentomino-games/issues/72) la cierra con una cabeza lectora
-(`components/Playhead.tsx`) que recorre el tablero celda por celda, leyendo `playheadOffset()` del motor
+(`playback/ui/Playhead.tsx`) que recorre el tablero celda por celda, leyendo `playheadOffset()` del motor
 — sin pasar por estado de React, porque la frecuencia de actualización (4 a 10,6 veces por segundo) lo
 haría re-renderizar el tablero entero para mover un resaltado. Detalle en
 [audio.md](./audio.md#la-cabeza-lectora).
@@ -293,7 +293,7 @@ Cada celda de una pieza es **dueña de un grado de la escala**, y quién es due�
 forma. Desde el [spec 012](https://github.com/federicohermo/pentomino-games/issues/74) el arpegio **recorre** la
 pieza: de una nota a la siguiente se llega a una celda que **se toca** con la anterior, preferentemente
 por un lado y si la forma no da, por una esquina.
-`degreeByCellIndex` (`domain/music.ts`) compone dos cosas —`pathThroughCells` de `domain/transform.ts`,
+`degreeByCellIndex` (`musical-model/domain/music.ts`) compone dos cosas —`pathThroughCells` de `pieces/domain/transform.ts`,
 que es geometría pura, y `angularRank`, que es el orden angular del 007 reducido a desempate— y devuelve
 el grado **por índice de celda**:
 

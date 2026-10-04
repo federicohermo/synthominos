@@ -13,7 +13,7 @@ del spec 007 y **no se copian acá**, para que no haya dos fuentes que se contra
 ## Un color por pieza
 
 Cada pentominó tiene un color y una tónica, y son la misma identidad vista de dos maneras. Los valores
-viven en `src/components/constants/palette.constants.ts`:
+viven en `src/pieces/ui/palette.constants.ts`:
 
 | Pieza | Tónica | `bg` | Texto | Lc |
 |---|---|---|---|---|
@@ -42,7 +42,7 @@ dominio no sabe que `V` es amarilla, igual que no sabe que el tablero se dibuja 
 
 ## El contraste es un test, no una inspección
 
-`src/components/__tests__/palette.test.ts` **recalcula** el contraste desde `bg` y verifica que el `fg`
+`src/pieces/ui/__tests__/palette.test.ts` **recalcula** el contraste desde `bg` y verifica que el `fg`
 declarado sea el mejor de negro/blanco. No es ceremonia; es la única forma de que el par (fondo, texto)
 no se desincronice: escribir el color de texto al lado del de fondo crea dos valores que tienen que
 coincidir —el patrón que el spec 005 denunció como "cuatro pares de números que nada sincroniza"—, y acá
@@ -291,7 +291,7 @@ libre, y se escribe que se acabaron.
 
 Es el canal que la sección anterior dejaba reservado, cobrado por el spec 010. La cabeza marca **qué
 celda suena en este intervalo** y lo hace **engrosando el borde de la baldosa**: sin relleno, sin cambio
-de color y sin `scale`. Vive en `src/components/Playhead.tsx`, en una capa encima de la grilla.
+de color y sin `scale`. Vive en `src/playback/ui/Playhead.tsx`, en una capa encima de la grilla.
 
 **Por qué el borde y no un relleno.** En un secuenciador de fondo oscuro el estándar es *encender* el
 step activo, porque la metáfora es un LED. Este tablero es tema claro —panel blanco, celdas vacías
@@ -320,7 +320,7 @@ gris y no verde.
 ### Los escalones de grosor
 
 El grosor es el único canal, así que las clases de evento se distinguen **por cantidad de borde** y por
-nada más. Los valores viven en `src/components/constants/playhead.constants.ts`:
+nada más. Los valores viven en `src/playback/ui/playhead.constants.ts`:
 
 | Qué suena | Hacia adentro | Hacia afuera | Se lee como |
 |---|---|---|---|

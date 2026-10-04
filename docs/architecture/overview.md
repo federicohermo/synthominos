@@ -89,7 +89,7 @@ Los que había son ahora **dos archivos** de `components/`, y el corte es el que
   de sostenerse por adyacencia.
 
 La **proyección** del `Sequence` del dominio al del motor es una pura, `proyectarAlMotor` en
-`components/engine-bridge.ts`: es el único módulo del repo que puede importar los dos tipos `Sequence`, y estaba
+`playback/ui/engine-bridge.ts`: es el único módulo del repo que puede importar los dos tipos `Sequence`, y estaba
 escrita dos veces adentro del shell.
 
 ## Las cuatro capas
@@ -169,7 +169,7 @@ El [spec 001](https://github.com/federicohermo/pentomino-games/issues/63) reusa 
 mapeo celda↔nota. **Es un invariante del que ya depende código en producción**: romperlo (por ejemplo,
 haciendo que `normalize` filtre u ordene celdas) rompe la colocación de piezas de forma silenciosa.
 
-Desde el spec 005 hay una red: `checkArrayOrder()` de `domain/invariants.ts` lo verifica sobre las 96
+Desde el spec 005 hay una red: `checkArrayOrder()` de `pieces/domain/invariants.ts` lo verifica sobre las 96
 combinaciones, y su test comprueba que el chequeo efectivamente **da rojo** si una transformación
 reordena.
 
@@ -179,7 +179,7 @@ Los loops de audio no se agendan ni cancelan desde los handlers. Un único `useE
 `[secuencia, placed]` y le entrega al motor la secuencia del recorrido con `setSequence`. `playing` no
 está en las dependencias: la secuencia es función del tablero y no del transporte.
 
-Ese efecto **no vive en el shell**: desde el spec 022 está en `components/use-engine.ts` con los otros
+Ese efecto **no vive en el shell**: desde el spec 022 está en `playback/ui/use-engine.ts` con los otros
 tres de reconciliación, y `App.tsx` sigue sin declarar un solo `useEffect` —el 021 le agregó un hook más,
 `use-grid.ts`, y lo puso donde van todos: en `components/`— (ver [Qué vive dónde](#qué-vive-dónde)). Lo
 que se queda en el shell es la **derivación** —`secuencia` es un `useMemo` sobre

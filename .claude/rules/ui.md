@@ -1,21 +1,21 @@
 ---
 paths:
   - "src/App.tsx"
-  - "src/components/**/*.tsx"
+  - "src/*/ui/**/*.tsx"
   # Los `.ts` de la capa entran desde el spec 022: los efectos que el shell tenía
   # viven en `use-engine.ts` y `use-input.ts`, que NO son `.tsx`. Sin este patrón la regla
   # no se carga al tocarlos, que es exactamente donde hacen falta las tres cosas
   # que el 022 agregó abajo — la cardinalidad de dependencias, «callbacks y no
   # setters», y el `tapLimpio` compartido.
-  - "src/components/**/*.ts"
+  - "src/*/ui/**/*.ts"
 ---
 
 # UI: el shell y los componentes
 
 `App.tsx` es el shell: estado con `useState` local, derivados, handlers y la composición. Desde el spec
-022 **no declara un solo `useEffect`**: los cuatro de reconciliación viven en `components/use-engine.ts`,
-los dos de entrada en `components/use-input.ts` y el que mide el viewport para escribir `--cell` en
-`components/use-grid.ts` (specs 021 y 031). Ese último es el caso que muestra que la regla no es una
+022 **no declara un solo `useEffect`**: los cuatro de reconciliación viven en `playback/ui/use-engine.ts`,
+los dos de entrada en `board-editing/ui/use-input.ts` y el que mide el viewport para escribir `--cell` en
+`board-fit/ui/use-grid.ts` (specs 021 y 031). Ese último es el caso que muestra que la regla no es una
 formalidad: un listener de `resize` es exactamente lo que la sección «Los listeners de entrada» ya
 resolvía, y el shell se quedó con el `ref` y la llamada. **Ninguna función pura y ningún literal de
 dominio** — y eso ya no significa «se va a `domain/`»: un `.tsx` no puede exportar nada además del
@@ -51,7 +51,7 @@ con nodos que crea y destruye él mismo.
   dos es lo que el review del spec 007 pagó caro.
 
 - **Todo lo que suena en el loop pasa por el efecto de reconciliación**, que vive en
-  `components/use-engine.ts` y no en el shell. Un único `useEffect` sobre `[secuencia, placed]` entrega
+  `playback/ui/use-engine.ts` y no en el shell. Un único `useEffect` sobre `[secuencia, placed]` entrega
   la secuencia al motor con `setSequence`; los handlers solo cambian estado. `playing` **no** está en
   las dependencias, y desde el spec 009 eso es deliberado: la secuencia es función del tablero y no del
   transporte, y quien arranca o corta el sonido es `togglePlay`. El `clearJobs()` + `if (!playing)
@@ -62,7 +62,7 @@ con nodos que crea y destruye él mismo.
   `buildSequence(placed, regimen)` se queda en el shell: si el hook llamara a `buildSequence` por su
   cuenta, el dibujo y el sonido podrían mirar circuitos distintos sin que nada falle, que es lo que D5
   del 009 existe para cerrar. El shell deriva la regla; el hook recibe el resultado.
-- **La proyección dominio→motor vive en `components/engine-bridge.ts` y en ningún otro lado de
+- **La proyección dominio→motor vive en `playback/ui/engine-bridge.ts` y en ningún otro lado de
   `src/`.**
   `proyectarAlMotor` es el único puente entre las dos capas: entrega la `Sequence` del dominio dejando
   caer `pieceId` y `cell`, porque `audio/` no puede ver `Cell` ni con `import type`. Es una **pura** y
@@ -73,7 +73,7 @@ con nodos que crea y destruye él mismo.
   suave que `.agents/rules/audio.md` obliga a chequear en todo llamador. `MOTOR` es el cableado real y
   vive en `use-engine.ts`, el único módulo de la capa que importa la **API de transporte** del motor
   (`startClock`, `stopClock`, `clockRunning`, `setSequence`, `setBpm`, `setClicksAudible`). No es el
-  único que importa `audio/engine.ts`: `Playhead.tsx`, `Spectrum.tsx` y `route-source.ts` también, pero
+  único que importa `playback/audio/engine.ts`: `Playhead.tsx`, `Spectrum.tsx` y `route-source.ts` también, pero
   los tres piden **lecturas** —`playheadOffset`, `readSpectrum`, `cycleGeneration`— y ninguna de las
   tres arranca, frena ni agenda nada.
 - **Nunca mutar objetos ya entregados a React.** Ese fue exactamente el bug de los loops que motivó el
@@ -107,7 +107,7 @@ distinta y ahí no tiene que pasar nada.
 - **No hay `col-span` ni tarjetas desde el spec 021**: el tablero ocupa el viewport y los dos paneles
   flotan encima, `fixed`, sin empujar la grilla. El tamaño de celda es
   de unos **73 px** y lo que sale del viewport es **cuántas celdas hay** (spec 031): `grid-fit.ts`
-  contesta las dos cosas y `components/use-grid.ts` las escribe. La celda va por la custom property
+  contesta las dos cosas y `board-fit/ui/use-grid.ts` las escribe. La celda va por la custom property
   `--cell` —**todo lo que dependa de ella la lee de ahí y nunca de una constante**: la grilla, la
   baldosa entera, el velo, la cabeza lectora y las cajas de los dos flotantes—, y las dimensiones
   vuelven como estado, porque deciden cuántos nodos existen y eso el CSS no lo puede resolver. El
@@ -238,7 +238,7 @@ operación destructiva sin ninguna otra vía y sin deshacer
   [DESIGN.md](../../DESIGN.md).
 
 - **Lo prohibido es `transform: scale`**, y el repo ya lo midió: el docblock de
-  `components/constants/playhead.constants.ts` lo dice para la cabeza lectora —«`scale` AGRANDA la caja
+  `playback/ui/playhead.constants.ts` lo dice para la cabeza lectora —«`scale` AGRANDA la caja
   a efectos de overflow y `box-shadow` es *ink overflow*: pinta afuera sin agrandar nada»—, y cuando se
   midió el síntoma eran las dos barras del `overflow-x-auto` de `Board`, con el `scrollHeight` pasando
   de 378 a 381. Desde el spec 031 ese contenedor no scrollea y quien recorta es el `overflow-hidden`

@@ -1,4 +1,4 @@
-import type { Cell } from '../../src/domain/types/transform.types.ts';
+import type { Cell } from '../../src/pieces/domain/transform.types.ts';
 
 /**
  * Render ASCII de una forma, y lo unico geometrico que el server escribe por su

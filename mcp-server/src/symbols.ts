@@ -28,7 +28,7 @@ import { join, relative, posix } from 'node:path';
  *
  * Una arrow function asignada a un `const` cuenta como `'function'` y no como
  * `'const'`: la pregunta que contesta este campo es que ES el simbolo, y en
- * `audio/engine.ts` hay seis que son funciones y se leian como valores.
+ * `playback/audio/engine.ts` hay seis que son funciones y se leian como valores.
  */
 export type SymbolKind = 'function' | 'const' | 'interface' | 'type';
 

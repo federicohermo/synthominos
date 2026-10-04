@@ -76,7 +76,7 @@ import graph holds that invariant, not a comment. This is what makes the audio t
 
 **Modules contain behavior. Data, types and fixed values live in the folder of their role.** A layer
 `.ts` file has functions and nothing else. The file repeats the module name with the role suffix:
-`Cell` is not in `types/index.ts`, it is in `domain/types/transform.types.ts`, the contract of the
+`Cell` is not in `types/index.ts`, it is in `pieces/domain/transform.types.ts`, the contract of the
 module `transform.ts`.
 
 | Role | Folder | File |
@@ -154,7 +154,7 @@ folders for a naming convention. `hooks/` stays reserved for a hook that wires *
     evaluate "re-export", so a ban on the name gives three false positives.
   - A barrel that re-exports by hand (`export { a } from './a.ts'`) stays outside. This doc states
     it: half a net, written as half a net, is honest.
-- **An explicit extension on every local import**: `./domain/transform.ts`, not `./domain/transform`.
+- **An explicit extension on every local import**: `./pieces/domain/transform.ts`, not `./domain/transform`.
   It reduces resolution work, and above all **raw node requires it** (`ERR_MODULE_NOT_FOUND`). That
   is what lets node load `domain/` without a build.
   - Warning: a missing extension **does not break the app**, because Vite resolves it anyway. The
@@ -193,7 +193,7 @@ comment.
 A `!` is a small `any`: it tells the compiler to be quiet **without a reason**.
 `@typescript-eslint/no-non-null-assertion` is at `error`.
 
-**Before you write one, try a `const`.** The `!` in `audio/engine.ts` existed only because
+**Before you write one, try a `const`.** The `!` in `playback/audio/engine.ts` existed only because
 TypeScript loses the narrowing inside the closure of a `forEach` when the variable is a module `let`.
 A local `const` removed it, with no fight against the compiler.
 
@@ -203,8 +203,8 @@ written next to them:
 | File | Why the compiler cannot see it |
 |---|---|
 | `src/main.tsx` | The Vite idiom on a `#root` that `index.html` itself guarantees |
-| `src/domain/invariants.ts` | The `queue.shift()!` of a BFS, inside a `while` that already guarantees a non-empty queue |
-| `src/components/Board.tsx` | The `[role="grid"]` ancestor exists by construction: the handler lives in a descendant of that grid. The alternative `if` is an unreachable branch, and the 100 threshold does not let it be covered |
+| `src/pieces/domain/invariants.ts` | The `queue.shift()!` of a BFS, inside a `while` that already guarantees a non-empty queue |
+| `src/board-editing/ui/Board.tsx` | The `[role="grid"]` ancestor exists by construction: the handler lives in a descendant of that grid. The alternative `if` is an unreachable branch, and the 100 threshold does not let it be covered |
 
 **In tests the rule does not apply**, and it is off there. A `!` on a `find` or a `querySelector`
 that the test itself just set up makes the test **fail** if the node is missing. There are 102, on
@@ -232,9 +232,9 @@ no comment of the repo. A comment that needs them names the mechanism instead of
 ### Domain types
 
 ```ts
-// domain/types/transform.types.ts
+// pieces/domain/transform.types.ts
 export type Cell = [number, number];       // [x, y], y grows downward
-// domain/types/pieces.types.ts
+// pieces/domain/pieces.types.ts
 export type PieceKey = 'F' | 'I' | … ;     // declared explicitly, not derived
 ```
 
@@ -254,14 +254,14 @@ The replacement for any closed set puts its two halves in the role folders. This
 for the rotation:
 
 ```ts
-// components/constants/orientation.constants.ts  — the value
+// pieces/ui/orientation.constants.ts  — the value
 export const ROTACION = { cero: 0, noventa: 1, ciento_ochenta: 2, doscientos_setenta: 3 } as const;
-// components/types/orientation.types.ts          — the type
+// pieces/ui/orientation.types.ts          — the type
 export type Rotacion = (typeof ROTACION)[keyof typeof ROTACION];
 ```
 
-The other closed sets are `ACCION` and `EDICION` (`components/constants/input.constants.ts`),
-`MARCA` (`route.constants.ts`) and `REGIMEN` (`domain/constants/music.constants.ts`).
+The other closed sets are `ACCION` and `EDICION` (`board-editing/ui/input.constants.ts`),
+`MARCA` (`route.constants.ts`) and `REGIMEN` (`musical-model/domain/music.constants.ts`).
 
 ### The language of identifiers
 
@@ -285,7 +285,7 @@ engine API. A name that comes from outside keeps the language of its origin.
 
 ### The array order is an invariant
 
-`rotate90`, `normalize` and `reflect` (in `domain/transform.ts`) are a `map` over the cells: **the cell
+`rotate90`, `normalize` and `reflect` (in `pieces/domain/transform.ts`) are a `map` over the cells: **the cell
 at index `k` stays the same logical cell after the transform.**
 
 Three things depend on that:
@@ -299,7 +299,7 @@ Three things depend on that:
 A change that filters, sorts or regroups cells inside those functions breaks piece placement **in
 silence**.
 
-`checkArrayOrder()` in `domain/invariants.ts` verifies the order on the 96 combinations. Its own
+`checkArrayOrder()` in `pieces/domain/invariants.ts` verifies the order on the 96 combinations. Its own
 test checks that the check **goes red** when a transform reorders.
 
 If you need to transform cells another way, write a new function. Do not change these.
@@ -545,7 +545,7 @@ of the board cells does. Do not nest ternaries.
 
 **A value that comes from a constant goes through an inline style, not a class.** Tailwind scans the
 source: an interpolated class (`w-[${CELL_PX}px]`) is never generated, so the number is written twice
-again. The board cells read the custom property `--cell`. `components/use-grid.ts` writes it on the
+again. The board cells read the custom property `--cell`. `board-fit/ui/use-grid.ts` writes it on the
 root container from the measured viewport. The inline style is still the path:
 `width: calc(var(--cell) * 1)`. And there is one more reason: the browser resolves a custom property
 on each element. So a window resize moves the cells, the veil and the playhead **with no React

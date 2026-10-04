@@ -26,7 +26,7 @@ const tester = new RuleTester();
 tester.run('comment-anchor', regla, {
   valid: [
     // La cita que resuelve, que es el 98 % de las citas del repo.
-    { name: 'cita viva', code: '// la geometria vive en src/domain/transform.ts' },
+    { name: 'cita viva', code: '// la geometria vive en src/pieces/domain/transform.ts' },
     {
       // El indice empareja por BASENAME: la ruta esta mal —el archivo esta en
       // `src/domain/constants/`— y aun asi pasa. Es la decision de diseno de la

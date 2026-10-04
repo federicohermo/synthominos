@@ -27,6 +27,7 @@ function fakeDisk(initial: Tree) {
 describe('ruleFolders: the static prefix of each glob, minimal cover', () => {
   it.each([
     [['src/audio/**/*.ts', 'src/components/Spectrum.tsx'], ['src/audio', 'src/components']],
+    [['src/*/audio/**/*.ts', 'src/spectrum/ui/Spectrum.tsx'], ['src']],
     [['src/**/*.{ts,tsx}', 'src/components/**/*.tsx', 'mcp-server/src/**/*.ts'], ['mcp-server/src', 'src']],
     [['specs/**'], ['specs']],
     [['README.md'], ['']],

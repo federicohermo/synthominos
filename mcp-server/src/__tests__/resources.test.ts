@@ -4,12 +4,12 @@ import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { resources } from '../resources/index.ts';
 import { constantes } from '../resources/constantes.ts';
-import { GRID_MIN, GRID_DEFAULT, MAX_PIEZAS, CROSS_COST } from '../../../src/domain/constants/board.constants.ts';
-import { CELLS_PER_PIECE } from '../../../src/domain/constants/pieces.constants.ts';
-import { NOTES_PER_PIECE, DEFAULT_OCTAVE, DEFAULT_REGIMEN } from '../../../src/domain/constants/music.constants.ts';
-import { PASOS_MAX } from '../../../src/domain/constants/sequence.constants.ts';
-import { DEFAULT_BPM, MASTER_GAIN, FFT_SIZE } from '../../../src/audio/constants/engine.constants.ts';
-import { LOOKAHEAD, TICK_MS } from '../../../src/audio/constants/scheduler.constants.ts';
+import { GRID_MIN, GRID_DEFAULT, MAX_PIEZAS, CROSS_COST } from '../../../src/board-editing/domain/board.constants.ts';
+import { CELLS_PER_PIECE } from '../../../src/pieces/domain/pieces.constants.ts';
+import { NOTES_PER_PIECE, DEFAULT_OCTAVE, DEFAULT_REGIMEN } from '../../../src/musical-model/domain/music.constants.ts';
+import { PASOS_MAX } from '../../../src/circuit/domain/sequence.constants.ts';
+import { DEFAULT_BPM, MASTER_GAIN, FFT_SIZE } from '../../../src/playback/audio/engine.constants.ts';
+import { LOOKAHEAD, TICK_MS } from '../../../src/playback/audio/scheduler.constants.ts';
 
 /**
  * Lo que estos tests NO hacen es escribir un numero.

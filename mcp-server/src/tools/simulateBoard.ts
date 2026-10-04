@@ -1,20 +1,20 @@
 import { z } from 'zod';
 import { defineTool, json } from './types.ts';
 import { PIECE_KEYS } from '../pieces.ts';
-import { rotateN, reflect } from '../../../src/domain/transform.ts';
-import { cellsAt, isValid, occupantAt } from '../../../src/domain/board.ts';
-import { midiName } from '../../../src/domain/music.ts';
-import { buildSequence, gates } from '../../../src/domain/sequence.ts';
-import { SHAPES, ANCHOR_INDEX, CELLS_PER_PIECE } from '../../../src/domain/constants/pieces.constants.ts';
-import { GRID_DEFAULT, GRID_MIN, MAX_PIEZAS } from '../../../src/domain/constants/board.constants.ts';
-import { REGIMEN, DEFAULT_REGIMEN } from '../../../src/domain/constants/music.constants.ts';
-import type { Cell } from '../../../src/domain/types/transform.types.ts';
-import type { PlacedPiece, Dims } from '../../../src/domain/types/board.types.ts';
-import { collectHits, barDuration, intervalDuration } from '../../../src/audio/scheduler.ts';
-import { midiToHz } from '../../../src/audio/voice.ts';
-import { LOOKAHEAD, TICK_MS, HIT } from '../../../src/audio/constants/scheduler.constants.ts';
-import { DEFAULT_BPM, CLOCK_START_DELAY } from '../../../src/audio/constants/engine.constants.ts';
-import type { Sequence, ClockState, Hit } from '../../../src/audio/types/scheduler.types.ts';
+import { rotateN, reflect } from '../../../src/pieces/domain/transform.ts';
+import { cellsAt, isValid, occupantAt } from '../../../src/board-editing/domain/board.ts';
+import { midiName } from '../../../src/musical-model/domain/music.ts';
+import { buildSequence, gates } from '../../../src/circuit/domain/sequence.ts';
+import { SHAPES, ANCHOR_INDEX, CELLS_PER_PIECE } from '../../../src/pieces/domain/pieces.constants.ts';
+import { GRID_DEFAULT, GRID_MIN, MAX_PIEZAS } from '../../../src/board-editing/domain/board.constants.ts';
+import { REGIMEN, DEFAULT_REGIMEN } from '../../../src/musical-model/domain/music.constants.ts';
+import type { Cell } from '../../../src/pieces/domain/transform.types.ts';
+import type { PlacedPiece, Dims } from '../../../src/board-editing/domain/board.types.ts';
+import { collectHits, barDuration, intervalDuration } from '../../../src/playback/audio/scheduler.ts';
+import { midiToHz } from '../../../src/playback/audio/voice.ts';
+import { LOOKAHEAD, TICK_MS, HIT } from '../../../src/playback/audio/scheduler.constants.ts';
+import { DEFAULT_BPM, CLOCK_START_DELAY } from '../../../src/playback/audio/engine.constants.ts';
+import type { Sequence, ClockState, Hit } from '../../../src/playback/audio/scheduler.types.ts';
 
 /**
  * Que suena un tablero, sin escucharlo.
@@ -151,7 +151,7 @@ function crucesDe(tramo: readonly { cell: Cell; note?: number }[]): Cruce[] {
 }
 
 /**
- * Etapa 1 — colocacion, con las reglas del tablero de `domain/board.ts`.
+ * Etapa 1 — colocacion, con las reglas del tablero de `board-editing/domain/board.ts`.
  *
  * El motivo del rechazo sale de las mismas funciones y no de una copia de sus
  * condiciones: `isValid(cells, [])` responde solo por los bordes —el tablero
