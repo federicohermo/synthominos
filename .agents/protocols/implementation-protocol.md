@@ -32,7 +32,7 @@ Reviews of spec conformance, security, performance and architecture are outside 
 
 | Terminal | Meaning |
 |---|---|
-| `PR_READY_AWAITING_HUMAN` | A PR is open against `staging`, with its evidence. A person reviews and merges. |
+| `PR_READY_AWAITING_HUMAN` | A PR is open against `staging`, or against the branch it stacks on, with its evidence. A person reviews and merges. |
 | `NAMED_BLOCKER` | The run stopped. A comment on the issue names the blocker and its evidence. |
 | `NO_CHANGE_REQUIRED` | The repo already does what the issue asks. The evidence is corroborated. There is no PR. |
 
@@ -64,8 +64,9 @@ check, say in the report that it is not applicable.
      criterion or non-goal that the issue names changed: write `SPEC_REBASED_NO_RELEVANT_CHANGE`
      and go on. One of them changed: `SPEC_STALE`. You cannot tell: a blocker.
 4. Confirm the repository, the branch, the base commit, who owns the issue, and the failures
-   that exist before the run. The branch starts at `origin/staging` and its prefix is the issue
-   type. A worktree opens only under `.claude/worktrees/`.
+   that exist before the run. The branch starts at `origin/staging`, or, in a lane of
+   `implement-batch`, at the branch of the issue before it. Its prefix is the issue type. A
+   worktree opens only under `.claude/worktrees/`.
 5. Create `.agent-runs/<run-id>/` at the root of the checkout you work in. The run id is `RUN-<issue>-<UTC time>`,
    for example `RUN-138-20261004T2130Z`. Every artifact of the run goes there. Nothing goes under
    `.claude/` or `.codex/`. The folder is ignored by git.
@@ -239,7 +240,7 @@ to Phase 7.
 
 ## Phase 10: deliver
 
-Open the PR against `staging`, with the body of
+Open the PR against `staging`, or against the branch it stacks on, with the body of
 [pr-body.md](references/pr-body.md). Write `result.json` and check it:
 
 ```bash
@@ -259,7 +260,7 @@ The folder is ignored by git. The PR and the issue are the durable public record
 
 ## Rules that hold in every phase
 
-- Work on a typed branch that starts at `origin/staging`.
+- Work on a typed branch that starts at `origin/staging`, or at the branch it stacks on.
 - Never use `--no-verify`. Never merge.
 - Never answer your own doubt about meaning.
 - Never widen the scope without a new approval.

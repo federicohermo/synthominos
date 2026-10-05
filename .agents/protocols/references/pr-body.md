@@ -1,6 +1,7 @@
 # The body of the PR
 
-Every adapter opens its PR against `staging` with these sections, in this order.
+Every adapter opens its PR against `staging`, or against the branch it stacks on, with these
+sections, in this order.
 
 ```markdown
 Closes #<N>
