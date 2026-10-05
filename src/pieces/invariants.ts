@@ -39,8 +39,7 @@ export interface CheckResult {
 const PIECES = Object.keys(SHAPES) as PieceKey[];
 const REGIMENES: RegimenDeRotacion[] = Object.values(REGIMEN);
 
-/** `rotate90` gives `-0`, and to add 0 makes it `+0`. */
-const sameCell = (a: Cell, b: Cell): boolean => a[0] + 0 === b[0] + 0 && a[1] + 0 === b[1] + 0;
+const sameCell = (a: Cell, b: Cell): boolean => a[0] === b[0] && a[1] === b[1];
 
 const result = (name: string, failures: string[]): CheckResult =>
   ({ name, ok: failures.length === 0, failures });
@@ -70,15 +69,15 @@ export function checkArrayOrder(): CheckResult {
         for (let k = 0; k < got.length; k++) {
           if (!sameCell(got[k], expected[k])) {
             failures.push(
-              `${p} rot${rot}${mirror ? ' mirror' : ''}: celda ${k} es ` +
-              `(${got[k]}) y deberia ser (${expected[k]})`,
+              `${p} rot${rot}${mirror ? ' mirror' : ''}: cell ${k} is ` +
+              `(${got[k]}) and must be (${expected[k]})`,
             );
           }
         }
       }
     }
   }
-  return result('orden del array', failures);
+  return result('array order', failures);
 }
 
 export function checkAnchors(): CheckResult {
@@ -86,7 +85,7 @@ export function checkAnchors(): CheckResult {
   for (const p of PIECES) {
     const idx = ANCHOR_INDEX[p];
     if (!Number.isInteger(idx) || idx < 0 || idx >= SHAPES[p].length) {
-      failures.push(`${p}: ANCHOR_INDEX ${idx} fuera de [0, ${SHAPES[p].length})`);
+      failures.push(`${p}: ANCHOR_INDEX ${idx} is outside [0, ${SHAPES[p].length})`);
       continue;
     }
     for (const rot of ROTATIONS) {
@@ -96,14 +95,14 @@ export function checkAnchors(): CheckResult {
 
         if (!sameCell(got, expected)) {
           failures.push(
-            `${p} rot${rot}${mirror ? ' mirror' : ''}: el ancla quedo en ` +
-            `(${got}) y deberia estar en (${expected})`,
+            `${p} rot${rot}${mirror ? ' mirror' : ''}: the grip cell is at ` +
+            `(${got}) and must be at (${expected})`,
           );
         }
       }
     }
   }
-  return result('ancla', failures);
+  return result('grip cell', failures);
 }
 
 export function checkShapes(): CheckResult {
@@ -111,15 +110,15 @@ export function checkShapes(): CheckResult {
   for (const p of PIECES) {
     const cells = SHAPES[p];
     if (cells.length !== CELLS_PER_PIECE) {
-      failures.push(`${p}: tiene ${cells.length} celdas y deberia tener ${CELLS_PER_PIECE}`);
+      failures.push(`${p}: has ${cells.length} cells and must have ${CELLS_PER_PIECE}`);
     }
 
     const keys = cells.map(([x, y]) => `${x},${y}`);
-    if (new Set(keys).size !== keys.length) failures.push(`${p}: tiene celdas repetidas`);
+    if (new Set(keys).size !== keys.length) failures.push(`${p}: has a repeated cell`);
 
-    if (!isConnected(cells)) failures.push(`${p}: no es conexa por lados`);
+    if (!isConnected(cells)) failures.push(`${p}: is not connected by sides`);
   }
-  return result('formas', failures);
+  return result('shapes', failures);
 }
 
 function isConnected(cells: Cell[]): boolean {
@@ -147,13 +146,13 @@ export function checkBaseMap(): CheckResult {
   const pcs = PIECES.map(p => BASE_MAP[p]);
 
   if (pcs.length !== CHROMATIC.length) {
-    failures.push(`hay ${pcs.length} piezas para ${CHROMATIC.length} clases de altura`);
+    failures.push(`${pcs.length} pieces for ${CHROMATIC.length} pitch classes`);
   }
-  if (new Set(pcs).size !== pcs.length) failures.push('dos piezas comparten tonica');
+  if (new Set(pcs).size !== pcs.length) failures.push('two pieces share a tonic');
   for (const p of PIECES) {
     const pc = BASE_MAP[p];
     if (!Number.isInteger(pc) || pc < 0 || pc >= CHROMATIC.length) {
-      failures.push(`${p}: tonica ${pc} fuera de [0, ${CHROMATIC.length})`);
+      failures.push(`${p}: tonic ${pc} is outside [0, ${CHROMATIC.length})`);
     }
   }
   return result('BASE_MAP', failures);
@@ -167,71 +166,64 @@ export function checkNotes(): CheckResult {
   const celdas: number = CELLS_PER_PIECE;
   if (notas !== celdas) {
     failures.push(
-      `NOTES_PER_PIECE (${notas}) y CELLS_PER_PIECE (${celdas}) ` +
-      'tienen que ser iguales: cada celda dispara su nota',
+      `NOTES_PER_PIECE (${notas}) and CELLS_PER_PIECE (${celdas}) ` +
+      'must be equal: each cell fires its note',
     );
   }
   for (const p of PIECES) {
+    const enEscala = notesForRotation(BASE_MAP[p], DEFAULT_OCTAVE, 0, REGIMEN.escala);
     for (const regimen of REGIMENES) {
       const referencia = notesForRotation(BASE_MAP[p], DEFAULT_OCTAVE, 0, regimen);
 
       // The shift check below is relative to rotation 0, so a uniform shift passes it. This one
       // fixes rotation 0.
-      if (regimen === REGIMEN.orden) {
-        const enEscala = notesForRotation(BASE_MAP[p], DEFAULT_OCTAVE, 0, REGIMEN.escala);
-        if (referencia.join() !== enEscala.join()) {
-          failures.push(
-            `${p} rot0: los dos regimenes tienen que dar lo mismo a rotacion 0 ` +
-            `(escala ${enEscala.join(',')} vs orden ${referencia.join(',')})`,
-          );
-        }
+      if (referencia.join() !== enEscala.join()) {
+        failures.push(
+          `${p} rot0: the two regimes must give the same notes at rotation 0 ` +
+          `(escala ${enEscala} vs orden ${referencia})`,
+        );
       }
 
       for (const rot of ROTATIONS) {
         const ns = notesForRotation(BASE_MAP[p], DEFAULT_OCTAVE, rot, regimen);
         if (ns.length !== NOTES_PER_PIECE) {
-          failures.push(`${p} rot${rot} [${regimen}]: ${ns.length} notas y deberian ser ${NOTES_PER_PIECE}`);
+          failures.push(`${p} rot${rot} [${regimen}]: ${ns.length} notes and must be ${NOTES_PER_PIECE}`);
         }
-        if (new Set(ns).size !== ns.length) failures.push(`${p} rot${rot} [${regimen}]: tiene notas repetidas`);
+        if (new Set(ns).size !== ns.length) failures.push(`${p} rot${rot} [${regimen}]: has a repeated note`);
 
         if (regimen === REGIMEN.escala) {
-          for (let i = 1; i < ns.length; i++) {
-            if (ns[i] <= ns[i - 1]) {
-              failures.push(`${p} rot${rot} [${regimen}]: la nota ${i} (${ns[i]}) no supera a la anterior (${ns[i - 1]})`);
+          ns.slice(1).forEach((nota, i) => {
+            if (nota <= ns[i]) {
+              failures.push(`${p} rot${rot} [${regimen}]: note ${i + 1} (${nota}) is not above the note before it (${ns[i]})`);
             }
-          }
+          });
         } else {
           const desplazamiento = referencia.indexOf(ns[0]);
           if (desplazamiento < 0) {
-            failures.push(`${p} rot${rot} [${regimen}]: arranca en ${ns[0]}, que no esta en el arpegio de rotacion 0`);
+            failures.push(`${p} rot${rot} [${regimen}]: starts at ${ns[0]}, which is not in the arpeggio of rotation 0`);
           } else {
             for (let i = 0; i < ns.length; i++) {
               const esperada = referencia[(desplazamiento + i) % referencia.length];
               if (ns[i] !== esperada) {
-                failures.push(`${p} rot${rot} [${regimen}]: la nota ${i} (${ns[i]}) rompe la permutacion ciclica, deberia ser ${esperada}`);
+                failures.push(`${p} rot${rot} [${regimen}]: note ${i} (${ns[i]}) breaks the cyclic permutation, it must be ${esperada}`);
               }
             }
             const pedido = rot % referencia.length;
             if (desplazamiento !== pedido) {
-              failures.push(`${p} rot${rot} [${regimen}]: corrido ${desplazamiento} posiciones y deberian ser ${pedido}`);
+              failures.push(`${p} rot${rot} [${regimen}]: shifted ${desplazamiento} positions and must be ${pedido}`);
             }
           }
         }
       }
     }
   }
-  return result('notas', failures);
+  return result('notes', failures);
 }
 
-/** `+ 0` turns the `-0` of `rotate90` into `0`: the two serialize differently. */
 function canonicalKey(cells: Cell[]): string {
-  const variantes: string[] = [];
-  for (const rot of ROTATIONS) {
-    for (const mirror of [false, true]) {
-      const t = transformShape(cells, rot, mirror);
-      variantes.push(t.map(([x, y]) => `${x + 0},${y + 0}`).sort().join(' '));
-    }
-  }
+  const variantes = ROTATIONS.flatMap(rot => [false, true].map(mirror =>
+    transformShape(cells, rot, mirror).map(([x, y]) => `${x},${y}`).sort().join(),
+  ));
   return variantes.sort()[0];
 }
 
@@ -243,9 +235,9 @@ export function checkDistinct(): CheckResult {
     const clave = canonicalKey(SHAPES[p]);
     const previa = porClave.get(clave);
     if (previa === undefined) porClave.set(clave, p);
-    else failures.push(`${p}: es la misma forma que ${previa} rotada o reflejada`);
+    else failures.push(`${p}: is the same shape as ${previa}, rotated or reflected`);
   }
-  return result('piezas distintas', failures);
+  return result('distinct pieces', failures);
 }
 
 export function checkLetters(): CheckResult {
@@ -256,12 +248,12 @@ export function checkLetters(): CheckResult {
     if (tiene !== esperada) {
       const enRealidad = PIECES.find(otra => canonicalKey(PENTOMINOS_CANONICOS[otra]) === tiene);
       failures.push(
-        `${p}: no es el pentomino ${p}, ` +
-        (enRealidad === undefined ? 'ni ningun otro de los 12' : `es el ${enRealidad}`),
+        `${p}: is not the pentomino ${p}` +
+        (enRealidad === undefined ? ' or any other of the 12' : `, it is the ${enRealidad}`),
       );
     }
   }
-  return result('letras', failures);
+  return result('letters', failures);
 }
 
 export function checkAll(): CheckResult[] {
