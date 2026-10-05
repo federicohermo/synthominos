@@ -5,14 +5,6 @@ import {
 } from '../kernel.ts';
 import { ContractViolation, InputError, json, type Json } from '../pyjson.ts';
 
-/**
- * The tables of the kernel, entry by entry, and the edges of its rules.
- *
- * A table of patterns can lose a line and still pass every test that uses another line. So each
- * pattern has one path here that only it catches. `python-kernel.test.ts` pins the answers of the
- * original on recorded inputs. This file pins the lines those inputs do not reach.
- */
-
 const PERMISSIONS = { dependency_change: false, schema_change: false, data_migration: false, external_side_effect: false };
 const manifest = (allowed: string[], more: Record<string, unknown> = {}) => json({
   schema_version: 1, run_id: 'RUN-001', capability: 'CAP-CIR', adapter: 'implement-feature', execution_mode: 'supervised',
@@ -21,7 +13,6 @@ const manifest = (allowed: string[], more: Record<string, unknown> = {}) => json
   truth_change: { policy: 'none', allowed_spec_paths: [] },
   ...more,
 });
-/** The violations of one changed path that the manifest allows by name. */
 const touch = (path: string, more: Record<string, unknown> = {}) =>
   validateScope(manifest([path], more), [['M', path]], 'supervised-local/v1');
 

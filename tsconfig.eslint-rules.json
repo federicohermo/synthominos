@@ -6,14 +6,12 @@
     "module": "ESNext",
     "skipLibCheck": true,
 
-    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
 
-    /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -21,22 +19,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
 
-    /*
-     * The only tsconfig of the repo with `allowJs`. It is needed for two things that come
-     * from one fact: the rules are `.mjs` and their tests are `.ts`.
-     *
-     * 1. With `allowJs` off a `.ts` CANNOT import a `.mjs`. That is why the `.mjs` of
-     *    `.claude/scripts/` is exercised through a subprocess and not imported. Here the
-     *    `RuleTester` needs the rule object in the same process, so that way out does not
-     *    work.
-     * 2. Without a tsconfig that includes `eslint-rules`, `pnpm lint` FAILS ON PARSE on
-     *    the `__tests__/`: `projectService` rejects every file that no tsconfig takes. It
-     *    is the same reason `tsconfig.app.json` names whole directories and not only `src`.
-     *
-     * `checkJs` stays off: the `.mjs` files enter the program so that they can be imported
-     * and so that the `@type` of their JSDoc types them, not to be typechecked as
-     * TypeScript.
-     */
+    /* The tests are `.ts` and import the rules, which are `.mjs`. `checkJs` stays off. */
     "allowJs": true
   },
   "include": ["eslint-rules"]

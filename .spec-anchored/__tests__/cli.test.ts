@@ -6,7 +6,6 @@ import { main, realIo, type Io } from '../cli.ts';
 import { buildApproval, hashJson, hashText, resolvePolicy } from '../kernel.ts';
 import { InputError, json, strictJsonLoads } from '../pyjson.ts';
 
-/** An `Io` over a map of files, which keeps what the command wrote. */
 function fakeIo(files: Record<string, string>) {
   const out: (string | Buffer)[] = [];
   const err: string[] = [];
@@ -191,7 +190,6 @@ describe('a wrong call exits 2, and a file that cannot be read exits 1', () => {
     [['validate-scope', '--changes', 'c', '--profile', 'p'], 'validate-scope: --manifest is required'],
     [['validate-scope', '--manifest', 'm', '--profile', 'p'], 'validate-scope: --changes is required'],
     [['validate-scope', '--manifest', 'm', '--changes', 'c'], 'validate-scope: --profile is required'],
-    // A key that every object inherits is not a command, not an option and not a choice.
     [['toString', 'plan.md'], 'expected one of:'],
     [['constructor'], 'expected one of:'],
     [['canonicalize', 'plan.md', '--toString'], 'canonicalize: unknown option --toString'],

@@ -4,12 +4,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { clean, isValidWorktreeTarget, processKillScript, realMachine, type Machine } from '../worktrees.ts';
 
-/**
- * The cleaner against a FAKE machine: its two failure modes (the ignored `node_modules` and the
- * live `.exe`) are Windows-only, and CI runs `ubuntu-latest`. The real machine is tested
- * separately, with a real delete on disk.
- */
-
 const MAIN = 'D:\\repo';
 const DIR = 'D:\\repo\\.claude\\worktrees';
 
@@ -21,7 +15,6 @@ interface FakeOptions {
   readonly existing?: readonly string[];
 }
 
-/** A fake machine that records what it is asked. */
 function fakeMachine(o: FakeOptions = {}) {
   const log: string[] = [];
   const calls: string[] = [];

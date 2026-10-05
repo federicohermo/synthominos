@@ -1,21 +1,7 @@
 @import "tailwindcss";
 
-/* The background color is declared ONCE, and the two places that paint it read it from
-   here: this `body` and the root `div` of `App.tsx`. The two places must exist, because
-   the `body` covers the overscroll and the `div` covers the layout. The value must not
-   exist twice. A hex written here and a Tailwind class on the `div` that resolves to the
-   SAME hex is a duplicate that a `grep` of the hex cannot see: the second copy is the
-   name of a class, not a color.
-
-   A value that exists twice with nothing to keep the copies equal is the damage this
-   repo refuses inside `src/`. Here it crosses the CSS/TSX edge, where no linter of the
-   repo looks. The `@theme` closes the two sides: Tailwind 4 generates the class
-   `bg-fondo` for the `div` and gives `var(--color-fondo)` to this `body`.
-
-   The hex below is the only place where the color is written in `src/`, and that can be
-   verified: a grep of the hex, limited to `src/`, must return this line and nothing
-   else. So this comment and the comment of the test do not write the hex as a literal.
-   If prose names it again, the verification can tell nothing. */
+/* The one place where the background color is written: this `body` and the root `div` of
+   `App.tsx` read it. A test fails if the hex appears again in `src/`. */
 @theme {
   --color-fondo: #f8fafc;
 }

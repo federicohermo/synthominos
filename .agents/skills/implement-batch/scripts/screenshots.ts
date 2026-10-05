@@ -3,48 +3,23 @@ import { mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-/**
- * Pushes a folder of screenshots to the orphan branch `screenshots/<N>`, without a worktree.
- * The entrypoint is `screenshots-to-branch.ts`; this module holds the logic, with git and the
- * disk injected.
- *
- * It runs from the worktree of the issue branch. The screenshots an issue asks for do not go
- * in its branch: they go to `screenshots/<N>`, which is never merged, and the PR shows them
- * by their `raw.githubusercontent.com` URL.
- *
- * ## Plumbing, not a worktree
- *
- * The environment guard rejects `git -C <another worktree>`, so the recipe of an orphan
- * worktree committed from outside does not work from a lane's worktree. This module builds
- * the blobs and a tree with subfolders in a temporary index, and a commit with `commit-tree`,
- * in the repo of the current directory. The commit is pushed straight to the remote branch.
- *
- * ## Every run adds, none overwrites
- *
- * **If the branch exists, the new tree starts from its head's tree**, and the folder's files
- * go on top: what was there stays, and a file with the same path is replaced. Without this,
- * the branch head held only the last run's folder, and every URL of an earlier run gave 404
- * while the PR still showed it.
- *
- * This file imports only `node:*`: the `implement-feature` skill carries a byte-for-byte copy.
- */
+// Plumbing, not a worktree: the environment guard rejects `git -C <another worktree>`.
+// The new tree starts from the head of the branch: the URL of an earlier run must not give 404.
+// Imports only `node:*`: skills carry a byte-for-byte copy of this file.
 
 export const USAGE = 'usage: node screenshots-to-branch.ts <issue-number> <folder> [--no-push]';
 
-/** What the script needs from the machine. Real in `realScreenshotSystem`, fake in the tests. */
 export interface ScreenshotSystem {
   /** Trimmed stdout. Throws if git fails. With `index`, git uses that index file. */
   git(args: readonly string[], index?: string): string;
   isDir(target: string): boolean;
   /** The files under `folder`, recursively, as sorted POSIX paths relative to it. */
   files(folder: string): string[];
-  /** Runs `use` with the path of a fresh index file, and removes it afterwards. */
   withIndex<T>(use: (index: string) => T): T;
   out(line: string): void;
   err(line: string): void;
 }
 
-/** The hash of the tree of `folder`, with its subfolders, on top of the tree of commit `parent`. */
 export function buildTree(folder: string, parent: string | null, sys: ScreenshotSystem): string {
   return sys.withIndex(index => {
     if (parent !== null) sys.git(['read-tree', parent], index);
@@ -56,13 +31,11 @@ export function buildTree(folder: string, parent: string | null, sys: Screenshot
   });
 }
 
-/** The `raw.githubusercontent.com` base of a GitHub remote, or `null` if it is not one. */
 export function rawBase(remoteUrl: string): string | null {
   const found = /github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?\/?$/.exec(remoteUrl);
   return found === null ? null : `https://raw.githubusercontent.com/${found.slice(1, 3).join('/')}`;
 }
 
-/** Runs the upload. Returns the exit code: 0 done, 1 git failed, 2 bad usage. */
 export function run(args: readonly string[], sys: ScreenshotSystem): 0 | 1 | 2 {
   const positional = args.filter(arg => arg !== '--no-push');
   if (positional.length !== 2 || !/^\d+$/.test(String(positional[0]))) {
@@ -101,7 +74,6 @@ export function run(args: readonly string[], sys: ScreenshotSystem): 0 | 1 | 2 {
   }
 }
 
-/** The real machine, with git run in `cwd`. */
 export function realScreenshotSystem(cwd: string = process.cwd()): ScreenshotSystem {
   return {
     git(args, index) {

@@ -6,11 +6,6 @@ import {
   fillNumber, findTemplate, problems, realDraftSystem, run, stripFrontMatter, USAGE, type DraftSystem,
 } from '../brief.ts';
 
-/**
- * The draft checker against a fake file system: the template is a fixture with the shape of
- * the real one, so the tests do not break when someone edits the real wording.
- */
-
 const ROOT = path.resolve('/repo');
 const TEMPLATE_FILE = path.join(ROOT, '.github', 'ISSUE_TEMPLATE', 'task-brief.md');
 

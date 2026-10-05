@@ -5,11 +5,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { addedLines, numericClaims, prDiff, realDiffSystem, USAGE, type DiffSystem, type GitResult } from '../diff.ts';
 
-/**
- * The PR measurement against a fake git for every branch, and once against a fabricated repo
- * with a real `origin`: only that one proves the pathspecs and the merge base.
- */
-
 const DIFF = [
   'diff --git a/src/a.ts b/src/a.ts',
   '--- a/src/a.ts',

@@ -9,14 +9,11 @@ import type { Cell } from '../../../src/pieces/transform.ts';
 
 describe('renderAscii', () => {
   test('marks the grip cell and leaves the gaps of the bounding box', () => {
-    // The Z rotated 270° and reflected.
     const cells = reflect(rotateN(SHAPES.Z, 3));
     assert.equal(renderAscii(cells, ANCHOR_INDEX.Z), '#..\n#@#\n..#');
   });
 
   test('row 0 is the top row: `y` grows down', () => {
-    // If the render inverted the axis, this shape would come out upside down and the
-    // drawing would not agree with the screen.
     assert.equal(renderAscii([[0, 0], [0, 1], [1, 1]], 0), '@.\n##');
   });
 
@@ -51,7 +48,6 @@ describe('renderAscii', () => {
 
           assert.equal(marcadas, CELLS_PER_PIECE, `${p} rot${rot}${mirror ? ' mirror' : ''}`);
           assert.equal(anclas, 1, `${p} rot${rot}${mirror ? ' mirror' : ''}`);
-          // The bounding box of the drawing must be that of the shape.
           const { width, height } = sizeOf(cells);
           const filas = ascii.split('\n');
           assert.equal(filas.length, height);
@@ -64,14 +60,8 @@ describe('renderAscii', () => {
 
 describe('renderCellNumbers', () => {
   test('puts the degree of each cell, in the same bounding box as renderAscii', () => {
-    // The X: the arpeggio WALKS the piece, and the X is the only piece that no walk
-    // covers with less than two jumps, because its center has four neighbors. The walk
-    // enters by the right arm (degree 0), jumps to the bottom arm, jumps to the left
-    // arm, and only then goes center → top. It is the shape where the mapping reads at
-    // a glance, and the drawing shows it with no need to match `cellMap` by hand.
     const grados = degreeByCellIndex(SHAPES.X);
     assert.equal(renderCellNumbers(SHAPES.X, grados), '.4.\n230\n.1.');
-    // Same drawing, different content: the two views must align.
     const conAncla = renderAscii(SHAPES.X, ANCHOR_INDEX.X);
     assert.deepEqual(
       renderCellNumbers(SHAPES.X, grados).split('\n').map(f => f.length),
@@ -80,9 +70,6 @@ describe('renderCellNumbers', () => {
   });
 
   test('the 96 combinations draw the five degrees, with none repeated', () => {
-    // The degree travels by INDEX on the canonical shape: rotate and reflect are `map`,
-    // so cell k stays cell k. If that stops being true, this test sees a repeated or
-    // missing degree.
     for (const p of PIECE_KEYS) {
       const grados = degreeByCellIndex(SHAPES[p]);
       for (let rot = 0; rot < 4; rot++) {
@@ -102,12 +89,8 @@ describe('renderCellNumbers', () => {
   });
 
   test('what is not a single digit falls back to `#` and the grid does not misalign', () => {
-    // The rule that the docblock declares, that a number of two digits would misalign
-    // the grid, can be broken in three ways, and the three fall to the same side. The
-    // assertion is on the width of the row: that is what the rule exists to hold.
     const fila: Cell[] = [[0, 0], [1, 0], [2, 0], [3, 0]];
     assert.equal(renderCellNumbers(fila, [10, -1, 2.5, 7]), '###7');
-    // And a cell with no value invents nothing.
     assert.equal(renderCellNumbers(fila, [0]), '0###');
   });
 });

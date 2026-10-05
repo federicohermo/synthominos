@@ -1,12 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-/**
- * The spec gate: the shape of the `specs/` corpus, the link between each criterion and its test,
- * and the link between each contract and its code folder.
- *
- * It verifies the CITATION, not that the test exercises the criterion. Review checks that.
- */
+// The gate verifies the citation, not that the test exercises the criterion.
 
 /** A corpus file: POSIX path relative to the root, and its text. */
 export interface SourceFile { readonly path: string; readonly text: string }
@@ -15,12 +10,9 @@ export interface SourceFile { readonly path: string; readonly text: string }
 export interface Audit { readonly findings: readonly string[]; readonly report: readonly string[] }
 
 export const STATUSES = ['draft', 'ratified', 'superseded'] as const;
-/** The files of the previous spec regime. They do not come back. */
 export const FORBIDDEN = ['spec.md', 'research.md', 'plan.md', 'tasks.md'] as const;
 const FIELDS = ['schema_version', 'capability_id', 'status', 'owner', 'provenance'] as const;
-/** The folders of `src/` that belong to no capability: the shell. */
 export const SHELL = ['__tests__', 'styles'] as const;
-/** The one subfolder a capability folder may hold. Its code sits flat next to it. */
 export const TESTS = '__tests__';
 const AC = /\bAC-[A-Z]{3}-\d{3}\b/g;
 
@@ -31,7 +23,6 @@ interface Spec {
   readonly criteria: readonly string[];
 }
 
-/** The flat frontmatter: `key: value` lines between two `---`. `null` if there is none. */
 function frontmatter(text: string): Map<string, string> | null {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(text);
   if (m === null) return null;
@@ -43,7 +34,6 @@ function frontmatter(text: string): Map<string, string> | null {
   return fields;
 }
 
-/** Reads one spec and adds to `findings` what breaks the shape. */
 function readSpec(file: SourceFile, findings: string[]): Spec {
   const fields = frontmatter(file.text);
   if (fields === null) findings.push(`${file.path}: missing frontmatter`);
@@ -66,7 +56,6 @@ function readSpec(file: SourceFile, findings: string[]): Spec {
     if (code !== null && headingCode !== code) findings.push(`${file.path}: \`${heading}\` does not carry the code \`${code}\``);
     if (seen.has(heading)) findings.push(`${file.path}: \`${heading}\` appears twice`);
     seen.add(heading);
-    // Retiring is deleting: a retired ID does not stay written.
     if (/\bretired\b/i.test(rest)) findings.push(`${file.path}: \`${heading}\` is marked as retired; delete it`);
     if (heading.startsWith('BR-')) {
       rules.add(heading);
@@ -84,10 +73,6 @@ function readSpec(file: SourceFile, findings: string[]): Spec {
   return { file: file.path, code, status, criteria };
 }
 
-/**
- * The IDs cited in a test title: the first string argument of `describe`, `it` or `test`, also
- * after `.each(…)`, `.skipIf(…)` or `.runIf(…)`.
- */
 export function citedIds(text: string): Set<string> {
   const cited = new Set<string>();
   const titles = /\b(?:describe|it|test)(?:\.(?:each|skipIf|runIf)\([\s\S]*?\))?\(\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/g;
@@ -95,11 +80,6 @@ export function citedIds(text: string): Set<string> {
   return cited;
 }
 
-/**
- * The findings on the code folders. Each capability owns `src/<capability>/`, flat: its files sit
- * at the top, and only its tests go one folder down. The link goes both ways: a folder needs a
- * contract, a contract needs code.
- */
 function folderFindings(corpus: readonly Spec[], sources: readonly string[]): string[] {
   const findings: string[] = [];
   const folders = new Set<string>();
@@ -124,10 +104,6 @@ function folderFindings(corpus: readonly Spec[], sources: readonly string[]): st
   return findings;
 }
 
-/**
- * The gate verdict on a corpus: the specs, the tests, and the path of every file under `src/`.
- * Pure: it does not read the disk.
- */
 export function audit(specs: readonly SourceFile[], tests: readonly SourceFile[], sources: readonly string[]): Audit {
   const findings: string[] = [];
   const report: string[] = [];
@@ -173,10 +149,8 @@ export function audit(specs: readonly SourceFile[], tests: readonly SourceFile[]
   return { findings, report };
 }
 
-/** Folders that are not part of the repo, or that hold generated copies. */
 const SKIPPED = new Set(['node_modules', '.git', 'dist', 'coverage', '.claude', '.codex', '.vercel']);
 
-/** Every file under `dir`, as POSIX paths relative to `root`. */
 function walk(root: string, dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(path.join(root, dir), { withFileTypes: true })) {
@@ -190,10 +164,6 @@ function walk(root: string, dir: string): string[] {
   return out;
 }
 
-/**
- * The repo corpus: all of `specs/`, every test by its suffix (not by a list of roots), and the
- * path of every file under `src/`.
- */
 export function readCorpus(root: string): { specs: SourceFile[]; tests: SourceFile[]; sources: string[] } {
   const read = (rel: string): SourceFile => ({ path: rel, text: readFileSync(path.join(root, rel), 'utf8') });
   const files = walk(root, '');

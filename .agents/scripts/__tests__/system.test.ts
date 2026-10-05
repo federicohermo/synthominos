@@ -5,11 +5,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { readInput, realGit, respond } from '../system.ts';
 
-/**
- * The real `Git` against a FABRICATED repo, with a worktree and a half-done rebase: the two
- * states where reading "the branch" the naive way gives the wrong answer.
- */
-
 let repo: string;
 const git = (cwd: string, ...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: 'pipe' });
 const r = (p: string | null) => path.resolve(p ?? '');

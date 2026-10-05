@@ -1,40 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 
-/**
- * The two-branch model (`staging` integrates and is the default, `main` is release) in the three
- * places of the tree that write it: two are machinery, the third is the prose that explains it.
- *
- * The copies are unavoidable. One is YAML that GitHub Actions parses before any process exists,
- * the other is the core of the permission hook. Neither can import a constant from the other.
- *
- * What this gate does NOT check: the ruleset. It lives in the GitHub configuration, and reading
- * it takes a network call. The repo tests run without network on purpose.
- *
- * The YAML is read with a pattern, not a parser: the repo has no YAML dependency. A reformat that
- * breaks the pattern turns the gate red, which beats a lenient parser reading something else.
- */
-
 const root = new URL('../', import.meta.url);
 const read = (file: string) => readFileSync(new URL(file, root), 'utf8');
 
-/**
- * The first group of the pattern. It throws naming the file when nothing matches: two missing
- * values would be two equal `undefined`, and the gate would pass without looking.
- */
+// It throws: two missing values would be two equal `undefined`, and the gate would pass.
 const extract = (text: string, pattern: RegExp, where: string) => {
   const m = pattern.exec(text);
   if (!m) throw new Error(`Branch model not found in ${where}`);
   return m[1];
 };
 
-/** The names between single quotes or backticks of a fragment, in order. */
 const quoted = (text: string) => [...text.matchAll(/['`]([^'`]+)['`]/g)].map((m) => m[1]);
 
-/** Sorted: the order of a list of branches means nothing. */
 const asSet = (branches: string[]) => [...branches].sort();
 
-/** `on.push.branches` of a workflow. `branches:` must be the line right after `push:`. */
+// A pattern, not a parser: the repo has no YAML dependency. `branches:` must be the line right
+// after `push:`.
 const workflowBranches = (text: string, where: string) =>
   extract(text, /^\s*push:\s*\r?\n\s*branches:\s*\[([^\]]*)\]/m, where)
     .split(',')
@@ -44,14 +26,12 @@ const verify = read('.github/workflows/verify.yml');
 const policy = read('.agents/scripts/policy.ts');
 const doc = read('docs/infra/branches.md');
 
-/** The «Branches» cell of the row the document gives a file. */
 const branchesPerDoc = (file: string) => {
   const row = new RegExp(`^\\|\\s*\`${file.replaceAll('.', '\\.')}\`\\s*\\|[^|]*\\|([^|]*)\\|`, 'm');
   return quoted(extract(doc, row, `docs/infra/branches.md, row of \`${file}\``));
 };
 
 const VERIFY_BRANCHES = workflowBranches(verify, '.github/workflows/verify.yml');
-/** The two branches the hook names: integration and release. */
 const SHARED = ['INTEGRATION_BRANCH', 'RELEASE_BRANCH'].map((name) =>
   extract(policy, new RegExp(`^export const ${name} = '([^']+)';`, 'm'), `.agents/scripts/policy.ts, \`${name}\``),
 );

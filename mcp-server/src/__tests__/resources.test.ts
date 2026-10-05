@@ -18,28 +18,8 @@ import { FFT_SIZE } from '../../../src/spectrum/spectrum-bars.ts';
 import { DEFAULT_BPM } from '../../../src/playback/scheduler.ts';
 import { LOOKAHEAD, TICK_MS } from '../../../src/playback/scheduler.ts';
 
-/**
- * What these tests do NOT do is write a number.
- *
- * A test that asserts `MAX_PIEZAS === 12` with the `12` typed in it gives full coverage
- * and checks nothing: it is the SAME copy that the resource exists to avoid, moved one
- * file away. The two sides, the expected and the actual, come from the import.
- *
- * The only string written by hand is the path that each constant declares, so the last
- * test opens it on disk: a path copied wrong is exactly the bug this resource prevents,
- * and it is the only thing the compiler cannot catch.
- */
-
-/** The repo root, from `mcp-server/src/__tests__/`. */
 const RAIZ = join(import.meta.dirname, '..', '..', '..');
 
-/**
- * The 14 expected constants, with shorthand: the key comes from the imported identifier
- * and the value from the real file.
- *
- * The count comes from here too: to count the `Object.keys` of this is to count imports,
- * and a "14" written by hand would be one more datum that can go stale.
- */
 const ESPERADAS: Record<string, unknown> = {
   GRID_MIN, GRID_DEFAULT, MAX_PIEZAS, CROSS_COST,
   CELLS_PER_PIECE,
@@ -49,7 +29,6 @@ const ESPERADAS: Record<string, unknown> = {
   LOOKAHEAD, TICK_MS,
 };
 
-/** Reads the resource with the URI it declares and returns the parsed body. */
 function leer(): Record<string, { valor: unknown; archivo: string }> {
   const r = constantes.read(new URL(constantes.uri));
   const primero = r.contents[0];
@@ -76,9 +55,6 @@ describe('the registry of resources', () => {
   });
 
   test('no resource declares cacheHint', () => {
-    // The type of `ResourceDef.config` already rejects it at write time. This checks it
-    // on the object, which is where it matters. This server is reliable because nothing
-    // can go stale, and a cached answer is a copy with another name.
     for (const r of resources) {
       assert.ok(!('cacheHint' in r.config), `${r.name} declares cacheHint`);
     }

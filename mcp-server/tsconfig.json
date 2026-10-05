@@ -1,25 +1,14 @@
 {
-  // Typecheck of the server. It does NOT compile: `noEmit` is the decision, not an
-  // oversight. Node 22.18 runs the `.ts` files with the types stripped, so there is no
-  // `dist/` that can go stale.
   "compilerOptions": {
     "target": "ES2023",
-    // `DOM` is counterintuitive, and that is why this is written: the server does not
-    // touch the DOM, but it typechecks the chain
-    // `playback/scheduler.ts → playback/voice.ts`, which declares `BaseAudioContext`,
-    // `AudioNode` and `OscillatorType`. Without `DOM` there are 8 TS2304 errors. At
-    // runtime none of that exists: the types are erased and `collectHits` is arithmetic.
+    // `DOM`: the chain `playback/scheduler.ts → playback/voice.ts` names the types of Web Audio.
     "lib": ["ES2023", "DOM"],
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "types": ["node"],
     "strict": true,
     "noEmit": true,
-    // The specifiers have an explicit `.ts`: Node needs it to resolve them with no
-    // build.
     "allowImportingTsExtensions": true,
-    // The guarantee that the type stripping of Node needs: with no `enum` and no
-    // parameter properties, there is nothing that type erasure cannot resolve.
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,

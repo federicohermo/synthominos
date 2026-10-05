@@ -9,15 +9,7 @@ import {
 } from '../kernel.ts';
 import { ContractViolation, InputError, canonicalJson, plainJson, prettyJson, repr, strictJsonLoads, type JsonObject } from '../pyjson.ts';
 
-/**
- * The port against the kernel it comes from: `scripts/spec-anchored` at commit `4f8a13e` of
- * spec-anchored-agentic-development, run with Python 3.13.7.
- *
- * `fixtures/python-kernel.json` holds each case with the outcome the PYTHON kernel gave. The cases
- * are every call of the two upstream suites (contracts and adversarial), plus the cases of a
- * seeded fuzz that add an outcome the suites do not show. Every document travels as JSON text,
- * so the two parsers are compared too. During the port, 109 000 fuzz cases gave no difference.
- */
+/** The fixtures hold the outcomes of `scripts/spec-anchored` at commit `4f8a13e`, run with Python 3.13.7. */
 
 type Args = Record<string, unknown>;
 interface Outcome { readonly kind: 'value' | 'refusal' | 'error' | 'crash'; readonly value?: unknown; readonly message?: string }
@@ -52,7 +44,7 @@ const OPS: Record<string, (a: Args) => unknown> = {
   validate_scope: a => validateScope(doc(a, 'manifest'), a.changes as Change[], policy(a, 'profile')),
   validate_result: a => validateResult(doc(a, 'result')),
 };
-/** The ops that accept with an EMPTY list. Any other op accepts by returning a value. */
+/** The ops that accept with an empty list. Any other op accepts by returning a value. */
 const VALIDATORS = ['verify_approval', 'validate_manifest', 'validate_scope', 'validate_result'];
 
 function outcome(c: Case): Outcome {

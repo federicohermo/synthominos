@@ -7,7 +7,6 @@
     "module": "ESNext",
     "skipLibCheck": true,
 
-    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
@@ -15,7 +14,6 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -23,20 +21,6 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  /*
-   * Seven roots. The six that are not `src` hold the gates that live next to what they
-   * verify, and the harness: `__tests__` looks at the files of the repo root, `docs` holds
-   * the gates of the documentation (issue #100), `specs` the gate of the contracts,
-   * `.claude/scripts` and `.agents/scripts` the harness scripts with their tests, and
-   * `.spec-anchored` the kernel of the implementation protocol.
-   *
-   * `tsc -b` typechecks a file that a test imports, declared or not. The declaration is
-   * what the linter needs: it uses `projectService`, and it rejects with a parse error
-   * every file that no tsconfig includes. So the `__tests__/` folders must be named too.
-   *
-   * They are WHOLE directories and not their test subfolders: `allowJs` is off, so the
-   * `.mjs` executables of `.claude/scripts` do not enter, and not one `.md` of `docs`
-   * enters. TypeScript takes only the `.ts` files inside.
-   */
+  /* Whole directories: the linter rejects, with a parse error, a file that no tsconfig includes. */
   "include": ["src", "__tests__", "docs", "specs", ".claude/scripts", ".agents/scripts", ".spec-anchored/**/*"]
 }

@@ -7,14 +7,11 @@ import { COPIES, GENERATED_MARK, codexAgent, contractSection, differences, planC
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
-/** Every canonical copy source, with fake content, so the plan has no missing-source problem. */
 const sources = (): [string, string][] => [...COPIES.keys()].map(p => [p, `// ${p}\n`]);
 const rule = (paths: string[], body: string) => `---\npaths:\n${paths.map(p => `  - "${p}"`).join('\n')}\n---\n\n${body}`;
 
-/** An agent contract that passes every check. */
 const AGENT = '---\nname: reviewer\ndescription: "Reviews one exact candidate."\neffort: max\nisolation: worktree\n---\n\n# Reviewer\n\nRead `AGENTS.md`.\n';
 
-/** A fake disk over a mutable map. */
 function fakeDisk(initial: Tree) {
   const files = new Map(initial);
   const log: string[] = [];

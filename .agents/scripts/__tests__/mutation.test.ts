@@ -8,7 +8,6 @@ import { isMutated, mutationTarget, mutationTargetCommand, realMutationSystem, s
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const { mutate: MUTATE } = JSON.parse(readFileSync(path.join(ROOT, 'stryker.config.json'), 'utf8')) as { mutate: string[] };
 
-/** A machine where each changed file is new at the base, unless `versions` gives its two texts. */
 function fakeSystem(changed: string[] | null, versions: Record<string, readonly [before: string, now: string]> = {}) {
   const out: string[] = [];
   const err: string[] = [];
@@ -42,7 +41,6 @@ describe('isMutated: the `mutate` list of this repo', () => {
     // Only Chromium covers these six, and Stryker cannot run the browser project.
     'src/board-editing/use-input.ts', 'src/board-fit/use-grid.ts', 'src/playback/engine.ts', 'src/playback/playhead-loop.ts',
     'src/playback/use-engine.ts', 'src/spectrum/spectrum-loop.ts',
-    // Not a module of the target.
     'src/board-editing/Board.tsx', 'src/circuit/__tests__/sequence.test.ts', 'src/vite-env.d.ts', '.spec-anchored/spec-anchored.ts',
     '.spec-anchored/__tests__/kernel.test.ts', 'mcp-server/src/symbols.ts', '.agents/scripts/copies.ts', 'vite.config.ts',
   ])('%s is not in the target', file => {

@@ -1,20 +1,13 @@
 import { createHash } from 'node:crypto';
 
-/**
- * JSON values with the semantics of the Python kernel this port comes from.
- *
- * The approval fingerprint is a hash of canonical bytes, so the port must produce the bytes
- * Python produces. Three things differ between the two languages and are fixed here: Python
- * keeps `1` and `1.0` apart and has integers of any size; a Python `dict` keeps insertion
- * order for every key; and the messages quote values with Python's `repr`.
- */
+// The approval fingerprint hashes canonical bytes, so the port must produce the bytes Python produces:
+// `1` and `1.0` stay apart, integers have any size, an object keeps insertion order, and messages use `repr`.
 
-/** A refusal BY THE CONTRACT. A test asserts this type, so a crash never passes as a refusal. */
+/** A refusal by the contract. A test asserts this type, so a crash never passes as a refusal. */
 export class ContractViolation extends Error {
   override name = 'ContractViolation';
 }
 
-/** An input that cannot be read at all: unparseable JSON, a string that is not UTF-8. */
 export class InputError extends Error {
   override name = 'InputError';
 }
@@ -67,10 +60,7 @@ export function truthy(x: Json): boolean {
 const numeric = (x: Json): bigint | number | null =>
   typeof x === 'boolean' ? (x ? 1n : 0n) : typeof x === 'bigint' ? x : x instanceof PyFloat ? x.value : null;
 
-/**
- * Python `==` as the kernel uses it: `True == 1 == 1.0`. One side of every comparison is a string or
- * a number of the contract, so two containers never meet: they compare by identity.
- */
+/** Python `==` as the kernel uses it: `True == 1 == 1.0`. Two containers never meet: they compare by identity. */
 export function pyEq(a: Json, b: Json): boolean {
   const na = numeric(a);
   // A number never equals `null`, so the other side needs no check of its own.
@@ -180,10 +170,6 @@ export function repr(x: Json): string {
 
 /** Python `str(x)`: a string is itself, anything else is its `repr`. */
 export const str = (x: Json): string => (typeof x === 'string' ? x : repr(x));
-
-// ---------------------------------------------------------------------------
-// The strict parser: `json.loads` with duplicate keys and non-finite constants refused.
-// ---------------------------------------------------------------------------
 
 const NUMBER = /(-?(?:0|[1-9][0-9]*))(\.[0-9]+)?([eE][-+]?[0-9]+)?/y;
 /** No anchor: the reader tests a slice of four characters at most. */
@@ -326,10 +312,6 @@ export function strictJsonLoads(text: string): Json {
   if (reader.pos !== text.length) reader.fail('Extra data');
   return value;
 }
-
-// ---------------------------------------------------------------------------
-// The writers.
-// ---------------------------------------------------------------------------
 
 function quote(s: string, ascii: boolean): string {
   let out = '"';

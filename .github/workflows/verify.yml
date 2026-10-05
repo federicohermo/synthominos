@@ -1,33 +1,8 @@
-# The convergence node of the repo, run by the machine and not by the memory of the person who
-# commits.
-#
-# Why it runs the whole `pnpm verify` and does NOT list its nodes as separate steps:
-#
-#   1. The exact form of that script already cost two traps of the "failing green" family: the
-#      `{.}` filter, without which `--parallel` excludes the root package and reports success
-#      with nothing of the app run, and the `$` of the regex, without which the pattern catches
-#      `test:watch` and starts a second vitest. A list of the nodes here would be a second place
-#      where that form lives, and the day someone changes the script, CI would still run the
-#      old one.
-#   2. The form does change. `suite` is the node that gates coverage at 100. A workflow that
-#      lists a bare `test` node is green without the coverage gate, which is exactly the
-#      failure mode this workflow exists to close.
-#
-# What this workflow does NOT do, on purpose:
-#
-#   - It builds no Node matrix. `mcp-server` declares `engines: >=22.18`, so a 20 x 22 matrix
-#     would fail the node of the server on 20, for a tooling floor that is already declared and
-#     decided. The requirement of Vite (^20.19 || >=22.12) verifies itself, through the
-#     `engines` of the root `package.json`.
-#   - It does not deploy. Vercel does that, with its own `buildCommand` in `vercel.json`.
+# It runs `pnpm verify` whole: a list of its nodes here would go out of sync with the script.
 name: verify
 
 on:
   pull_request:
-  # BOTH branches: `main` is the release branch and `staging` the integration branch. `staging`
-  # is first because the work lands there: it is the push that most needs the check. `main`
-  # stays because a merged promotion PR is one more push, and the branch that deploys cannot be
-  # the only one with no run of its own.
   push:
     branches: [staging, main]
 
@@ -40,41 +15,19 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # The pnpm version comes from `packageManager`. Vercel does NOT read it from there (it
-      # infers pnpm from the `lockfileVersion` unless ENABLE_EXPERIMENTAL_COREPACK=1, see
-      # docs/infra/deploy.md), so this pin holds for CI and for local, not for the deploy.
-      # With no `version:` the action reads it from there by itself, and that number lives in
-      # one place.
-      # It goes BEFORE setup-node because `cache: pnpm` needs the binary already installed.
+      # Before setup-node: `cache: pnpm` needs the binary.
       - uses: pnpm/action-setup@v4
 
-      # An EXACT version and not a bare `22`, which resolves to the latest 22.x of the day and
-      # makes the runtime of the gate a moving target: the same commit can be green today and
-      # red next month with no line changed.
-      #
-      # That is the ONLY argument for the pin: reproducibility. The pin fixes no coverage
-      # number. Measured: the branch coverage of `symbols.ts` in `mcp:test` is identical with
-      # 22.18.0 pinned and without the pin. A coverage that depends on the machine is fixed in
-      # the code, not here: see the docblock of `walk()` in `symbols.ts`.
-      #
-      # The floor of the project is still the `engines` (^20.19.0 || >=22.12.0): this does not
-      # narrow it, it chooses ONE version inside it. To raise it is a deliberate change, with
-      # `pnpm verify` run on the new version first.
+      # An exact version: a bare `22` moves the runtime of the gate with no change in the repo.
       - uses: actions/setup-node@v5
         with:
           node-version: 22.18.0
           cache: pnpm
 
-      # Frozen: a drift between `package.json` and `pnpm-lock.yaml` breaks CI and does not
-      # resolve by itself.
       - run: pnpm install --frozen-lockfile
 
-      # Chromium is not in the lockfile, and some tests run in a real one: it is the only way
-      # to cover the canvas of the spectrum and the `AudioContext` of the engine. A runner is a
-      # new clone on each run, so without this step the job does not get to run a test, and
-      # with the job dead a real red could not be told from a missing binary.
-      # `--with-deps` because the Ubuntu runner does not bring the system libraries Chromium
-      # asks for: without the flag the binary downloads and still fails on launch.
+      # Chromium is not in the lockfile. `--with-deps`: the runner lacks the system libraries
+      # that Chromium needs.
       - run: pnpm exec playwright install --with-deps chromium
 
       - run: pnpm verify

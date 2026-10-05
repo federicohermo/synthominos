@@ -2,16 +2,10 @@ import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import { branchDenial, decide, isProtected, type Git, type Intent } from '../policy.ts';
 
-/**
- * The hooks' core against a fake `Git`: branches and repos are declared in a table. The
- * two-drive Windows case runs on the CI's `ubuntu-latest` too, because paths are `path.win32`.
- */
-
 const REPO = 'D:\\repo';
 
 interface FakeTree { prefix: string; tree: string; main: string; branch: string | null }
 
-/** A fake `Git`: each path falls in the first tree whose prefix contains it. */
 function fakeGit(trees: readonly FakeTree[], own: string | null = REPO): Git {
   const of = (target: string) => trees.find(t => target.toLowerCase().startsWith(t.prefix.toLowerCase()));
   return {
