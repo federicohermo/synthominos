@@ -62,7 +62,7 @@ describe('the seven checks over the 96 combinations', () => {
     const all = checkAll();
     expect(all).toHaveLength(7);
     expect(all.map(r => r.name)).toEqual([
-      'orden del array', 'ancla', 'formas', 'BASE_MAP', 'notas', 'piezas distintas', 'letras',
+      'array order', 'grip cell', 'shapes', 'BASE_MAP', 'notes', 'distinct pieces', 'letters',
     ]);
     expect(all.every(r => r.ok)).toBe(true);
   });
@@ -84,7 +84,7 @@ describe('the checks detect a regression', () => {
     conFormaMutada('I', [[0,0],[0,0],[2,0],[3,0],[4,0]], () => {
       const r = checkShapes();
       expect(r.ok).toBe(false);
-      expect(r.failures.some(f => f.includes('repetidas'))).toBe(true);
+      expect(r.failures.some(f => f.includes('repeated'))).toBe(true);
     });
   });
 
@@ -92,7 +92,7 @@ describe('the checks detect a regression', () => {
     conFormaMutada('I', [[0,0],[1,0],[2,0]], () => {
       const r = checkShapes();
       expect(r.ok).toBe(false);
-      expect(r.failures.some(f => f.includes('3 celdas'))).toBe(true);
+      expect(r.failures.some(f => f.includes('3 cells'))).toBe(true);
     });
   });
 
@@ -100,7 +100,7 @@ describe('the checks detect a regression', () => {
     conFormaMutada('I', [[0,0],[1,0],[2,0],[3,0],[9,9]], () => {
       const r = checkShapes();
       expect(r.ok).toBe(false);
-      expect(r.failures.some(f => f.includes('conexa'))).toBe(true);
+      expect(r.failures.some(f => f.includes('connected'))).toBe(true);
     });
   });
 
@@ -133,7 +133,7 @@ describe('the checks detect a regression', () => {
 
       const r = checkDistinct();
       expect(r.ok).toBe(false);
-      expect(r.failures).toEqual(['Z: es la misma forma que N rotada o reflejada']);
+      expect(r.failures).toEqual(['Z: is the same shape as N, rotated or reflected']);
     });
   });
 
@@ -161,8 +161,8 @@ describe('the checks detect a regression', () => {
       const r = checkLetters();
       expect(r.ok).toBe(false);
       expect(r.failures).toEqual([
-        'L: no es el pentomino L, es el Y',
-        'Y: no es el pentomino Y, es el L',
+        'L: is not the pentomino L, it is the Y',
+        'Y: is not the pentomino Y, it is the L',
       ]);
     });
   });
@@ -171,7 +171,7 @@ describe('the checks detect a regression', () => {
     conFormaMutada('Z', [[0,0],[1,0],[2,0],[3,0],[9,9]], () => {
       const r = checkLetters();
       expect(r.ok).toBe(false);
-      expect(r.failures).toEqual(['Z: no es el pentomino Z, ni ningun otro de los 12']);
+      expect(r.failures).toEqual(['Z: is not the pentomino Z, and no other of the 12']);
     });
   });
 
@@ -195,7 +195,7 @@ describe('the checks detect a regression', () => {
     try {
       const r = checkBaseMap();
       expect(r.ok).toBe(false);
-      expect(r.failures.some(f => f.includes('comparten tonica'))).toBe(true);
+      expect(r.failures.some(f => f.includes('share a tonic'))).toBe(true);
     } finally {
       BASE_MAP.Z = original;
     }
@@ -207,7 +207,7 @@ describe('the checks detect a regression', () => {
     try {
       const r = checkNotes();
       expect(r.ok).toBe(false);
-      expect(r.failures.some(f => f.includes('no supera'))).toBe(true);
+      expect(r.failures.some(f => f.includes('is not above'))).toBe(true);
     } finally {
       PENT_MAJOR.splice(0, PENT_MAJOR.length, ...original);
     }
@@ -218,7 +218,7 @@ describe('the checks detect a regression', () => {
       // ANCHOR_INDEX.I is 2, and the mutated shape has 2 cells: the index is out of range.
       const r = checkAnchors();
       expect(r.ok).toBe(false);
-      expect(r.failures.some(f => f.includes('fuera de'))).toBe(true);
+      expect(r.failures.some(f => f.includes('is outside'))).toBe(true);
     });
   });
 
@@ -232,7 +232,7 @@ describe('the checks detect a regression', () => {
       const { checkAnchors: conReordenamiento } = await import('../invariants.ts');
       const r = conReordenamiento();
       expect(r.ok).toBe(false);
-      expect(r.failures.some(f => f.includes('el ancla quedo en'))).toBe(true);
+      expect(r.failures.some(f => f.includes('the grip cell is at'))).toBe(true);
       expect(r.failures.some(f => f.includes('mirror'))).toBe(true);
       expect(r.failures.some(f => !f.includes('mirror'))).toBe(true);
     } finally {
@@ -245,8 +245,8 @@ describe('the checks detect a regression', () => {
     conFormaMutada('I', [], () => {
       const r = checkShapes();
       expect(r.ok).toBe(false);
-      expect(r.failures.some(f => f.includes('0 celdas'))).toBe(true);
-      expect(r.failures.some(f => f.includes('conexa'))).toBe(false);
+      expect(r.failures.some(f => f.includes('0 cells'))).toBe(true);
+      expect(r.failures.some(f => f.includes('connected'))).toBe(false);
     });
   });
 
@@ -262,7 +262,7 @@ describe('the checks detect a regression', () => {
       const { checkBaseMap: conCromaticaLarga } = await import('../invariants.ts');
       const r = conCromaticaLarga();
       expect(r.ok).toBe(false);
-      expect(r.failures.some(f => f.includes('12 piezas para 13 clases'))).toBe(true);
+      expect(r.failures.some(f => f.includes('12 pieces for 13 pitch classes'))).toBe(true);
     } finally {
       vi.doUnmock('../../musical-model/music.ts');
       vi.resetModules();
@@ -279,7 +279,7 @@ describe('the checks detect a regression', () => {
     try {
       const r = checkBaseMap();
       expect(r.ok).toBe(false);
-      expect(r.failures.some(f => f.includes(`Z: tonica ${valor} fuera de`))).toBe(true);
+      expect(r.failures.some(f => f.includes(`Z: tonic ${valor} is outside`))).toBe(true);
     } finally {
       BASE_MAP.Z = original;
     }
@@ -297,8 +297,8 @@ describe('the checks detect a regression', () => {
       const { checkNotes: conCuatroNotas } = await import('../invariants.ts');
       const r = conCuatroNotas();
       expect(r.ok).toBe(false);
-      expect(r.failures.some(f => f.includes('tienen que ser iguales'))).toBe(true);
-      expect(r.failures.some(f => f.includes('5 notas y deberian ser 4'))).toBe(true);
+      expect(r.failures.some(f => f.includes('must be equal'))).toBe(true);
+      expect(r.failures.some(f => f.includes('5 notes and must be 4'))).toBe(true);
     } finally {
       vi.doUnmock('../../musical-model/music.ts');
       vi.resetModules();
@@ -321,9 +321,9 @@ describe('the checks detect a regression', () => {
       const { checkNotes: conCorrimientoUniforme } = await import('../invariants.ts');
       const r = conCorrimientoUniforme();
       expect(r.ok).toBe(false);
-      expect(r.failures.some(f => f.includes('tienen que dar lo mismo a rotacion 0'))).toBe(true);
-      expect(r.failures.some(f => f.includes('rompe la permutacion ciclica'))).toBe(false);
-      expect(r.failures.some(f => f.includes('corrido'))).toBe(false);
+      expect(r.failures.some(f => f.includes('must give the same notes at rotation 0'))).toBe(true);
+      expect(r.failures.some(f => f.includes('breaks the cyclic permutation'))).toBe(false);
+      expect(r.failures.some(f => f.includes('shifted'))).toBe(false);
     } finally {
       vi.doUnmock('../../musical-model/music.ts');
       vi.resetModules();
@@ -346,7 +346,7 @@ describe('the checks detect a regression', () => {
       const { checkNotes: conArpegioAjeno } = await import('../invariants.ts');
       const r = conArpegioAjeno();
       expect(r.ok).toBe(false);
-      expect(r.failures.some(f => f.includes('que no esta en el arpegio de rotacion 0'))).toBe(true);
+      expect(r.failures.some(f => f.includes('which is not in the arpeggio of rotation 0'))).toBe(true);
     } finally {
       vi.doUnmock('../../musical-model/music.ts');
       vi.resetModules();

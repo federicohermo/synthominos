@@ -240,12 +240,12 @@ describe('check_invariants', () => {
     try {
       const formas = (r: Record<string, unknown>) =>
         (r.checks as { name: string; failures: string[]; failuresOtherPieces: number }[])
-          .find(c => c.name === 'formas')!;
+          .find(c => c.name === 'shapes')!;
 
       const sinFiltro = call(checkInvariants, {});
       assert.equal(sinFiltro.ok, false);
       assert.equal(formas(sinFiltro).failures.length, 1);
-      assert.match(formas(sinFiltro).failures[0], /^I: tiene 3 celdas/);
+      assert.match(formas(sinFiltro).failures[0], /^I: has 3 cells/);
       assert.equal(formas(sinFiltro).failuresOtherPieces, 0);
 
       const conFiltro = call(checkInvariants, { piece: 'Z' });

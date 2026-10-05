@@ -24,9 +24,9 @@ export const checkInvariants = defineTool({
   description:
     'Runs the seven checks of the model and returns which ones pass, with counterexamples. The ' +
     'model space is 12 pieces × 4 rotations × reflection = 96 orientations, and each check ' +
-    'covers its own part: `orden del array` (array order), `ancla` (grip cell), `piezas distintas` ' +
-    '(distinct pieces) and `letras` (letters) cover the 96, `notas` (notes) another 96 (12 × 4 ' +
-    'rotations × 2 regimes, without the mirror), `formas` (shapes) the 12 canonical shapes, and ' +
+    'covers its own part: `array order`, `grip cell`, `distinct pieces` ' +
+    'and `letters` cover the 96, `notes` another 96 (12 × 4 ' +
+    'rotations × 2 regimes, without the mirror), `shapes` the 12 canonical shapes, and ' +
     'BASE_MAP the set once. ' +
     'Use it before you change geometry, piece tables or ' +
     'the musical model, and again after: the most dangerous invariant of the repo, that the cell ' +
