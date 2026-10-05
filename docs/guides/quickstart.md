@@ -24,7 +24,7 @@ Run the commands from the repo root. The app has no subfolder.
 clone**. In CI, the workflow runs it with `--with-deps`, because the Ubuntu runner does not have the
 system libraries that Chromium needs.
 
-The tests are two Vitest projects, and one runs in a real Chromium. It is the only way to cover the
+The tests are three Vitest projects; one runs in a real Chromium. It is the only way to cover the
 spectrum canvas and the engine `AudioContext`. The browser binary **is not in the lockfile**. So
 `pnpm install` does not get it, and `pnpm verify` fails with a Playwright error until you install it.
 It takes ~700 MB in the user cache (`%LOCALAPPDATA%\ms-playwright` on Windows,
@@ -172,13 +172,14 @@ prefixes, and what the hook blocks, are in [branches.md](../infra/branches.md).
 ## Checks before a PR
 
 ```bash
-pnpm verify                 # lint ‖ typecheck ‖ suite ‖ mcp:test: all four, in parallel
+pnpm verify                 # lint ‖ typecheck ‖ suite ‖ mcp:test in parallel, then budgets
 pnpm build                  # full build
 pnpm preview                # and try it by hand
 ```
 
-`pnpm verify` is the convergence node, and it replaces a manual run of the four. A red node returns
-exit 1. Measured with a warm cache: 41.2 s in series against 23.7 s in parallel.
+`pnpm verify` is the convergence node, and it replaces a manual run of the five. A red node returns
+exit 1. Measured with a warm cache, before the budgets had their own step: 41.2 s in series against
+23.7 s in parallel.
 
 **It does not depend on your memory.** `.github/workflows/verify.yml` runs the same command on each
 `pull_request` and on each push to `staging` and `main`. It runs the script, not a list of nodes, so
@@ -191,7 +192,8 @@ those modules with plain node, and an import without an extension **does not** b
 `pnpm lint` catches that case first, on the whole repo. `mcp:test` still checks that the modules
 really *load* in node.
 
-The tests run in **two projects**: `*.test.ts` in Node against `node-web-audio-api`, and
-`*.browser.test.tsx` in a real Chromium through Playwright. None runs in jsdom. **Chromium is not in
+The tests run in **three projects**: `*.test.ts` in Node against `node-web-audio-api`,
+`*.browser.test.tsx` in a real Chromium through Playwright, and the time budgets,
+`*.budget.test.ts`, alone after the others. None runs in jsdom. **Chromium is not in
 the lockfile**: a fresh clone needs `pnpm exec playwright install chromium` before the first
 `verify`.

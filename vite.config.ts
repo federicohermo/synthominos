@@ -38,7 +38,7 @@ export default defineConfig({
      * extension ademas separa sola —`node` toma `.ts` y el navegador `.tsx`—, asi
      * que un test con JSX no puede caer en node por accidente.
      *
-     * `extends: true` en los dos, y es lo que evita duplicar config: medido, con el
+     * `extends: true` en los tres, y es lo que evita duplicar config: medido, con el
      * los proyectos heredan `plugins` (sin eso el JSX del proyecto de navegador no
      * compila) y tambien el bloque `coverage`. Que `coverage` sea UNO SOLO y viva
      * arriba es lo que hace que los dos proyectos reporten en una tabla y contra un

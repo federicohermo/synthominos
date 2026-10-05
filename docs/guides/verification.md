@@ -24,8 +24,8 @@ list kept `test` and stayed green without the coverage gate.
 
 ### Two parts of its exact shape are not cosmetic
 
-The script is `pnpm --filter "{.}" run --parallel "/^(…)$/"`. Both parts were found by failing
-green:
+Its parallel block is `pnpm --filter "{.}" run --parallel "/^(…)$/"`. Both parts were found by
+failing green:
 
 - **`--filter "{.}"` is mandatory.** `--parallel` is a recursive workspace flag and **excludes
   the root package**. Without the filter, it runs only the scripts of `mcp-server` and reports
@@ -79,8 +79,9 @@ Linting with type information took it from ~2.5 s to **11.0 s**. The measurement
 `node:test`. What did not pay was cut. `import-x/no-cycle` cost **15 s more** and found zero
 cycles, so it is not in the config.
 
-Even so, `lint` does not set the clock of `verify`. **`suite` does, with 19.4 s.** Each number is
-measured without the other change; the pair above is measured with both in place.
+Even so, `lint` did not set the clock of `verify` then. **`suite` did, with 19.4 s.** Each number is
+measured without the other change; the pair above is measured with both in place. Since `suite` is
+one pass, `lint` ends last: in three runs of the parallel block on one machine, 3 to 4 s after it.
 
 `lint` also lints **every `.md`** of the repo, with the full `@eslint/markdown` preset. The detail is
 in `eslint.config.js`, next to the block. This page does not write the file count on purpose: that
@@ -146,7 +147,7 @@ session stuck for ten minutes.
   `**/*.js`, and in flat config that glob does not match `.mjs`. So the `.mjs` files, this hook
   included, get zero rules today
   ([#143](https://github.com/federicohermo/pentomino-games/issues/143)).
-- **It does not run the suite.** The suite is the clock of `verify`, and
+- **It does not run the suite.** The suite is the slowest test node of `verify`, and
   [#97](https://github.com/federicohermo/pentomino-games/issues/97) documents an intermittent test.
   In a node that a person types, that is a nuisance. In a hook on every turn, it blocks the end of
   the turn at random, and that is the fastest way to get the hook turned off.
@@ -170,7 +171,7 @@ this repo measures before it adds a dependency. This is an agent harness, and it
 harness does. The other half protects the repository, whatever wrote the change: `pnpm verify` in
 CI on each PR, and the ruleset that blocks a red merge into `main`.
 
-## The tests are two Vitest projects and one command
+## The tests are three Vitest projects
 
 The split is by what the test needs:
 
@@ -184,6 +185,8 @@ The split is by what the test needs:
   `ResizeObserver`, `matchMedia` and a `getBoundingClientRect` with numbers. `playback/engine.ts` needs
   `new AudioContext()` and `window.setInterval`. Coverage with jsdom needs a mock of exactly the
   code under test. That is coverage without verification.
+- **`budget`**: the time budgets, `*.budget.test.ts`, in `environment: 'node'`. `test` and
+  `coverage` name the two projects above, so neither runs it; `verify` runs it alone, at the end.
 
 The discriminant is the **suffix**, not a folder. A test of `Board.tsx` that needs a browser is
 still a test of `Board.tsx`, and it lives next to the others.

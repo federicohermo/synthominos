@@ -62,7 +62,8 @@ pnpm mcp:test # MCP server: typecheck + tests with node --test
 ```
 
 Vitest runs **two projects with one command**. `*.test.ts` runs in `environment: 'node'` against
-`node-web-audio-api`. `*.browser.test.tsx` runs in a real Chromium through Playwright. **None runs
+`node-web-audio-api`. `*.browser.test.tsx` runs in a real Chromium through Playwright.
+`*.budget.test.ts` runs alone in a third project, `budget`, at the end of `verify`. **None runs
 in jsdom**, and this is not pending work. jsdom does not implement Web Audio, and it gives no 2D
 canvas, `ResizeObserver` or `matchMedia`. To cover `Spectrum.tsx` with it, a test would have to mock
 the exact code it wants to cover. The six components, `App.tsx` and the two hooks have tests: see
