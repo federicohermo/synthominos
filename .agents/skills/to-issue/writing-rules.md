@@ -11,7 +11,8 @@ Each rule here came from an issue that broke without it. Apply each one before y
   `pnpm verify` typechecks across the package boundary, so the break is loud. Put the tool in
   Writes anyway, or the estimate comes out short.
 - **Coverage is 100 in all four metrics.** Each source file in Writes names its test file. Tests
-  split by suffix: `*.browser.test.tsx` runs in the `browser` project, the rest in `node`.
+  split by suffix: `*.browser.test.tsx` runs in the `browser` project, `*.budget.test.ts` in
+  `budget`, the rest in `node`.
 - **A new member of a const-object union puts in Writes everything indexed by it.** Search the
   union across `src/`, `mcp-server/`, the tests and `DESIGN.md`. A `Record` over the union fails
   the typecheck; a lookup table or a test fixture does not.
