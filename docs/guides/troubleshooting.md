@@ -94,18 +94,6 @@ one cycle: 7.5 s with 8 pieces at 110 bpm.
 something gives a sequence to the engine outside `playback/use-engine.ts`. The effects of that file
 hold the only calls to `setSequence`.
 
-## Board
-
-### A cell shows `undefinedNaN`
-
-The text is in place of a note name. Nothing throws.
-
-**Cause:** the cell read a note that does not exist, and `midiName(undefined)` returns that string.
-Either a rotation is outside 0 to 3, or a scale formula has fewer than five notes.
-
-**Fix:** run `check_invariants`: its `notes` check reports a formula of the wrong length. If it
-passes, find the value that reached a rotation without the type `Rotacion`.
-
 ## MCP server
 
 ### `ERR_MODULE_NOT_FOUND` when the server starts, and the app works
