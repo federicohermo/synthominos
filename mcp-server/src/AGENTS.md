@@ -76,8 +76,7 @@ is expensive.
 
 # Testing
 
-The floor for every test of the product. What `pnpm verify` runs is in
-[verification.md](../../docs/guides/verification.md).
+The floor for every test of the product. `package.json` declares what `pnpm verify` runs.
 
 1. **Each change of behavior has a test that fails if the behavior regresses.** A test that passes
    with the change removed proves nothing: run it against the old code once and see it fail.

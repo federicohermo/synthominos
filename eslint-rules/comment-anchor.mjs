@@ -61,7 +61,12 @@ export const PROVENANCE = [
   /\bAC\d+\b/,
 ];
 
-/** The first provenance form in `text`, or `null`. The gate over the `.md` files uses it too. */
+/**
+ * The first provenance form in `text`, or `null`. The gate over the `.md` files uses it too.
+ *
+ * @param {string} text
+ * @returns {string | null}
+ */
 export function provenanceIn(text) {
   for (const pattern of PROVENANCE) {
     const found = text.match(pattern);

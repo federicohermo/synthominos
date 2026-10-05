@@ -144,8 +144,7 @@ because the red lies about its cause:
 
 ## Phase 5: converge with `pnpm verify`
 
-`pnpm verify` is the convergence node, not `pnpm test`. What it runs is in
-`docs/guides/verification.md`.
+`pnpm verify` is the convergence node, not `pnpm test`. `package.json` declares what it runs.
 
 - **Commit and push before you run it.** It takes minutes. Another session may close its batch and
   delete worktrees in that time. What is on the remote survives.

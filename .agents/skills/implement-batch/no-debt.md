@@ -35,8 +35,8 @@ fail is not lax: it is a gate turned off that looks on.**
 checkbox by hand. A test has to be written, runs on every push, and **breaks by itself** when the
 code stops meeting the criterion.
 
-**The citation carries the capability code**: `AC-BRD-004`, not `AC4`. With a bare citation, the
-first test would cover the others forever.
+**The citation carries the capability code**: `AC-BRD-004`, not the number alone. With a bare
+number, the first test would cover the criteria of every capability forever.
 
 **Its ceiling:** the gate checks the citation, not that the test exercises the criterion. It is a
 floor. What raises it is the usual discipline: write the test first and watch it fail.

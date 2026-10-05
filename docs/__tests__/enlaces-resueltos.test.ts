@@ -4,46 +4,46 @@ import { fileURLToPath } from 'node:url';
 import { join, dirname, resolve, relative, sep } from 'node:path';
 
 /**
- * Todo enlace relativo de todo `.md` del repo resuelve: el archivo existe, y si el
- * enlace trae ancla, el encabezado existe.
+ * Every relative link of every `.md` of the repo resolves: the file exists, and if the link
+ * has an anchor, the heading exists.
  *
- * Es el gate que ningun linter puede dar. `markdown/no-missing-link-fragments` mira
- * las anclas de UN archivo contra sus propios encabezados, y este repo enlaza sobre
- * todo hacia AFUERA —`CLAUDE.md` a `docs/`, `docs/` entre si, los specs a los specs—,
- * que es justo lo que esa regla no ve. Por eso esta apagada en `eslint.config.js` y
- * por eso existe este archivo.
+ * No linter gives this gate. `markdown/no-missing-link-fragments` looks at the anchors of ONE
+ * file against its own headings, and this repo links mostly OUTWARD (`AGENTS.md` to `docs/`,
+ * `docs/` to itself, the specs to the specs), which is what that rule does not see. So the
+ * rule is off in `eslint.config.js`, and so this file exists.
  *
- * El otro motivo de que sea un test y no una regla es el slugger. El de la regla no
- * coincide con el de GitHub sobre un encabezado con backticks y guion bajo, asi que
- * declaraba roto el unico enlace a `#find_symbol` de `mcp-domain.md`, que en GitHub
- * resuelve: **«arreglarlo» lo habria roto de verdad**. Las dos diferencias estan
- * abajo, cada una con el falso positivo que produce si se escribe de la otra forma.
+ * The other reason for a test and not a rule is the slugger. The one of the rule does not
+ * match the one of GitHub on a heading with backticks and an underscore, so it declares
+ * broken a link to the anchor `#find_symbol`, which resolves on GitHub: **to "fix" it would
+ * break it for real**. The two differences are below, each with the false positive it gives
+ * when written the other way.
  *
- * Es un test del proyecto `node`: son archivos leidos del disco y comparados como
- * texto, sin un DOM en el medio. Vive en `docs/__tests__/` y no en `src/` porque no
- * importa una sola linea de la app: verifica la DOCUMENTACION, y `src/` no tiene por
- * que saber de ella (issue #100). Como el `include` de coverage es `src/**`, tampoco
- * entra al umbral de 100 — el criterio de suficiencia es otro y esta escrito abajo.
+ * It is a test of the `node` project: files read from the disk and compared as text, with no
+ * DOM in between. It lives in `docs/__tests__/` and not in `src/` because it imports no line
+ * of the app: it verifies the DOCUMENTATION, and `src/` does not need to know about it
+ * (issue #100). It is outside the `include` of coverage, so it is not under the 100
+ * threshold: the criterion of sufficiency is another one, written below.
  */
 
 /**
- * La raiz del repo: este archivo vive en `docs/__tests__/`, a dos niveles, que es la
- * misma profundidad que tenia en `src/__tests__/`.
+ * The repo root: this file lives in `docs/__tests__/`, two levels down.
  *
- * Con `fileURLToPath` y no con `.pathname`: en Windows el pathname de un `file://`
- * viene como `/D:/...`, con una barra de mas adelante, y `resolve` sobre eso da una
- * ruta que no existe.
+ * With `fileURLToPath` and not with `.pathname`: on Windows the pathname of a `file://` comes
+ * as `/D:/...`, with one slash too many in front, and `resolve` on that gives a path that
+ * does not exist.
  */
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
-/** Existe y es un archivo o un directorio. */
+/** It exists, and it is a file or a directory. */
 const existe = (ruta: string) => existsSync(ruta);
 
 /**
- * Lo que no se camina. `node_modules` es obvio; `.claude/worktrees/` no lo es y es el
- * que importa: adentro vive un checkout completo del repo, asi que sin esta linea
- * cada `.md` del proyecto se verifica una vez de mas por cada tarea en paralelo que
- * este corriendo, y el test pasa a depender de si hay una.
+ * What is not walked. `node_modules` is obvious. `.claude/worktrees/` is not, and it is the
+ * one that matters.
+ *
+ * It holds a complete checkout of the repo, so without this entry each `.md` of the project
+ * is verified one more time for each parallel task that runs, and the test depends on whether
+ * one runs.
  */
 const IGNORADOS = new Set(['node_modules', 'dist', '.git', 'worktrees', '__screenshots__', '.stryker-tmp']);
 
@@ -58,35 +58,34 @@ const caminar = (dir: string): string[] =>
 const ARCHIVOS = caminar(RAIZ);
 
 /**
- * El slug de un encabezado, con las reglas de GitHub y las **dos** diferencias que
- * costaron un falso positivo cada una:
+ * The slug of a heading, with the rules of GitHub and the **two** differences that cost one
+ * false positive each:
  *
- * 1. **Los espacios NO se colapsan** (`/\s/g` y no `/\s+/g`). GitHub reemplaza cada
- *    espacio por un guion, uno a uno. Un encabezado con `→` —que se borra por no ser
- *    alfanumerico— queda con dos espacios seguidos y por lo tanto con DOS guiones.
- *    Con el `+` daba 4 falsos positivos, los 4 sobre encabezados con flecha.
- * 2. **El `_` se conserva.** Al limpiar los backticks es tentador barrer tambien el
- *    guion bajo; si se hace, `### \`find_symbol\`` deja de dar `find_symbol` y
- *    reaparece el falso positivo del enlace de `docs/guides/mcp-domain.md`, que en
- *    GitHub anda. El guion bajo es uno de los pocos signos que GitHub NO borra.
+ * 1. **Spaces are NOT collapsed** (`/\s/g` and not `/\s+/g`). GitHub replaces each space with
+ *    a hyphen, one by one. A heading with `→`, which is deleted because it is not
+ *    alphanumeric, keeps two spaces in a row and so TWO hyphens. With the `+` there were 4
+ *    false positives, all 4 on headings with an arrow.
+ * 2. **The `_` is kept.** When the backticks are cleaned it is tempting to sweep the
+ *    underscore too. Then `### \`find_symbol\`` stops giving `find_symbol`, and a link to
+ *    that heading, which works on GitHub, reads as broken. The underscore is one of the few
+ *    signs GitHub does NOT delete.
  */
 const slug = (encabezado: string) =>
   encabezado
     .trim()
     .toLowerCase()
-    // Se van los signos, y se conservan letras (con acentos), numeros, espacios,
-    // guiones y guiones bajos. `\p{L}` cubre la `ñ` y las vocales acentuadas, que en
-    // este repo aparecen en casi todos los encabezados.
+    // The signs go. Letters (with accents), numbers, spaces, hyphens and underscores stay.
+    // `\p{L}` covers the `ñ` and the accented vowels.
     .replace(/[^\p{L}\p{N} _-]/gu, '')
     .replace(/\s/g, '-');
 
 /**
- * Los encabezados de un `.md`, ya como slugs y con el sufijo que GitHub le agrega a
- * los repetidos (`-1`, `-2`, …). Sin el sufijo, un enlace legitimo a la segunda
- * aparicion de un titulo daria roto.
+ * The headings of a `.md`, as slugs, with the suffix GitHub adds to the repeated ones (`-1`,
+ * `-2`, …).
  *
- * Los fences se saltean: un `# comentario` adentro de un bloque de codigo no es un
- * encabezado, y este repo tiene arboles de directorios llenos de `#`.
+ * Without the suffix, a legitimate link to the second occurrence of a title would read as
+ * broken. The fences are skipped: a `# comment` inside a code block is not a heading, and
+ * this repo has directory trees full of `#`.
  */
 const anclasDe = (contenido: string) => {
   const vistos = new Map<string, number>();
@@ -108,7 +107,7 @@ const anclasDe = (contenido: string) => {
   return anclas;
 };
 
-/** Cache: los archivos destino se leen una vez aunque los apunten veinte enlaces. */
+/** Cache: each target file is read once, even when twenty links point to it. */
 const cacheAnclas = new Map<string, Set<string>>();
 const anclasDeArchivo = (ruta: string) => {
   const yaEsta = cacheAnclas.get(ruta);
@@ -119,10 +118,10 @@ const anclasDeArchivo = (ruta: string) => {
 };
 
 /**
- * Los enlaces `[texto](destino)` de un archivo, ya descartados los externos.
+ * The `[text](target)` links of a file, with the external ones already dropped.
  *
- * Se saltea el contenido de los fences por el mismo motivo que en `anclasDe`: un
- * ejemplo de sintaxis adentro de un bloque de codigo no es un enlace del documento.
+ * The content of the fences is skipped for the same reason as in `anclasDe`: a syntax example
+ * inside a code block is not a link of the document.
  */
 const enlacesDe = (contenido: string) => {
   const enlaces: { destino: string; linea: number }[] = [];
@@ -134,7 +133,7 @@ const enlacesDe = (contenido: string) => {
 
     for (const m of texto.matchAll(/\[[^\]]*\]\(([^)\s]+)\)/g)) {
       const destino = m[1];
-      // Externos y protocolos: no son cosa de este gate.
+      // External links and protocols: not the business of this gate.
       if (/^([a-z][a-z0-9+.-]*:|\/\/)/i.test(destino)) continue;
       enlaces.push({ destino, linea: i + 1 });
     }
@@ -143,68 +142,47 @@ const enlacesDe = (contenido: string) => {
 };
 
 /**
- * Los `specs/NNN-…/` estan **ignorados** desde el spec 034: pueden estar hidratados o
- * no, y cualquiera de los dos es correcto. Un spec hidratado que cita a otro que no lo
- * esta daria «roto» sin que nada este mal, asi que **los enlaces DE un spec HACIA otro
- * spec** dejan de verificarse — y solo esos. Todo el resto del repo, incluidos los
- * enlaces de `docs/` y del `README.md` de `specs/`, se sigue verificando igual.
+ * The one exception: a link FROM a file under a folder of `specs/` whose name starts with
+ * three digits and a hyphen, TO a path under `specs/`, is not verified.
  *
- * Esto era condicional hasta el spec 035: `log.md` declaraba un «regimen» —si el
- * registro vivia en el repo o en GitHub— y la excepcion valia solo en el segundo. Con
- * `log.md` borrado no hay dos mundos que distinguir: hay uno.
+ * All the rest of the repo is verified the same, the links of `docs/` included.
  */
 
-/** ¿La ruta cae dentro de un directorio de spec, que es lo que el 034 ignora? */
+/** Is the path under a folder of `specs/` whose name starts with three digits and a hyphen? */
 const esDeUnSpec = (absoluto: string) => /[/\\]specs[/\\]\d{3}-/.test(absoluto);
 
-describe('los enlaces relativos de la documentacion resuelven', () => {
-  it('camina los `.md` del repo, y son los que su regimen tiene', () => {
-    // El gate mas importante del archivo y el que parece de adorno: si el caminante
-    // se rompe o si un `IGNORADOS` de mas se come medio repo, los otros dos tests
-    // pasan **sin haber mirado nada**. Es el mismo «fallar en verde» que el `--filter
-    // "{.}"` de `verify`, aca con otra cara.
+describe('the relative links of the documentation resolve', () => {
+  it('walks the `.md` files of the repo, and finds more than the floor', () => {
+    // The most important gate of the file, and the one that looks like decoration: if the
+    // walker breaks, or if one `IGNORADOS` entry too many eats half the repo, the other two
+    // tests pass **without looking at anything**. It is the same "failing green" as the
+    // `--filter "{.}"` of `verify`.
     //
-    // El piso es 25 y no 100 porque la cuenta cambio sola con el spec 034, no porque
-    // el gate afloje. Medido el 2026-08-24 sobre un worktree SIN hidratar: **28**
-    // archivos, contra los 170 que camina el mismo arbol con `specs/` hidratado — los
-    // 142 de la diferencia son exactamente los specs. Un piso de 25 sigue siendo una
-    // red que atrapa un caminante roto; lo que no podia era seguir en 100 y fallar por
-    // el motivo equivocado.
-    //
-    // El margen es de 3 y se achica solo: la medicion anterior, del 034, daba 30. Si
-    // llega a 0 el arreglo es re-medir y bajar el piso, no borrarlo.
+    // The floor is a net that catches a broken walker. If the count of the repo comes near
+    // it, the fix is to measure again and move the floor, not to delete it.
     const piso = 25;
 
-    expect(ARCHIVOS.length, `piso ${piso}, con specs/ hidratado o no`).toBeGreaterThan(piso);
+    expect(ARCHIVOS.length, `floor ${piso}`).toBeGreaterThan(piso);
   });
 
-  it('cada enlace apunta a un archivo que existe', () => {
+  it('each link points to a file that exists', () => {
     const rotos: string[] = [];
 
     for (const archivo of ARCHIVOS) {
       for (const { destino, linea } of enlacesDe(readFileSync(archivo, 'utf8'))) {
         const [ruta] = destino.split('#');
-        if (ruta === '') continue; // ancla propia: la mira el test de abajo
+        if (ruta === '') continue; // own anchor: the test below checks it
         const absoluto = resolve(dirname(archivo), ruta);
 
-        // La unica excepcion, y es angosta a proposito: un spec citando algo de
-        // `specs/`. Son dos casos y los dos son correctos.
+        // The one exception, and it is narrow on purpose: a file under a three-digit folder
+        // of `specs/` that links to a path under `specs/`.
         //
-        // A otro spec: los dos estan ignorados y la hidratacion puede haber traido uno
-        // y no el otro.
+        // What the exception does NOT cover: such a file linking to `docs/` or to `src/`.
+        // There a broken link is a broken link.
         //
-        // Y a un archivo de `specs/` que ya no esta — el `../log.md` que el `tasks.md`
-        // del 007 cita en su linea 205. Un spec mergeado **no se reescribe** (la
-        // Desviacion 2, y desde el 034 su texto vive en el issue, asi que arreglarlo
-        // seria editar el issue), y ademas el enlace era cierto cuando se escribio: un
-        // archivo que existio y se borro es historia correcta, no un enlace roto.
-        //
-        // Lo que la excepcion NO cubre: un spec enlazando a `docs/` o a `src/`. Ahi el
-        // destino sigue trackeado, asi que un enlace roto es un enlace roto.
-        //
-        // El separador al final no es cosmetico: sin el, `startsWith` tambien eximiria a
-        // un hermano futuro como `specs-archivo/`, o sea que un directorio nuevo entraria
-        // solo a la excepcion sin que nadie lo decida.
+        // The trailing separator is not cosmetic: without it, `startsWith` would also exempt
+        // a future sibling like `specs-archivo/`, so a new directory would enter the
+        // exception with no decision.
         if (esDeUnSpec(archivo) && absoluto.startsWith(join(RAIZ, 'specs') + sep)) continue;
 
         if (!ARCHIVOS.includes(absoluto) && !existe(absoluto)) {
@@ -213,12 +191,12 @@ describe('los enlaces relativos de la documentacion resuelven', () => {
       }
     }
 
-    // La lista entera y no el primero: son todos los `.md` del repo, y un gate que dice «fallo»
-    // sin decir donde es un gate que se apaga.
-    expect(rotos, `enlaces a un archivo que no existe:\n${rotos.join('\n')}`).toEqual([]);
+    // The whole list and not the first one: these are all the `.md` of the repo, and a gate
+    // that says "failed" and not where is a gate that gets turned off.
+    expect(rotos, `links to a file that does not exist:\n${rotos.join('\n')}`).toEqual([]);
   });
 
-  it('cada ancla apunta a un encabezado que existe, propia o ajena', () => {
+  it('each anchor points to a heading that exists, in its own file or in another', () => {
     const rotas: string[] = [];
 
     for (const archivo of ARCHIVOS) {
@@ -228,7 +206,7 @@ describe('los enlaces relativos de la documentacion resuelven', () => {
         if (!ancla) continue;
 
         const objetivo = ruta === '' ? archivo : resolve(dirname(archivo), ruta);
-        if (!existe(objetivo)) continue; // ya lo reporta el test de arriba
+        if (!existe(objetivo)) continue; // the test above reports it
         if (!objetivo.endsWith('.md')) continue;
 
         if (!anclasDeArchivo(objetivo).has(ancla.toLowerCase())) {
@@ -237,6 +215,6 @@ describe('los enlaces relativos de la documentacion resuelven', () => {
       }
     }
 
-    expect(rotas, `anclas que no existen:\n${rotas.join('\n')}`).toEqual([]);
+    expect(rotas, `anchors that do not exist:\n${rotas.join('\n')}`).toEqual([]);
   });
 });
