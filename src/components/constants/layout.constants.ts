@@ -290,23 +290,6 @@ export const ARRASTRE_PX_POR_BPM = 2;
 /** El `p-2` del chasis, en px. Sale de la clase de Tailwind y esta acá para que el ancho del dock de `drag.ts` lo lea. */
 export const PANEL_PADDING_PX = 8;
 
-/**
- * El ancho MAXIMO que puede llegar a tener el chasis del dock, en px.
- *
- * Es una cota y no una medida, y la diferencia importa: el ancho real lo fija la cantidad
- * de columnas que `columnasRectangulares` elige, y esa cuenta pide el DOM. Acá alcanza con
- * la cota porque lo unico que la usa es la posicion INICIAL del dock —donde aparece la
- * primera vez—, y si el panel termina siendo mas angosto lo unico que pasa es que arranca
- * unos pixeles mas separado del borde derecho. En cuanto alguien lo arrastra, `moverPanel`
- * acota contra la caja medida de verdad.
- *
- * **Que sea una cota y no la medida exacta es lo que evita duplicar la cuenta.** Calcularla
- * fina obligaria al shell a llamar a `columnasRectangulares` por su cuenta, y esa llamada
- * ya vive en `OrientationPanel`: dos copias de la misma cuenta son dos formas de que el
- * panel se dibuje de un ancho y se posicione contra otro.
- */
-export const DOCK_ANCHO_MAXIMO_PX = REJILLA_ANCHO_TECHO_PX + PANEL_PADDING_PX * 2;
-
 /** La separacion inicial de un flotante contra el borde de la pantalla, en px. */
 export const MARGEN_INICIAL_PX = 8;
 

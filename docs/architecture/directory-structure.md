@@ -167,7 +167,7 @@ src/
     │   │                         #   REJILLA_GAP_PX · REJILLA_ANCHO_TECHO_PX · TEMPO_MIN ·
     │   │                         #   TEMPO_MAX · ARRASTRE_PX_POR_BPM · PASO_TECLADO_PX ·
     │   │                         #   MARGEN_VISIBLE_PX · PANEL_PADDING_PX ·
-    │   │                         #   DOCK_ANCHO_MAXIMO_PX · MARGEN_INICIAL_PX ·
+    │   │                         #   MARGEN_INICIAL_PX ·
     │   │                         #   SENAL_ANCHO_CELDAS y SENAL_ALTO_CELDAS · las dos
     │   │                         #   razones del anillo de foco de la celda (spec 026)
     │   ├── palette.constants.ts  # los 12 colores y su color de texto (ver DESIGN.md)
