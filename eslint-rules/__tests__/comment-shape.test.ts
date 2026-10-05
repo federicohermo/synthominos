@@ -44,6 +44,14 @@ tester.run('comment-shape', rule, {
       code: '// one,\n// two\nconst a = 1;\n// three,\n// four\nconst b = 2;',
     },
     {
+      name: 'four lines of code with a comment at the end are four comments',
+      code: 'const a = 1; // one\nconst b = 2; // two\nconst c = 3; // three\nconst d = 4; // four',
+    },
+    {
+      name: 'a comment at the end of a line is not part of the run below it',
+      code: 'const a = 1; // one\n// two,\n// three,\n// four.\nconst b = 2;',
+    },
+    {
       name: 'tool directives',
       code: '/* global window */\n// @ts-expect-error the type is loosened on purpose\nconst a = 1;',
     },
@@ -94,6 +102,11 @@ tester.run('comment-shape', rule, {
     {
       name: 'a run of four consecutive `//`',
       code: '// One,\n// two,\n// three,\n// four.\nconst a = 1;',
+      errors: [{ messageId: 'long', data: { n: '4', max: '3' } }],
+    },
+    {
+      name: 'a comment at the end of a line, continued on its column below it',
+      code: 'const a = 1; // One,\n             // two,\n             // three,\n             // four.',
       errors: [{ messageId: 'long', data: { n: '4', max: '3' } }],
     },
   ],

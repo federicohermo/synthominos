@@ -2,7 +2,8 @@
 const DIRECTIVES = /^\s*(eslint|ts-|@ts-|prettier-|global|exported|istanbul|c8|v8|webpack|turbo)/
 
 /**
- * The comments of a file without the directives. A run of consecutive `//` lines is one block.
+ * The comments of a file without the directives. A run of consecutive `//` lines on one column is
+ * one block. A `//` after code starts a block, so two lines of code with a `//` are two comments.
  *
  * @param {import('eslint').SourceCode} source
  * @returns {import('estree').Comment[][]}
@@ -16,7 +17,9 @@ export function commentBlocks(source) {
       previous !== undefined &&
       comment.type === 'Line' &&
       previous.at(-1).type === 'Line' &&
-      comment.loc.start.line === previous.at(-1).loc.end.line + 1
+      comment.loc.start.line === previous.at(-1).loc.end.line + 1 &&
+      comment.loc.start.column === previous.at(-1).loc.start.column &&
+      source.lines[comment.loc.start.line - 1].slice(0, comment.loc.start.column).trim() === ''
     if (continues) previous.push(comment)
     else blocks.push([comment])
   }

@@ -25,8 +25,8 @@ three lines at most. What the code does is not a comment. A decision with a cost
 | `comment-anchor` | `history` | `previously`, `formerly`, `until recently`, `no longer`, `anymore`, `used to be` |
 | `comment-anchor` | `provenance` | A spec of the old regime: `spec 031`, a bare `031` used as a name, `AC6` |
 
-A run of consecutive `//` lines is **one** comment for both rules. A directive (`eslint`, `ts-`,
-`c8`) is not read.
+A run of consecutive `//` lines on one column is **one** comment for both rules. Two lines of code
+that each end with a `//` are two comments. A directive (`eslint`, `ts-`, `c8`) is not read.
 
 ## A citation must resolve
 
@@ -72,6 +72,7 @@ The floor for every test of the product. `package.json` declares what `pnpm veri
    - Pure logic: a `node` test, by example or by property.
    - The Web Audio graph, a canvas, the DOM or a layout: a browser test, `*.browser.test.tsx`.
    - A tool of the MCP server: a `node --test` file in `mcp-server/`.
+   - A time budget: a `*.budget.test.ts`. `verify` runs it alone, never under coverage.
 3. **A bug fix keeps a regression test**, at the boundary where the defect is.
 4. **Do not mock the boundary you prove.** A test of the engine runs a real `AudioContext`. A test
    of the shell may replace the engine, because its subject is the shell.

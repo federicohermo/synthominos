@@ -11,9 +11,10 @@ lints the files that changed, and blocks the end of the turn on a finding.** It 
 `pnpm verify` or CI. It moves the moment the agent learns of the finding, from the PR to the end
 of the turn.
 
-The docblock of the script holds what was weighed for its code, with the measurements: a hook on
-each edit against a hook on each turn, the two events, the lock that does not wait, and the open
-failure. This record holds what the script and `.claude/settings.json` cannot say.
+Before the comment cut, the docblock of the script held what was weighed for its code, with the
+measurements: a hook on each edit against a hook on each turn, the two events, the lock that does
+not wait, and the open failure. `git show 219d07a:.claude/scripts/lint-al-cerrar.mjs` prints it.
+This record holds what the script and `.claude/settings.json` cannot say.
 
 ## It runs lint, and nothing else
 

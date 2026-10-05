@@ -25,8 +25,8 @@ its exports before you read the error.
 
 **Fix:** import `OfflineAudioContext` from `node-web-audio-api`. If the test mounts a component,
 name the file `*.browser.test.tsx`: it then runs in Chromium, with the real `AudioContext` and the
-real DOM. Do not add `jsdom`. The comment on the test projects in `vite.config.ts` gives what it
-lacks.
+real DOM. Do not add `jsdom`: it has no canvas 2D, no `ResizeObserver`, no `matchMedia`, no layout
+and no Web Audio, so a test there mocks the code it covers.
 
 ### `branch coverage does not meet threshold of 100%` on the CI runner, and green on Windows
 

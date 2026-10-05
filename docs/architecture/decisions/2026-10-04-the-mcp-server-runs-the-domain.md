@@ -29,7 +29,7 @@ The cost:
   loads. No tool can reach a `.tsx`. A missing extension breaks the server and does not break the
   app.
 - **The index is built on each query.** Measured over 36 + 16 files: 112 ms for the first query and
-  about 50 ms for the next ones. The tree is now 92 files, and 22 more that give only imports.
+  about 50 ms for the next ones. The tree is now 72 files, and 17 more that give only imports.
   Nobody measured it again. If the time hurts, cache by `mtime`. Never write an index file.
 - **The compiler loads when the server starts.** The domain tools load in 124 ms. With
   `find_symbol`, the start takes 420 ms, in a session that calls it or not. A lazy import was

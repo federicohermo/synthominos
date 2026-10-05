@@ -37,8 +37,9 @@ Each rule here came from an issue that broke without it. Apply each one before y
   another branch: a lane in flight can add a reader.
 - **Reproduce a measured symptom under the criterion's own conditions before you ask for its
   red.** If the criterion excludes a case, the measurement excludes it too.
-- **A performance criterion says where it is measured, and the change shows there.** The
-  performance budgets run in the uninstrumented `test` pass. Coverage instrumentation breaks them.
+- **A performance criterion says where it is measured, and the change shows there.** The time
+  budgets run in the `budget` project, alone at the end of `verify`. Coverage instrumentation and
+  a busy machine break them.
 - **A numeric target is measured with the issue's proposal before you publish.** A criterion that
   groups files is run against the tree.
 - **A criterion that depends on the musical model is measured on the model**, with

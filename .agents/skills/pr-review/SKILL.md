@@ -14,8 +14,9 @@ fix lands: inside the PR's scope, in this PR; outside it, in its own PR opened i
 
 The method (axes, confidence filter, triage) is in [findings.md](findings.md).
 
-`gh` is not on PATH on this machine. Run it as `"/c/Program Files/GitHub CLI/gh.exe"`; this skill
-writes it as `gh`.
+On Windows `gh` may be outside PATH: run it as `"/c/Program Files/GitHub CLI/gh.exe"` where this
+skill writes `gh`. In a cloud session GraphQL answers 403, so `gh pr` and `gh issue` fail: use the
+REST API, for example `gh api 'repos/<owner>/<repo>/pulls?state=open'`.
 
 This skill works in the main checkout, on the PR branch. No worktree and no scaffold branch: one
 PR needs neither, and the PR branch already carries the prefix the hook accepts.
@@ -37,7 +38,8 @@ If there is none, ask which. Do not review `staging` against itself.
    in the report. A line that is not `+` in your `pr.diff` is not yours. With two or more PRs in
    the chain, use `pr-review-batch`.
 3. **The author.** If it is not you, the run is `--dry`: review and report, write nothing, push
-   nothing.
+   nothing. You are the login that `gh api user --jq .login` answers: compare it with the PR's
+   `author.login`.
 
 With `--dry`, write nothing: no fixes, no PRs, no push.
 
@@ -98,7 +100,8 @@ a concrete form: no test title cites the AC, or the test that cites it does not 
 
 The reverse holds too: **an AC that cannot be seen to fail is a finding about the spec.** "The
 board shows the piece" is not one; "after a drop on column 3, row 2, the cell holds piece L" is.
-Rewrite the criterion in the spec, in this PR, and check that the diff meets it. It is also a
+Rewrite the criterion in the spec, in this PR, once the person approves its old and new text
+(`.agents/rules/truth-layer.md`), and check that the diff meets it. It is also a
 correction of `to-spec`: add the rule there, per the loop in `no-debt.md`, and say so in the report.
 
 ## Step 5: Find and fix

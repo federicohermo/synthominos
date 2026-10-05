@@ -138,7 +138,8 @@ The step is done when `pnpm verify` exits 0.
 
 The spec is the first commit of the branch, and it ships in the same PR as the code that meets it.
 The prefix comes from the issue type: `feature/<N>-<kebab>`, or `bugfix/<N>-<kebab>` for a bug that
-writes an unwritten rule. Without an issue, `feature/<kebab>`.
+writes an unwritten rule. Without an issue, write it first with `to-issue`: `implement-feature`
+binds the approval of its run to the body of an issue.
 
 The merge is the approval. No field records it.
 

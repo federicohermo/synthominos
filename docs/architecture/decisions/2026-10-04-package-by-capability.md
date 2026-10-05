@@ -22,7 +22,7 @@ Two decisions come with it:
 - **There are no layer rules.** The lint zones between `domain/` and `audio/`, the order between the
   domain modules, the ban on React in two layers, and the rule that a module declares no constant
   are deleted. What they protected is now held by three constraints of the tools: a `.tsx` exports
-  only its component, the MCP server loads its imports with plain node, and a test picks its
+  no value but its component, the MCP server loads its imports with plain node, and a test picks its
   project by suffix.
 
 What holds the link:
@@ -47,6 +47,6 @@ forbids that today.
 
 One constraint appeared with the fusion. The browser project is the only one that runs
 `playback/engine.ts`; when the node project loads it without running its functions, v8 coverage
-cannot merge the two statement maps and the gate fails. So a value that another file reads does not
+cannot merge the two statement maps and the gate fails. So a value that a file of the node project reads does not
 live in `engine.ts`: the tempo values went to `scheduler.ts`, and the analyser settings to
 `spectrum/spectrum-bars.ts`.

@@ -11,7 +11,7 @@ gate lives in one place, the `verify` script of `package.json`. The time budgets
 parallel block, alone.
 
 Measured with a warm cache, before the budgets had their own step: 41.2 s in series against 23.7 s
-in parallel. The suite sets the clock of the block, not lint. Two measurements say so, each one
+in parallel. The suite set the clock of the block then, not lint. Two measurements say so, each one
 when lint took on more work:
 
 | What lint took on | `lint` | `suite` |
@@ -23,9 +23,12 @@ The second row measured its "before" again, in the same session, with
 `--ignore-pattern "**/*.md"`. The 11.0 s of the first row came from another machine at another
 time, so it was no baseline for the second.
 
+Since `suite` is one pass, `lint` ends last: in three runs of the parallel block on one machine,
+`lint` ended 3 to 4 s after `suite`.
+
 The alternative for CI was one step for each check. A list in the YAML is a second copy of the
-shape, and the day the script changes, the copy runs the old one. The comment at the top of the
-workflow has the case where that copy stays green without the coverage gate.
+shape, and the day the script changes, the copy runs the old one. A list that names a bare `test`
+in place of `suite` stays green without the coverage gate.
 
 ## Two parts of the script that are not decoration
 
@@ -43,8 +46,8 @@ workflow has the case where that copy stays green without the coverage gate.
 ## The cost
 
 - **The checks compete for the CPU.** A time measured inside the block measures the machine. So
-  the time budgets run outside it, and the test timeout goes from 5 s to 30 s under coverage. The
-  measurements are in `vite.config.ts` and in the docblock of
-  `src/circuit/__tests__/sequence.budget.test.ts`.
+  the time budgets run outside it, and the test timeout goes from 5 s to 30 s under coverage.
+  Measured: next to the other checks, the budget of the large board took 8.07 ms in one run of
+  three, against 3.1 ms alone. The counters of v8 took the first budget from 1.8 ms to 11.3 ms.
 - **A red run of the workflow names no check.** The workflow has one step for the four, so the
   check that failed is in the log.

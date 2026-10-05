@@ -1,3 +1,5 @@
+# Why `mutation` runs on the changed files and judges each one whole:
+# docs/architecture/decisions/2026-10-04-mutation-judges-a-changed-file-whole.md.
 name: hardening
 
 on:

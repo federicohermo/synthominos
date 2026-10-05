@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { RuleTester } from 'eslint';
+import { Linter, RuleTester } from 'eslint';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import rule, { provenanceIn } from '../comment-anchor.mjs';
 
 // `RuleTester` calls the global `describe` and `it`, and Vitest runs here without globals.
@@ -115,6 +118,29 @@ tester.run('comment-anchor', rule, {
       errors: [{ messageId: 'dead' }, { messageId: 'history' }, { messageId: 'provenance' }],
     },
   ],
+});
+
+describe('the index of the tree', () => {
+  it('does not read the checkouts of `.claude/worktrees/`', () => {
+    const root = mkdtempSync(join(tmpdir(), 'comment-anchor-'));
+    try {
+      mkdirSync(join(root, '.claude', 'worktrees', 'other'), { recursive: true });
+      writeFileSync(join(root, '.claude', 'worktrees', 'other', 'only-in-a-worktree.md'), '');
+      writeFileSync(join(root, 'in-the-tree.md'), '');
+      const messages = new Linter({ cwd: root }).verify(
+        '// see in-the-tree.md and only-in-a-worktree.md',
+        {
+          plugins: { local: { rules: { 'comment-anchor': rule } } },
+          rules: { 'local/comment-anchor': 'error' },
+        },
+        { filename: join(root, 'a.js') },
+      );
+      expect(messages).toHaveLength(1);
+      expect(messages[0].message).toContain('`only-in-a-worktree.md`');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('provenanceIn: the same check, for a text that is not a comment', () => {

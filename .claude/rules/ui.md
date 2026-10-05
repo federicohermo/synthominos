@@ -13,8 +13,9 @@ control exposes is in the contract `specs/accessibility/accessibility.md`. What 
 
 ## Rules
 
-- **The shell holds no pure function and no literal of the instrument.** A `.tsx` exports only its
-  component, so a decision written there has no test. Put it in a `.ts` module of the capability.
+- **The shell holds no pure function and no literal of the instrument.** A `.tsx` exports no value
+  but its component, so a decision written there has no test. Put it in a `.ts` module of the
+  capability.
 - **A component is presentational**: props in, no state and no effect of its own. `Spectrum.tsx`
   and `Playhead.tsx` are the exception: they read the engine and draw by hand.
 - **The rate of a value decides where it lives.** A value that changes many times in a second, or
@@ -49,6 +50,8 @@ control exposes is in the contract `specs/accessibility/accessibility.md`. What 
 - **The dependencies of an effect are the real ones.** Do not read the state through a ref to
   subscribe one time. The shell memoizes each callback, so the shell decides when the effect
   subscribes again. Do not put an object built inline in the dependencies: list its fields.
+  The one exception is the wheel, which subscribes once for each mount: `alRotar` reads the piece
+  in hand from `selectedRef`, and only `elegirPieza` writes that ref.
 - **A ref that two hooks share comes in as a parameter of both.**
 - **The decision of a gesture is a pure function in a `.ts` module.** It gets the fields of the
   event, not the event. "Is there an action?" and "does the default stop?" are two functions: a

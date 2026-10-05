@@ -25,8 +25,8 @@ three lines at most. What the code does is not a comment. A decision with a cost
 | `comment-anchor` | `history` | `previously`, `formerly`, `until recently`, `no longer`, `anymore`, `used to be` |
 | `comment-anchor` | `provenance` | A spec of the old regime: `spec 031`, a bare `031` used as a name, `AC6` |
 
-A run of consecutive `//` lines is **one** comment for both rules. A directive (`eslint`, `ts-`,
-`c8`) is not read.
+A run of consecutive `//` lines on one column is **one** comment for both rules. Two lines of code
+that each end with a `//` are two comments. A directive (`eslint`, `ts-`, `c8`) is not read.
 
 ## A citation must resolve
 
@@ -98,6 +98,7 @@ The floor for every test of the product. `package.json` declares what `pnpm veri
    - Pure logic: a `node` test, by example or by property.
    - The Web Audio graph, a canvas, the DOM or a layout: a browser test, `*.browser.test.tsx`.
    - A tool of the MCP server: a `node --test` file in `mcp-server/`.
+   - A time budget: a `*.budget.test.ts`. `verify` runs it alone, never under coverage.
 3. **A bug fix keeps a regression test**, at the boundary where the defect is.
 4. **Do not mock the boundary you prove.** A test of the engine runs a real `AudioContext`. A test
    of the shell may replace the engine, because its subject is the shell.
@@ -124,8 +125,9 @@ control exposes is in the contract `specs/accessibility/accessibility.md`. What 
 
 ## Rules
 
-- **The shell holds no pure function and no literal of the instrument.** A `.tsx` exports only its
-  component, so a decision written there has no test. Put it in a `.ts` module of the capability.
+- **The shell holds no pure function and no literal of the instrument.** A `.tsx` exports no value
+  but its component, so a decision written there has no test. Put it in a `.ts` module of the
+  capability.
 - **A component is presentational**: props in, no state and no effect of its own. `Spectrum.tsx`
   and `Playhead.tsx` are the exception: they read the engine and draw by hand.
 - **The rate of a value decides where it lives.** A value that changes many times in a second, or
@@ -160,6 +162,8 @@ control exposes is in the contract `specs/accessibility/accessibility.md`. What 
 - **The dependencies of an effect are the real ones.** Do not read the state through a ref to
   subscribe one time. The shell memoizes each callback, so the shell decides when the effect
   subscribes again. Do not put an object built inline in the dependencies: list its fields.
+  The one exception is the wheel, which subscribes once for each mount: `alRotar` reads the piece
+  in hand from `selectedRef`, and only `elegirPieza` writes that ref.
 - **A ref that two hooks share comes in as a parameter of both.**
 - **The decision of a gesture is a pure function in a `.ts` module.** It gets the fields of the
   event, not the event. "Is there an action?" and "does the default stop?" are two functions: a
