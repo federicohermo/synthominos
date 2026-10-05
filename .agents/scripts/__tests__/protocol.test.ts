@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import type { Git } from '../policy.ts';
-import { commandIntent, encode, handle, patchPaths, readIntent, segments } from '../protocol.ts';
+import { PR_TOOL, commandIntent, encode, handle, patchPaths, readIntent, segments } from '../protocol.ts';
+import type { RunStore } from '../run-gate.ts';
 
 /** The Codex payloads were captured from Codex CLI 0.160 on Windows. Claude's come from its hooks documentation. */
 
@@ -103,7 +104,7 @@ describe('readIntent: the real payloads', () => {
 
   it('Codex, apply_patch: the patch travels in tool_input.command', () => {
     const raw = payload({ tool_name: 'apply_patch', tool_input: { command: '*** Begin Patch\n*** Add File: lib/b.txt\n+uno\n*** End Patch' } });
-    expect(readIntent(raw, w)).toEqual({ writes: ['D:\\repo\\lib\\b.txt'], worktrees: [] });
+    expect(readIntent(raw, w)).toEqual({ writes: ['D:\\repo\\lib\\b.txt'], worktrees: [], pullRequests: [] });
   });
   it('Codex, Bash: the command is a string (PowerShell on Windows)', () => {
     const raw = payload({ tool_name: 'Bash', tool_input: { command: 'cd lib; echo tres > c.txt' } });
@@ -118,7 +119,7 @@ describe('readIntent: the real payloads', () => {
     expect(readIntent(payload({ tool_name: 'NotebookEdit', tool_input: { notebook_path: 'n.ipynb', file_path: '' } }), w)?.writes).toEqual(['D:\\repo\\n.ipynb']);
   });
   it('a tool that does not write writes nothing, even with a file_path', () => {
-    expect(readIntent(payload({ tool_name: 'Read', tool_input: { file_path: 'src/a.ts' } }), w)).toEqual({ writes: [], worktrees: [] });
+    expect(readIntent(payload({ tool_name: 'Read', tool_input: { file_path: 'src/a.ts' } }), w)).toEqual({ writes: [], worktrees: [], pullRequests: [] });
   });
   it('a patch inside a Bash call counts too', () => {
     const raw = payload({ tool_name: 'Bash', tool_input: { command: "apply_patch <<'EOF'\n*** Begin Patch\n*** Update File: src/a.ts\n*** End Patch\nEOF" } });
@@ -128,7 +129,7 @@ describe('readIntent: the real payloads', () => {
     expect(readIntent(raw, w)).toBeNull();
   });
   it('without tool_name it checks nothing', () => {
-    expect(readIntent(JSON.stringify({ cwd: CWD, tool_input: { command: 'rm src' } }), w)).toEqual({ writes: [], worktrees: [] });
+    expect(readIntent(JSON.stringify({ cwd: CWD, tool_input: { command: 'rm src' } }), w)).toEqual({ writes: [], worktrees: [], pullRequests: [] });
   });
 });
 
@@ -148,18 +149,55 @@ describe('encode: one way to deny, honored by both', () => {
   });
 });
 
+describe('commandIntent: which pull requests it opens', () => {
+  const opens = (command: string) => commandIntent(command, CWD, w).pullRequests;
+
+  it.each([
+    ['gh pr create --base staging', [{ cwd: CWD, head: null }]],
+    ['"/c/Program Files/GitHub CLI/gh.exe" pr create --head feature/x', [{ cwd: CWD, head: 'feature/x' }]],
+    ['gh pr create -H fork:bugfix/y', [{ cwd: CWD, head: 'bugfix/y' }]],
+    ['gh pr create --head=refactor/z', [{ cwd: CWD, head: 'refactor/z' }]],
+    ['gh pr create --head', [{ cwd: CWD, head: null }]],
+    ['cd .claude/worktrees/a && gh pr create', [{ cwd: 'D:\\repo\\.claude\\worktrees\\a', head: null }]],
+    ['gh pr view 12', []],
+    ['gh issue create', []],
+  ])('%s', (command, expected) => {
+    expect(opens(command)).toEqual(expected);
+  });
+
+  it('the GitHub tool opens one too, with the head it names or none', () => {
+    const call = (input: object) => readIntent(JSON.stringify({ cwd: CWD, tool_name: PR_TOOL, tool_input: input }), w)?.pullRequests;
+    expect(call({ head: 'feature/x', base: 'staging' })).toEqual([{ cwd: CWD, head: 'feature/x' }]);
+    expect(call({ base: 'staging' })).toEqual([{ cwd: CWD, head: null }]);
+  });
+});
+
 describe('handle', () => {
+  const NO_RUNS: RunStore = { list: () => [], read: () => null, diff: () => null };
   const git: Git = { paths: w, ownCheckout: () => CWD, treeOf: () => CWD, mainCheckoutOf: () => CWD, branchOf: () => 'probe' };
+
+  it('a call that no rule has an opinion on gets no output', () => {
+    const read = JSON.stringify({ cwd: CWD, tool_name: 'Bash', tool_input: { command: 'git status' } });
+    expect(handle([], read, git, NO_RUNS)).toEqual({ stdout: '', stderr: '' });
+  });
+
+  it('a pull request of a product branch with no run is warned, and a write that is denied still wins', () => {
+    const onFeature: Git = { ...git, branchOf: () => 'feature/x' };
+    const pr = JSON.stringify({ cwd: CWD, tool_name: 'Bash', tool_input: { command: 'gh pr create' } });
+    expect(handle(['codex'], pr, onFeature, NO_RUNS).stderr).toMatch(/^run gate: the branch `feature\/x` has no run/);
+    const both = JSON.stringify({ cwd: CWD, tool_name: 'Bash', tool_input: { command: 'echo x > src/a.ts && gh pr create --head feature/x' } });
+    expect(JSON.parse(handle(['codex'], both, git, NO_RUNS).stdout)).toMatchObject({ hookSpecificOutput: { permissionDecision: 'deny' } });
+  });
   const raw = JSON.stringify({ cwd: CWD, tool_name: 'Edit', tool_input: { file_path: 'src/a.ts' } });
 
   it('decides and encodes for the agent named by the argument', () => {
-    expect(JSON.parse(handle(['codex'], raw, git).stdout)).toMatchObject({ hookSpecificOutput: { permissionDecision: 'deny' } });
+    expect(JSON.parse(handle(['codex'], raw, git, NO_RUNS).stdout)).toMatchObject({ hookSpecificOutput: { permissionDecision: 'deny' } });
   });
   it('without an argument it is Claude, and an unreadable payload is warned', () => {
-    expect(handle([], 'x', git).stdout).toMatch(/systemMessage.*unreadable/);
+    expect(handle([], 'x', git, NO_RUNS).stdout).toMatch(/systemMessage.*unreadable/);
   });
   it('never throws: an error becomes a warning', () => {
     const broken: Git = { ...git, get paths(): never { throw new Error('boom'); } };
-    expect(handle(['codex'], raw, broken)).toEqual({ stdout: '', stderr: 'hook: could not run and let the call through: Error: boom' });
+    expect(handle(['codex'], raw, broken, NO_RUNS)).toEqual({ stdout: '', stderr: 'hook: could not run and let the call through: Error: boom' });
   });
 });

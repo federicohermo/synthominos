@@ -18,7 +18,7 @@ function fakeGit(trees: readonly FakeTree[], own: string | null = REPO): Git {
 }
 
 const onBranch = (branch: string | null) => fakeGit([{ prefix: REPO, tree: REPO, main: REPO, branch }]);
-const writes = (...paths: string[]): Intent => ({ writes: paths, worktrees: [] });
+const writes = (...paths: string[]): Intent => ({ writes: paths, worktrees: [], pullRequests: [] });
 
 describe('isProtected: by resolved path, not by string', () => {
   it.each([
@@ -94,7 +94,7 @@ describe('decide: the branch rule', () => {
 });
 
 describe('decide: the worktree rule', () => {
-  const opens = (gitDir: string, target: string): Intent => ({ writes: [], worktrees: [{ gitDir, target }] });
+  const opens = (gitDir: string, target: string): Intent => ({ writes: [], worktrees: [{ gitDir, target }], pullRequests: [] });
 
   it('a direct child of .claude/worktrees passes, in any case', () => {
     expect(decide(opens(REPO, 'd:\\REPO\\.claude\\worktrees\\x'), onBranch('staging'))).toEqual({ kind: 'no-opinion' });
@@ -113,12 +113,12 @@ describe('decide: the worktree rule', () => {
 describe('decide: a failing rule does not switch off the other', () => {
   it('the error becomes a warning and the other rule\'s denial still wins', () => {
     const git: Git = { ...onBranch('probe'), mainCheckoutOf: dir => { if (dir === 'X:\\roto') throw new Error('boom'); return REPO; } };
-    const intent: Intent = { writes: ['D:\\repo\\src\\x.ts'], worktrees: [{ gitDir: 'X:\\roto', target: 'X:\\y' }] };
+    const intent: Intent = { writes: ['D:\\repo\\src\\x.ts'], worktrees: [{ gitDir: 'X:\\roto', target: 'X:\\y' }], pullRequests: [] };
     expect(decide(intent, git)).toMatchObject({ kind: 'deny' });
   });
   it('without a denial, the error is warned', () => {
     const git: Git = { ...onBranch('staging'), mainCheckoutOf: () => { throw new Error('boom'); } };
-    const intent: Intent = { writes: [], worktrees: [{ gitDir: REPO, target: 'D:\\y' }] };
+    const intent: Intent = { writes: [], worktrees: [{ gitDir: REPO, target: 'D:\\y' }], pullRequests: [] };
     expect(decide(intent, git)).toEqual({ kind: 'warn', reason: 'worktree gate could not run and let the call through: Error: boom' });
   });
 });

@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { readInput, realGit, respond } from '../system.ts';
+import { readInput, realGit, realRunStore, respond } from '../system.ts';
 
 let repo: string;
 const git = (cwd: string, ...args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: 'pipe' });
@@ -92,6 +92,24 @@ describe('realGit', () => {
   it('uses the platform paths, not those of the machine running the test', () => {
     expect(realGit(repo, 'win32', () => '').paths).toBe(path.win32);
     expect(realGit(repo, 'linux', () => '').paths).toBe(path.posix);
+  });
+});
+
+describe('realRunStore', () => {
+  it('lists a folder, reads a file, and answers empty and null for what is not there', () => {
+    const store = realRunStore();
+    expect(store.list(repo)).toContain('src');
+    expect(store.list(path.join(repo, 'no-such-folder'))).toEqual([]);
+    expect(store.read(path.join(repo, 'src', 'a.ts'))).toMatch(/\n$/);
+    expect(store.read(path.join(repo, 'src', 'no-such-file.ts'))).toBeNull();
+  });
+
+  it('asks git for the NUL diff from the base, and answers null when git refuses', () => {
+    const asked: (readonly string[])[] = [];
+    const store = realRunStore((args, cwd) => { asked.push([...args, cwd]); return 'M\0src/a.ts\0'; });
+    expect(store.diff(repo, 'abc')).toBe('M\0src/a.ts\0');
+    expect(asked).toEqual([['diff', '--name-status', '-z', '--find-renames', '--find-copies', 'abc..HEAD', repo]]);
+    expect(realRunStore().diff(repo, 'no-such-ref-for-the-run-gate')).toBeNull();
   });
 });
 

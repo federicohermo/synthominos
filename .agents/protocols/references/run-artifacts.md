@@ -5,7 +5,7 @@ ignores the folder. Give an internal agent the absolute path: its worktree is an
 
 | File | Phase | What it holds |
 |---|---|---|
-| `run-state.json` | 0 | Run id, issue, branch, base commit, mode, the rule files loaded, the model and effort observed |
+| `run-state.json` | 0 | Run id, issue, `branch`, base commit, mode, the rule files loaded, the model and effort observed |
 | `run-log.md` | all | One entry for each phase |
 | `issue.md` | 0 | The body of the issue, as `gh` returns it |
 | `evidence-target.md` | 1 | Only for a no-change candidate |
