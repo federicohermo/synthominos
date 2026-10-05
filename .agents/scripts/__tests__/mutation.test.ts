@@ -3,18 +3,21 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { isMutated, mutationTarget, mutationTargetCommand, realMutationSystem, type MutationSystem } from '../mutation.ts';
+import { isMutated, mutationTarget, mutationTargetCommand, realMutationSystem, sameCode, type MutationSystem } from '../mutation.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const { mutate: MUTATE } = JSON.parse(readFileSync(path.join(ROOT, 'stryker.config.json'), 'utf8')) as { mutate: string[] };
 
-function fakeSystem(changed: string[] | null, mutate: string[] = ['src/**/*.ts', '!src/**/__tests__/**']) {
+/** A machine where each changed file is new at the base, unless `versions` gives its two texts. */
+function fakeSystem(changed: string[] | null, versions: Record<string, readonly [before: string, now: string]> = {}) {
   const out: string[] = [];
   const err: string[] = [];
   const bases: string[] = [];
   const sys: MutationSystem = {
     changed: base => { bases.push(base); return changed; },
-    config: () => JSON.stringify({ mutate }),
+    before: (_, file) => versions[file]?.[0] ?? null,
+    now: file => versions[file][1],
+    config: () => JSON.stringify({ mutate: ['src/**/*.ts', '!src/**/__tests__/**'] }),
     out: line => out.push(line),
     err: line => err.push(line),
   };
@@ -68,12 +71,47 @@ describe('mutationTarget', () => {
   });
 });
 
+describe('sameCode: two versions of a file, comments and layout aside', () => {
+  const code = 'export const f = (x: number) => {\n  return `${x}//${x}`;\n};\n';
+
+  it('a comment and the layout are not code', () => {
+    const commented = '/** What it is. */\nexport const f = (x: number) => { // why\n  return `${x}//${x}`; };\n';
+    expect(sameCode(code, commented, 'src/a.ts')).toBe(true);
+    expect(sameCode(code, code.replaceAll('\n', '\r\n'), 'src/a.ts')).toBe(true);
+  });
+
+  it('the `//` of a template literal is code', () => {
+    expect(sameCode(code, code.replace('//${x}', '//${x + 1}'), 'src/a.ts')).toBe(false);
+  });
+
+  it('a JSX comment is not code, and the JSX next to it is', () => {
+    const jsx = (comment: string, text: string) => `const A = () => <div>{/* ${comment} */}<b>${text}</b></div>;`;
+    expect(sameCode(jsx('the board', 'x'), jsx('the board, because the grid rules', 'x'), 'src/A.tsx')).toBe(true);
+    expect(sameCode(jsx('the board', 'x'), jsx('the board', 'y'), 'src/A.tsx')).toBe(false);
+  });
+
+  it('a file that is not TypeScript is compared as text', () => {
+    expect(sameCode('{"a": 1}', '{"a": 1}', 'package.json')).toBe(true);
+    expect(sameCode('{"a": 1}', '{ "a": 1 }', 'package.json')).toBe(false);
+  });
+});
+
 describe('mutationTargetCommand', () => {
   it('prints the eligible files on one line, for `stryker run --mutate`', () => {
     const { sys, out, bases } = fakeSystem(['src/a.ts', 'src/b.ts', 'src/__tests__/a.test.ts', 'README.md']);
     expect(mutationTargetCommand(['origin/staging'], sys)).toBe(0);
     expect(out).toEqual(['src/a.ts,src/b.ts']);
     expect(bases).toEqual(['origin/staging']);
+  });
+
+  it('a file where only a comment changed is not in the target, and not in the report', () => {
+    const { sys, out } = fakeSystem(['src/a.ts', 'src/b.ts', 'src/Panel.tsx'], {
+      'src/a.ts': ['const a = 1;\n', '// the reason\nconst a = 1;\n'],
+      'src/b.ts': ['const b = 1;\n', 'const b = 2;\n'],
+      'src/Panel.tsx': ['const P = () => <i>{/* uno */}</i>;\n', 'const P = () => <i>{/* one, because */}</i>;\n'],
+    });
+    expect(mutationTargetCommand(['origin/staging', '--report'], sys)).toBe(0);
+    expect(JSON.parse(out.join('\n'))).toEqual({ eligible: ['src/b.ts'], notEligible: [] });
   });
 
   it('prints an empty line when nothing is eligible', () => {
@@ -108,6 +146,9 @@ describe('realMutationSystem', () => {
     expect((JSON.parse(sys.config()) as { mutate: string[] }).mutate).toEqual(MUTATE);
     expect(sys.changed('HEAD')).toEqual([]);
     expect(sys.changed('no-such-ref-for-the-mutation-test')).toBeNull();
+    expect(sys.before('HEAD', 'stryker.config.json')).toContain('"mutate"');
+    expect(sys.before('HEAD', 'no-such-file-for-the-mutation-test.ts')).toBeNull();
+    expect(sys.now('stryker.config.json')).toContain('"mutate"');
   });
 
   it('writes to the two standard streams', () => {

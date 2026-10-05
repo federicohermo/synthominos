@@ -20,6 +20,10 @@ long.
 **Decision: a changed file is judged whole, with a threshold of 100 and no stored baseline.** The
 job fails on a surviving mutant of the file, also one that was there before the PR.
 
+A file is changed when its code is: the comments and the layout do not count. Their mutants are
+the ones the file had, and a PR that rewords the comments of twenty modules would pay for the
+mutants of the twenty.
+
 The cost: most modules of `src/` have never been mutated. The first PR that touches one pays for
 the whole file. A baseline of the mutants that survive today would remove that cost, and was not
 taken, for the reason the coverage threshold is 100 and not 95: a stored number is a debt budget
