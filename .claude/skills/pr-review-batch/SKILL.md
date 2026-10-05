@@ -134,9 +134,9 @@ differences:
    Chromium needs no reinstall: its cache belongs to the machine.
 3. **It materializes the diff with
    `node .claude/skills/pr-review-batch/scripts/pr-diff.ts <baseRefName> <temp-dir>`.**
-4. **The five clauses of step 0b sit above the triage policy.** Two change what `pr-review` would
-   do alone: a line that is not `+` goes back as `BELONGS-TO-PR-<N>`, and hot-list hunks stay
-   small.
+4. **The five clauses of step 0b sit above the triage policy.** Three change what `pr-review` would
+   do alone: a line that is not `+` goes back as `BELONGS-TO-PR-<N>`, hot-list hunks stay
+   small, and an AC to correct goes back as a `DECISION`: no person is in the agent's session.
 5. **The domain MCP reads the main checkout, not the worktree.** Inside the worktree, `rg` is the
    truth.
 6. **It writes the commit message to a file and commits with `-F`.** No heredoc.
