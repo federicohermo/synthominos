@@ -37,7 +37,7 @@ Do not report what `pnpm verify` already rejects. The PR cannot be green with it
 
 | A tool checks it: do not report | No tool checks it: it is yours |
 |---|---|
-| The dependency direction between layers | The comment says why, not what |
+| The dependency direction: `mcp-server/` imports `src/`, never the reverse | The comment says why, not what |
 | The explicit `.ts`/`.tsx` extension, no barrels, no aliases | Comment and commit language, as `docs/guides/conventions.md` sets |
 | `enum`, `any`, `@ts-ignore`, `eslint-disable`, the `!` outside its overrides | A deletion sits in its own commit |
 | Global state (store packages and `createContext`) | A new value does not duplicate one that exists under another name |

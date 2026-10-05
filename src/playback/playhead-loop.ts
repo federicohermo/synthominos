@@ -21,21 +21,6 @@ import type { CeldaPorEstrenar } from './route-source.ts';
  */
 
 /**
- * Los valores fijos de la cabeza lectora y del velo.
- *
- * Viven aca y no en `playhead-loop.ts` por la regla de `CLAUDE.md`: un `.ts` de capa
- * tiene funciones y nada mas. Mientras el bucle estuvo adentro de `Playhead.tsx` la
- * regla no llegaba —un `.tsx` es un componente, no un modulo de capa—; salieron a un
- * `.ts` para poder testearlos, y con eso pasaron a estar donde la regla mira.
- *
- * Es el primer archivo de `constants/` que importa de otro en vez de importar solo
- * tipos, y es a proposito: `BORDE_POR_KIND` empareja los tres grosores con las tres
- * `MarcaKind`, y ese emparejamiento es exactamente el «par de numeros que tiene que
- * coincidir y nada sincroniza» que la regla existe para evitar. Separarlo del grosor
- * que empareja seria dejar el par en dos archivos otra vez.
- */
-
-/**
  * El resaltado: la celda que suena ENGROSA su borde, hacia adentro y hacia afuera.
  * Nada mas — sin relleno, sin cambio de color y sin `scale`.
  *

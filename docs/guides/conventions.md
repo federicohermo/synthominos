@@ -34,7 +34,7 @@ both halves. The shell (`App.tsx`, `main.tsx`, `styles/`, the app-level tests) s
 **There is no layer rule.** What used to be the layers is now three constraints that the tools
 impose and check:
 
-- **A `.tsx` exports its component and nothing else** (`react-refresh/only-export-components`), so
+- **A `.tsx` exports its component and no other value** (`react-refresh/only-export-components`), so
   a decision that a test must reach goes in a `.ts` module. A rule of the instrument written inside
   a component cannot be exported, so it cannot be tested.
 - **The MCP server loads the modules it imports with plain node**, so those modules cannot touch
@@ -78,7 +78,7 @@ meaning.
 does not read them. `DEFAULT_BPM`, `TEMPO_MIN` and `TEMPO_MAX` live in `scheduler.ts`, with the
 arithmetic of the tempo.
 
-**A value that another file reads does not live in `engine.ts`.** Only the browser project runs
+**A value that a file of the `node` project reads does not live in `engine.ts`.** Only the browser project runs
 the engine. When a node test or an `importActual` mock loads `engine.ts` without running its
 functions, v8 coverage gets a second statement map that it cannot merge with the first, and the
 gate fails on statements that the browser ran. So the tempo values live in `scheduler.ts` and the
@@ -152,7 +152,7 @@ go there with their first file.
     without an extension. That is the second net, and it only sees what the server imports.
 - **No path aliases** (`@/pieces/…`). The maximum depth is one, so the benefit is cosmetic, and node
   does not know Vite aliases.
-- **One component per file**, and no export other than the component in a `.tsx`. This is not a style
+- **One component per file**, and no value exported from a `.tsx` other than the component. This is not a style
   preference: lint already requires it, and the Fast Refresh granularity is the module.
 
 ## TypeScript
@@ -235,7 +235,7 @@ which rejects them with `TS1294`. This is not a restriction to lift. The same op
 *type-strippable*, and that lets node load `src/` without a build. An `enum` emits runtime
 code, so it stays out.
 
-The replacement for any closed set puts its two halves in the role folders. This is the closed set
+The replacement for any closed set puts its two halves in the module that owns the set. This is the closed set
 for the rotation:
 
 ```ts

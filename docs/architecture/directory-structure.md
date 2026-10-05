@@ -227,7 +227,7 @@ lives in the one that owns its rule, and the other imports it.
 
 There is no layer rule. Three constraints come from the tools, and the tools check them:
 
-- **A `.tsx` exports its component and nothing else** (`react-refresh/only-export-components`). Logic
+- **A `.tsx` exports its component and no other value** (`react-refresh/only-export-components`). Logic
   that a test or another module needs goes in a `.ts` module.
 - **The MCP server loads the modules it imports with plain node.** A module it imports cannot touch
   React, the DOM or an `AudioContext` when it loads. `pnpm mcp:test` fails if one does.

@@ -65,8 +65,7 @@ export const ROTACION = { cero: 0, noventa: 1, ciento_ochenta: 2, doscientos_set
  *
  * Vale dos veces y por eso está una sola: es el valor con el que nacen las doce (AC6) y es
  * al que vuelve el botón `0°` (AC7). Escribirlo dos veces sería el par de valores que
- * tienen que coincidir y nada sincroniza, que es el motivo medido por el que este repo no
- * declara constantes adentro de los módulos.
+ * tienen que coincidir y nada sincroniza.
  */
 export const ORIENTACION_INICIAL: Orientacion = { rotation: ROTACION.cero, mirror: false };
 
@@ -89,7 +88,7 @@ export const ORIENTACION_INICIAL: Orientacion = { rotation: ROTACION.cero, mirro
  * inicial de un `useState` y eso suene a aliasing: los tres escritores de la memoria
  * arman un `Record` **nuevo** con setter funcional, porque `.claude/rules/ui.md` prohíbe
  * mutar lo que ya se entregó a React. Con esa regla puesta, la referencia compartida no
- * puede ensuciarse — y `constants/` es una carpeta que sólo tiene datos.
+ * puede ensuciarse.
  */
 export const ORIENTACIONES_INICIALES: MemoriaDeOrientacion = Object.fromEntries(
   (Object.keys(SHAPES) as PieceKey[]).map(p => [p, ORIENTACION_INICIAL]),

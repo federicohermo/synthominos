@@ -33,7 +33,7 @@ import type { Sequence } from '../circuit/sequence.ts';
  *
  * El mapeo a las tres funciones reales se hace en un solo lugar, que es
  * `playback/use-engine.ts` — el único módulo de la capa que importa la **API de transporte** del
- * motor. `Playhead.tsx`, `Spectrum.tsx` y `route-source.ts` también importan `playback/engine.ts`, pero
+ * motor. `playhead-loop.ts`, `spectrum-loop.ts` y `route-source.ts` también importan `playback/engine.ts`, pero
  * los tres piden lecturas y ninguno arranca, frena ni agenda nada.
  */
 

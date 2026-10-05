@@ -97,9 +97,7 @@ export interface Ruta {
  *
  * **Es una funcion y no una constante.** Dejo de poder ser un
  * valor cuando las dimensiones dejaron de ser constantes: la costura son las dos esquinas
- * opuestas del tablero que haya, no dos coordenadas fijas. Vive en este archivo y no en
- * `constants/` por la regla del repo —un `.ts` de capa tiene funciones, `constants/` tiene
- * valores— y al lado de `neighborsOf`, que es su unico llamador.
+ * opuestas del tablero que haya, no dos coordenadas fijas.
  */
 export function costuraDe(dims: Dims): readonly [Cell, Cell] {
   return [[0, 0], [dims.w - 1, dims.h - 1]];

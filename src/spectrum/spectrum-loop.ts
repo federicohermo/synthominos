@@ -16,16 +16,6 @@ import { binsToBars } from './spectrum-bars.ts';
  * su cuenta.
  */
 
-/**
- * Los valores fijos del dibujo del espectro.
- *
- * Viven aca y no en `spectrum-loop.ts` por la regla de `CLAUDE.md`: un `.ts` de capa
- * tiene funciones y nada mas. Mientras el bucle estuvo adentro de `Spectrum.tsx` la
- * regla no llegaba —un `.tsx` es un componente, no un modulo de capa—; salieron a un
- * `.ts` para poder testearlos, y con eso estos cuatro numeros pasaron a estar donde la
- * regla mira.
- */
-
 /** Barras dibujadas. Menos que los 128 bins: agrupadas se leen sin ruido visual. */
 export const BAR_COUNT = 48;
 

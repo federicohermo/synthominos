@@ -132,7 +132,7 @@ function lex(a: readonly number[], b: readonly number[]): number {
  *
  * `tiebreak[k]` es el rango de la celda `k` para desempatar, menor gana. Entra por
  * parametro y no se calcula aca porque el criterio es musical —hoy es el orden
- * angular— y `music.ts` esta aguas abajo: esta capa no puede importarlo
+ * angular— y `music.ts` esta aguas abajo: este modulo no lo importa
  * y no tiene por que saber que existe un grado.
  *
  * ## Los cuatro criterios, en orden
