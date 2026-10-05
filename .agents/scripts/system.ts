@@ -1,8 +1,9 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path, { type PlatformPath } from 'node:path';
 import type { Git } from './policy.ts';
 import type { Response } from './protocol.ts';
+import type { RunStore } from './run-gate.ts';
 
 export type RunGit = (args: readonly string[], cwd: string) => string;
 
@@ -54,6 +55,20 @@ export function realGit(hookDir: string, platform: NodeJS.Platform = process.pla
         if (file !== null && existsSync(file)) return readFileSync(file, 'utf8').trim().replace(/^refs\/heads\//, '');
       }
       return null;
+    },
+  };
+}
+
+export function realRunStore(run: RunGit = runGit): RunStore {
+  return {
+    list: dir => (existsSync(dir) ? readdirSync(dir) : []),
+    read: file => (existsSync(file) ? readFileSync(file, 'utf8') : null),
+    diff(tree, base, branch) {
+      try {
+        return run(['diff', '--name-status', '-z', '--find-renames', '--find-copies', `${base}..refs/heads/${branch}`], tree);
+      } catch {
+        return null;
+      }
     },
   };
 }

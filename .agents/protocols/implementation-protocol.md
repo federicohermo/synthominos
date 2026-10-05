@@ -69,7 +69,8 @@ check, say in the report that it is not applicable.
    worktree opens only under `.claude/worktrees/`.
 5. Create `.agent-runs/<run-id>/` at the root of the checkout you work in. The run id is `RUN-<issue>-<UTC time>`,
    for example `RUN-138-20261004T2130Z`. Every artifact of the run goes there. Nothing goes under
-   `.claude/` or `.codex/`. The folder is ignored by git.
+   `.claude/` or `.codex/`. The folder is ignored by git. Write the branch of the run in
+   `run-state.json`, in the field `branch`: the hook finds the run of a PR by it.
 
 Never mix your work with changes of the user that the run does not own.
 
@@ -246,6 +247,11 @@ Open the PR against `staging`, or against the branch it stacks on, with the body
 ```bash
 node .spec-anchored/spec-anchored.ts validate-result .agent-runs/<run-id>/result.json
 ```
+
+When the PR opens, the hook gives the run folder to the kernel again: the approval record, the
+hashes of the plan, the manifest and the policy, and the scope of the diff from the base commit.
+It refuses the PR on a finding, with the words of the kernel.
+[Why](../../docs/architecture/decisions/2026-10-05-the-hook-gives-the-run-to-the-kernel.md)
 
 The terminal is `PR_READY_AWAITING_HUMAN`. A blocker that a later review raises brings the Owner
 back. A correction to the code runs Phases 5 to 9 again.

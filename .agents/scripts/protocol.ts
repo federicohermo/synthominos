@@ -1,5 +1,6 @@
 import type { PlatformPath } from 'node:path';
 import { decide, type Git, type Intent, type Verdict } from './policy.ts';
+import { pullRequestRule, type RunStore } from './run-gate.ts';
 
 // Codex treats exit code 2 as a broken hook and lets the call through: a denial is JSON only.
 // `allow` is never emitted: in Claude Code it skips the permission system.
@@ -8,6 +9,7 @@ export type Agent = 'claude' | 'codex';
 export interface Response { readonly stdout: string; readonly stderr: string }
 
 const FILE_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
+export const PR_TOOL = 'mcp__github__create_pull_request';
 const SHELL_TOOLS = new Set(['Bash', 'PowerShell']);
 
 /** Git Bash's `/d/Users/…` is `D:/Users/…` on Windows. POSIX paths stay as they are. */
@@ -186,9 +188,17 @@ function worktreeOpening(words: readonly string[], cwd: string, paths: PlatformP
   return null;
 }
 
+/** `--head feature/x`, `-H feature/x`, `--head=feature/x`, with or without the `owner:` of a fork. */
+function headOf(words: readonly string[]): string | null {
+  const at = words.findIndex(w => w === '--head' || w === '-H' || w.startsWith('--head='));
+  const value = at === -1 ? undefined : words[at].startsWith('--head=') ? words[at].slice('--head='.length) : words[at + 1];
+  return value === undefined ? null : value.replace(/^[^:]*:/, '');
+}
+
 export function commandIntent(command: string, cwd: string, paths: PlatformPath): Intent {
   const writes: string[] = [];
   const worktrees: { gitDir: string; target: string }[] = [];
+  const pullRequests: { cwd: string; head: string | null }[] = [];
   let here = cwd;
 
   for (const segment of segments(command)) {
@@ -208,6 +218,10 @@ export function commandIntent(command: string, cwd: string, paths: PlatformPath)
       if (opening !== null) worktrees.push(opening);
       continue;
     }
+    if (name === 'gh' && rest[0] === 'pr' && (rest[1] === 'create' || rest[1] === 'new')) {
+      pullRequests.push({ cwd: here, head: headOf(rest) });
+      continue;
+    }
     const writer = WRITERS[name];
     const cmdlet = CMDLETS[ALIASES[name] ?? name];
     const targets = writer !== undefined
@@ -215,7 +229,7 @@ export function commandIntent(command: string, cwd: string, paths: PlatformPath)
       : cmdlet !== undefined ? cmdletTargets(rest, cmdlet[0], cmdlet[1]) : [];
     for (const t of targets) writes.push(resolveFrom(paths, here, t));
   }
-  return { writes, worktrees };
+  return { writes, worktrees, pullRequests };
 }
 
 export function patchPaths(patch: string): string[] {
@@ -236,7 +250,9 @@ export function readIntent(raw: string, paths: PlatformPath): Intent | null {
   const { cwd, tool_name: tool, tool_input: input } = payload;
   const writes: string[] = [];
   const worktrees: { gitDir: string; target: string }[] = [];
+  const pullRequests: { cwd: string; head: string | null }[] = [];
 
+  if (tool === PR_TOOL) pullRequests.push({ cwd, head: typeof input.head === 'string' ? input.head : null });
   if (typeof tool === 'string' && FILE_TOOLS.has(tool)) {
     for (const field of ['file_path', 'notebook_path']) {
       const target = input[field];
@@ -251,9 +267,10 @@ export function readIntent(raw: string, paths: PlatformPath): Intent | null {
       const fromCommand = commandIntent(command, cwd, paths);
       writes.push(...fromCommand.writes);
       worktrees.push(...fromCommand.worktrees);
+      pullRequests.push(...fromCommand.pullRequests);
     }
   }
-  return { writes, worktrees };
+  return { writes, worktrees, pullRequests };
 }
 
 export function encode(verdict: Verdict, agent: Agent): Response {
@@ -268,12 +285,13 @@ export function encode(verdict: Verdict, agent: Agent): Response {
   return { stdout: '', stderr: '' };
 }
 
-export function handle(args: readonly string[], raw: string, git: Git): Response {
+export function handle(args: readonly string[], raw: string, git: Git, runs: RunStore): Response {
   const agent: Agent = args[0] === 'codex' ? 'codex' : 'claude';
   try {
     const intent = readIntent(raw, git.paths);
     if (intent === null) return encode({ kind: 'warn', reason: 'hook: unreadable payload, nothing was checked' }, agent);
-    return encode(decide(intent, git), agent);
+    const verdicts = [decide(intent, git), pullRequestRule(intent, git, runs)];
+    return encode(verdicts.find(v => v.kind === 'deny') ?? verdicts.find(v => v.kind === 'warn') ?? { kind: 'no-opinion' }, agent);
   } catch (error) {
     return encode({ kind: 'warn', reason: `hook: could not run and let the call through: ${String(error)}` }, agent);
   }

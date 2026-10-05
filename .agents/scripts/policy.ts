@@ -6,6 +6,8 @@ import { isValidWorktreeTarget } from './worktrees.ts';
 export interface Intent {
   readonly writes: readonly string[];
   readonly worktrees: readonly { readonly gitDir: string; readonly target: string }[];
+  /** `head` is the branch the call names, or `null` for the branch of `cwd`. */
+  readonly pullRequests: readonly { readonly cwd: string; readonly head: string | null }[];
 }
 
 export type Verdict =
@@ -56,7 +58,7 @@ export function branchDenial(branch: string, target: string): string | null {
   return `The branch \`${branch}\` does not say what kind of change it is, and \`${target}\` is product code. ${WAY_OUT}`;
 }
 
-function ourMainCheckout(git: Git, dir: string): string | null {
+export function ourMainCheckout(git: Git, dir: string): string | null {
   const main = git.mainCheckoutOf(dir);
   const own = git.ownCheckout();
   return main !== null && own !== null && same(git.paths, main, own) ? main : null;

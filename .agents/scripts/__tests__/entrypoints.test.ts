@@ -24,6 +24,7 @@ describe('hook.ts', () => {
     vi.doMock('../system.ts', () => ({
       readInput: () => 'not json',
       realGit: () => ({ paths: path.posix }),
+      realRunStore: () => ({}),
       respond,
     }));
     await import('../hook.ts');

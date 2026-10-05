@@ -9,7 +9,7 @@
 - **The two hardening agents** are `general-code-reviewer` and `mutation-hardener`. Call them
   with `Agent`, only from a run of the implementation protocol. Their source is `agents/`.
 - **Hooks** (`.claude/settings.json`): `PreToolUse` runs `.agents/scripts/hook.ts claude` on every
-  edit and shell call. `Stop` and `SubagentStop` run `.claude/scripts/lint-al-cerrar.mjs`, which
+  edit and shell call, and on the GitHub tool that opens a PR. `Stop` and `SubagentStop` run `.claude/scripts/lint-al-cerrar.mjs`, which
   lints what changed and blocks the turn on a finding.
 - **Subagents with `isolation: "worktree"`** open their worktree under `.claude/worktrees/`, the
   folder the hook allows and the cleaner sweeps.
