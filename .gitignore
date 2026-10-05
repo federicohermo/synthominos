@@ -25,21 +25,20 @@ dist-ssr
 .vitest-attachments/
 **/__screenshots__/
 
-# Worktrees de subagentes. Aca adentro vive un checkout completo con su propio
-# node_modules, asi que sin esta regla `git status` en main queda sucio mientras
-# corre cualquier tarea en paralelo, y el `git add -A` de un review ajeno se los
-# llevaria puestos.
+# Subagent worktrees. Each holds a complete checkout with its own node_modules, so without
+# this rule `git status` in the main checkout is dirty while a parallel task runs, and the
+# `git add -A` of another review would take them.
 .claude/worktrees/
 
-# Los specs viven en GitHub Issues desde el spec 034: el mapa es `specs/mapa.json`, y
-# el directorio de aca es una CACHE que se reconstruye con
-# `node .claude/scripts/hidratar-specs.mjs`. Lo que queda trackeado son cuatro archivos y
-# ninguno es un spec: el `README.md` con la convencion, el mapa — que ademas trae el nombre
-# historico de cada carpeta, porque NO se deriva del titulo del issue (7 de 35 no) — y los
-# dos gates de `specs/__tests__/`, que miran esos dos.
-specs/[0-9]*/
-
-# La CLI de Vercel escribe aca al linkear el proyecto, y su `project.json` lleva el
-# `projectId` y el `orgId`: son de la cuenta y no del repo, asi que commitearlos ataria
-# el clone de cualquier otro a este proyecto de Vercel.
+# The Vercel CLI writes here when it links the project, and its project file holds the
+# `projectId` and the `orgId`: they belong to the account and not to the repo, so a commit
+# of them would tie the clone of anyone else to this Vercel project.
 .vercel/
+
+# The state of a run of the implementation protocol: logs, approvals, evidence, handoffs.
+# The PR and the issue are the durable record. See .agents/protocols/implementation-protocol.md.
+.agent-runs/
+
+# What a mutation run writes: the sandbox of Stryker and its report. `pnpm mutation`.
+.stryker-tmp/
+reports/

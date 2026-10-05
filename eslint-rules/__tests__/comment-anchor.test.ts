@@ -1,127 +1,153 @@
-import { describe, it } from 'vitest';
-import { RuleTester } from 'eslint';
-import regla from '../comment-anchor.mjs';
+import { describe, it, expect } from 'vitest';
+import { Linter, RuleTester } from 'eslint';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import rule, { provenanceIn } from '../comment-anchor.mjs';
 
-/**
- * El `RuleTester` de ESLint 9 no registra nada por si solo: llama a `describe` y a
- * `it` globales, y este repo no corre vitest con `globals: true`. Sin estas dos
- * lineas la corrida no falla en rojo — falla con `No test suite found in file`, que
- * es la forma de fallar en verde que este repo ya se comio dos veces.
- */
+// `RuleTester` calls the global `describe` and `it`, and Vitest runs here without globals.
 RuleTester.describe = describe;
 RuleTester.it = it;
 
-/**
- * La regla resuelve contra `context.cwd`, que en el `RuleTester` es el `cwd` del
- * proceso: la raiz del repo, porque vitest corre desde ahi. O sea que los casos de
- * abajo se verifican **contra el arbol de verdad** y no contra un fixture, que es
- * lo unico que puede probar que una cita viva resuelve.
- *
- * El indice se arma una vez por proceso y se cachea por raiz. No hay hook para
- * resetearlo, a proposito: un backdoor de testing en un gate es la primera cosa que
- * alguien usa para saltearlo.
- */
+// The rule resolves against the repo root, so the cases are checked against the real tree.
 const tester = new RuleTester();
 
-tester.run('comment-anchor', regla, {
+tester.run('comment-anchor', rule, {
   valid: [
-    // La cita que resuelve, que es el 98 % de las citas del repo.
-    { name: 'cita viva', code: '// la geometria vive en src/domain/transform.ts' },
+    { name: 'a citation that resolves', code: '// the geometry lives in src/pieces/transform.ts' },
     {
-      // El indice empareja por BASENAME: la ruta esta mal —el archivo esta en
-      // `src/domain/constants/`— y aun asi pasa. Es la decision de diseno de la
-      // regla: lo que caza es el archivo borrado o renombrado, no el formato de
-      // la ruta. Exigir la ruta exacta convertiria las 309 citas vivas en 309
-      // problemas de formato.
-      name: 'la ruta puede estar mal si el archivo existe',
-      code: '// ver constants/pieces.constants.ts',
+      name: 'the path can be wrong when the file exists',
+      code: '// see constants/pieces.ts',
     },
-    { name: 'lib.*.d.ts es de TypeScript', code: '// el tipo lo trae lib.dom.d.ts, no este repo' },
-    { name: 'node:* es un builtin', code: '// se lee con node:fs para no depender de nada' },
+    { name: 'lib.*.d.ts belongs to TypeScript', code: '// the type comes from lib.dom.d.ts, not from this repo' },
+    { name: 'node:* is a builtin', code: '// read with node:fs so that it depends on nothing' },
 
-    // AC5: los cuatro archivos de un spec viven en una cache gitignoreada que en
-    // la CI esta VACIA. Si la regla los resolviera contra el arbol de trabajo,
-    // estos dos casos serian verdes aca y rojos en Actions.
-    { name: 'research.md no depende de la cache', code: '// el numero sale de research.md §3' },
-    { name: 'tasks.md tampoco', code: '// la tarea es tasks.md T003' },
+    { name: 'before is a word of position', code: '// the piece is normalized before the rotation' },
+    { name: 'is used to is not history', code: '// the index is used to resolve a citation' },
+    { name: 'a participle is not history', code: '// the key used to sign the bundle' },
+    { name: 'is used to be', code: '// this flag is used to be sure the loop ends' },
+    { name: 'the past tense that describes is not a chronicle', code: '// it was a list of five cells and it still is' },
 
-    // AC6: los tres posicionales y el pasado descriptivo. `antes` es la palabra
-    // mas ambigua del castellano tecnico y es la que rompia la regla de origen.
-    { name: 'antes de es posicional', code: '// se normaliza antes de rotar' },
-    { name: 'antes del es posicional', code: '// corre antes del scheduler' },
-    { name: 'antes que es posicional', code: '// la tonica se resuelve antes que la escala' },
-    { name: 'antes nada es posicional', code: '// antes nada de esto se calcula' },
-    {
-      name: 'el pasado descriptivo no es cronica',
-      code: '// era una lista de cinco celdas y sigue siendolo',
-    },
+    { name: 'a criterion with its capability', code: '// AC-CIR-006 holds here, with BR-CIR-004' },
+    { name: 'a decimal', code: '// the gain goes from 0.050 to 1,005 in 0.012 s' },
+    { name: 'a measure', code: '// the click lasts 020 ms' },
+    { name: 'a hex color and a part of a name', code: '// #012 is the ink, and v010 is the tag of track_007' },
+    { name: 'a number of three digits that does not start with zero', code: '// 120 permutations, 390 cells' },
+    { name: 'the word spec with no number', code: '// the spec of the circuit says five intervals' },
 
-    // Un comentario que le habla a una herramienta no es prosa de nadie.
-    { name: 'las directivas no se miran', code: '// ts-expect-error vive en inexistente-xyz.ts' },
+    { name: 'directives are not read', code: '// ts-expect-error lives in missing-xyz.ts since spec 031' },
 
-    // Dos comentarios separados por una linea en blanco son DOS bloques, no una
-    // corrida: el segundo no se pega al primero.
-    {
-      name: 'dos bloques sueltos, los dos limpios',
-      code: '// la tonica sale de la pieza\n\n// el orden sale de la posicion',
-    },
-    {
-      name: 'un bloque /* */ no arrastra al de linea que sigue',
-      code: '/* la escala sale de la rotacion */\n// y el retrogrado de la reflexion',
-    },
+    { name: 'two loose blocks, both clean', code: '// the tonic comes from the piece\n\n// the order comes from the position' },
+    { name: 'a /* */ block does not pull the line comment after it', code: '/* the scale comes from the rotation */\n// and the retrograde from the reflection' },
   ],
 
   invalid: [
     {
-      // La corrida de `//` es UN comentario: la cita esta partida del texto que la
-      // introduce y aun asi se encuentra, y el hallazgo es uno solo.
-      name: 'cita muerta en una corrida de dos lineas',
-      code: '// el helper que resolvia esto vivia en\n// src/domain/inexistente-xyz.ts',
-      errors: [{ messageId: 'muerta', data: { cita: 'src/domain/inexistente-xyz.ts' } }],
+      name: 'a dead citation in a run of two lines',
+      code: '// the helper that solves this lives in\n// src/domain/missing-xyz.ts',
+      errors: [{ messageId: 'dead', data: { citation: 'src/domain/missing-xyz.ts' } }],
     },
     {
-      // Dos muertas en el mismo bloque son DOS hallazgos: arreglar una no arregla
-      // la otra. Es el caso real de `symbols.test.ts`.
-      name: 'dos citas muertas en un bloque son dos hallazgos',
-      code: '/* usa src/audio/fake-xyz.ts y src/audio/otro-xyz.ts */',
+      name: 'two dead citations in one block are two findings',
+      code: '/* it uses src/audio/fake-xyz.ts and src/audio/other-xyz.ts */',
       errors: [
-        { messageId: 'muerta', data: { cita: 'src/audio/fake-xyz.ts' } },
-        { messageId: 'muerta', data: { cita: 'src/audio/otro-xyz.ts' } },
+        { messageId: 'dead', data: { citation: 'src/audio/fake-xyz.ts' } },
+        { messageId: 'dead', data: { citation: 'src/audio/other-xyz.ts' } },
       ],
     },
     {
-      // AC5 del otro lado: un archivo que NO es uno de los cuatro canonicos y vive
-      // adentro de la cache de specs no resuelve, exista o no en este checkout.
-      // Contestar que si seria contestar distinto en Actions.
-      name: 'un archivo de la cache de specs no resuelve ni hidratado',
-      code: '// el detalle esta en specs/051-los-comentarios/notas.md',
-      errors: [{ messageId: 'muerta', data: { cita: 'specs/051-los-comentarios/notas.md' } }],
+      name: 'a file of a numbered spec does not resolve',
+      code: '// the number comes from research.md, section 3',
+      errors: [{ messageId: 'dead', data: { citation: 'research.md' } }],
     },
 
-    // AC6: uno en rojo por cada uno de los tres patrones, con su `messageId`. Un
-    // test que solo cuenta errores pasa en verde con la regla reportando el mensaje
-    // equivocado.
     {
-      name: 'historia: adverbio',
-      code: '// anteriormente el tablero se recorria en zigzag',
-      errors: [{ messageId: 'historia', data: { forma: 'anteriormente' } }],
+      name: 'history: an adverb',
+      code: '// previously the board was walked in a zigzag',
+      errors: [{ messageId: 'history', data: { form: 'previously' } }],
     },
     {
-      name: 'historia: ya no',
-      code: '// el campo ya no se escribe en cada frame',
-      errors: [{ messageId: 'historia', data: { forma: 'ya no' } }],
+      name: 'history: formerly, and until recently',
+      code: '// formerly a Map\n\n// until  recently this was a Set',
+      errors: [{ messageId: 'history', data: { form: 'formerly' } }, { messageId: 'history', data: { form: 'until  recently' } }],
     },
     {
-      name: 'historia: antes + verbo en pasado',
-      code: '// antes usaba un Map y ahora es un Set',
-      errors: [{ messageId: 'historia', data: { forma: 'antes usaba' } }],
+      name: 'history: no longer',
+      code: '// the field is no longer written on each frame',
+      errors: [{ messageId: 'history', data: { form: 'no longer' } }],
     },
     {
-      // Un bloque puede estar podrido de las dos maneras, y son dos hallazgos
-      // distintos con dos arreglos distintos.
-      name: 'una cita muerta y una cronica en el mismo bloque',
-      code: '// ya no se usa src/domain/inexistente-xyz.ts',
-      errors: [{ messageId: 'muerta' }, { messageId: 'historia' }],
+      name: 'history: anymore',
+      code: '// the seam does not move anymore',
+      errors: [{ messageId: 'history', data: { form: 'anymore' } }],
+    },
+    {
+      name: 'history: used to be',
+      code: '// the tonic used to be the center cell',
+      errors: [{ messageId: 'history', data: { form: 'used to be' } }],
+    },
+    {
+      name: 'two historical forms in one block are one finding',
+      code: '// previously a Map, and no longer one',
+      errors: [{ messageId: 'history', data: { form: 'previously' } }],
+    },
+
+    {
+      name: 'provenance: spec and its number',
+      code: '// the seam leaves the board since spec 031',
+      errors: [{ messageId: 'provenance', data: { form: 'spec 031' } }],
+    },
+    {
+      name: 'provenance: the form of a commit scope, and the plural',
+      code: '// spec(052) moved the dock\n\n// specs 007 and 012',
+      errors: [{ messageId: 'provenance', data: { form: 'spec(052' } }, { messageId: 'provenance', data: { form: 'specs 007' } }],
+    },
+    {
+      name: 'provenance: a bare number used as a name',
+      code: '// the 011 made the crossing cost more',
+      errors: [{ messageId: 'provenance', data: { form: '011' } }],
+    },
+    {
+      name: 'provenance: a criterion without its capability',
+      code: '// AC6 asks for the same budget on the large board',
+      errors: [{ messageId: 'provenance', data: { form: 'AC6' } }],
+    },
+    {
+      name: 'a dead citation, a chronicle and a numbered spec in one block',
+      code: '// src/domain/missing-xyz.ts is no longer used since the 031',
+      errors: [{ messageId: 'dead' }, { messageId: 'history' }, { messageId: 'provenance' }],
     },
   ],
+});
+
+describe('the index of the tree', () => {
+  it('does not read the checkouts of `.claude/worktrees/`', () => {
+    const root = mkdtempSync(join(tmpdir(), 'comment-anchor-'));
+    try {
+      mkdirSync(join(root, '.claude', 'worktrees', 'other'), { recursive: true });
+      writeFileSync(join(root, '.claude', 'worktrees', 'other', 'only-in-a-worktree.md'), '');
+      writeFileSync(join(root, 'in-the-tree.md'), '');
+      const messages = new Linter({ cwd: root }).verify(
+        '// see in-the-tree.md and only-in-a-worktree.md',
+        {
+          plugins: { local: { rules: { 'comment-anchor': rule } } },
+          rules: { 'local/comment-anchor': 'error' },
+        },
+        { filename: join(root, 'a.js') },
+      );
+      expect(messages).toHaveLength(1);
+      expect(messages[0].message).toContain('`only-in-a-worktree.md`');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('provenanceIn: the same check, for a text that is not a comment', () => {
+  it('returns the first form it finds, or null', () => {
+    expect(provenanceIn('The seam is a rule of spec 031, and of the 009.')).toBe('spec 031');
+    expect(provenanceIn('The budget of the 009 holds.')).toBe('009');
+    expect(provenanceIn('AC10 measures twelve pieces.')).toBe('AC10');
+    expect(provenanceIn('AC-CIR-023 measures twelve pieces in 0.005 s.')).toBeNull();
+  });
 });

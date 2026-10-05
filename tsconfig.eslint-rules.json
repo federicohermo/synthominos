@@ -6,14 +6,12 @@
     "module": "ESNext",
     "skipLibCheck": true,
 
-    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
 
-    /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -21,22 +19,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
 
-    /*
-     * El unico tsconfig del repo con `allowJs`, y hace falta por dos cosas distintas que
-     * salen del mismo hecho: las reglas son `.mjs` y sus tests son `.ts`.
-     *
-     * 1. Con `allowJs` apagado un `.ts` NO PUEDE importar un `.mjs`. Es por lo que los
-     *    `.mjs` de `.claude/scripts/` se ejercen por subproceso en vez de importarse
-     *    (esta explicado en `gate-de-spec.test.ts`). Aca el `RuleTester` necesita el
-     *    objeto de la regla en el mismo proceso, asi que esa salida no sirve.
-     * 2. Sin un tsconfig que incluya `eslint-rules`, `pnpm lint` FALLA POR PARSEO sobre
-     *    el `__tests__/`: `projectService` rechaza todo archivo que ningun tsconfig
-     *    levante. Es el mismo motivo por el que `tsconfig.app.json` nombra sus cinco
-     *    directorios enteros y no solo `src`.
-     *
-     * `checkJs` queda apagado: los `.mjs` entran al programa para poder importarse y
-     * para que el `@type` de su JSDoc los tipe, no para typecheckearse como TypeScript.
-     */
+    /* The tests are `.ts` and import the rules, which are `.mjs`. `checkJs` stays off. */
     "allowJs": true
   },
   "include": ["eslint-rules"]

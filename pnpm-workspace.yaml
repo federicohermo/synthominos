@@ -1,17 +1,25 @@
-# Config de pnpm. Desde pnpm 10 los settings viven acá, no en el campo `pnpm` del package.json.
+# The pnpm config. From pnpm 10 the settings live here, not in the `pnpm` field of package.json.
 
-# Dos paquetes: la app en la raíz y el MCP server de dominio (spec 006). El aislamiento lo garantiza
-# el gestor y no la disciplina: `zod` y `@modelcontextprotocol/server` quedan en
-# `mcp-server/node_modules` y no aparecen en el `node_modules` de la raíz, así que el tooling no
-# puede colarse al bundle de la app. Hay un solo lockfile, el de la raíz, y un solo
-# `pnpm install` —también desde la raíz— que instala los dos.
+# Two packages: the app at the root and the domain MCP server. The package manager guarantees
+# the isolation, not discipline: `zod` and `@modelcontextprotocol/server` stay in
+# `mcp-server/node_modules` and do not appear in the `node_modules` of the root, so the tooling
+# cannot get into the bundle of the app. There is one lockfile, at the root, and one
+# `pnpm install`, also from the root, that installs both.
 packages:
   - '.'
   - 'mcp-server'
 
-# pnpm 10 no corre postinstall de dependencias salvo que se declaren acá. esbuild queda en `false`
-# a propósito: se verificó que `pnpm run build` y `pnpm test` pasan con su script bloqueado, así que
-# el default seguro no cuesta nada. Si un día el build falla pidiendo el binario de esbuild, el
-# cambio es poner `true`, no borrar la línea — el `false` es la decisión, no la ausencia de decisión.
+# pnpm 10 runs no postinstall of a dependency unless it is declared here. esbuild stays `false`
+# on purpose: verified, `pnpm run build` and `pnpm test` pass with its script blocked, so the
+# safe default costs nothing. If the build fails some day and asks for the esbuild binary, the
+# change is to set `true`, not to delete the line: the `false` is the decision, not the absence
+# of one.
 allowBuilds:
   esbuild: false
+
+# `@stryker-mutator/core` 10.0.0 brings `typed-rest-client` 2.3.1, which pins a `qs` with three
+# open advisories. Stryker uses that client only to upload a report to its dashboard, which this
+# repo does not do. The override takes the patched `qs`. Remove it when Stryker moves to a
+# `typed-rest-client` that asks for `qs` >= 6.16.
+overrides:
+  qs: ^6.16.0

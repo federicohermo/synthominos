@@ -1,12 +1,8 @@
-# Los .sh se checkoutean con LF aunque core.autocrlf sea true: con CRLF el shebang se lee
-# con un retorno de carro pegado al nombre del interprete y falla con "bad interpreter".
+# A .sh file is checked out with LF even when core.autocrlf is true: with CRLF the shebang reads
+# with a carriage return stuck to the name of the interpreter, and fails with "bad interpreter".
 *.sh text eol=lf
 
-# `specs/mapa.json` no lo escribe una persona: lo escriben `publicar-spec.mjs` y, desde el spec 043,
-# el derivador que corre la Action en el push a `main` — los dos con `\n`, porque el formato es una
-# entrada por linea y la funcion que lo produce vive en `lib/specs.ts`.
-#
-# Con `core.autocrlf=true` —que es la configuracion de la maquina donde esto se escribio— un checkout
-# en Windows lo dejaria con CRLF, y entonces la primera escritura reescribiria las 43 lineas en vez
-# de la que cambio. Justo el diff de una linea que el formato existe para dar.
+# A file that a script writes with `\n`, one entry per line. With `core.autocrlf=true`, a checkout
+# on Windows would leave it with CRLF, and the first write would rewrite every line and not the
+# one that changed. The format exists to give a diff of one line.
 specs/mapa.json text eol=lf

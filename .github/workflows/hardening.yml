@@ -1,0 +1,76 @@
+# Why `mutation` runs on the changed files and judges each one whole:
+# docs/architecture/decisions/2026-10-04-mutation-judges-a-changed-file-whole.md.
+name: hardening
+
+on:
+  pull_request:
+  # A `hotfix:` commit reaches a shared branch with no PR.
+  push:
+    branches: [staging, main]
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      # The whole history: a later commit does not remove a secret from the repo.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # A finding is answered by rotating the secret, never by an allowlist.
+      - name: Install gitleaks 8.30.1
+        run: |
+          curl -sSfLO https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks_8.30.1_linux_x64.tar.gz" | sha256sum --check
+          tar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks
+
+      - run: ./gitleaks git --no-banner --redact .
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+
+      # A finding is fixed by an update inside the declared range, or by an override in
+      # `pnpm-workspace.yaml` with its reason.
+      - run: pnpm audit
+
+  mutation:
+    # Only a PR has a base to compare with.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      # The whole history: the target is the diff from the merge base.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.18.0
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # A `--mutate` on the command line replaces the list of stryker.config.json. The names go
+      # through `env`: a PR chooses its file names, and `${{ }}` inside `run` is pasted into the
+      # script before the shell reads it.
+      - name: Find the eligible target
+        id: target
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: echo "files=$(node .agents/scripts/mutation-target.ts "origin/$BASE_REF")" >> "$GITHUB_OUTPUT"
+
+      # No Chromium: Stryker runs the `node` project only.
+      - name: Mutate the eligible target
+        if: steps.target.outputs.files != ''
+        env:
+          FILES: ${{ steps.target.outputs.files }}
+        run: pnpm mutation --mutate "$FILES"

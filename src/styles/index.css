@@ -1,22 +1,7 @@
 @import "tailwindcss";
 
-/* El color de fondo se declara UNA vez, y de acá salen los dos lugares que lo pintan.
-   Antes vivía dos veces: este `body` con el hex escrito a mano, y el `div` raíz de
-   `App.tsx` con la clase de Tailwind que resuelve a ESE MISMO hex. Los dos lugares tienen
-   que seguir existiendo —el `body` cubre el overscroll, el `div` cubre el layout— pero el
-   valor no. Y la duplicación era invisible incluso para un `grep` del hex: la segunda
-   copia no estaba escrita como color sino como el nombre de una clase.
-
-   Es la misma clase de daño que la regla «los módulos no declaran constantes» persigue
-   adentro de `src/` —un valor que existe dos veces y nada lo sincroniza—, salvo que acá
-   cruza el borde CSS/TSX, que es donde ningún linter del repo mira. El `@theme` cierra
-   los dos lados de una: Tailwind 4 genera la clase `bg-fondo` para el `div` y deja
-   `var(--color-fondo)` para este `body`.
-
-   El hex de abajo es la única aparición del color en `src/`, y eso es verificable: un
-   grep del hex y de la clase vieja acotado a `src/` tiene que devolver esta línea y nada
-   más. Por eso ni este comentario ni el del test los escriben literales — el día que
-   alguien los mencione de nuevo en prosa, la verificación deja de discriminar. */
+/* The one place where the background color is written: this `body` and the root `div` of
+   `App.tsx` read it. A test fails if the hex appears again in `src/`. */
 @theme {
   --color-fondo: #f8fafc;
 }

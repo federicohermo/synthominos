@@ -1,39 +1,37 @@
 # Synthominos
 
-Un prototipo de **instrumento musical**, no un juego con reglas de resolución. El usuario coloca
-pentominós en un tablero de 10×6 y cada pieza dispara un arpegio de cinco notas —salvo que esté
-muteada, que la deja ocupando su lugar y su tiempo sin sonar—. El tablero es un **recorrido**, no un
-compás: un circuito cerrado visita las piezas, y el orden y los silencios salen de la geometría. No
-hay puntaje ni condición de victoria: una feature se evalúa por si vuelve al instrumento más
-expresivo, no más difícil.
+A **musical instrument**, not a game. You place pentominoes on a board sized to the screen, and
+each piece fires a five-note arpeggio. A closed circuit visits the pieces, so order and silence
+come from geometry. A muted piece keeps its place and its time, and does not sound. There is no
+score and no win.
 
-Vite 7 · React 19 · TypeScript 5.8 · Tailwind CSS 4 · Web Audio (sin librería de audio).
+Play it at <https://synthominos.vercel.app>.
 
-## Correrlo
+Vite 7 · React 19 · TypeScript 5.8 · Tailwind CSS 4 · Web Audio, with no audio library.
 
-Node ≥ 20.19 o ≥ 22.12 (Vite 7). El gestor es **pnpm** y está fijado en `packageManager`: usar npm
-deja un `package-lock.json` que el deploy puede llegar a preferir.
+## Run it
 
 ```sh
 pnpm install
-pnpm exec playwright install chromium   # una sola vez por clone
+pnpm exec playwright install chromium   # once per clone
 pnpm dev
-pnpm verify                             # el gate antes de un PR
+pnpm verify                             # the gate before a PR
 ```
 
-Chromium no está en el lockfile y el proyecto `browser` de Vitest lo necesita: sin esa segunda línea
-el primer `verify` de un clone recién sacado falla. `verify` corre `lint ‖ typecheck ‖ suite ‖
-mcp:test`, y `suite` incluye coverage con umbral 100 en las cuatro métricas. El resto de los scripts
-está en `package.json`. Ojo: `mcp:test` pide Node ≥ 22.18, porque corre TypeScript sin compilar.
+- **Use Node 22.18 or later.** The app needs less. The harness scripts and the MCP server run
+  TypeScript with no build, and they need it.
+- **Use pnpm.** `packageManager` pins the version.
+- **Install Chromium once.** It is not in the lockfile, and the browser tests need it. Without the
+  second command, the first `pnpm verify` of a fresh clone fails.
 
-## A dónde ir
+## Where to go
 
-| Para | Archivo |
+| For | Read |
 |---|---|
-| La doc técnica entera: arquitectura, guías, infra | [docs/README.md](./docs/README.md) |
-| El lenguaje visual: los 12 colores y su tónica | [DESIGN.md](./DESIGN.md) |
-| Trabajar en el repo: comandos, capas, reglas | [CLAUDE.md](./CLAUDE.md) |
-| La convención de los specs | [specs/README.md](./specs/README.md) |
-
-Cada uno de esos archivos es la única fuente de lo suyo. Este README enlaza y no repite, para no ser
-un lugar más donde la información pueda quedar vieja.
+| Work in the repo: the commands, the architecture, the rules | [AGENTS.md](./AGENTS.md) |
+| What the instrument does | [capabilities](./docs/architecture/capabilities.md), and the contracts in [specs/](./specs/) |
+| The principles, and why each big choice was made | [constitution](./docs/architecture/constitution.md) · [decisions](./docs/architecture/decisions/) |
+| The visual language: the 12 colors and what a cell shows | [DESIGN.md](./DESIGN.md) |
+| How code and documents are written | [conventions](./docs/guides/conventions.md) |
+| A trap that someone already hit | [troubleshooting](./docs/guides/troubleshooting.md) |
+| The hosting and the branches | [deploy](./docs/infra/deploy.md) · [branches](./docs/infra/branches.md) |

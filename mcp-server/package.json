@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "MCP server que ejecuta el dominio de pentomino-games. Tooling local: no entra al bundle ni al deploy. `typescript` es devDependency y no dependency: lo usa `tsc` en `typecheck` y no lo usa `start`, porque Node >=22.18 corre los .ts por type-stripping nativo — el mismo motivo por el que este archivo declara ese piso en `engines`.",
+  "description": "MCP server that runs the domain of pentomino-games. Local tooling: it is not in the bundle and not in the deploy. Node >=22.18 runs the .ts files with native type stripping, with no build: that is why this file sets that floor in `engines`. `typescript` is a devDependency, and `tsc` in `typecheck` is not its only user: `src/symbols.ts` imports it at runtime, so `start` needs the dev dependencies installed.",
   "engines": {
     "node": ">=22.18"
   },
