@@ -33,7 +33,8 @@ describe('hook.ts', () => {
   });
 
   it('for real, as Codex calls it: a worktree outside is denied', () => {
-    const payload = JSON.stringify({ cwd: process.cwd(), tool_name: 'Bash', tool_input: { command: 'git worktree add ../afuera-del-repo' } });
+    // Two levels: run from a worktree under `.claude/worktrees/`, a `../x` target is a valid sibling.
+    const payload = JSON.stringify({ cwd: process.cwd(), tool_name: 'Bash', tool_input: { command: 'git worktree add ../outside/worktree' } });
     const out = execFileSync(process.execPath, [HOOK, 'codex'], { input: payload, encoding: 'utf8' });
     expect(JSON.parse(out)).toMatchObject({ hookSpecificOutput: { permissionDecision: 'deny' } });
   });
