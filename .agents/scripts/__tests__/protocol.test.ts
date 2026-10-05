@@ -272,11 +272,11 @@ describe('handle', () => {
   });
   it('a heredoc that writes a note outside src/ is not denied for the arrow in its body', () => {
     const command = "cat >> /tmp/scratchpad/notes.md <<'EOF'\n- new files + tests -> src/panels/; ...\nEOF";
-    expect(handle(['claude'], JSON.stringify({ cwd: CWD, tool_name: 'Bash', tool_input: { command } }), git)).toEqual({ stdout: '', stderr: '' });
+    expect(handle(['claude'], JSON.stringify({ cwd: CWD, tool_name: 'Bash', tool_input: { command } }), git, NO_RUNS)).toEqual({ stdout: '', stderr: '' });
   });
   it('a heredoc that a shell reads is a script: its rm of src/ is denied', () => {
     const command = "bash <<'EOF'\nrm -rf src\nEOF";
-    expect(handle(['claude'], JSON.stringify({ cwd: CWD, tool_name: 'Bash', tool_input: { command } }), git).stdout).toMatch(/"permissionDecision":"deny"/);
+    expect(handle(['claude'], JSON.stringify({ cwd: CWD, tool_name: 'Bash', tool_input: { command } }), git, NO_RUNS).stdout).toMatch(/"permissionDecision":"deny"/);
   });
   it('never throws: an error becomes a warning', () => {
     const broken: Git = { ...git, get paths(): never { throw new Error('boom'); } };
