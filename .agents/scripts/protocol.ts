@@ -32,6 +32,8 @@ export function segments(command: string): Word[][] {
   let inWord = false;
   let quote: string | null = null;
   let redirect = false;
+  const heredocs: { readonly delimiter: string; readonly stripTabs: boolean }[] = [];
+  let line = 0;
 
   const closeWord = () => {
     if (inWord) {
@@ -46,6 +48,30 @@ export function segments(command: string): Word[][] {
     if (current.length > 0) result.push(current);
     current = [];
     redirect = false;
+  };
+  // The line decides, not the pipe: a shell anywhere on the line of the `<<` makes each body a
+  // script, so a data heredoc beside `bash x.sh` is read as commands.
+  const endLine = (newline: number) => {
+    const programs = result.slice(line).flatMap(s => s.filter(w => !w.redirect).slice(0, 1));
+    const script = programs.some(w => SHELLS.has(programName(w.text)));
+    let at = newline;
+    for (const { delimiter, stripTabs } of heredocs.splice(0)) {
+      const body = at + 1;
+      let end = command.length;
+      while (at < command.length) {
+        const start = at + 1;
+        at = command.indexOf('\n', start);
+        if (at === -1) at = command.length;
+        const text = command.slice(start, at);
+        if ((stripTabs ? text.replace(/^\t+/, '') : text) === delimiter) {
+          end = start;
+          break;
+        }
+      }
+      if (script) result.push(...segments(command.slice(body, end)));
+    }
+    line = result.length;
+    return at;
   };
 
   for (let i = 0; i < command.length; i++) {
@@ -73,8 +99,23 @@ export function segments(command: string): Word[][] {
       redirect = true;
       continue;
     }
+    // The `<<` at the end of a here-string (`<<<`) opens no heredoc.
+    const heredoc = c === '<' && command[i - 1] !== '<' ? /^<<(-?)[ \t]*([^\s<>;&|()]+)/.exec(command.slice(i)) : null;
+    if (heredoc !== null) {
+      heredocs.push({ delimiter: heredoc[2].replace(/['"\\]/g, ''), stripTabs: heredoc[1] === '-' });
+      i += heredoc[0].length - 1;
+      continue;
+    }
+    // The comment stops before its newline: the newline still ends the line and opens its heredoc
+    // bodies.
+    if (c === '#' && !inWord) {
+      const end = command.indexOf('\n', i);
+      i = (end === -1 ? command.length : end) - 1;
+      continue;
+    }
     if (c === ';' || c === '\n' || c === '|' || c === '&') {
       closeSegment();
+      if (c === '\n') i = endLine(i);
       continue;
     }
     if (/\s/.test(c)) {
@@ -127,6 +168,7 @@ function cmdletTargets(rest: readonly string[], position: number, params: readon
 }
 
 const SINKS = new Set(['/dev/null', '$null', 'nul']);
+const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh', 'pwsh', 'powershell']);
 const CHANGE_DIR = new Set(['cd', 'pushd', 'chdir', 'set-location', 'sl']);
 const TAKES_VALUE = new Set(['-b', '-B', '--reason']);
 

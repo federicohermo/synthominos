@@ -55,7 +55,7 @@ export default function TransportPanel({ transporte }: { transporte: PropsDeTran
         aria-label={`Tempo: ${tempo} bpm`}
         title={`Tempo: ${tempo} bpm`}
         // `touch-none`: without it, a touch drag scrolls the page and sends no `pointermove`.
-        className="w-full rounded bg-slate-100 hover:bg-slate-200 py-0.5 text-center text-2xl leading-none tabular-nums cursor-ns-resize touch-none"
+        className="w-full rounded-sm bg-slate-100 hover:bg-slate-200 py-0.5 text-center text-2xl leading-none tabular-nums cursor-ns-resize touch-none"
       >{tempo}</button>
       <div className="flex flex-wrap gap-2">
         <button
@@ -63,7 +63,7 @@ export default function TransportPanel({ transporte }: { transporte: PropsDeTran
           onClick={onTogglePlay}
           aria-label={playing? 'Pausa':'Reproducir'}
           title={playing? 'Pausa':'Reproducir'}
-          className={`px-3 py-1 rounded text-white ${playing? 'bg-slate-900 hover:bg-slate-800':'bg-emerald-600 hover:bg-emerald-700'}`}
+          className={`px-3 py-1 rounded-sm text-white ${playing? 'bg-slate-900 hover:bg-slate-800':'bg-emerald-600 hover:bg-emerald-700'}`}
         >{playing? '⏸':'▶'}</button>
         <button
           type="button"
@@ -71,7 +71,7 @@ export default function TransportPanel({ transporte }: { transporte: PropsDeTran
           aria-label="Recorrido en el vacío"
           title="Recorrido en el vacío"
           aria-pressed={clicks}
-          className={`px-3 py-1 rounded flex items-center ${clicks?'bg-slate-900 text-white':'bg-slate-100 hover:bg-slate-200'}`}
+          className={`px-3 py-1 rounded-sm flex items-center ${clicks?'bg-slate-900 text-white':'bg-slate-100 hover:bg-slate-200'}`}
         >
           <svg
             viewBox="0 0 16 16"
@@ -93,7 +93,7 @@ export default function TransportPanel({ transporte }: { transporte: PropsDeTran
           onClick={onReset}
           aria-label="Vaciar el tablero y frenar el transporte"
           title="Vaciar el tablero y frenar el transporte"
-          className="ml-auto px-3 py-1 rounded bg-slate-200 hover:bg-slate-300"
+          className="ml-auto px-3 py-1 rounded-sm bg-slate-200 hover:bg-slate-300"
         >↺</button>
       </div>
     </div>

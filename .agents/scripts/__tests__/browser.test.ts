@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { Browser, LaunchOptions } from 'playwright';
 import { createServer } from 'vite';
-import { ENGINES, FIRST_PORT, blurFocus, boardSize, open, opaquePixels, realProveSystem, serve, type DevServer } from '../browser.ts';
+import { ENGINES, FIRST_PORT, blurFocus, boardSize, open, opaquePixels, playheadMark, realProveSystem, serve, type DevServer } from '../browser.ts';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -23,7 +23,12 @@ ${[...'FILNPTUVWXYZ'].map(l => `<button aria-label="${l}, rotación 0°" aria-pr
 <button aria-label="Reproducir">▶</button><button aria-label="Reproducir todo">▶▶</button>
 <p aria-live="polite" id="said"></p>
 <canvas width="20" height="10"></canvas>
+<div id="head" aria-hidden="true" style="position: absolute; left: 0; top: 0; width: 4px; height: 4px; pointer-events: none">
+  <div style="width: 100%; height: 100%; box-shadow: inset 0 0 0 3px #0f172a, 0 0 0 2px #0f172a"></div>
+</div>
 <script>
+  const over = document.querySelectorAll('[role=gridcell]')[2].getBoundingClientRect();
+  document.getElementById('head').style.transform = 'translate(' + (over.x + 1) + 'px, ' + (over.y + 1) + 'px)';
   const say = text => { document.getElementById('said').textContent = text; };
   for (const cell of document.querySelectorAll('[role=gridcell]')) {
     cell.addEventListener('click', e => say((e.altKey ? 'alt ' : '') + 'click ' + cell.getAttribute('aria-label')));
@@ -69,6 +74,7 @@ describe('open, in a real Chromium', () => {
     expect(await app.slots().count()).toBe(12);
     expect(await app.button('Reproducir').count()).toBe(1);
     expect(await app.litPixels()).toBe(16);
+    expect(await app.playhead()).toEqual({ cell: 'fila 1, columna 3, libre', outer: true });
     await app.button('Reproducir').click();
     await app.key('a');
     expect(await app.announced()).toBe('key a on BUTTON');
@@ -120,6 +126,37 @@ describe('the functions that run in the page', () => {
   ])('opaquePixels counts only the opaque pixels: %s', (_, found, expected) => {
     vi.stubGlobal('document', { querySelector: () => found });
     expect(opaquePixels()).toBe(expected);
+  });
+
+  const hidden = (style: { display?: string; transform?: string }, ring: string | null) => ({
+    style: { display: '', transform: '', ...style },
+    getBoundingClientRect: () => ({ x: 40, y: 20, width: 20, height: 20 }),
+    querySelector: () => (ring === null ? null : { style: { boxShadow: ring } }),
+  });
+  const under = (role: string) => ({ getAttribute: (name: string) => (name === 'role' ? role : 'fila 2, columna 3, libre') });
+  const NOTE = 'rgb(15, 23, 42) 0px 0px 0px 3px inset, rgb(15, 23, 42) 0px 0px 0px 2px';
+  const CLICK = 'rgb(15, 23, 42) 0px 0px 0px 2px inset';
+
+  it.each([
+    ['a note ring goes outside the cell', NOTE, true],
+    ['a click ring stays inside', CLICK, false],
+    ['a node with no tile has no ring', null, false],
+  ])('playheadMark reads the cell under the playhead: %s', (_, ring, outer) => {
+    const points: number[][] = [];
+    vi.stubGlobal('document', {
+      querySelectorAll: () => [hidden({ display: 'none', transform: 'translate(0px, 0px)' }, NOTE), hidden({}, NOTE), hidden({ transform: 'translate(40px, 20px)' }, ring)],
+      elementsFromPoint: (x: number, y: number) => { points.push([x, y]); return [under('presentation'), under('gridcell')]; },
+    });
+    expect(playheadMark()).toEqual({ cell: 'fila 2, columna 3, libre', outer });
+    expect(points).toEqual([[50, 30]]);
+  });
+
+  it.each([
+    ['no hidden node moves', [hidden({}, NOTE)]],
+    ['the node that moves is over no cell', [hidden({ transform: 'translate(40px, 20px)' }, NOTE)]],
+  ])('playheadMark finds no playhead: %s', (_, nodes) => {
+    vi.stubGlobal('document', { querySelectorAll: () => nodes, elementsFromPoint: () => [under('presentation')] });
+    expect(playheadMark()).toBeNull();
   });
 
   it('blurFocus blurs the focused element, and does nothing when no element has the focus', () => {

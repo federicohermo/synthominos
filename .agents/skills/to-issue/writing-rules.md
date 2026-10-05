@@ -28,6 +28,8 @@ Each rule here came from an issue that broke without it. Apply each one before y
   comment can explain the rule in other words, and a test can build the state the rule reads.
 - **A change to a canonical file under `.agents/` puts its generated copy under `.claude/` in
   Writes.**
+- **A change that adds, moves or deletes a file of `src/`, or changes an import between its
+  files, puts `docs/architecture/modules.md` in Writes.** The generator writes it from the imports.
 
 ## Criteria
 

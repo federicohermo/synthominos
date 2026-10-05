@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 import type { Browser, LaunchOptions } from 'playwright';
 import { createServer } from 'vite';
 import type { InlineConfig } from 'vite';
-import type { App, ProveSystem, Server } from './proofs.ts';
+import type { App, Mark, ProveSystem, Server } from './proofs.ts';
 
 // Chromium blocks audio with no user gesture, and a headless run has none before its first click.
 const BROWSER_ARGS = ['--autoplay-policy=no-user-gesture-required'];
@@ -36,6 +36,19 @@ export function opaquePixels(): number {
   let opaque = 0;
   for (let i = 3; i < data.length; i += 4) if (data[i] === 255) opaque += 1;
   return opaque;
+}
+
+/** It runs in the page. The playhead has no name: it is the hidden node that a `translate` moves over the board. */
+export function playheadMark(): Mark | null {
+  for (const node of document.querySelectorAll<HTMLElement>('[aria-hidden="true"]')) {
+    if (node.style.display === 'none' || !node.style.transform.startsWith('translate')) continue;
+    const box = node.getBoundingClientRect();
+    const cell = document.elementsFromPoint(box.x + box.width / 2, box.y + box.height / 2).find(e => e.getAttribute('role') === 'gridcell');
+    if (cell === undefined) continue;
+    const layers = (node.querySelector<HTMLElement>('div')?.style.boxShadow ?? '').split(/,(?![^(]*\))/);
+    return { cell: String(cell.getAttribute('aria-label')), outer: layers.some(layer => layer !== '' && !layer.includes('inset')) };
+  }
+  return null;
 }
 
 /** It runs in the page. A focus call on the body does not take the focus from a cell. */
@@ -74,6 +87,7 @@ export async function open(url: string, launch: Engines['launch']): Promise<App>
       cellName: async (x, y) => String(await cell(x, y).getAttribute('aria-label')),
       announced: async () => String(await page.locator('[aria-live]').textContent()),
       litPixels: () => page.evaluate(opaquePixels),
+      playhead: () => page.evaluate(playheadMark),
       key: key => page.keyboard.press(key),
       wheel: deltaY => page.mouse.wheel(0, deltaY),
       blur: () => page.evaluate(blurFocus),

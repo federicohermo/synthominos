@@ -42,19 +42,19 @@ export default function PiecePalette({ orientacion, transporte, abierto, onToggl
             return (
               <button key={r} type="button" onClick={()=> onRegimen(r)} aria-pressed={regimen===r}
                       aria-label={dice} title={dice}
-                      className={`px-2 py-0.5 rounded text-xs ${regimen===r?'bg-slate-900 text-white':'bg-slate-100 hover:bg-slate-200'}`}
+                      className={`px-2 py-0.5 rounded-sm text-xs ${regimen===r?'bg-slate-900 text-white':'bg-slate-100 hover:bg-slate-200'}`}
               >{r === REGIMEN.escala ? '⇗' : '⇄'}</button>
             );
           })}
         </div>
-        <p className="min-h-[1lh] flex items-center gap-2">
+        <p className="min-h-lh flex items-center gap-2">
           <span>{grados}{reflejada !== null && ` · ${reflejada}`}</span>
           <button
             type="button"
             onClick={onResetOrientacion}
             aria-label="Volver esta pieza a 0° sin reflejar"
             title="Volver esta pieza a 0° sin reflejar"
-            className="px-1.5 rounded text-xs bg-slate-100 hover:bg-slate-200"
+            className="px-1.5 rounded-sm text-xs bg-slate-100 hover:bg-slate-200"
           >0°</button>
         </p>
         <TransportPanel transporte={transporte} />

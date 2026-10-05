@@ -20,7 +20,7 @@ const TOPE_DEL_MENSAJE = 16 * 1024;
 
 // N lanes end at once: the one that cannot take the lock passes. The short life frees the lock
 // of a hook that died.
-const LOCK = path.join(tmpdir(), 'pentomino-lint-al-cerrar.lock');
+const LOCK = process.env.LINT_AL_CERRAR_LOCK || path.join(tmpdir(), 'pentomino-lint-al-cerrar.lock');
 const VIDA_DEL_LOCK_MS = 60_000;
 
 // `writeFileSync` on the descriptor: `process.stdout.write` on a pipe can be asynchronous, and

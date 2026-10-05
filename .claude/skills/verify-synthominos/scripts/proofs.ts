@@ -1,5 +1,8 @@
 import path from 'node:path';
 
+/** The cell the playhead marks. `outer` is false when it draws nothing outside the cell: a click. */
+export interface Mark { readonly cell: string; readonly outer: boolean }
+
 /** What a proof does to one element: the part of a Playwright locator it uses. */
 export interface Spot {
   click(options?: { modifiers?: 'Alt'[]; button?: 'right' }): Promise<void>;
@@ -22,6 +25,8 @@ export interface App {
   announced(): Promise<string>;
   /** The opaque pixels of the spectrum. A bar is opaque and the idle state is dim, so only sound counts. */
   litPixels(): Promise<number>;
+  /** `null` when the page shows no playhead. */
+  playhead(): Promise<Mark | null>;
   key(key: string): Promise<void>;
   wheel(deltaY: number): Promise<void>;
   /** Takes the focus from the element that has it. */
@@ -88,6 +93,19 @@ export async function settle<T>(
 
 const sound = (app: App, expected: (lit: number) => boolean) =>
   settle(() => app.litPixels(), expected, ms => app.wait(ms));
+
+/** Follows the playhead until it marked the piece `a`, the piece `b` and a free cell, or the time is spent. */
+async function follow(app: App, a: string, b: string) {
+  const seen: { a: Mark | null; b: Mark | null; free: Mark | null } = { a: null, b: null, free: null };
+  const read = async () => {
+    const mark = await app.playhead();
+    if (mark?.cell.includes(`pieza ${a},`)) seen.a = mark;
+    if (mark?.cell.includes(`pieza ${b},`)) seen.b = mark;
+    if (mark?.cell.endsWith('libre')) seen.free = mark;
+    return seen;
+  };
+  return settle(read, now => now.a !== null && now.b !== null && now.free !== null, ms => app.wait(ms), 400, 50);
+}
 
 type Drive = (app: App, proof: Proof) => Promise<void>;
 
@@ -156,6 +174,27 @@ export const PROOFS = {
     proof.step('press the space bar', await app.button('Pausa').count(), count => count === 1);
     await app.key('Space');
     proof.step('press it again', await app.button('Reproducir').count(), count => count === 1);
+  },
+
+  /** circuit, playback: the playhead visits each piece and the leg between them, and marks a leg cell as a click. */
+  async circuit(app, proof) {
+    const far = app.board.width - 4;
+    await app.piece('T').click();
+    await app.cell(2, 3).click();
+    await app.piece('L').click();
+    await app.cell(far, 3).click();
+    proof.step('place T and L apart', [await app.cellName(2, 3), await app.cellName(far, 3)],
+      ([t, l]) => t.includes('pieza T,') && l.includes('pieza L,'));
+    await app.button('Recorrido en el vacío').click();
+    proof.step('press the click switch', await app.button('Recorrido en el vacío').getAttribute('aria-pressed'), pressed => pressed === 'true');
+    proof.step('read the playhead before play', await app.playhead(), mark => mark === null);
+    await app.button('Reproducir').click();
+    const seen = await follow(app, 'T', 'L');
+    proof.step('see the playhead on the piece T', seen.a, mark => mark?.outer === true);
+    proof.step('see the playhead on the piece L', seen.b, mark => mark?.outer === true);
+    proof.step('see the playhead on a free cell of a leg', seen.free, mark => mark?.outer === false);
+    await app.button('Pausa').click();
+    proof.step('press pause', await settle(() => app.playhead(), mark => mark === null, ms => app.wait(ms)), mark => mark === null);
   },
 } satisfies Record<string, Drive>;
 

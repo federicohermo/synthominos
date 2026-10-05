@@ -84,7 +84,7 @@ export default function Board({
   };
 
   return (
-    <div className="w-full h-full flex items-center justify-center">
+    <div className="size-full flex items-center justify-center">
       <div ref={boardRef} className="relative" onContextMenu={onContextMenu}>
         <Playhead />
         {/* Real rows: `display: contents` on a wrapper removes the node from the accessible tree
@@ -165,7 +165,7 @@ export default function Board({
                 {/* The border stays 1 px: in `calc()` it gives fractions that the browser rounds
                     differently on each edge. */}
                 <div style={{ ...style, borderRadius: celdas(RADIO_RAZON), paddingBottom: celdas(RESERVA_RAZON), fontSize: celdas(NOTA_RAZON) }}
-                  className={`relative w-full h-full border border-slate-900 flex items-center justify-center leading-none font-semibold tabular-nums ${tone}`}>
+                  className={`relative size-full border border-slate-900 flex items-center justify-center leading-none font-semibold tabular-nums ${tone}`}>
                   {cell && <span
                     className="absolute font-normal leading-tight opacity-70"
                     style={{ bottom: celdas(PASO_ABAJO_RAZON), right: celdas(PASO_DERECHA_RAZON), fontSize: celdas(PASO_RAZON) }}

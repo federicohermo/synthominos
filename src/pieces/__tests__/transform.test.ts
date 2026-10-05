@@ -16,7 +16,7 @@ import type { PieceKey } from '../pieces.ts';
 const PIECES = Object.keys(SHAPES) as PieceKey[];
 
 /** `toEqual` tells `-0` from `0`, and the raw `rotate90` gives `-0`. */
-const sameCell = (a: Cell, b: Cell) => a[0] + 0 === b[0] + 0 && a[1] + 0 === b[1] + 0;
+const sameCell = (a: Cell, b: Cell) => a[0] === b[0] && a[1] === b[1];
 const sameCells = (a: Cell[], b: Cell[]) => a.length === b.length && a.every((c, i) => sameCell(c, b[i]));
 
 describe('rotate90', () => {
