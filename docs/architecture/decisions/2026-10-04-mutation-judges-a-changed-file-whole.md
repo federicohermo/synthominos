@@ -5,7 +5,8 @@
 The implementation protocol asks for no surviving mutant on the code a run changes. Coverage at 100
 says that a line ran. It does not say that a test would notice if the line were wrong.
 
-Measured on the development machine, with 15 workers:
+Measured on the development machine, with 15 workers, on the tree of commit `879a2a0`. A later
+commit made the kernel simpler, so a count on a newer tree differs:
 
 | Target | Mutants | Time |
 |---|---|---|
