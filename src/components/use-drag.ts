@@ -138,6 +138,10 @@ export function useArrastre(
   }, [panelRef, posicion, onMover]);
 
   const alBajarEnElAsa = useCallback((e: EventoDePuntero<HTMLElement>) => {
+    // Solo el boton primario de un puntero primario. Donde el menu contextual se queda el
+    // `pointerup` —macOS lo abre al apretar—, un gesto del secundario no termina nunca y el
+    // panel sigue al puntero sin boton apretado.
+    if (e.button !== 0 || !e.isPrimary) return;
     const panel = panelRef.current;
     if (panel === null) return;
     origen.current = {

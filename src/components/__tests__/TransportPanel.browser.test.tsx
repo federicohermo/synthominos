@@ -74,8 +74,10 @@ const tecla = (nodo: Element, key: string): KeyboardEvent => {
   return evento;
 };
 
-const puntero = (nodo: Element, tipo: string, clientY: number) => {
-  nodo.dispatchEvent(new PointerEvent(tipo, { clientY, pointerId: 7, bubbles: true }));
+const puntero = (nodo: Element, tipo: string, clientY: number, init: PointerEventInit = {}) => {
+  nodo.dispatchEvent(new PointerEvent(tipo, {
+    clientY, pointerId: 7, bubbles: true, isPrimary: true, ...init,
+  }));
 };
 
 /** Los tres gestos del teclado que este panel no toca, para que el harness de AC8 compile. */
@@ -291,6 +293,28 @@ describe('TransportPanel', () => {
     puntero(nodo, 'pointercancel', 280);
     puntero(nodo, 'pointermove', 200);
     expect(onTempo).toHaveBeenCalledTimes(1);
+  });
+
+  it('solo el boton primario de un puntero primario arrastra el reloj', async () => {
+    // Por lo mismo que el asa del chasis: donde el menu contextual se queda el `pointerup`,
+    // un gesto del boton secundario dejaria el ancla puesta y el tempo seguiria al puntero
+    // sin boton apretado. Se mira ANTES del `pointerup`, que es el estado en que queda pegado.
+    const onTempo = vi.fn<(bpm: number) => void>();
+    await render(<TransportPanel transporte={transporte({ tempo: 110, onTempo })} />);
+
+    const nodo = reloj(110).element();
+    const capturas: number[] = [];
+    vi.spyOn(nodo, 'setPointerCapture').mockImplementation(id => { capturas.push(id); });
+
+    const casos: PointerEventInit[] = [{ button: 2 }, { isPrimary: false }];
+    for (const init of casos) {
+      puntero(nodo, 'pointerdown', 300, init);
+      puntero(nodo, 'pointermove', 300 - 20 * ARRASTRE_PX_POR_BPM);
+      expect(onTempo, JSON.stringify(init)).not.toHaveBeenCalled();
+      puntero(nodo, 'pointerup', 300 - 20 * ARRASTRE_PX_POR_BPM);
+    }
+    // Y ninguno de los dos se quedo con el puntero: la captura es del gesto, y no lo hubo.
+    expect(capturas).toEqual([]);
   });
 
   it('el reset dice `↺` y su nombre accesible dice las DOS cosas que hace', async () => {

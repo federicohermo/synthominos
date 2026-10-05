@@ -292,6 +292,32 @@ describe('use-drag — el cableado y sus guardas', () => {
     expect(panel.getBoundingClientRect().x).toBeCloseTo(antes.x, 0);
   });
 
+  it('solo el boton primario de un puntero primario arrastra el panel', async () => {
+    // Donde el menu contextual se queda el `pointerup` —macOS lo abre al apretar—, un gesto
+    // nacido del boton secundario no termina nunca y el panel sigue al puntero sin boton
+    // apretado. Por eso se mide ANTES del `pointerup`, que es el estado en que queda pegado.
+    const { container } = await render(<Arnes abierto />);
+    const { panel, asa } = piezas(container);
+    const antes = panel.getBoundingClientRect();
+    const r = asa.getBoundingClientRect();
+    const casos: [caso: string, init: PointerEventInit][] = [
+      ['boton secundario', { button: 2, isPrimary: true }],
+      ['puntero no primario', { button: 0, isPrimary: false }],
+    ];
+    for (const [caso, init] of casos) {
+      asa.dispatchEvent(new PointerEvent('pointerdown', {
+        pointerId: 1, bubbles: true, cancelable: true, clientX: r.x, clientY: r.y, ...init,
+      }));
+      window.dispatchEvent(eventoDePuntero('pointermove', r.x + 80, r.y + 40));
+      await unCuadro();
+      expect(panel.getBoundingClientRect().x, caso).toBeCloseTo(antes.x, 0);
+      expect(panel.getBoundingClientRect().y, caso).toBeCloseTo(antes.y, 0);
+      window.dispatchEvent(eventoDePuntero('pointerup', r.x + 80, r.y + 40));
+      await unCuadro();
+      expect(panel.getBoundingClientRect().x, `${caso}, soltado`).toBeCloseTo(antes.x, 0);
+    }
+  });
+
   it('`pointercancel` termina el gesto, igual que `pointerup`', async () => {
     const { container } = await render(<Arnes abierto />);
     const { panel, asa } = piezas(container);

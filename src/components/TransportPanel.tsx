@@ -38,6 +38,9 @@ export default function TransportPanel({ transporte }: { transporte: PropsDeTran
   const arrastre = useRef<{ y: number; tempo: number } | null>(null);
 
   const alBajarEnElReloj = (e: EventoDePuntero<HTMLButtonElement>) => {
+    // Solo el boton primario de un puntero primario, por lo mismo que el asa del chasis en
+    // `use-drag.ts`: un gesto del secundario puede quedarse sin `pointerup`.
+    if (e.button !== 0 || !e.isPrimary) return;
     arrastre.current = { y: e.clientY, tempo };
     // Con la captura, los `pointermove` y el `pointerup` siguen llegando a ESTE boton aunque
     // el puntero se vaya del nodo, asi que los handlers de abajo alcanzan y no hace falta
