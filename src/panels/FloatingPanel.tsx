@@ -26,7 +26,7 @@ export default function FloatingPanel({
   return (
     <aside
       ref={panelRef}
-      className="fixed left-0 top-0 z-20 flex flex-col rounded-2xl shadow-lg bg-white/85 backdrop-blur p-2 text-sm will-change-transform"
+      className="fixed left-0 top-0 z-20 flex flex-col rounded-2xl shadow-lg bg-white/85 backdrop-blur-sm p-2 text-sm will-change-transform"
       style={{ ...box, transform: 'translate3d(var(--panel-x), var(--panel-y), 0)' }}
     >
       <div className="shrink-0 flex items-center gap-1 mb-2">
@@ -47,7 +47,7 @@ export default function FloatingPanel({
           aria-controls={regionId}
           aria-label={fold}
           title={fold}
-          className="shrink-0 px-1.5 rounded text-xs bg-slate-100 hover:bg-slate-200"
+          className="shrink-0 px-1.5 rounded-sm text-xs bg-slate-100 hover:bg-slate-200"
         >{open ? '▾' : '▸'}</button>
       </div>
       {/* `hidden`, not an unmount: an unmount restarts the loop of `spectrum-loop.ts`, and pays the
