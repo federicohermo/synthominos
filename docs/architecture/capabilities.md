@@ -35,6 +35,7 @@ flowchart TD
   PCS -- "letter, orientation, cell order" --> MUS
   FIT -- "dimensions, stored pieces" --> BRD
   FIT -- "dimensions, visible pieces" --> CIR
+  FIT -- "cell size" --> PNL
   MUS -- "note and step of each cell" --> BRD
   MUS -- "step 0 and step 4, note of each cell" --> CIR
   MUS -- "the interval" --> PLY

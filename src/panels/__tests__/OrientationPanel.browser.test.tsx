@@ -23,7 +23,6 @@ const orientacion = (over: Partial<PropsDeOrientacion> = {}): PropsDeOrientacion
   selected: 'F',
   orientaciones: ORIENTACIONES_INICIALES,
   regimen: REGIMEN.escala,
-  noteSet: [60, 62, 64, 67, 69],
   onSelect: vi.fn(),
   onRegimen: vi.fn(),
   onResetOrientacion: vi.fn(),
@@ -31,13 +30,31 @@ const orientacion = (over: Partial<PropsDeOrientacion> = {}): PropsDeOrientacion
 });
 
 describe('OrientationPanel', () => {
-  it('AC-PNL-013 — there are twelve, each with its letter', async () => {
+  it('AC-PNL-013 — there are twelve, each named by its letter and showing it', async () => {
+    // The symbol is `aria-hidden`, so the name and the eye are two checks: the name comes from `aria-label`.
     const { container } = await render(<OrientationPanel orientacion={orientacion()} />);
-    const botones = container.querySelectorAll('button');
-    expect(botones.length).toBe(PIEZAS.length);
+    expect(container.querySelectorAll('button').length).toBe(PIEZAS.length);
     for (const key of PIEZAS) {
-      expect(container.textContent).toContain(key);
+      const slot = page.getByRole('button', { name: new RegExp(`^${key},`) });
+      await expect.element(slot).toBeVisible();
+      const symbol = slot.element().querySelector('[aria-hidden="true"]');
+      expect(symbol?.textContent, key).toBe(key);
+      expect(symbol, key).toBeVisible();
     }
+  });
+
+  it('AC-PNL-011 — the twelve fill a rectangle of four columns by three rows, measured in coordinates', async () => {
+    // The boxes and not `gridTemplateColumns`: a declared track count proves nothing about where the slots land.
+    const { container } = await render(<OrientationPanel orientacion={orientacion()} />);
+    const boxes = [...container.querySelectorAll('button')].map(b => b.getBoundingClientRect());
+    expect(boxes.length).toBe(PIEZAS.length);
+    expect(boxes[0].width).toBeGreaterThan(0);
+
+    const columns = new Set(boxes.map(b => Math.round(b.x)));
+    const rows = new Set(boxes.map(b => Math.round(b.y)));
+    expect(columns.size * rows.size).toBe(PIEZAS.length);
+    expect(columns.size).toBe(4);
+    expect(rows.size).toBe(3);
   });
 
   it('AC-ACC-009 — the accessible name says the REMEMBERED orientation, not the canonical one', async () => {

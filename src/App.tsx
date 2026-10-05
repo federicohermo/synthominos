@@ -11,6 +11,9 @@ import type { PieceKey } from "./pieces/pieces.ts";
 import type { PlacedPiece } from "./board-editing/placement.ts";
 import type { RegimenDeRotacion } from "./musical-model/music.ts";
 import PiecePalette from "./panels/PiecePalette.tsx";
+import FloatingPanel from "./panels/FloatingPanel.tsx";
+import { SIGNAL_PANEL_WIDTH_CELLS, dockStartPosition, signalPanelStartPosition } from "./panels/drag.ts";
+import type { Position } from "./panels/drag.ts";
 import Board from "./board-editing/Board.tsx";
 import Spectrum from "./spectrum/Spectrum.tsx";
 import { alternarTransporte } from "./playback/engine-bridge.ts";
@@ -71,7 +74,7 @@ export default function App() {
 
   const boardRef = useRef<HTMLDivElement | null>(null);
 
-  // The root, not the board: the two `fixed` panels read `--cell`, and they are outside `Board`.
+  // The root, not the board: the signal panel reads `--cell`, and it is outside `Board`.
   const raizRef = useRef<HTMLDivElement | null>(null);
   const dims = useGrilla(raizRef);
 
@@ -86,6 +89,11 @@ export default function App() {
 
   const [piezasAbierto, setPiezasAbierto] = useState<boolean>(true);
   const [senalAbierta, setSenalAbierta] = useState<boolean>(true);
+
+  const [dockPosition, setDockPosition] = useState<Position>(() =>
+    dockStartPosition({ width: window.innerWidth, height: window.innerHeight }));
+  const [signalPosition, setSignalPosition] = useState<Position>(() =>
+    signalPanelStartPosition({ width: window.innerWidth, height: window.innerHeight }));
 
   const tapLimpio = useRef<boolean>(false);
 
@@ -204,11 +212,11 @@ export default function App() {
 
   // Memoized: `hover` renders this tree for each crossed cell, and `OrientationPanel` is a `memo`.
   const orientacion = useMemo(() => ({
-    selected, orientaciones, regimen, noteSet,
+    selected, orientaciones, regimen,
     onSelect: elegirPieza,
     onRegimen: setRegimen,
     onResetOrientacion: resetearOrientacion,
-  }), [selected, orientaciones, regimen, noteSet, elegirPieza, resetearOrientacion]);
+  }), [selected, orientaciones, regimen, elegirPieza, resetearOrientacion]);
 
   // `h-dvh`: on iOS, `100vh` includes the browser bar, and the board jumps when the bar hides.
   // `bg-fondo` is one of four places that `fondo-sincronizado.test.ts` keeps in sync.
@@ -225,6 +233,8 @@ export default function App() {
         }}
         abierto={piezasAbierto}
         onToggle={() => setPiezasAbierto(v => !v)}
+        position={dockPosition}
+        onMove={setDockPosition}
       />
 
       <Board
@@ -247,22 +257,20 @@ export default function App() {
         boardRef={boardRef}
       />
 
-      <aside
-        className="fixed left-0 bottom-0 z-20 flex flex-col rounded-tr-2xl shadow-lg bg-white/85 backdrop-blur p-2"
-        style={{ width: `calc(var(--cell) * 3)`, height: senalAbierta ? `calc(var(--cell) * 1)` : undefined }}
+      <FloatingPanel
+        title="Señal"
+        regionId="franja-senal"
+        open={senalAbierta}
+        onToggle={() => setSenalAbierta(v => !v)}
+        position={signalPosition}
+        onMove={setSignalPosition}
+        box={{
+          width: `calc(var(--cell) * ${SIGNAL_PANEL_WIDTH_CELLS})`,
+          height: senalAbierta ? 'var(--cell)' : undefined,
+        }}
       >
-        <button
-          type="button"
-          onClick={() => setSenalAbierta(v => !v)}
-          aria-expanded={senalAbierta}
-          aria-controls="franja-senal"
-          className="shrink-0 text-left text-sm font-semibold mb-1"
-        >Señal</button>
-        {/* `hidden`, not an unmount: an unmount of the `<canvas>` restarts the loop of `spectrum-loop.ts`. */}
-        <div id="franja-senal" hidden={!senalAbierta} className="min-h-0 flex-1">
-          <Spectrum />
-        </div>
-      </aside>
+        <Spectrum />
+      </FloatingPanel>
 
       {/* It exists from the first render: a region just inserted in the DOM is not announced. */}
       <div aria-live="polite" className="sr-only">{anuncio}</div>

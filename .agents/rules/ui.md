@@ -17,12 +17,20 @@ control exposes is in the contract `specs/accessibility/accessibility.md`. What 
   but its component, so a decision written there has no test. Put it in a `.ts` module of the
   capability.
 - **A component is presentational**: props in, no state and no effect of its own. `Spectrum.tsx`
-  and `Playhead.tsx` are the exception: they read the engine and draw by hand.
+  and `Playhead.tsx` are the exception: they read the engine and draw by hand. `FloatingPanel.tsx`
+  mounts the drag hook that the two floating panels share.
 - **The rate of a value decides where it lives.** A value that changes many times in a second, or
   that nothing draws, goes in a ref, a custom property or a draw loop, not in `useState`:
   [the decision](../../docs/architecture/decisions/2026-10-04-a-fast-value-is-drawn-outside-react.md).
 - **A draw loop touches no node that React renders, and React touches no node of the loop.** The
   board cells have no ref and no `data-*` for this reason. The loop paints on its own nodes.
+- **When React and a gesture write one node, they write different properties.** `FloatingPanel.tsx`
+  renders a constant `transform` that reads `--panel-x` and `--panel-y`, and `use-drag.ts` writes
+  the two properties, with their unit. If both wrote `transform`, a render during a drag would put
+  the panel back.
+- **A control that drags does not fold.** The browser sends a `click` after the `pointerup` of a
+  drag, so a header that drags and folds folds its panel at each drop. The handle and the fold
+  control are two buttons.
 - **Handlers change state, and effects reconcile.** All that sounds in the loop goes through the
   reconciliation effect of `playback/use-engine.ts`, the one door from the shell to the transport.
 - **Derive a value one time, in the shell, and pass the result down.** The sequence, the pointed
@@ -40,13 +48,14 @@ control exposes is in the contract `specs/accessibility/accessibility.md`. What 
 - **A composite region is one tab stop, with the arrow keys inside** (roving tabindex). One member
   always has `tabIndex={0}`. If none has it, the region leaves the tab order.
 - **A browser test asks by role and name, never by `className`.** `getByRole` matches the name as
-  a substring: anchor it with a regex, `/^Piezas$/`.
+  a substring: anchor it with a regex, `/^Plegar Piezas$/`.
 
 ## Input listeners
 
 - **A global listener lives in a `use-*.ts` hook, in its own effect.** The shell makes the `ref`
   and gives the hook callbacks, not setters. A change of the state shape then changes the shell
-  only.
+  only. `use-drag.ts` is the one hook that a component mounts: `FloatingPanel.tsx` makes the `ref`
+  of its own node, and the position comes from the shell by a callback.
 - **The dependencies of an effect are the real ones.** Do not read the state through a ref to
   subscribe one time. The shell memoizes each callback, so the shell decides when the effect
   subscribes again. Do not put an object built inline in the dependencies: list its fields.

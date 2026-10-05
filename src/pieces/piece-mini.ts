@@ -9,9 +9,6 @@ export const MINI_BOX = 5;
 /** In px. The smallest size at which the shape reads. */
 export const MINI_CELL_PX = 8;
 
-/** In px: the thumbnail, the `px-2` of its button (8 on each side) and its border (1 on each side). */
-export const MINI_PISTA_PX = MINI_BOX * MINI_CELL_PX + 16 + 2;
-
 /** Rotation first and reflection second, as the board does: the reverse order gives another orientation. */
 export function miniCells(piece: PieceKey, rotation: number, mirror: boolean): Cell[] {
   const rotada = rotateN(SHAPES[piece], rotation);

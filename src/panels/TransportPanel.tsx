@@ -1,4 +1,6 @@
-import { TEMPO_MIN, TEMPO_MAX } from '../playback/scheduler.ts';
+import { useRef } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
+import { clampTempo, dragTempo, tempoKeyStep, wheelStep } from './tempo.ts';
 
 export interface PropsDeTransporte {
   tempo: number;
@@ -12,24 +14,49 @@ export interface PropsDeTransporte {
 
 export default function TransportPanel({ transporte }: { transporte: PropsDeTransporte }) {
   const { tempo, playing, clicks, onTempo, onTogglePlay, onToggleClicks, onReset } = transporte;
+
+  // A ref and not state: nothing draws the anchor, and the drag counts from the tempo at its start.
+  const drag = useRef<{ y: number; tempo: number } | null>(null);
+
+  const onClockPointerDown = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    // Where the context menu takes the `pointerup` (macOS opens it on press), a drag of another button never ends.
+    if (e.button !== 0 || !e.isPrimary) return;
+    drag.current = { y: e.clientY, tempo };
+    // With the capture, the moves reach this button off its box: no listener on `window`, so no effect.
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onClockPointerMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const d = drag.current;
+    if (d === null) return;
+    onTempo(dragTempo(d.tempo, e.clientY - d.y));
+  };
+
+  const onClockPointerEnd = () => { drag.current = null; };
+
   return (
     <div className="mt-4 border-t pt-3 space-y-2">
-      {/* The row wraps: at the floor the dock is 146 px wide, and the three do not fit in one line. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-2">
-        <span id="tempo-etiqueta" className="font-medium">Tempo</span>
-        {/* Without `aria-valuetext`, a `range` announces its bare number, and the instrument has two units. */}
-        <input
-          type="range"
-          min={TEMPO_MIN}
-          max={TEMPO_MAX}
-          value={tempo}
-          onChange={e=>onTempo(Number(e.target.value))}
-          aria-labelledby="tempo-etiqueta"
-          aria-valuetext={`${tempo} bpm`}
-          className="w-full min-w-0 order-last"
-        />
-        <span className="tabular-nums text-right whitespace-nowrap">{tempo} <span className="text-slate-500">bpm</span></span>
-      </div>
+      {/* A `<button>` and not a `div` with a role: the global keys skip only a focused button or
+          input, so on a `div` each letter typed on the clock would choose a piece. */}
+      <button
+        type="button"
+        onWheel={e => onTempo(clampTempo(tempo + wheelStep(e.deltaY)))}
+        onKeyDown={e => {
+          const step = tempoKeyStep(e.key);
+          if (step === null) return;
+          e.preventDefault();
+          onTempo(clampTempo(tempo + step));
+        }}
+        // No `onClick`: the browser ends each drag with a `click` on this button.
+        onPointerDown={onClockPointerDown}
+        onPointerMove={onClockPointerMove}
+        onPointerUp={onClockPointerEnd}
+        onPointerCancel={onClockPointerEnd}
+        aria-label={`Tempo: ${tempo} bpm`}
+        title={`Tempo: ${tempo} bpm`}
+        // `touch-none`: without it, a touch drag scrolls the page and sends no `pointermove`.
+        className="w-full rounded bg-slate-100 hover:bg-slate-200 py-0.5 text-center text-2xl leading-none tabular-nums cursor-ns-resize touch-none"
+      >{tempo}</button>
       <div className="flex flex-wrap gap-2">
         <button
           type="button"

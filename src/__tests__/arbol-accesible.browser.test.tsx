@@ -45,7 +45,7 @@ describe('The accessible tree of the whole app', () => {
     const { container } = await render(<App />);
     const controles = [...container.querySelectorAll(CONTROLES)];
 
-    // An empty visit passes green: `App.browser.test.tsx` counts 20 buttons.
+    // An empty visit passes green: `App.browser.test.tsx` counts 23 buttons.
     expect(controles.length).toBeGreaterThan(20);
 
     for (const control of controles) {

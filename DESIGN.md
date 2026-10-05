@@ -5,8 +5,9 @@ says what the instrument shows. This document gives the rule and its reason, for
 
 No value lives here. The twelve colors are in [`palette.ts`](./src/pieces/palette.ts), the measures
 of the tile in [`grid-fit.ts`](./src/board-fit/grid-fit.ts), the widths of the playhead in
-[`playhead-loop.ts`](./src/playback/playhead-loop.ts), and the background color in
-[`index.css`](./src/styles/index.css).
+[`playhead-loop.ts`](./src/playback/playhead-loop.ts), the measures of the slot grid in
+[`slot-grid.ts`](./src/panels/slot-grid.ts) and of the floating panels in
+[`drag.ts`](./src/panels/drag.ts), and the background color in [`index.css`](./src/styles/index.css).
 
 ## Color says identity, never state
 
@@ -105,8 +106,32 @@ name. The alternatives and their measurements are in
   opaque panel hides them, and a translucent panel says that they are there.
 - **A panel opens unfolded.** An instrument that opens with its controls hidden is not discovered.
   A folded panel keeps its header, so it still says what it is.
+- **The dock is as large as its content, and the signal panel is measured in cells.** The slots
+  have a fixed side, so the width of the dock is the output of the slot grid, not an input. A box
+  fixed from outside makes the content overflow and scroll. A canvas has no size of its own, so the
+  box of the signal panel gives it one, in cells: the same share of the board in each viewport.
+- **A panel starts clear of the two ends of the circuit, and then the user moves it.** The circuit
+  closes at (0,0), and the playhead starts in the opposite corner, so the dock starts top right and
+  the signal panel bottom left. After that, the user chooses which cells a panel covers.
+- **The title is the handle, and the fold control is a second button.** There is no grip to
+  discover. A threshold that eats the `click` at the end of a drag makes a button whose effect
+  depends on how far the pointer moved, and the accessible tree cannot announce that.
+- **A panel cannot be lost.** A strip of each panel stays in the viewport, wider than the handle
+  is high. The top edge never leaves the viewport, because the handle is on it: a panel in view
+  that the user cannot grab is worse than a lost one, because it looks like it works.
+- **The four corners of a panel are round.** A panel dropped in the middle of the board shows all
+  four.
 - **A slot shows the shape of its piece, not only the letter.** The letters are arbitrary names:
   `N` does not look like an N, and `V` and `L` are one shape with an arm of a different length.
+- **The slots are a periodic table: equal squares, apart and aligned.** In squares of one fixed
+  side, the twelve read as one set and not as a list. The letter is the symbol, in the bottom right
+  corner, on the background of the slot: the corner of the thumbnail box is filled in some
+  orientations, and a letter on a piece color has no sure contrast.
+- **The twelve fill a rectangle.** The column count divides twelve, so no row has holes.
+  `repeat(auto-fill, …)` answers another question: the most columns that fit, a divisor or not.
+  The width ceiling of the grid is the one parameter that chooses the shape.
+- **The slot grid is not the pentomino tiling.** Packed into 6 × 10, each piece reads only by its
+  color, the symbol has no place, and each rotation breaks the tiling.
 - **A thumbnail says no note and no step.** The dock answers which piece and how it is turned. The
   board answers what sounds. A separate preview of the piece in hand was removed: the ghost shows
   the same piece where it will land, with its notes. Two views of one object, where one is strictly

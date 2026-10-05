@@ -6,6 +6,10 @@ import { grillaPara } from '../board-fit/grid-fit.ts';
 import { MAX_PIEZAS, cellsAt } from '../board-editing/placement.ts';
 import { REGIMEN, arpeggioFor } from '../musical-model/music.ts';
 import { DEFAULT_BPM } from '../playback/scheduler.ts';
+import {
+  KEYBOARD_STEP_PX, SIGNAL_PANEL_WIDTH_CELLS, START_MARGIN_PX, VISIBLE_MARGIN_PX,
+} from '../panels/drag.ts';
+import { drag } from '../panels/__tests__/pointer-gesture.ts';
 import { rotateN, reflect } from '../pieces/transform.ts';
 import type { PieceKey } from '../pieces/pieces.ts';
 import type { ReactNode } from 'react';
@@ -84,24 +88,36 @@ const tapDeModificador = (el: EventTarget, key: string) => {
   el.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }));
 };
 
+/** The whole name: the handle and the fold control of a panel both contain its title. */
+const handleOf = (title: string) =>
+  page.getByRole('button', { name: `${title} — arrastrar el panel, o moverlo con las flechas` })
+    .element() as HTMLElement;
+
+/** Asked again at each press: the name of the fold control says what it does, so it changes. */
+const foldOf = (title: string) => page.getByRole('button', { name: new RegExp(`^(Plegar|Desplegar) ${title}$`) });
+
 const hover = (el: HTMLElement) => el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
 const click = (el: HTMLElement, init: MouseEventInit = {}) =>
   el.dispatchEvent(new MouseEvent('click', { bubbles: true, ...init }));
 
 describe('App: the composition', () => {
-  it('the board and the two floating panels, with no card', async () => {
+  it('AC-PNL-001 AC-ACC-030 — the board and the two floating panels, each with a handle and an expanded fold control', async () => {
     const { container } = await render(<App />);
     expect(celdas(container).length).toBe(DIMS.w * DIMS.h);
 
-    await expect.element(page.getByRole('button', { name: /^Piezas$/, expanded: true })).toBeInTheDocument();
-    await expect.element(page.getByRole('button', { name: /^Señal$/, expanded: true })).toBeInTheDocument();
+    for (const title of ['Piezas', 'Señal']) {
+      expect(handleOf(title).textContent, title).toBe(title);
+      await expect.element(page.getByRole('button', { name: new RegExp(`^Plegar ${title}$`), expanded: true }))
+        .toBeInTheDocument();
+    }
 
-    for (const flotante of container.querySelectorAll('aside')) {
+    const flotantes = [...container.querySelectorAll('aside')];
+    expect(flotantes).toHaveLength(2);
+    for (const flotante of flotantes) {
       expect(getComputedStyle(flotante).position).toBe('fixed');
     }
 
-    expect(container.textContent).toContain('Rueda sobre el tablero');
-    expect(container.textContent).toContain('arranca y para');
+    expect(container.textContent).not.toContain('Rueda sobre el tablero');
   });
 
   it('AC-FIT-008 — the page does not scroll: the board has the exact size of the viewport', async () => {
@@ -111,33 +127,32 @@ describe('App: the composition', () => {
 
   it('AC-PNL-002 — the two floating panels fold, and the spectrum stays alive when folded', async () => {
     const { container } = await render(<App />);
-    const senal = page.getByRole('button', { name: /^Señal$/ });
     const region = container.querySelector('#franja-senal')!;
     expect(region.hasAttribute('hidden')).toBe(false);
     expect(region.querySelector('canvas')).not.toBeNull();
 
-    await senal.click();
+    await foldOf('Señal').click();
     await vi.waitFor(() => expect(region.hasAttribute('hidden')).toBe(true));
     expect(region.querySelector('canvas')).not.toBeNull();
 
-    await senal.click();
+    await foldOf('Señal').click();
     await vi.waitFor(() => expect(region.hasAttribute('hidden')).toBe(false));
 
-    const piezas = page.getByRole('button', { name: /^Piezas$/ });
     const dock = container.querySelector('#dock-piezas')!;
     expect(dock.hasAttribute('hidden')).toBe(false);
-    await piezas.click();
+    await foldOf('Piezas').click();
     await vi.waitFor(() => expect(dock.hasAttribute('hidden')).toBe(true));
     expect(region.hasAttribute('hidden')).toBe(false);
     expect(dock.querySelectorAll('button').length).toBeGreaterThan(12);
-    await piezas.click();
+    await foldOf('Piezas').click();
     await vi.waitFor(() => expect(dock.hasAttribute('hidden')).toBe(false));
   });
 
   it('AC-MUS-012 AC-PLY-005 — it starts with the tempo of the engine and the scale regime', async () => {
-    const { container } = await render(<App />);
-    expect(container.textContent).toContain(String(DEFAULT_BPM));
-    await expect.element(page.getByRole('button', { name: REGIMEN.escala })).toHaveClass(/bg-slate-900/);
+    await render(<App />);
+    // By the name: on screen the clock is three bare digits, which any other number can match.
+    await expect.element(page.getByRole('button', { name: `Tempo: ${DEFAULT_BPM} bpm` })).toBeInTheDocument();
+    await expect.element(page.getByRole('button', { name: /fórmula de escala$/ })).toHaveClass(/bg-slate-900/);
   });
 });
 
@@ -291,8 +306,9 @@ describe('App: the transport', () => {
 
   it('AC-PLY-006 — the tempo and the clicks go down to the engine', async () => {
     await render(<App />);
-    await page.getByRole('slider').fill('128');
-    await vi.waitFor(() => expect(motor.setBpm).toHaveBeenLastCalledWith(128));
+    const reloj = page.getByRole('button', { name: /^Tempo: / }).element();
+    reloj.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(motor.setBpm).toHaveBeenLastCalledWith(DEFAULT_BPM + 1));
 
     // The same render as the tempo: with two apps mounted, a query by role is a strict mode violation.
     await page.getByRole('button', { name: /^Recorrido en el vacío$/ }).click();
@@ -382,7 +398,7 @@ describe('App: the orientation, by panel and by gesture', () => {
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
     const enEscala = notaDelFantasma(container);
 
-    await page.getByRole('button', { name: REGIMEN.orden }).click();
+    await page.getByRole('button', { name: /arranque del arpegio$/ }).click();
     hover(celda(container, 4, 3));
     await vi.waitFor(() => expect(notaDelFantasma(container)).not.toBe(enEscala));
   });
@@ -453,7 +469,7 @@ describe('App: the orientation, by panel and by gesture', () => {
     await page.getByRole('button', { name: 'I, rotación 0°' }).click();
     hover(celda(container, 4, 3));
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.I.length));
-    expect(container.textContent).toContain('tónica');
+    await expect.element(page.getByRole('button', { name: /^I, / })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('AC-BRD-017 — the LETTER chooses the piece, with no visit to the panel', async () => {
@@ -479,10 +495,10 @@ describe('App: the orientation, by panel and by gesture', () => {
 
 describe('App: what reaches the accessible tree', () => {
   it('AC-ACC-011 — no button of the app can submit a form', async () => {
-    // 12 slots + 2 of the regime + 3 of the transport row + the `0°` + 2 panel headers = 20.
+    // 12 slots + 2 of the regime + the `0°` + the clock + 3 of the transport row + 2 handles + 2 fold controls = 23.
     const { container } = await render(<App />);
     const botones = [...container.querySelectorAll('button')];
-    expect(botones.length).toBe(20);
+    expect(botones.length).toBe(23);
     for (const boton of botones) {
       expect(boton.getAttribute('type'), boton.textContent ?? '').toBe('button');
     }
@@ -831,5 +847,111 @@ describe('App: the board grows to the screen', () => {
     expect(anclas()).toEqual([celda(container, 0, 0)]);
 
     expect(celdas(container).filter(e => e.className.includes('cursor-not-allowed'))).toEqual([]);
+  });
+});
+
+/** The browser gives subpixels, and the gesture is in whole pixels. */
+const movedBy = (panel: Element, before: DOMRect) => {
+  const r = panel.getBoundingClientRect();
+  return [Math.round(r.left - before.left), Math.round(r.top - before.top)];
+};
+
+/** On the signal panel and not on the dock: the chassis is one, and these cases show it is on both. */
+describe('App: the two floating panels move', () => {
+  it('AC-PNL-009 — the dock starts at the start margin from the top and the right, and the open signal panel from the left and the bottom', async () => {
+    await render(<App />);
+    const dock = handleOf('Piezas').closest('aside')!.getBoundingClientRect();
+    const signal = handleOf('Señal').closest('aside')!.getBoundingClientRect();
+
+    expect(dock.top, 'dock, top').toBeCloseTo(START_MARGIN_PX, 0);
+    expect(window.innerWidth - dock.right, 'dock, right').toBeCloseTo(START_MARGIN_PX, 0);
+    expect(dock.left, 'dock, in the right half').toBeGreaterThan(window.innerWidth / 2);
+    expect(signal.left, 'signal panel, left').toBeCloseTo(START_MARGIN_PX, 0);
+    expect(window.innerHeight - signal.bottom, 'signal panel, bottom').toBeCloseTo(START_MARGIN_PX, 0);
+
+    const { cell } = grillaPara(...VIEWPORT);
+    expect(signal.width, 'signal panel, width').toBeCloseTo(SIGNAL_PANEL_WIDTH_CELLS * cell, 0);
+    expect(signal.height, 'signal panel, height').toBeCloseTo(cell, 0);
+  });
+
+  it('AC-PNL-003 AC-PNL-008 — the signal panel follows a drag, and stays there after a render', async () => {
+    const { container } = await render(<App />);
+    const handle = handleOf('Señal');
+    const panel = handle.closest('aside')!;
+    const before = panel.getBoundingClientRect();
+
+    // Far from the four limits of the clamp: there the panel follows the clamp, not the pointer.
+    drag(handle, 140, -260);
+    await vi.waitFor(() => expect(movedBy(panel, before)).toEqual([140, -260]));
+
+    // A move of the cursor over the board renders the whole tree again.
+    hover(celda(container, 4, 3));
+    await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
+    expect(movedBy(panel, before)).toEqual([140, -260]);
+  });
+
+  it('AC-PNL-004 AC-PNL-008 — with the focus on the handle of the signal panel, the four arrows move it', async () => {
+    await render(<App />);
+    const handle = handleOf('Señal');
+    const panel = handle.closest('aside')!;
+    handle.focus();
+
+    // On the handle and with `bubbles`: a key sent to `window` has `window` as its target, not the control.
+    for (const [key, dx, dy] of [
+      ['ArrowRight', KEYBOARD_STEP_PX, 0],
+      ['ArrowDown', 0, KEYBOARD_STEP_PX],
+      ['ArrowLeft', -KEYBOARD_STEP_PX, 0],
+      ['ArrowUp', 0, -KEYBOARD_STEP_PX],
+    ] as const) {
+      const before = panel.getBoundingClientRect();
+      handle.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+      await vi.waitFor(() => expect(movedBy(panel, before), key).toEqual([dx, dy]));
+    }
+  });
+
+  it('AC-PNL-005 AC-PNL-008 — dropped at (-9999, -9999), the signal panel stays in the viewport with its top edge at the top', async () => {
+    const { container } = await render(<App />);
+    const handle = handleOf('Señal');
+    const panel = handle.closest('aside')!;
+
+    drag(handle, -9999, -9999);
+    await vi.waitFor(() => {
+      const r = panel.getBoundingClientRect();
+      expect(r.right, 'right').toBeGreaterThan(0);
+      expect(r.bottom, 'bottom').toBeGreaterThan(0);
+      expect(r.left, 'left').toBeLessThan(container.clientWidth);
+      expect(Math.round(r.right), 'the visible strip').toBe(VISIBLE_MARGIN_PX);
+      expect(Math.round(r.top), 'the top limit').toBe(0);
+    });
+  });
+
+  it('AC-PNL-007 — a drag across the board places, removes, turns and reflects nothing', async () => {
+    // The dock is dropped on a placed F, with F in hand: a lost `click` there removes it, so it shows.
+    const { container } = await render(<App />);
+    const middle = Math.floor(anchoDe(container) / 2);
+    await userEvent.click(celda(container, middle, 3));
+    await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
+    const withPiece = () => celdas(container)
+      .map(e => e.getAttribute('aria-label')!)
+      .filter(n => n.includes('pieza'));
+    const orientations = () => [...container.querySelectorAll('button')]
+      .map(b => b.getAttribute('aria-label'))
+      .filter(n => n !== null && /^[A-Z], rotación/.test(n));
+    const placed = withPiece();
+    expect(placed).toHaveLength(SHAPES.F.length);
+    const before = orientations();
+    expect(before).toHaveLength(12);
+
+    // Through Playwright: the hit test of the browser, and the `click` that a real drag ends with.
+    const handle = handleOf('Piezas');
+    const dock = handle.closest('aside')!;
+    const dockBox = dock.getBoundingClientRect();
+    await userEvent.dragAndDrop(handle, celda(container, middle, 3), { force: true });
+
+    // The gesture happened: a drag that does not start leaves the board as it was, for the wrong reason.
+    await vi.waitFor(() => expect(movedBy(dock, dockBox)).not.toEqual([0, 0]));
+    await new Promise(r => setTimeout(r, 30));
+    expect(withPiece()).toEqual(placed);
+    expect(orientations()).toEqual(before);
   });
 });
