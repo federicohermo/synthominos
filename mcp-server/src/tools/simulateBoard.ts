@@ -1,20 +1,32 @@
 import { z } from 'zod';
 import { defineTool, json } from './types.ts';
 import { PIECE_KEYS } from '../pieces.ts';
-import { rotateN, reflect } from '../../../src/domain/transform.ts';
-import { cellsAt, isValid, occupantAt } from '../../../src/domain/board.ts';
-import { midiName } from '../../../src/domain/music.ts';
-import { buildSequence, gates } from '../../../src/domain/sequence.ts';
-import { SHAPES, ANCHOR_INDEX, CELLS_PER_PIECE } from '../../../src/domain/constants/pieces.constants.ts';
-import { GRID_DEFAULT, GRID_MIN, MAX_PIEZAS } from '../../../src/domain/constants/board.constants.ts';
-import { REGIMEN, DEFAULT_REGIMEN } from '../../../src/domain/constants/music.constants.ts';
-import type { Cell } from '../../../src/domain/types/transform.types.ts';
-import type { PlacedPiece, Dims } from '../../../src/domain/types/board.types.ts';
-import { collectHits, barDuration, intervalDuration } from '../../../src/audio/scheduler.ts';
-import { midiToHz } from '../../../src/audio/voice.ts';
-import { LOOKAHEAD, TICK_MS, HIT } from '../../../src/audio/constants/scheduler.constants.ts';
-import { DEFAULT_BPM, CLOCK_START_DELAY } from '../../../src/audio/constants/engine.constants.ts';
-import type { Sequence, ClockState, Hit } from '../../../src/audio/types/scheduler.types.ts';
+import { rotateN, reflect } from '../../../src/pieces/transform.ts';
+import {
+  cellsAt,
+  isValid,
+  occupantAt,
+  GRID_DEFAULT,
+  GRID_MIN,
+  MAX_PIEZAS,
+} from '../../../src/board-editing/placement.ts';
+import { midiName, REGIMEN, DEFAULT_REGIMEN } from '../../../src/musical-model/music.ts';
+import { buildSequence, gates } from '../../../src/circuit/sequence.ts';
+import { SHAPES, ANCHOR_INDEX, CELLS_PER_PIECE } from '../../../src/pieces/pieces.ts';
+import type { Cell } from '../../../src/pieces/transform.ts';
+import type { PlacedPiece, Dims } from '../../../src/board-editing/placement.ts';
+import {
+  collectHits,
+  barDuration,
+  intervalDuration,
+  LOOKAHEAD,
+  TICK_MS,
+  HIT,
+  CLOCK_START_DELAY,
+  DEFAULT_BPM,
+} from '../../../src/playback/scheduler.ts';
+import { midiToHz } from '../../../src/playback/voice.ts';
+import type { Sequence, ClockState, Hit } from '../../../src/playback/scheduler.ts';
 
 /**
  * Que suena un tablero, sin escucharlo.
@@ -151,7 +163,7 @@ function crucesDe(tramo: readonly { cell: Cell; note?: number }[]): Cruce[] {
 }
 
 /**
- * Etapa 1 — colocacion, con las reglas del tablero de `domain/board.ts`.
+ * Etapa 1 — colocacion, con las reglas del tablero de `board-editing/placement.ts`.
  *
  * El motivo del rechazo sale de las mismas funciones y no de una copia de sus
  * condiciones: `isValid(cells, [])` responde solo por los bordes —el tablero
@@ -271,7 +283,7 @@ export const simulateBoard = defineTool({
     const n = seq.order.length;
 
     // La proyeccion a la `Sequence` del MOTOR, que no lleva `pieceId` ni `cell`:
-    // `src/audio/**` tiene prohibido importar `Cell` (AC12), asi que las dos formas
+    // el motor habla MIDI y no conoce `Cell`, asi que las dos formas
     // son distintas a proposito. `App.tsx` hace esta misma proyeccion por su cuenta
     // y la duplicacion es aceptada: esta tool existe para reproducir lo que hace la
     // app CON LAS MISMAS funciones, y sacarla a un helper compartido romperia

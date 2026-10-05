@@ -123,7 +123,7 @@ import { describe, it, expect } from 'vitest';
 Es deliberado, y **el motivo cambió con el spec 022**. Hasta ahí lo forzaba `@types/jest`, que estaba en
 el árbol declarando las mismas globales con firmas distintas; ese paquete se fue con las otras seis
 `devDependencies` huérfanas, así que hoy `globals: true` está **disponible y sin ejercer**. No se ejerce
-porque ejercerlo es sacarle el import a los 50 archivos de test y no compra nada: el import explícito
+porque ejercerlo es sacarle el import a los 54 archivos de test y no compra nada: el import explícito
 dice de dónde sale `describe`, que es lo que se pierde con las globales.
 
 ## Audio
@@ -131,7 +131,7 @@ dice de dónde sale `describe`, que es lo que se pierde con las globales.
 ### No suena nada
 
 1. **¿Hubo un click primero?** `ctx.resume()` necesita un gesto del usuario. Nada suena hasta el
-   primer click en el tablero. Verificable: `(await import('/src/audio/engine.ts')).audio().state`
+   primer click en el tablero. Verificable: `(await import('/src/playback/engine.ts')).audio().state`
    debe decir `'running'`, no `'suspended'`.
 2. **¿Web Audio está disponible?** `audio()` falla de forma suave: loguea `"Web Audio no disponible"` y
    devuelve `null`. La app queda usable pero muda. Revisar la consola.
@@ -149,20 +149,20 @@ dice de dónde sale `describe`, que es lo que se pierde con las globales.
 ### Loops que siguen sonando después de borrar la pieza
 
 Era un bug real, corregido. Si reaparece, el sospechoso es que alguien le haya hablado al motor **fuera**
-del efecto de reconciliación, que desde el spec 022 vive en `components/use-engine.ts` y no en el shell.
+del efecto de reconciliación, que desde el spec 022 vive en `playback/use-engine.ts` y no en el shell.
 Desde el spec 009 hay una sola llamada —`setSequence(proyectarAlMotor(secuencia))`— y toda la gestión
 tiene que pasar por ese efecto — ver
 [audio.md](../architecture/audio.md#reconciliación-de-loops).
 
 **No es `setSequence(buildSequence(placed, regimen))`**, que es como se escribía acá antes del 022: la
-`Sequence` del dominio no es la del motor y en el medio va la proyección de `components/engine-bridge.ts`, que
+`Sequence` del dominio no es la del motor y en el medio va la proyección de `playback/engine-bridge.ts`, que
 deja caer `pieceId` y `cell`. Hoy escribirlo así ni siquiera typechequea; el motivo de que igual importe
 está en el docblock de `proyectarAlMotor`.
 
 Para ver la secuencia activa desde la consola:
 
 ```js
-(await import('/src/audio/engine.ts')).sequenceInfo()
+(await import('/src/playback/engine.ts')).sequenceInfo()
 ```
 
 ## MCP server
@@ -175,10 +175,10 @@ node:internal/modules/esm/resolve:274
 ```
 
 Casi siempre es **un import sin extensión dentro de `src/`**. El server corre con node crudo, que
-necesita el `./music.constants.ts` completo; Vite resuelve igual sin la extensión, así que el error
+necesita el `./music.ts` completo; Vite resuelve igual sin la extensión, así que el error
 **no rompe la app** y solo aparece del lado del server.
 
-Es un modo de falla asimétrico y está verificado: sacándole el `.ts` a un import de `src/domain/`, el
+Es un modo de falla asimétrico y está verificado: sacándole el `.ts` a un import de `src/`, el
 server muere con este error y `pnpm build` termina en verde.
 
 **Solución:** poner la extensión. La regla está en
@@ -189,7 +189,7 @@ todo el repo, y no solo sobre lo que el server llega a importar.
 
 El server importó un `.tsx`. El type-stripping de node no transforma JSX: **`App.tsx` y los componentes
 son inalcanzables desde el server, y no es cuestión de configuración.** Si una tool necesita algo que
-hoy vive en un `.tsx`, eso tiene que bajar a `src/domain/` primero — en su propio commit.
+hoy vive en un `.tsx`, eso tiene que salir a un módulo `.ts` primero — en su propio commit.
 
 ### El server arranca pero Claude Code no lo ve
 

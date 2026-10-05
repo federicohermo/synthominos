@@ -87,7 +87,7 @@ export default defineConfig({
           // test. Medido: sin ella `z-10` esta en el `className` pero
           // `getComputedStyle(...).zIndex` devuelve `auto`, o sea que un test de
           // layout pasa o falla por el motivo equivocado y en silencio.
-          setupFiles: ['./src/components/__tests__/browser-setup.ts'],
+          setupFiles: ['./src/__tests__/browser-setup.ts'],
           browser: {
             enabled: true,
             headless: true,

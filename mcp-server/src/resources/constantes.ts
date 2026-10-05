@@ -1,9 +1,16 @@
-import { GRID_MIN, GRID_DEFAULT, MAX_PIEZAS, CROSS_COST } from '../../../src/domain/constants/board.constants.ts';
-import { CELLS_PER_PIECE } from '../../../src/domain/constants/pieces.constants.ts';
-import { NOTES_PER_PIECE, DEFAULT_OCTAVE, DEFAULT_REGIMEN } from '../../../src/domain/constants/music.constants.ts';
-import { PASOS_MAX } from '../../../src/domain/constants/sequence.constants.ts';
-import { DEFAULT_BPM, MASTER_GAIN, FFT_SIZE } from '../../../src/audio/constants/engine.constants.ts';
-import { LOOKAHEAD, TICK_MS } from '../../../src/audio/constants/scheduler.constants.ts';
+import { GRID_MIN, GRID_DEFAULT, MAX_PIEZAS } from '../../../src/board-editing/placement.ts';
+import { CROSS_COST } from '../../../src/circuit/routing.ts';
+import { CELLS_PER_PIECE } from '../../../src/pieces/pieces.ts';
+import {
+  NOTES_PER_PIECE,
+  DEFAULT_OCTAVE,
+  DEFAULT_REGIMEN,
+} from '../../../src/musical-model/music.ts';
+import { PASOS_MAX } from '../../../src/circuit/sequence.ts';
+import { MASTER_GAIN } from '../../../src/playback/engine.ts';
+import { FFT_SIZE } from '../../../src/spectrum/spectrum-bars.ts';
+import { DEFAULT_BPM } from '../../../src/playback/scheduler.ts';
+import { LOOKAHEAD, TICK_MS } from '../../../src/playback/scheduler.ts';
 import { jsonResource, type ResourceDef } from './types.ts';
 
 /**
@@ -25,28 +32,36 @@ import { jsonResource, type ResourceDef } from './types.ts';
  */
 const POR_ARCHIVO = [
   {
-    archivo: 'src/domain/constants/board.constants.ts',
-    constantes: { GRID_MIN, GRID_DEFAULT, MAX_PIEZAS, CROSS_COST },
+    archivo: 'src/board-editing/placement.ts',
+    constantes: { GRID_MIN, GRID_DEFAULT, MAX_PIEZAS },
   },
   {
-    archivo: 'src/domain/constants/pieces.constants.ts',
+    archivo: 'src/circuit/routing.ts',
+    constantes: { CROSS_COST },
+  },
+  {
+    archivo: 'src/pieces/pieces.ts',
     constantes: { CELLS_PER_PIECE },
   },
   {
-    archivo: 'src/domain/constants/music.constants.ts',
+    archivo: 'src/musical-model/music.ts',
     constantes: { NOTES_PER_PIECE, DEFAULT_OCTAVE, DEFAULT_REGIMEN },
   },
   {
-    archivo: 'src/domain/constants/sequence.constants.ts',
+    archivo: 'src/circuit/sequence.ts',
     constantes: { PASOS_MAX },
   },
   {
-    archivo: 'src/audio/constants/engine.constants.ts',
-    constantes: { DEFAULT_BPM, MASTER_GAIN, FFT_SIZE },
+    archivo: 'src/playback/engine.ts',
+    constantes: { MASTER_GAIN },
   },
   {
-    archivo: 'src/audio/constants/scheduler.constants.ts',
-    constantes: { LOOKAHEAD, TICK_MS },
+    archivo: 'src/spectrum/spectrum-bars.ts',
+    constantes: { FFT_SIZE },
+  },
+  {
+    archivo: 'src/playback/scheduler.ts',
+    constantes: { DEFAULT_BPM, LOOKAHEAD, TICK_MS },
   },
 ];
 
@@ -55,7 +70,7 @@ const POR_ARCHIVO = [
  *
  * **La forma la decide la pregunta que trae a alguien aca**, que es "cuanto vale X y donde
  * lo edito". Sobre un mapa eso es una lectura; sobre la lista agrupada hay que recorrer los
- * seis grupos buscando en cual cayo. La lista sigue siendo la FUENTE —es donde la ruta se
+ * grupos buscando en cual cayo. La lista sigue siendo la FUENTE —es donde la ruta se
  * escribe una sola vez— y esto es su indice.
  *
  * Que cada constante lleve su `archivo` al lado es lo que la separa de otra copia, solo que

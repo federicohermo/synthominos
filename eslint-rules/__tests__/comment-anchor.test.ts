@@ -26,15 +26,15 @@ const tester = new RuleTester();
 tester.run('comment-anchor', regla, {
   valid: [
     // La cita que resuelve, que es el 98 % de las citas del repo.
-    { name: 'cita viva', code: '// la geometria vive en src/domain/transform.ts' },
+    { name: 'cita viva', code: '// la geometria vive en src/pieces/transform.ts' },
     {
       // El indice empareja por BASENAME: la ruta esta mal —el archivo esta en
-      // `src/domain/constants/`— y aun asi pasa. Es la decision de diseno de la
+      // `src/pieces/`— y aun asi pasa. Es la decision de diseno de la
       // regla: lo que caza es el archivo borrado o renombrado, no el formato de
       // la ruta. Exigir la ruta exacta convertiria las 309 citas vivas en 309
       // problemas de formato.
       name: 'la ruta puede estar mal si el archivo existe',
-      code: '// ver constants/pieces.constants.ts',
+      code: '// ver constants/pieces.ts',
     },
     { name: 'lib.*.d.ts es de TypeScript', code: '// el tipo lo trae lib.dom.d.ts, no este repo' },
     { name: 'node:* es un builtin', code: '// se lee con node:fs para no depender de nada' },

@@ -1,13 +1,18 @@
 ---
 paths:
-  - "src/domain/**/*.ts"
+  - "src/pieces/**"
+  - "src/musical-model/**"
+  - "src/circuit/**"
+  - "src/board-editing/placement.ts"
 ---
 
 # Capa de dominio
 
-Puro: sin React, sin Web Audio, sin DOM. `transform.ts` (geometría), `board.ts` (las reglas del
-tablero), `music.ts` (el modelo musical), `sequence.ts` (el circuito y los offsets del ciclo) e
-`invariants.ts` (los chequeos). Los datos viven en `domain/constants/` y los tipos en `domain/types/`.
+The modules of the model are pure: no React, no Web Audio, no DOM.
+`pieces/transform.ts` (geometry) and `invariants.ts` (the checks),
+`board-editing/placement.ts` (the rules of placement), `musical-model/music.ts` (the
+musical model), and `circuit/routing.ts` (the graph of the board) and `sequence.ts` (the
+circuit and the cycle offsets).
 
 ## El orden del array de celdas
 
@@ -45,7 +50,7 @@ elige el arpegio —*qué* notas con `escala`, *por dónde arranca* con `orden`�
 una. El régimen no toca el mapeo: es el mismo en los dos.
 
 **Desde el spec 012 el arpegio RECORRE la pieza**, sin pasar nunca por encima de una celda propia. El
-orden lo da `pathThroughCells` (`domain/transform.ts`, Held-Karp de camino abierto) y el orden angular
+orden lo da `pathThroughCells` (`pieces/transform.ts`, Held-Karp de camino abierto) y el orden angular
 del 007 —hoy `angularRank`— quedó como desempate: elige por qué punta se entra. El paso preferido es en
 cruz; en las cuatro piezas que no admiten recorrido ortogonal (`F`, `T`, `Y`, `X`: su grafo de celdas es
 un árbol con un nodo de 3 o 4 vecinos) se **tolera** uno en diagonal. La implementación usa **dos
@@ -83,16 +88,16 @@ esté**: el instrumento se toca de memoria o no se toca.
 **El tablero se repliega sobre sí mismo**: `(0,0)` y la esquina opuesta son adyacentes (una costura extra sobre la
 grilla, spec 009), y el orden de reproducción sale de un circuito exacto (Held-Karp) sobre esas
 distancias. Desde el spec 011 la distancia entre dos celdas **ya no es función solo de esas dos
-celdas**: `routeBetween(a, b, placed, dims)` (`domain/board.ts`) reemplaza a `cellDistance` y `pathBetween`
+celdas**: `routeBetween(a, b, placed, dims)` (`circuit/routing.ts`) reemplaza a `cellDistance` y `pathBetween`
 —los dos dejaron de existir, junto con `bestRoute` y el const-object `ROUTE`— y devuelve
 `{ path, steps, cost, crossed }` en una sola llamada: el camino de costo mínimo sobre las celdas del tablero,
-con las intermedias ocupadas pagando `CROSS_COST` (`domain/constants/board.constants.ts`) en vez de
+con las intermedias ocupadas pagando `CROSS_COST` (`circuit/routing.ts`) en vez de
 las dos puntas.
 
 **El tamaño del tablero es un parámetro, no una constante** (spec 031). `GRID_W`/`GRID_H` y `SEAM` se
 fueron: el tablero mide lo que entra en la pantalla, así que `isValid`, `routeBetween` y
-`buildSequence` reciben un `Dims` y la costura la deriva `costuraDe(dims)`. Lo que queda en
-`constants/` son los tres bordes —`GRID_MIN` (5×5, la caja más chica donde entra cualquier pentominó),
+`buildSequence` reciben un `Dims` y la costura la deriva `costuraDe(dims)`. Lo que queda
+son los tres bordes —`GRID_MIN` (5×5, la caja más chica donde entra cualquier pentominó),
 `GRID_DEFAULT` (10×6, el tablero de referencia que usan el MCP server y los tests) y `MAX_PIEZAS`—.
 
 **`MAX_PIEZAS` es 12 y no es una preferencia**: hasta el 031 ese tope lo garantizaba el área (60 ÷ 5) y
@@ -116,7 +121,7 @@ de 5 piezas. El test `el ORDEN DE COLOCACION no cambia lo que suena` lo fija con
 colocación, pero sí depende de qué otras piezas están en el tablero al trazar el camino entre dos
 puertas. Es geometría y no reloj de pared: el mismo
 tablero suena siempre igual, porque `buildSequence` es aritmética pura sobre enteros. Hoy se lee
-también: el spec 010 agrega una cabeza lectora (`components/Playhead.tsx`) que recorre el tablero celda
+también: el spec 010 agrega una cabeza lectora (`playback/Playhead.tsx`) que recorre el tablero celda
 por celda leyendo `playheadOffset()` del motor — detalle en
 [docs/architecture/audio.md](../../docs/architecture/audio.md#la-cabeza-lectora).
 
@@ -125,7 +130,7 @@ la pieza `T`. La letra describe la forma, no el sonido.
 
 Detalle en [docs/architecture/modelo-musical.md](../../docs/architecture/modelo-musical.md).
 
-## Después de tocar esta capa
+## Después de tocar el modelo
 
 `check_invariants` del MCP server ejecuta los chequeos sobre las 96 orientaciones y devuelve
 contraejemplos — antes y después de tocar geometría, `SHAPES` o el modelo musical.

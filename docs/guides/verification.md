@@ -167,7 +167,7 @@ CI on each PR, and the ruleset that blocks a red merge into `main`.
 
 ## The tests are two Vitest projects and one command
 
-The split is not by layer. It is by what the test needs:
+The split is by what the test needs:
 
 - **`node`**: `environment: 'node'` with `node-web-audio-api`. The domain is pure, and the audio
   layer has a native Web Audio implementation, so it runs there without adaptation. Its `include`
@@ -187,7 +187,7 @@ The split is not by layer. It is by what the test needs:
   - `.claude/scripts/__tests__/`: the `Stop` hook above.
 - **`browser`**: real Chromium, through Playwright, for `*.browser.test.tsx` files. It exists
   because jsdom cannot do the job. `Spectrum.tsx` needs a 2D canvas, `createLinearGradient`,
-  `ResizeObserver`, `matchMedia` and a `getBoundingClientRect` with numbers. `audio/engine.ts` needs
+  `ResizeObserver`, `matchMedia` and a `getBoundingClientRect` with numbers. `playback/engine.ts` needs
   `new AudioContext()` and `window.setInterval`. Coverage with jsdom needs a mock of exactly the
   code under test. That is coverage without verification.
 

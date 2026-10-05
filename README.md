@@ -31,7 +31,7 @@ the first `verify` of a fresh clone fails. `verify` runs `lint ‖ typecheck ‖
 |---|---|
 | The full technical docs: architecture, guides, infra | [docs/README.md](./docs/README.md) |
 | The visual language: the 12 colors and their tonic | [DESIGN.md](./DESIGN.md) |
-| Work in the repo: commands, layers, rules | [AGENTS.md](./AGENTS.md) |
+| Work in the repo: commands, capabilities, rules | [AGENTS.md](./AGENTS.md) |
 | The contract of each capability | [specs/](./specs/AGENTS.md) |
 
 Each of those files is the only source of its subject. This README links and does not repeat, so it

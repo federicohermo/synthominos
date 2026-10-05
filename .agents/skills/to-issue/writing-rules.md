@@ -7,7 +7,7 @@ Each rule here came from an issue that broke without it. Apply each one before y
 - **Follow every reader of a value that moves**, in `src/`, in the tests and in `mcp-server/`.
   `find_symbol` gives the importers; `rg` gives the tests that build the state the value feeds.
   The contract follows all readers, not the first one.
-- **`mcp-server/` imports domain symbols.** A changed signature in `domain/` can break a tool.
+- **`mcp-server/` imports symbols of `src/`.** A changed signature there can break a tool.
   `pnpm verify` typechecks across the package boundary, so the break is loud. Put the tool in
   Writes anyway, or the estimate comes out short.
 - **Coverage is 100 in all four metrics.** Each source file in Writes names its test file. Tests

@@ -1,35 +1,34 @@
 ---
 paths:
   - "src/App.tsx"
-  - "src/components/**/*.tsx"
+  - "src/**/*.tsx"
   # Los `.ts` de la capa entran desde el spec 022: los efectos que el shell tenía
   # viven en `use-engine.ts` y `use-input.ts`, que NO son `.tsx`. Sin este patrón la regla
   # no se carga al tocarlos, que es exactamente donde hacen falta las tres cosas
   # que el 022 agregó abajo — la cardinalidad de dependencias, «callbacks y no
   # setters», y el `tapLimpio` compartido.
-  - "src/components/**/*.ts"
+  - "src/**/use-*.ts"
 ---
 
 # UI: el shell y los componentes
 
 `App.tsx` es el shell: estado con `useState` local, derivados, handlers y la composición. Desde el spec
-022 **no declara un solo `useEffect`**: los cuatro de reconciliación viven en `components/use-engine.ts`,
-los dos de entrada en `components/use-input.ts` y el que mide el viewport para escribir `--cell` en
-`components/use-grid.ts` (specs 021 y 031). Ese último es el caso que muestra que la regla no es una
+022 **no declara un solo `useEffect`**: los cuatro de reconciliación viven en `playback/use-engine.ts`,
+los dos de entrada en `board-editing/use-input.ts` y el que mide el viewport para escribir `--cell` en
+`board-fit/use-grid.ts` (specs 021 y 031). Ese último es el caso que muestra que la regla no es una
 formalidad: un listener de `resize` es exactamente lo que la sección «Los listeners de entrada» ya
 resolvía, y el shell se quedó con el `ref` y la llamada. **Ninguna función pura y ningún literal de
-dominio** — y eso ya no significa «se va a `domain/`»: un `.tsx` no puede exportar nada además del
+dominio** — y eso significa «se va a un `.ts`»: un `.tsx` no puede exportar nada además del
 componente (`react-refresh/only-export-components`), así que lo que vive acá no se puede testear, pero
-el destino puede ser tanto `domain/` como un `.ts` de `components/`. Es lo que el spec 029 aplicó a los
+el destino es un `.ts` de la capacidad. Es lo que el spec 029 aplicó a los
 dos últimos lugares donde quedaba lógica encerrada: los bucles de `Playhead.tsx` y `Spectrum.tsx`
 salieron a `playhead-loop.ts` y `spectrum-loop.ts` sin cambiar una línea de comportamiento.
 
-Desde ese spec `components/` tiene **dos clases de test y las dos corren con `pnpm test`**: los `.ts`
+Desde ese spec la UI tiene **dos clases de test y las dos corren con `pnpm test`**: los `.ts`
 puros en el proyecto `node` —`input.ts`, `cell-text.ts`, `cell-name.ts`, `piece-mini.ts`,
-`orientation-text.ts`, `route-source.ts`, `engine-bridge.ts`, `palette.constants.ts` y los dos
-`-loop.ts`— y los
+`orientation-text.ts`, `route-source.ts`, `engine-bridge.ts` y `palette.ts`— y los
 `*.browser.test.tsx` en un
-Chromium de verdad, que es donde se verifican los seis componentes, `App.tsx` y los dos hooks. El
+Chromium de verdad, que es donde se verifican los seis componentes, los dos `-loop.ts`, `App.tsx` y los tres hooks. El
 discriminante es el **sufijo**, no la carpeta. Y el umbral es 100 en las cuatro métricas: lo que se
 agregue acá viene con su test o no mergea.
 
@@ -51,7 +50,7 @@ con nodos que crea y destruye él mismo.
   dos es lo que el review del spec 007 pagó caro.
 
 - **Todo lo que suena en el loop pasa por el efecto de reconciliación**, que vive en
-  `components/use-engine.ts` y no en el shell. Un único `useEffect` sobre `[secuencia, placed]` entrega
+  `playback/use-engine.ts` y no en el shell. Un único `useEffect` sobre `[secuencia, placed]` entrega
   la secuencia al motor con `setSequence`; los handlers solo cambian estado. `playing` **no** está en
   las dependencias, y desde el spec 009 eso es deliberado: la secuencia es función del tablero y no del
   transporte, y quien arranca o corta el sonido es `togglePlay`. El `clearJobs()` + `if (!playing)
@@ -62,18 +61,18 @@ con nodos que crea y destruye él mismo.
   `buildSequence(placed, regimen)` se queda en el shell: si el hook llamara a `buildSequence` por su
   cuenta, el dibujo y el sonido podrían mirar circuitos distintos sin que nada falle, que es lo que D5
   del 009 existe para cerrar. El shell deriva la regla; el hook recibe el resultado.
-- **La proyección dominio→motor vive en `components/engine-bridge.ts` y en ningún otro lado de
+- **La proyección dominio→motor vive en `playback/engine-bridge.ts` y en ningún otro lado de
   `src/`.**
-  `proyectarAlMotor` es el único puente entre las dos capas: entrega la `Sequence` del dominio dejando
-  caer `pieceId` y `cell`, porque `audio/` no puede ver `Cell` ni con `import type`. Es una **pura** y
+  `proyectarAlMotor` es el único puente entre el circuito y el motor: entrega la `Sequence` del dominio dejando
+  caer `pieceId` y `cell`, porque el motor habla MIDI y no conoce `Cell`. Es una **pura** y
   no un efecto, justamente para que ese cruce tenga test —los tres estados de `Click.note`, incluido
   que el click mudo salga **sin la clave**—. Ver `.agents/rules/audio.md`.
 - **El transporte se alterna con `alternarTransporte(playing, MOTOR)` y no con `startClock`/`stopClock`
   sueltos.** La pura devuelve lo que el motor dice que pasó y no lo que se le pidió, que es la falla
   suave que `.agents/rules/audio.md` obliga a chequear en todo llamador. `MOTOR` es el cableado real y
-  vive en `use-engine.ts`, el único módulo de la capa que importa la **API de transporte** del motor
+  vive en `use-engine.ts`, el único módulo de la UI que importa la **API de transporte** del motor
   (`startClock`, `stopClock`, `clockRunning`, `setSequence`, `setBpm`, `setClicksAudible`). No es el
-  único que importa `audio/engine.ts`: `Playhead.tsx`, `Spectrum.tsx` y `route-source.ts` también, pero
+  único que importa `playback/engine.ts`: `playhead-loop.ts`, `spectrum-loop.ts` y `route-source.ts` también, pero
   los tres piden **lecturas** —`playheadOffset`, `readSpectrum`, `cycleGeneration`— y ninguna de las
   tres arranca, frena ni agenda nada.
 - **Nunca mutar objetos ya entregados a React.** Ese fue exactamente el bug de los loops que motivó el
@@ -82,9 +81,9 @@ con nodos que crea y destruye él mismo.
 - **Efectos que reconcilian**, no que ejecutan comandos. Con flag de cancelación si hacen trabajo
   asincrónico; sincrónicos si la limpieza tiene que ganarle al re-montaje de StrictMode.
 - **`key` por id, nunca por índice**, en listas de elementos removibles.
-- **Un solo export por `.tsx`.** `react-refresh/only-export-components` lo exige. Los tipos de props
-  que se comparten entre un contenedor y sus paneles van a `components/types/*.types.ts`
-  (`panel.types.ts`); los que no se comparten quedan inline y sin exportar. Es la misma regla que
+- **Un solo export de valor por `.tsx`.** `react-refresh/only-export-components` lo exige; un tipo no cuenta. Los tipos de props
+  que se comparten entre un contenedor y sus paneles van al componente que las recibe, como `PropsDeOrientacion` en `OrientationPanel.tsx`;
+  los que no se comparten quedan inline y sin exportar. Es la misma regla que
   mantuvo al dominio sin tests mientras vivía acá, y la que le sacó al shell sus seis `useEffect` con
   el spec 022.
 - **Lo que sale de una constante va por estilo inline, no por clase.** Tailwind escanea el fuente: una
@@ -107,7 +106,7 @@ distinta y ahí no tiene que pasar nada.
 - **No hay `col-span` ni tarjetas desde el spec 021**: el tablero ocupa el viewport y los dos paneles
   flotan encima, `fixed`, sin empujar la grilla. El tamaño de celda es
   de unos **73 px** y lo que sale del viewport es **cuántas celdas hay** (spec 031): `grid-fit.ts`
-  contesta las dos cosas y `components/use-grid.ts` las escribe. La celda va por la custom property
+  contesta las dos cosas y `board-fit/use-grid.ts` las escribe. La celda va por la custom property
   `--cell` —**todo lo que dependa de ella la lee de ahí y nunca de una constante**: la grilla, la
   baldosa entera, el velo, la cabeza lectora y las cajas de los dos flotantes—, y las dimensiones
   vuelven como estado, porque deciden cuántos nodos existen y eso el CSS no lo puede resolver. El
@@ -120,7 +119,7 @@ distinta y ahí no tiene que pasar nada.
 
 ## El árbol de accesibilidad dice lo que el color pinta
 
-`DESIGN.md` titula «El color comunica identidad, nunca estado» y `palette.constants.ts` mide contraste
+`DESIGN.md` titula «El color comunica identidad, nunca estado» y `palette.ts` mide contraste
 con APCA contra un piso de Lc 60 — un rigor que casi ningún proyecto tiene. Lo que no se cubría es el
 canal donde no hay color. El spec 025 lo midió sobre `src/`: **cero** `aria-pressed`, **cero**
 `aria-checked` y **cero** `role=` en los 22 botones y el `input` de la app.
@@ -238,7 +237,7 @@ operación destructiva sin ninguna otra vía y sin deshacer
   [DESIGN.md](../../DESIGN.md).
 
 - **Lo prohibido es `transform: scale`**, y el repo ya lo midió: el docblock de
-  `components/constants/playhead.constants.ts` lo dice para la cabeza lectora —«`scale` AGRANDA la caja
+  `playback/playhead-loop.ts` lo dice para la cabeza lectora —«`scale` AGRANDA la caja
   a efectos de overflow y `box-shadow` es *ink overflow*: pinta afuera sin agrandar nada»—, y cuando se
   midió el síntoma eran las dos barras del `overflow-x-auto` de `Board`, con el `scrollHeight` pasando
   de 378 a 381. Desde el spec 031 ese contenedor no scrollea y quien recorta es el `overflow-hidden`
@@ -257,7 +256,7 @@ siendo lo correcto.
 El spec 013 fue el primero que agregó uno —hasta ahí el único `addEventListener` de `src/` era un
 `matchMedia` en `Spectrum.tsx`—, así que la regla la escribió él y la próxima se copia de esta.
 
-- **El listener global vive en un hook de `components/`, en un efecto propio** —`use-input.ts` desde
+- **El listener global vive en un hook `use-*.ts`, en un efecto propio** —`use-input.ts` desde
   el spec 022—, y el componente sobre el que escucha no gana ni estado ni efectos. El shell es quien
   tiene los setters, así que el hook recibe **callbacks y no setters**: así cambiar la forma del estado
   es cambiar el shell y no el hook.
@@ -283,7 +282,7 @@ El spec 013 fue el primero que agregó uno —hasta ahí el único `addEventList
   lo escriben los dos; vive en el shell, que es quien los compone. Meterlo adentro del hook que lo lee
   deja al otro sin forma de escribirlo, y ahí vuelve el bug de `Ctrl`+rueda del spec 013 sin que falle
   un solo test.
-- **La DECISIÓN del gesto se extrae como pura a `components/`**, recibiendo los campos del evento que
+- **La DECISIÓN del gesto se extrae como pura a un `.ts`**, recibiendo los campos del evento que
   importan y no el evento. En un `.tsx` no se puede ni exportar, y como pura corre en el proyecto
   `node` —sin navegador, sin fabricar un `KeyboardEvent`— que es donde la decisión se verifica barata y
   exhaustiva. El precedente son `input.ts`, `cell-text.ts`, `route-source.ts` y `engine-bridge.ts`.

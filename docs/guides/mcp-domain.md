@@ -28,10 +28,10 @@ deploy, so with Node 20 the server does not start and **the repo works the same*
 | `find_symbol` | where a symbol of `src/` is defined (file, line, signature, first sentence of the doc) and which files import it, `mcp-server/` included | `grep` + opening the file to see the signature |
 | `describe_piece` | transformed shape, two ASCII grids (one marks the anchor, one shows the **step** of each cell), tonic, scale, `cellMap` (degree **and** step per cell) and the 5 notes with the retrograde applied | composing four pure functions by hand over five coordinate pairs |
 | `simulate_board` | validity of each placement, the order of the circuit with its jumps, and the timeline of notes and clicks that the tour produces | reading the scheduler and walking the lookahead by hand, or listening |
-| `check_invariants` | the seven checks of `domain/invariants.ts`, with counterexamples and the size of the model (96 orientations) | running the tests and reading the output |
+| `check_invariants` | the seven checks of `pieces/invariants.ts`, with counterexamples and the size of the model (96 orientations) | running the tests and reading the output |
 
 **The three domain tools reimplement nothing.** `simulate_board` calls `cellsAt`/`isValid` of
-`domain/board.ts` and `buildSequence` of `domain/sequence.ts` to build the circuit.
+`board-editing/placement.ts` and `buildSequence` of `circuit/sequence.ts` to build the circuit.
 `check_invariants` calls `checkAll()`. `describe_piece` calls `rotateN`/`reflect`/`notesForRotation`.
 The server owns only the ASCII render, the symbol index and the format of the answers.
 
@@ -81,7 +81,7 @@ someone must remember to make.
 Three properties make it worth it, and the three are the usual one:
 
 - **It imports; it does not copy.** `resources/constantes.ts` has no numeric literal. The 14 values
-  come from `src/domain/constants/` and `src/audio/constants/`, grouped by file with property
+  come from the modules of `src/`, grouped by file with property
   shorthand. So the key **is** the imported identifier, and a rename breaks the import instead of
   lying.
 - **No `cacheHint`, by type.** `ResourceDef.config` is a bare `ResourceMetadata`, so a `cacheHint`
@@ -176,7 +176,7 @@ Reference question: *"where is `notesForRotation` and what depends on it?"*
 | | Bytes | What it leaves |
 |---|---|---|
 | `grep -rn notesForRotation src/ mcp-server/src/` | 4,544 | 40 hits, most of them repeated call sites in one test |
-| + opening `domain/music.ts` (needed for the signature) | 1,663 | |
+| + opening `musical-model/music.ts` (needed for the signature) | 1,663 | |
 | **`grep` path** | **6,207** | |
 | `find_symbol("notesForRotation")` | **433** | definition, line, signature, doc and the 4 files that import it |
 
@@ -187,7 +187,7 @@ The `grep` in the comparison covers both packages, because that is what matches 
 includes `mcp-server/`, and that is the part that is easy to forget.
 
 Build cost: **112 ms** on the first query and ~50 ms after, measured over 36 + 16 files. The index
-later grew to 92 files plus 22 that only add edges. This cost is what allows the index to stay
+later grew; today it is 70 files plus 17 that only add edges. This cost is what allows the index to stay
 unpersisted. If it ever hurts, the answer is a cache keyed by `mtime`, not an artifact that someone
 must regenerate.
 
@@ -215,7 +215,7 @@ The graph does **not** see `import * as x`: a namespace does not say which symbo
 has none today. If one appears, `usedBy` under-reports silently.
 
 `includeTests` filters **both** ends, the matches and the users, not only `usedBy`. A filter on one
-end returned the helpers of `audio/__tests__/test-context.ts` as orphan symbols of `src/`. And an
+end returned the helpers of `playback/__tests__/test-context.ts` as orphan symbols of `src/`. And an
 exact match inside a test hid the substring search of a real symbol.
 
 Know which problem this solves and which it does not. A broken domain signature **does not pass

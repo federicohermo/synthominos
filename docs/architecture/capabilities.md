@@ -6,11 +6,14 @@ single spec can say it.
 
 The rules to edit a spec are in [the spec rules](../../.agents/rules/specs.md).
 
-## A capability is not a layer
+## A capability is a folder
 
-A capability is a slice of what the instrument does. A layer is where its code lives. The two
-axes cross: most capabilities have code in `domain/`, in `audio/` and in `components/`. For this
-reason, a spec names no file and no symbol.
+A capability is a slice of what the instrument does. Its code lives in `src/<capability>/`, a flat
+folder with the name of its contract. The spec gate checks the link both ways, and a generated
+`AGENTS.md` in the folder points at the contract.
+
+The folder is the only link. A spec names no file and no symbol, because files move inside a
+capability and the contract stays.
 
 ## The map
 

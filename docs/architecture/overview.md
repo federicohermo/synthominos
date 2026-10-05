@@ -15,48 +15,23 @@ expresivo, no más difícil.
 ## Arquitectura de Alto Nivel
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│  src/main.tsx         createRoot().render(<App/>)       │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────┐
-│  src/App.tsx — el shell, sin un solo efecto             │
-│   estado · derivados · handlers · composición           │
-│   selected · orientaciones · tempo · regimen            │
-│   playing · placed[] · hover                            │
-└───────┬─────────────────────────────┬───────────────────┘
-        │ compone                     │ playNow (el resto pasa por use-engine.ts)
-┌───────▼──────────────────┐  ┌───────▼───────────────────┐
-│  src/components/         │  │  src/audio/               │
-│   PiecePalette · Board   │  │   voice.ts     síntesis   │
-│   Spectrum · Playhead    │  │   scheduler.ts lookahead  │
-│   OrientationPanel       │  │   engine.ts    singletons │
-│   TransportPanel         │  │   spectrum.ts  bins→barras│
-│   presentacionales:      │  │                           │
-│   props, sin estado      │  │                           │
-│   use-engine · use-input │  │                           │
-│   engine-bridge.ts       │  │                           │
-└───────┬──────────────────┘  │  voice y scheduler reciben│
-        │                     │  el ctx por parámetro y NO│
-        │ importan            │  importan engine.ts → se  │
-        │                     │  renderizan offline       │
-┌───────▼─────────────────────┴───────────────────────────┐
-│  src/domain/ — puro: sin React, sin Web Audio, sin DOM  │
-│   transform.ts   rotate90 · normalize · rotateN · reflect│
-│                  centroid · angleFromCentroid            │
-│   board.ts       cellsAt · isValid · routeBetween ·      │
-│                  occupantAt · occupantCellIndex           │
-│   music.ts       midiFor · midiName · notesForRotation   │
-│                  degreeByCellIndex                       │
-│   sequence.ts    buildSequence · cellsByPlayOrder ·      │
-│                  gates · noteAtCell                       │
-│   invariants.ts  los siete chequeos del modelo           │
-│   types/ ← constants/ ← módulos                          │
-└─────────────────────────────────────────────────────────┘
+src/main.tsx → src/App.tsx    the shell: state, derived values, handlers and composition.
+                   │           Zero effects. It calls playNow; the rest goes through use-engine.ts
+                   │ imports
+                   ▼
+src/<capability>/             one flat folder per contract in specs/:
+                              pieces · board-editing · board-fit · musical-model · circuit ·
+                              playback · spectrum · panels · accessibility
+
+in a capability:  *.tsx       a component: presentational, props, no state
+                  use-*.ts    a hook: use-engine · use-input · use-grid
+                  *.ts        a module: pure functions, or the Web Audio engine of playback/
 ```
 
-`domain/` y `audio/` son **hermanos sin aristas entre ellos**, y la dirección la verifica el linter.
-Ver [conventions.md](../guides/conventions.md).
+Each folder under `src/` is the code of the contract with its name in `specs/`. `voice.ts` and
+`scheduler.ts` receive the `AudioContext` as a parameter and do not import `engine.ts`, so they
+render offline. See
+[directory-structure.md](./directory-structure.md) and [conventions.md](../guides/conventions.md).
 
 ## Qué vive dónde
 
@@ -67,7 +42,7 @@ se pueden renderizar con `OfflineAudioContext` sin montar nada de React.
 **El dominio salió después, y por un motivo parecido**: `react-refresh/only-export-components` prohíbe
 que un `.tsx` exporte algo además del componente, así que mientras la geometría y la música vivieran en
 `App.tsx` **no podían exportarse, y por lo tanto no podían testearse**. La organización no era neutral:
-condenaba al dominio a no ser verificable. Hoy `src/domain/` tiene tests donde antes había cero.
+condenaba al dominio a no ser verificable. Hoy `src/` tiene tests donde antes había cero.
 
 **El shell perdió sus seis `useEffect` con el spec 022**, y por el mismo motivo por tercera vez: en un `.tsx` no se
 podían exportar, así que las 166 líneas del puente con el motor —el 75 % de ellas comentario— no se
@@ -75,7 +50,7 @@ podían montar ni testear. Lo que queda en `App.tsx` es el shell: estado, deriva
 composición de los componentes, con **cero `useEffect`**. Ninguna función pura y ningún literal de
 dominio.
 
-Los que había son ahora **dos archivos** de `components/`, y el corte es el que la lista ya dibujaba
+Los que había son ahora **dos hooks**, y el corte es el que la lista ya dibujaba
 (el spec 021 suma un tercero —hoy `use-grid.ts`— por la misma regla y sin tocar el shell: sigue en cero):
 
 - `use-engine.ts` — los **cuatro de reconciliación**: tempo, clicks, la secuencia contra el tablero, y la
@@ -89,10 +64,10 @@ Los que había son ahora **dos archivos** de `components/`, y el corte es el que
   de sostenerse por adyacencia.
 
 La **proyección** del `Sequence` del dominio al del motor es una pura, `proyectarAlMotor` en
-`components/engine-bridge.ts`: es el único módulo del repo que puede importar los dos tipos `Sequence`, y estaba
+`playback/engine-bridge.ts`: es el único módulo del repo que puede importar los dos tipos `Sequence`, y estaba
 escrita dos veces adentro del shell.
 
-## Las cuatro capas
+## Lo que hace cada parte
 
 ### 1. Dominio — funciones puras
 
@@ -101,13 +76,14 @@ Sin React, sin audio, sin DOM. Determinísticas y testeables en aislamiento.
 | Módulo | Símbolos | Responsabilidad |
 |---|---|---|
 | `transform.ts` | `rotate90`, `normalize`, `rotateN`, `reflect`, `centroid`, `angleFromCentroid`, `pathThroughCells` | Transformaciones de un `Cell[]`, el centroide con el ángulo de cada celda a su alrededor, y el camino que recorre una forma celda vecina a celda vecina |
-| `board.ts` | `cellsAt`, `isValid`, `routeBetween`, `rutador`, `costuraDe`, `occupantAt`, `occupantCellIndex` | Las reglas del tablero, el camino de costo mínimo entre dos celdas replegando la costura que une `(0,0)` con la esquina opuesta y pesando `CROSS_COST` las celdas ocupadas que cruza (spec 011), y qué celda de la pieza cae en `(x, y)`. Las tres primeras reciben las **dimensiones** por parámetro desde el spec 031, y `rutador` es la puerta con caché que usa `buildSequence` |
+| `placement.ts` (board-editing) | `cellsAt`, `isValid`, `cabeEn`, `occupantAt`, `occupantCellIndex` | The rules of placement: where a piece lands, whether a move is legal, whether a piece fits whole in the board of now, and which cell of a piece falls on `(x, y)`. The board size arrives as a parameter |
+| `routing.ts` (circuit) | `costuraDe`, `routeBetween`, `rutador` | The graph the circuit walks: the seam that joins `(0,0)` with the opposite corner, and the cheapest route between two cells, where an occupied cell costs `CROSS_COST`. `rutador` is the cached entry that `buildSequence` uses |
 | `music.ts` | `midiFor`, `midiName`, `notesForRotation`, `arpeggioFor`, `degreeByCellIndex`, `angularRank` | De pieza + rotación a cinco notas MIDI, y de la forma a qué celda lleva cuál. `arpeggioFor` es la derivación completa —tónica, escala y retrógrado—, y la única fuente del arpegio de una pieza colocada. `angularRank` es el orden angular del spec 007, que desde el 012 solo desempata la dirección del camino |
 | `sequence.ts` | `buildSequence`, `cellsByPlayOrder`, `gates`, `noteAtCell` | El circuito que visita las piezas colocadas (Held-Karp sobre `routeBetween`) y los offsets del ciclo — orden, silencios y clicks. Las otras tres son las derivaciones celda↔nota que el circuito necesita y que no pueden vivir escondidas en su único consumidor: el orden de reproducción, las dos puertas de una pieza y qué nota suena en una celda (la que da su altura al cruce del spec 011) |
 | `invariants.ts` | `checkArrayOrder`, `checkAnchors`, `checkShapes`, `checkBaseMap`, `checkNotes`, `checkDistinct`, `checkLetters`, `checkAll` | Los siete chequeos del modelo. Cuatro recorren las 96 orientaciones —los dos geométricos, `checkDistinct`, que compara las 12 formas entre sí, y `checkLetters`: los dos últimos porque reducir una forma a su clave canónica exige generar sus 8—; los otros tres, lo que les corresponde. `checkLetters` es del spec 039 y es el único que compara contra una tabla EXTERNA: que cada forma sea el pentominó de su letra, que es lo que `checkDistinct` no puede ver |
 
-Los datos (`SHAPES`, `ANCHOR_INDEX`, `BASE_MAP`, `PENT_*`, `GRID_MIN`/`GRID_DEFAULT`) viven en `domain/constants/`, y
-los tipos (`Cell`, `PieceKey`, `PlacedPiece`) en `domain/types/`. Detalle en
+Los datos (`SHAPES`, `ANCHOR_INDEX`, `BASE_MAP`, `PENT_*`, `GRID_MIN`/`GRID_DEFAULT`) viven en el módulo que los define, igual que
+los tipos (`Cell` en `transform.ts`, `PieceKey` en `pieces.ts`, `PlacedPiece` en `placement.ts`). Detalle en
 [modelo-musical.md](./modelo-musical.md).
 
 Los chequeos **devuelven** un `CheckResult` en vez de lanzar o asertar, para que los use igual su test y
@@ -143,7 +119,7 @@ de claves `"x,y"`**: el índice de cada celda es lo que la conecta con su grado,
 ### 3. Audio — el motor y sus singletons
 
 `voice.ts` (síntesis), `scheduler.ts` (lookahead), `engine.ts` (singletons y la API que consume la UI)
-y `spectrum.ts` (el mapeo puro de bins a barras, separado del `AnalyserNode` para poder testearlo).
+y `spectrum-bars.ts` (el mapeo puro de bins a barras, separado del `AnalyserNode` para poder testearlo).
 El `AudioContext` es un singleton de módulo —uno por pestaña, no uno por componente— y vive **solo** en
 `engine.ts`: los otros dos lo reciben por parámetro y no importan `engine.ts`, así que el invariante que
 los hace testeables lo sostiene el grafo de imports. Detalle en [audio.md](./audio.md).
@@ -169,7 +145,7 @@ El [spec 001](https://github.com/federicohermo/pentomino-games/issues/63) reusa 
 mapeo celda↔nota. **Es un invariante del que ya depende código en producción**: romperlo (por ejemplo,
 haciendo que `normalize` filtre u ordene celdas) rompe la colocación de piezas de forma silenciosa.
 
-Desde el spec 005 hay una red: `checkArrayOrder()` de `domain/invariants.ts` lo verifica sobre las 96
+Desde el spec 005 hay una red: `checkArrayOrder()` de `pieces/invariants.ts` lo verifica sobre las 96
 combinaciones, y su test comprueba que el chequeo efectivamente **da rojo** si una transformación
 reordena.
 
@@ -179,9 +155,9 @@ Los loops de audio no se agendan ni cancelan desde los handlers. Un único `useE
 `[secuencia, placed]` y le entrega al motor la secuencia del recorrido con `setSequence`. `playing` no
 está en las dependencias: la secuencia es función del tablero y no del transporte.
 
-Ese efecto **no vive en el shell**: desde el spec 022 está en `components/use-engine.ts` con los otros
+Ese efecto **no vive en el shell**: desde el spec 022 está en `playback/use-engine.ts` con los otros
 tres de reconciliación, y `App.tsx` sigue sin declarar un solo `useEffect` —el 021 le agregó un hook más,
-`use-grid.ts`, y lo puso donde van todos: en `components/`— (ver [Qué vive dónde](#qué-vive-dónde)). Lo
+`use-grid.ts`, y lo puso donde van todos: en un hook `use-*.ts`— (ver [Qué vive dónde](#qué-vive-dónde)). Lo
 que se queda en el shell es la **derivación** —`secuencia` es un `useMemo` sobre
 `[visibles, regimen, dims]`, que desde el spec 031 son las tres cosas de las que depende: las piezas
 que entran en la grilla de ahora, el régimen y cuánto mide el tablero— y el hook recibe el resultado,

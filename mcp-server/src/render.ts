@@ -1,11 +1,11 @@
-import type { Cell } from '../../src/domain/types/transform.types.ts';
+import type { Cell } from '../../src/pieces/transform.ts';
 
 /**
  * Render ASCII de una forma, y lo unico geometrico que el server escribe por su
  * cuenta.
  *
  * Que sea lo unico es a proposito: **no es dominio**. Rotar, reflejar, colocar y
- * validar vienen de `src/domain/`; esto solo dibuja lo que aquellas devolvieron.
+ * validar vienen de `src/`; esto solo dibuja lo que aquellas devolvieron.
  *
  * Existe porque una pieza descrita como cinco pares de coordenadas no se ve, y
  * ver la forma es la mitad de lo que la tool responde.

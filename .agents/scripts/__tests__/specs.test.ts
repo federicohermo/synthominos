@@ -17,17 +17,23 @@ const testFile = (title: string): SourceFile => ({ path: 'src/__tests__/x.test.t
  * citation from this file to a criterion that does not exist.
  */
 const ac = (n: number) => ['AC', 'ABC', String(n).padStart(3, '0')].join('-');
+/**
+ * The audit with one module of code for each contract, so a case about something else sees every
+ * folder link intact.
+ */
+const run = (specs: readonly SourceFile[], tests: readonly SourceFile[]) =>
+  audit(specs, tests, specs.flatMap(s => /^specs\/([^_/][^/]*)\/\1\.md$/.exec(s.path)?.slice(1).map(c => `src/${c}/x.ts`) ?? []));
 
 describe('audit: shape', () => {
   it('a valid draft spec with no tests only reports', () => {
-    expect(audit([spec('alpha', 'ABC', 'draft', BASE)], [])).toEqual({
+    expect(run([spec('alpha', 'ABC', 'draft', BASE)], [])).toEqual({
       findings: [],
       report: ['specs/alpha/alpha.md: 0/1 criteria with a test'],
     });
   });
 
   it('files of the previous regime are red anywhere under specs/', () => {
-    const { findings } = audit([{ path: 'specs/alpha/tasks.md', text: '' }, { path: 'specs/_template/plan.md', text: '' }], []);
+    const { findings } = run([{ path: 'specs/alpha/tasks.md', text: '' }, { path: 'specs/_template/plan.md', text: '' }], []);
     expect(findings).toHaveLength(2);
   });
 
@@ -38,17 +44,17 @@ describe('audit: shape', () => {
       { path: 'specs/README.md', text: '' },
       { path: 'specs/alpha/tables/values.md', text: '' },
     ];
-    expect(audit(files, [])).toEqual({ findings: [], report: [] });
+    expect(run(files, [])).toEqual({ findings: [], report: [] });
   });
 
   it('no frontmatter', () => {
-    const { findings } = audit([{ path: 'specs/alpha/alpha.md', text: BASE }], []);
+    const { findings } = run([{ path: 'specs/alpha/alpha.md', text: BASE }], []);
     expect(findings).toContain('specs/alpha/alpha.md: missing frontmatter');
   });
 
   it('incomplete frontmatter, invalid code and invalid status', () => {
     const text = '---\n# a note\ncapability_id: CAP-abcd\nstatus: done\n---\n' + BASE;
-    const { findings } = audit([{ path: 'specs/alpha/alpha.md', text }], []);
+    const { findings } = run([{ path: 'specs/alpha/alpha.md', text }], []);
     expect(findings).toEqual(expect.arrayContaining([
       'specs/alpha/alpha.md: frontmatter has no `schema_version`',
       'specs/alpha/alpha.md: `capability_id` is not CAP-XXX: `CAP-abcd`',
@@ -62,7 +68,7 @@ describe('audit: shape', () => {
       '### AC-ABC-001 — no rule', '### AC-ABC-002 — gone *(verifies BR-ABC-001)* *Retired*',
       '### AC-ABC-003 — ghost *(verifies BR-ABC-009)*',
     ].join('\n');
-    const { findings } = audit([spec('alpha', 'ABC', 'draft', body)], []);
+    const { findings } = run([spec('alpha', 'ABC', 'draft', body)], []);
     expect(findings).toEqual([
       'specs/alpha/alpha.md: `BR-ABC-001` appears twice',
       'specs/alpha/alpha.md: `BR-XYZ-002` does not carry the code `ABC`',
@@ -73,38 +79,70 @@ describe('audit: shape', () => {
   });
 
   it('a spec with no criteria', () => {
-    const { findings } = audit([spec('alpha', 'ABC', 'draft', '### BR-ABC-001 — r')], []);
+    const { findings } = run([spec('alpha', 'ABC', 'draft', '### BR-ABC-001 — r')], []);
     expect(findings).toEqual(['specs/alpha/alpha.md: has no acceptance criteria']);
   });
 
   it('two specs with the same code', () => {
-    const { findings } = audit([spec('alpha', 'ABC', 'draft', BASE), spec('beta', 'ABC', 'draft', BASE)], []);
+    const { findings } = run([spec('alpha', 'ABC', 'draft', BASE), spec('beta', 'ABC', 'draft', BASE)], []);
     expect(findings).toEqual(['specs/beta/beta.md: the code `ABC` already belongs to specs/alpha/alpha.md']);
   });
 });
 
 describe('audit: the link between criterion and test', () => {
   it('a ratified spec with an untested criterion is red', () => {
-    const { findings } = audit([spec('alpha', 'ABC', 'ratified', BASE)], []);
+    const { findings } = run([spec('alpha', 'ABC', 'ratified', BASE)], []);
     expect(findings).toEqual(['specs/alpha/alpha.md: is `ratified` and no test cites `AC-ABC-001`']);
   });
 
   it('a fully cited ratified spec passes, and a complete draft says it is ready to ratify', () => {
-    expect(audit([spec('alpha', 'ABC', 'ratified', BASE)], [testFile(`${ac(1)} — something`)]).findings).toEqual([]);
-    expect(audit([spec('alpha', 'ABC', 'draft', BASE)], [testFile(`${ac(1)} — something`)]).report).toEqual([
+    expect(run([spec('alpha', 'ABC', 'ratified', BASE)], [testFile(`${ac(1)} — something`)]).findings).toEqual([]);
+    expect(run([spec('alpha', 'ABC', 'draft', BASE)], [testFile(`${ac(1)} — something`)]).report).toEqual([
       'specs/alpha/alpha.md: 1/1 criteria with a test — ready to ratify',
     ]);
   });
 
   it('a superseded spec is not counted, and its code need not be valid', () => {
     const text = '---\nschema_version: 1\ncapability_id: x\nstatus: superseded\nowner: x\nprovenance: x\n---\n' + BASE;
-    const { report } = audit([{ path: 'specs/alpha/alpha.md', text }], []);
+    const { report } = run([{ path: 'specs/alpha/alpha.md', text }], []);
     expect(report).toEqual([]);
   });
 
   it('citing a criterion that does not exist is red', () => {
-    const { findings } = audit([spec('alpha', 'ABC', 'draft', BASE)], [testFile(`${ac(777)} — ghost`)]);
+    const { findings } = run([spec('alpha', 'ABC', 'draft', BASE)], [testFile(`${ac(777)} — ghost`)]);
     expect(findings).toEqual(['a test cites `AC-ABC-777`, which no spec declares']);
+  });
+});
+
+describe('audit: the code folder of each contract', () => {
+  const alpha = spec('alpha', 'ABC', 'draft', BASE);
+  const beta = spec('beta', 'BET', 'draft', BASE.replaceAll('ABC', 'BET'));
+
+  it('flat code and its tests pass, and so do the pointer, the shell and the files outside src/', () => {
+    const sources = [
+      'src/alpha/AGENTS.md', 'src/alpha/a.ts', 'src/alpha/B.tsx', 'src/alpha/__tests__/b.test.ts',
+      'src/alpha/__tests__/__screenshots__/b.png',
+      'src/App.tsx', 'src/styles/index.css', 'src/__tests__/d.browser.test.tsx', 'docs/x.md',
+    ];
+    expect(audit([alpha], [], sources).findings).toEqual([]);
+  });
+
+  it('a file in a subfolder, a folder with no contract and a contract with no code are red', () => {
+    const sources = ['src/alpha/a.ts', 'src/alpha/lib/b.ts', 'src/alpha/ui/c/d.ts', 'src/delta/c.ts', 'src/beta/AGENTS.md'];
+    expect(audit([alpha, beta], [], sources).findings).toEqual([
+      'src/alpha/lib/b.ts: lies in a subfolder; a capability is flat, with only __tests__/ below it',
+      'src/alpha/ui/c/d.ts: lies in a subfolder; a capability is flat, with only __tests__/ below it',
+      'src/delta/: no contract has its name; write specs/delta/delta.md',
+      'specs/beta/beta.md: has no code in src/beta/',
+    ]);
+  });
+
+  it('a superseded contract needs no code, and a folder left with its name is red', () => {
+    const gone = spec('gamma', 'GAM', 'superseded', BASE.replaceAll('ABC', 'GAM'));
+    expect(audit([gone], [], []).findings).toEqual([]);
+    expect(audit([gone], [], ['src/gamma/a.ts']).findings).toEqual([
+      'src/gamma/: no contract has its name; write specs/gamma/gamma.md',
+    ]);
   });
 });
 
@@ -124,7 +162,7 @@ describe('citedIds: only the title counts', () => {
 });
 
 describe('readCorpus', () => {
-  it('reads specs/ and tests by suffix, skipping copies and dependencies', () => {
+  it('reads specs/, tests by suffix and the paths under src/, skipping copies and dependencies', () => {
     const root = mkdtempSync(path.join(tmpdir(), 'corpus-'));
     const write = (rel: string, text = '') => {
       mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
@@ -138,9 +176,10 @@ describe('readCorpus', () => {
     write('node_modules/x/e.test.ts');
     write('.claude/skills/s/f.test.ts');
     write('.agents/skills/s/g.test.ts');
-    const { specs, tests } = readCorpus(root);
+    const { specs, tests, sources } = readCorpus(root);
     expect(specs).toEqual([{ path: 'specs/alpha/alpha.md', text: 'x' }]);
     expect(tests.map(t => t.path).sort()).toEqual(['src/a/__tests__/b.test.ts', 'src/a/__tests__/c.browser.test.tsx']);
+    expect(sources.sort()).toEqual(['src/a/__tests__/b.test.ts', 'src/a/__tests__/c.browser.test.tsx', 'src/a/d.ts']);
     rmSync(root, { recursive: true, force: true });
   });
 });

@@ -117,17 +117,17 @@ else.
 
 ### Add a piece or change a shape
 
-1. Edit `SHAPES` in `src/domain/constants/pieces.constants.ts`. Coordinates are `[x, y]`, and `y`
+1. Edit `SHAPES` in `src/pieces/pieces.ts`. Coordinates are `[x, y]`, and `y`
    grows **down**.
-2. To add a piece, add it to `PieceKey` in `domain/types/pieces.types.ts`. Then update `BASE_MAP`
-   (its tonic, in `music.constants.ts`) and `ANCHOR_INDEX` (its grab cell, as an index into the cell
+2. To add a piece, add it to `PieceKey` in `pieces/pieces.ts`. Then update `BASE_MAP`
+   (its tonic, in `music.ts`) and `ANCHOR_INDEX` (its grab cell, as an index into the cell
    array). All three are `Record<PieceKey, …>`, so a missing entry **does not compile**.
 3. Make sure the grab cell is a **central** cell. It is the cell under the cursor. If it falls in a
    hole of the bounding box, placement feels broken.
 
 ### Change how something sounds
 
-For the **timbre**, edit `DEFAULT_VOICE` in `src/audio/constants/voice.constants.ts` (ADSR and
+For the **timbre**, edit `DEFAULT_VOICE` in `src/playback/voice.ts` (ADSR and
 waveform). One edit is enough, because both playback paths go through `scheduleVoice()`. If you change
 the envelope shape, add an envelope test.
 
@@ -185,7 +185,7 @@ the YAML does not need a change when the shape of `verify` changes. When `test` 
 list would have stayed green without the coverage gate. A local run is still worth it: you learn
 faster here than in the PR.
 
-`pnpm mcp:test` is not optional when you touch `src/domain/` or `src/audio/`. The server imports
+`pnpm mcp:test` is not optional when you touch `src/`. The server imports
 those modules with plain node, and an import without an extension **does not** break the app build.
 `pnpm lint` catches that case first, on the whole repo. `mcp:test` still checks that the modules
 really *load* in node.

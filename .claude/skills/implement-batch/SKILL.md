@@ -99,7 +99,7 @@ Launch the lanes in one message: one sub-agent per lane, each in a worktree unde
 Write the preamble once for the whole batch, to a file, with `Write`. Pass its absolute path.
 A heredoc breaks on the backticks and `$` of its content. Each lane receives:
 
-- **The preamble**: the four layers and their direction, the conventions with who checks each,
+- **The preamble**: the capability folders, the conventions with who checks each,
   and the traps below. Without it, N lanes derive it N times from cold.
 - **The whole issue, pasted.** The worktree does not carry the plan; it lives in GitHub. The
   contract does travel: `specs/` is tracked.

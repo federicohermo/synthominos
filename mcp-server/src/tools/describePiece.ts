@@ -2,11 +2,20 @@ import { z } from 'zod';
 import { defineTool, json } from './types.ts';
 import { renderAscii, renderCellNumbers, sizeOf } from '../render.ts';
 import { PIECE_KEYS } from '../pieces.ts';
-import { rotateN, reflect } from '../../../src/domain/transform.ts';
-import { notesForRotation, midiName, degreeByCellIndex, playOrderByCellIndex } from '../../../src/domain/music.ts';
-import { SHAPES, ANCHOR_INDEX } from '../../../src/domain/constants/pieces.constants.ts';
-import { BASE_MAP, CHROMATIC, DEFAULT_OCTAVE, REGIMEN, DEFAULT_REGIMEN } from '../../../src/domain/constants/music.constants.ts';
-import type { RegimenDeRotacion } from '../../../src/domain/types/music.types.ts';
+import { rotateN, reflect } from '../../../src/pieces/transform.ts';
+import {
+  notesForRotation,
+  midiName,
+  degreeByCellIndex,
+  playOrderByCellIndex,
+  BASE_MAP,
+  CHROMATIC,
+  DEFAULT_OCTAVE,
+  REGIMEN,
+  DEFAULT_REGIMEN,
+} from '../../../src/musical-model/music.ts';
+import { SHAPES, ANCHOR_INDEX } from '../../../src/pieces/pieces.ts';
+import type { RegimenDeRotacion } from '../../../src/musical-model/music.ts';
 
 /**
  * Forma + sonido de una pieza en una orientacion.
@@ -15,14 +24,14 @@ import type { RegimenDeRotacion } from '../../../src/domain/types/music.types.ts
  * cuatro puras a mano sobre cinco pares de coordenadas, y nadie avisa si la
  * simulacion mental salio mal.
  *
- * Todo lo que se calcula viene de `src/domain/`. Lo unico propio es el ASCII.
+ * Todo lo que se calcula viene de `src/`. Lo unico propio es el ASCII.
  */
 
 /**
  * Como se llama la formula que elige cada rotacion EN EL REGIMEN `escala`.
  *
  * Es una ETIQUETA, no la regla: quien elige la formula es `notesForRotation` en
- * `domain/music.ts`, y las notas de la respuesta salen de ahi. Si el mapeo
+ * `musical-model/music.ts`, y las notas de la respuesta salen de ahi. Si el mapeo
  * rotacion→formula cambia alla, este texto hay que actualizarlo.
  *
  * Es uno de los DOS supuestos del server sobre el dominio que pueden quedar
@@ -85,7 +94,7 @@ export const describePiece = defineTool({
     'render ASCII con la celda de agarre marcada, la tónica, la fórmula de escala y las cinco ' +
     'notas MIDI con el retrógrado ya aplicado. Devuelve además `cellMap`: qué grado del arpegio y ' +
     'qué nota le toca a CADA celda, en el mismo orden que `cells`. Ejecuta las funciones reales de ' +
-    'src/domain/, así que responde lo que suena hoy, no lo que decía la documentación.\n' +
+    'src/, así que responde lo que suena hoy, no lo que decía la documentación.\n' +
     'Tres trampas medidas que conviene tener presentes: (1) la letra describe la FORMA, no el ' +
     'sonido — la pieza F suena con tónica C, y la nota F le toca a la pieza T; (2) la reflexión ' +
     'siempre invierte las notas, pero a veces no se ve: en I y X deja la forma idéntica en las ' +

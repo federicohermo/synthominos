@@ -1,6 +1,6 @@
 # AGENTS.md
 
-What a file cannot tell you about this repo. Detail lives in `docs/`; layer rules live in
+What a file cannot tell you about this repo. Detail lives in `docs/`; the rules of each subject live in
 `.agents/rules/` and load on their own; the contract of each capability lives in `specs/`.
 
 ## What it is
@@ -26,13 +26,15 @@ instrument more expressive?
 ## Architecture
 
 ```text
-types/ ← constants/ ← modules        inside each layer
-domain/ and audio/ never see each other; components/ and App.tsx import from both
+src/<capability>/        one flat folder per contract in specs/, tests in __tests__/
+src/App.tsx, main.tsx    the shell; mcp-server/ imports from src/, never the reverse
 ```
 
-`domain/` is pure: no React, no Web Audio, no DOM. `audio/` speaks MIDI and does not know the
-domain. `components/` are presentational. `App.tsx` is the shell. Detail:
-[overview](./docs/architecture/overview.md) · [constitution](./docs/architecture/constitution.md).
+**The folder is the capability.** `src/circuit/` is the code of `specs/circuit/circuit.md`, and its
+generated `AGENTS.md` points there. A new file goes in the capability whose rule it implements. A
+constant or a type lives in the module that owns it. There is no layer rule: a `.tsx` exports no value
+but its component, so logic goes in a `.ts` module, which the `node` project tests. Detail:
+[directory structure](./docs/architecture/directory-structure.md) · [constitution](./docs/architecture/constitution.md).
 
 ## Rules, and who verifies each
 
@@ -43,6 +45,8 @@ domain. `components/` are presentational. `App.tsx` is the shell. Detail:
 - **No `.only`, no `.skip`, no test without an assertion** — `@vitest/eslint-plugin`.
 - **A comment cites what resolves** — `local/comment-anchor`, `local/comment-shape`.
 - **Every criterion of a `ratified` spec is cited by a test title** — `specs/__tests__/specs.test.ts`.
+- **Each folder under `src/` is a contract, and it is flat** — the same gate.
+- **No `*.constants.ts`, `*.types.ts`, `constants/` or `types/` under `src/`** — lint.
 - **The branch prefix decides who writes `src/` and `mcp-server/src/`** — the hook
   `.agents/scripts/hook.ts`. Prefixes and hotfixes: [branches](./docs/infra/branches.md).
 - **A worktree of this repo opens only under `.claude/worktrees/`** — the same hook.
@@ -76,7 +80,7 @@ does.
 The `pentomino-domain` MCP server (`.mcp.json`) runs the real pure functions, with no build. Ask it
 before you derive a rotation by hand (`describe_piece`), walk the lookahead (`simulate_board`),
 touch geometry or the musical model (`check_invariants`), or grep for a symbol (`find_symbol`).
-`mcp-server/` imports domain symbols: changing a `domain/` signature can break a tool, and
+`mcp-server/` imports symbols of `src/`: changing a signature there can break a tool, and
 `pnpm verify` typechecks across that edge. Detail: [MCP](./docs/guides/mcp-domain.md).
 
 ## The harness
@@ -89,7 +93,7 @@ edit any of it, run `node .agents/scripts/sync.ts` and commit the copies it writ
 
 | Document | When to read it |
 |---|---|
-| [Overview](./docs/architecture/overview.md) | The four layers and their dependency direction |
+| [Overview](./docs/architecture/overview.md) | The capabilities, the shell, and what lives where |
 | [Directory structure](./docs/architecture/directory-structure.md) | Where each thing goes |
 | [Musical model](./docs/architecture/modelo-musical.md) | Piece → tonic, rotation → scale or order, reflection → retrograde |
 | [Audio](./docs/architecture/audio.md) | Web Audio graph, ADSR, lookahead scheduler |

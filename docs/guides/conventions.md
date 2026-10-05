@@ -25,108 +25,89 @@ agent.
 
 ## Organization of `src/`
 
-### The dependency direction
+### A folder per capability, flat
 
-`src/` has four layers with **one direction**:
+`src/` has one folder per contract in `specs/`, with the same name. A capability folder is flat:
+its modules at the top, its tests in `__tests__/`, and no other subfolder. The spec gate verifies
+both halves. The shell (`App.tsx`, `main.tsx`, `styles/`, the app-level tests) stays at the root.
 
-```text
-types/ ← constants/ ← modules              types/ imports nothing from outside types/
-transform.ts ← board.ts                    domain/ imports nothing from outside domain/
-             ← music.ts ← invariants.ts    audio/  imports nothing from outside audio/
-                                           components/ and App.tsx import from both
-```
+**There is no layer rule.** What used to be the layers is now three constraints that the tools
+impose and check:
 
-`domain/` and `audio/` are **siblings with no edge between them**: the engine speaks MIDI numbers and
-does not know what a pentomino is.
+- **A `.tsx` exports its component and no other value** (`react-refresh/only-export-components`), so
+  a decision that a test must reach goes in a `.ts` module. A rule of the instrument written inside
+  a component cannot be exported, so it cannot be tested.
+- **The MCP server loads the modules it imports with plain node**, so those modules cannot touch
+  React, the DOM or an `AudioContext` when they load. `pnpm mcp:test` fails if one does.
+- **A test picks its project by suffix**: `*.browser.test.tsx` runs in Chromium, the rest in node.
+  Logic in a pure `.ts` module is tested in node, which is cheap.
 
-**The linter verifies it, not the review.** It verifies it by **path**:
-`import-x/no-restricted-paths` has one zone per forbidden edge, all in one rule and not in one
-override per layer. A forbidden import added by hand fails `pnpm lint` with the message of its zone.
-This is tested from a module and from a test.
+**`mcp-server/` imports from `src/`, never the reverse.** A lint zone (`import-x/no-restricted-paths`)
+enforces it. No rule orders the modules of `src/` among themselves, and `import-x/no-cycle` stays
+off for its price: about 15 s on a lint of about 22 s. A run by hand when the layer rules left found
+no cycle.
 
-**A path is not a string.** A rule on the import *string* needs patterns with `../` and `../../`,
-because `types/`, `constants/` and `__tests__/` sit one level below the modules. A new
-`domain/sub/x.ts` then stays uncovered until someone adds a pattern. Zones resolve the path against
-the filesystem, so a new folder is covered on its own.
+**`no-restricted-imports` keeps the global-state packages out of `src/`**, because an npm package has
+no path in the repo. It uses the `typescript-eslint` variant and not the core one, because that
+variant also sees `import type`.
 
-**`no-restricted-imports` keeps the packages**, because an npm package has no path in the repo: React
-for `domain/` and `audio/`, and the global-state packages for all of `src/`. It uses the
-`typescript-eslint` variant and not the core one, because that variant also sees `import type`. A
-careless refactor uses `import type` to slip through.
+`voice.ts` and `scheduler.ts` receive the `AudioContext` as a parameter and do not import
+`engine.ts`, where the singleton lives. That is what makes the audio testable offline, and the
+import graph holds it, not a comment.
 
-**`domain/` has an internal direction too, and the linter verifies it.** Without it, a `board.ts`
-that imports `sequence.ts` passes lint in silence. `DOMAIN_INTERNO` in `eslint.config.js` writes it
-module by module, in three levels:
+### A value lives in the module that owns it
 
-- `transform.ts` at the bottom.
-- `board.ts` and `music.ts` above it, and **they do not know each other**. The board rules and the
-  musical model are orthogonal: that is a property of the instrument.
-- `sequence.ts` and `invariants.ts` as leaves that do not import each other.
+**A constant or a type lives in the module that defines or produces it, and that module exports
+it.** A type that `placement.ts` returns lives in `placement.ts`; `SHAPES` lives in `pieces.ts`.
+Whoever needs a value imports it from its owner, so each value exists once. There is no
+`constants/` or `types/` folder and no `*.constants.ts` or `*.types.ts` file, and the linter rejects
+a new one.
 
-Those five rows expand to five **zones** of the same rule. So the flat-config trap does not apply
-there: there is no override to overwrite. The trap is this: the most specific override replaces the
-previous one instead of adding to it. It still applies to the two `no-restricted-imports` blocks. That
-is why the groups are named constants (`GRUPO_ESTADO`, `GRUPO_REACT`) and not lists written twice.
-
-The most important effect is indirect. `voice.ts` and `scheduler.ts` receive the `AudioContext` as a
-parameter and **cannot** touch the singleton: it lives in `engine.ts`, and they do not import it. The
-import graph holds that invariant, not a comment. This is what makes the audio testable.
-
-### Each role has its folder
-
-**Modules contain behavior. Data, types and fixed values live in the folder of their role.** A layer
-`.ts` file has functions and nothing else. The file repeats the module name with the role suffix:
-`Cell` is not in `types/index.ts`, it is in `domain/types/transform.types.ts`, the contract of the
-module `transform.ts`.
-
-| Role | Folder | File |
-|---|---|---|
-| logic of one concern | the layer | `<module>.ts` |
-| a type that crosses a boundary | `<layer>/types/` | `<module>.types.ts` |
-| data or a fixed value | `<layer>/constants/` | `<module>.constants.ts` |
-| test of a module | `<layer>/__tests__/` | `<module>.test.ts` |
-| test helper | `<layer>/__tests__/` | descriptive name |
-| component | `components/` | `PascalCase.tsx`, only export |
-| hook that wires a module | next to the module | `use-<module>.ts` |
-| hook with no module of its own | `<layer>/hooks/` | `useCamelCase.ts` |
-| validation of external data | `<layer>/schemas/` | `<module>.schema.ts` |
-| internal helper of a module | `<layer>/utils/` | `<module>.utils.ts` |
-| generic helper with no domain | `src/lib/` | `<topic>.ts` |
-
-**Modules do not declare constants.** A literal with a meaning goes to `constants/`. The only numbers
-left in a module are the ones that cannot have a name: an index `+ 1`, a `% 12` that is pitch-class
-arithmetic, the `440`/`69` that *defines* the MIDI anchor.
-
-**The linter verifies this in `domain/` and `audio/`, and not in `components/`.** The line follows
-the reason in the next paragraph: the damage came from a value written in two places. A private
-constant of one component cannot get out of sync with anything.
-
-The reason is measurable, not aesthetic. Before the split, four pairs of numbers had to match and
-nothing kept them in sync:
+The reason is measurable: the damage came from one value written in two places. Four pairs of
+numbers once had to match and nothing kept them in sync:
 
 - `NOTE_DUR` was `0.35`, and the same number was the default of `scheduleVoice`.
 - The tempo `110` was in the UI and in the engine.
 - The cell size lived next to a `w-7 h-7` that had to be worth the same.
 
-`components/` has no private constants today: all of them live in `components/constants/`, with
-their docblocks whole. The scope of the linter does not change because of that. What holds the line
-is measurable: a private constant cannot get out of sync with anything. The selector does not look
-at `ObjectExpression` either: `MOTOR` and `RUTA_VACIA` are wiring of functions, not fixed values.
+One owner per value prevents that, and it keeps each value next to the code that gives it its
+meaning.
 
-The `Props` of each component are the exception. They stay **inline and unexported**, because
-`react-refresh/only-export-components` requires the component to be the only export of the `.tsx`.
+**A value that two modules read belongs to the one whose rule it states.** `GRID_MIN`,
+`GRID_DEFAULT` and `MAX_PIEZAS` are facts of the board, so `placement.ts` owns them even though it
+does not read them. `DEFAULT_BPM`, `TEMPO_MIN` and `TEMPO_MAX` live in `scheduler.ts`, with the
+arithmetic of the tempo.
 
-**A hook that wires a module goes next to that module, not to `hooks/`.** There are two pairs:
+**A value that a file of the `node` project reads does not live in `engine.ts`.** Only the browser project runs
+the engine. When a node test or an `importActual` mock loads `engine.ts` without running its
+functions, v8 coverage gets a second statement map that it cannot merge with the first, and the
+gate fails on statements that the browser ran. So the tempo values live in `scheduler.ts` and the
+analyser settings (`FFT_SIZE`, `SMOOTHING`) in `spectrum-bars.ts`, which the node project runs in
+full. `route-source.ts` owns `MARCA`, and the test that mocks it keeps its real exports: the
+node project also runs that module in full.
+
+**A component may export its props type** next to the component: `react-refresh` reads a type
+export as no export. `PropsDeOrientacion` lives in `OrientationPanel.tsx`.
+
+| Role | Where | File |
+|---|---|---|
+| logic of one concern | `src/<capability>/` | `<module>.ts` |
+| a type or a fixed value | the module that owns it | exported from `<module>.ts` |
+| test of a module | `src/<capability>/__tests__/` | `<module>.test.ts` |
+| test helper | `src/<capability>/__tests__/` | descriptive name |
+| component | `src/<capability>/` | `PascalCase.tsx` |
+| hook that wires a module | next to the module | `use-<module>.ts` |
+| hook with no module of its own | `src/<capability>/` | `use-<name>.ts` |
+| validation of external data | `src/<capability>/` | `<module>.schema.ts` |
+| helper that two capabilities use | the capability that owns its rule | the other one imports it |
+
+**A hook that wires a module goes next to that module.** There are two pairs:
 
 - `engine-bridge.ts` has the pure functions, and `use-engine.ts` has the four effects that call them.
 - `input.ts` has the pure input functions, and `use-input.ts` has the two effects that wire them.
 
 The kebab-case name and the adjacency make the pair visible. The decision lives in the file without
-`use-`, and the wiring lives in the file with it. `components/hooks/` would split each pair across two
-folders for a naming convention. `hooks/` stays reserved for a hook that wires **no** module.
-
-**A role folder is created with its first file.** Today there is no `hooks/`, `utils/`, `schemas/` or
-`lib/`: they would be empty.
+`use-`, and the wiring lives in the file with it.
 
 <a id="growth-table"></a>
 
@@ -134,12 +115,16 @@ folders for a naming convention. `hooks/` stays reserved for a hook that wires *
 |---|---|
 | a second CSS concern (`@theme` tokens, base layer) | `styles/theme.css` + `styles/base.css`, imported by `styles/index.css` |
 | tests that do not map 1:1 to a module (e2e, smoke, visual) | `tests/` at the root, outside `src/` |
-| a test helper shared **across layers** | `src/testing/` |
-| validation of external data (persist, share by URL) | `<layer>/schemas/` + zod — **a decision for its own spec** |
+| a test helper shared **across capabilities** | `src/testing/` |
+| validation of external data (persist, share by URL) | `<module>.schema.ts` + zod — **a decision for its own spec** |
 | an asset imported from code | `src/assets/` |
 | a provider or a router | `src/app/`, with `App.tsx` inside |
-| a second screen or mode | only then does `src/features/` make sense |
-| state that two branches of the tree need | lift the state, or a single-purpose hook in `<layer>/hooks/` — **never** a global store |
+| a second screen or mode | a capability of its own: a contract in `specs/`, then its folder |
+| state that two branches of the tree need | lift the state, or a single-purpose `use-<name>.ts` — **never** a global store |
+
+A folder under `src/` that is no capability is part of the shell. The spec gate rejects it until
+its name is in `SHELL`, in `.agents/scripts/specs.ts`: `src/testing/`, `src/assets/` and `src/app/`
+go there with their first file.
 
 ### No barrels, explicit extensions, no aliases
 
@@ -154,9 +139,9 @@ folders for a naming convention. `hooks/` stays reserved for a hook that wires *
     evaluate "re-export", so a ban on the name gives three false positives.
   - A barrel that re-exports by hand (`export { a } from './a.ts'`) stays outside. This doc states
     it: half a net, written as half a net, is honest.
-- **An explicit extension on every local import**: `./domain/transform.ts`, not `./domain/transform`.
+- **An explicit extension on every local import**: `./transform.ts`, not `./transform`.
   It reduces resolution work, and above all **raw node requires it** (`ERR_MODULE_NOT_FOUND`). That
-  is what lets node load `domain/` without a build.
+  is what lets node load the modules of `src/` without a build.
   - Warning: a missing extension **does not break the app**, because Vite resolves it anyway. The
     error is invisible on the browser side.
   - **The linter verifies it** (`no-restricted-syntax`), on all of `src/` and `mcp-server/`. It covers
@@ -165,9 +150,9 @@ folders for a naming convention. `hooks/` stays reserved for a hook that wires *
     list because it also carries a path.
   - The MCP server loads `src/` with raw node, so `pnpm mcp:test` also fails at the first import
     without an extension. That is the second net, and it only sees what the server imports.
-- **No path aliases** (`@/domain/…`). The maximum depth is one, so the benefit is cosmetic, and node
+- **No path aliases** (`@/pieces/…`). The maximum depth is one, so the benefit is cosmetic, and node
   does not know Vite aliases.
-- **One component per file**, and no export other than the component in a `.tsx`. This is not a style
+- **One component per file**, and no value exported from a `.tsx` other than the component. This is not a style
   preference: lint already requires it, and the Fast Refresh granularity is the module.
 
 ## TypeScript
@@ -193,7 +178,7 @@ comment.
 A `!` is a small `any`: it tells the compiler to be quiet **without a reason**.
 `@typescript-eslint/no-non-null-assertion` is at `error`.
 
-**Before you write one, try a `const`.** The `!` in `audio/engine.ts` existed only because
+**Before you write one, try a `const`.** The `!` in `playback/engine.ts` existed only because
 TypeScript loses the narrowing inside the closure of a `forEach` when the variable is a module `let`.
 A local `const` removed it, with no fight against the compiler.
 
@@ -203,8 +188,8 @@ written next to them:
 | File | Why the compiler cannot see it |
 |---|---|
 | `src/main.tsx` | The Vite idiom on a `#root` that `index.html` itself guarantees |
-| `src/domain/invariants.ts` | The `queue.shift()!` of a BFS, inside a `while` that already guarantees a non-empty queue |
-| `src/components/Board.tsx` | The `[role="grid"]` ancestor exists by construction: the handler lives in a descendant of that grid. The alternative `if` is an unreachable branch, and the 100 threshold does not let it be covered |
+| `src/pieces/invariants.ts` | The `queue.shift()!` of a BFS, inside a `while` that already guarantees a non-empty queue |
+| `src/board-editing/Board.tsx` | The `[role="grid"]` ancestor exists by construction: the handler lives in a descendant of that grid. The alternative `if` is an unreachable branch, and the 100 threshold does not let it be covered |
 
 **In tests the rule does not apply**, and it is off there. A `!` on a `find` or a `querySelector`
 that the test itself just set up makes the test **fail** if the node is missing. There are 102, on
@@ -232,9 +217,9 @@ no comment of the repo. A comment that needs them names the mechanism instead of
 ### Domain types
 
 ```ts
-// domain/types/transform.types.ts
+// pieces/transform.ts
 export type Cell = [number, number];       // [x, y], y grows downward
-// domain/types/pieces.types.ts
+// pieces/pieces.ts
 export type PieceKey = 'F' | 'I' | … ;     // declared explicitly, not derived
 ```
 
@@ -247,21 +232,21 @@ pass in silence.
 
 **The repo has none, and it cannot have one**: `tsconfig.app.json` has `erasableSyntaxOnly: true`,
 which rejects them with `TS1294`. This is not a restriction to lift. The same option keeps the code
-*type-strippable*, and that lets node load `src/domain/` without a build. An `enum` emits runtime
+*type-strippable*, and that lets node load `src/` without a build. An `enum` emits runtime
 code, so it stays out.
 
-The replacement for any closed set puts its two halves in the role folders. This is the closed set
+The replacement for any closed set puts its two halves in the module that owns the set. This is the closed set
 for the rotation:
 
 ```ts
-// components/constants/orientation.constants.ts  — the value
+// pieces/orientation.ts  — the value
 export const ROTACION = { cero: 0, noventa: 1, ciento_ochenta: 2, doscientos_setenta: 3 } as const;
-// components/types/orientation.types.ts          — the type
+// pieces/orientation.ts          — the type
 export type Rotacion = (typeof ROTACION)[keyof typeof ROTACION];
 ```
 
-The other closed sets are `ACCION` and `EDICION` (`components/constants/input.constants.ts`),
-`MARCA` (`route.constants.ts`) and `REGIMEN` (`domain/constants/music.constants.ts`).
+The other closed sets are `ACCION` and `EDICION` (`board-editing/input.ts`),
+`MARCA` (`route-source.ts`) and `REGIMEN` (`musical-model/music.ts`).
 
 ### The language of identifiers
 
@@ -285,7 +270,7 @@ engine API. A name that comes from outside keeps the language of its origin.
 
 ### The array order is an invariant
 
-`rotate90`, `normalize` and `reflect` (in `domain/transform.ts`) are a `map` over the cells: **the cell
+`rotate90`, `normalize` and `reflect` (in `pieces/transform.ts`) are a `map` over the cells: **the cell
 at index `k` stays the same logical cell after the transform.**
 
 Three things depend on that:
@@ -299,7 +284,7 @@ Three things depend on that:
 A change that filters, sorts or regroups cells inside those functions breaks piece placement **in
 silence**.
 
-`checkArrayOrder()` in `domain/invariants.ts` verifies the order on the 96 combinations. Its own
+`checkArrayOrder()` in `pieces/invariants.ts` verifies the order on the 96 combinations. Its own
 test checks that the check **goes red** when a transform reorders.
 
 If you need to transform cells another way, write a new function. Do not change these.
@@ -316,7 +301,7 @@ but it is the kind of thing someone "fixes" by mistake.
   linter verifies it by **two** paths, because one is not enough:
   - the package (Redux, Zustand and similar), with `no-restricted-imports`;
   - the **call** to `createContext`. The package ban does not catch it: to import `react` in
-    `components/` is legitimate, so the ban there is on the call, not the import.
+    a component is legitimate, so the ban there is on the call, not the import.
 - **What is not UI state does not go in state.** The id counter lives in a `useRef`, because a change
   to it must not re-render. The `AudioContext` and the engine sequence (the active one and the
   pending one) live in module singletons, because there is one per tab, not one per component.
@@ -340,7 +325,7 @@ the hook receives the result, not the rule.
 **The linter verifies it** (`no-restricted-syntax` on `src/**/*.tsx`). The counts today:
 
 - **Nine production effects.**
-  - Seven live in three hooks of `components/`: four reconciliation effects in `use-engine.ts`, two
+  - Seven live in three hooks: four reconciliation effects in `use-engine.ts`, two
     input effects in `use-input.ts`, and the viewport measure in `use-grid.ts`, a `useLayoutEffect`.
   - **Two live in a `.tsx`**: `Playhead.tsx` and `Spectrum.tsx`.
   - `App.tsx` declares none.
@@ -351,7 +336,7 @@ the hook receives the result, not the rule.
   lines, so the reason is written above the override.
 - **The rule names both hooks**, `useEffect` and `useLayoutEffect`. `use-grid.ts` uses the second on
   purpose, so a rule on the first only lets the same logic through under the other name.
-- **`src/**/__tests__/` stays outside**, by a written decision. The ban is on the component layer,
+- **`src/**/__tests__/` stays outside**, by a written decision. The ban is on the components,
   not on what mounts it. A harness that mounts a component with an effect is legitimate.
 
 `playing` is **not** in the dependencies. The sequence is a function of the board and not of the
@@ -545,7 +530,7 @@ of the board cells does. Do not nest ternaries.
 
 **A value that comes from a constant goes through an inline style, not a class.** Tailwind scans the
 source: an interpolated class (`w-[${CELL_PX}px]`) is never generated, so the number is written twice
-again. The board cells read the custom property `--cell`. `components/use-grid.ts` writes it on the
+again. The board cells read the custom property `--cell`. `board-fit/use-grid.ts` writes it on the
 root container from the measured viewport. The inline style is still the path:
 `width: calc(var(--cell) * 1)`. And there is one more reason: the browser resolves a custom property
 on each element. So a window resize moves the cells, the veil and the playhead **with no React

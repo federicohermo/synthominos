@@ -1,11 +1,11 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { renderAscii, renderCellNumbers, sizeOf } from '../render.ts';
-import { rotateN, reflect } from '../../../src/domain/transform.ts';
-import { degreeByCellIndex } from '../../../src/domain/music.ts';
-import { SHAPES, ANCHOR_INDEX, CELLS_PER_PIECE } from '../../../src/domain/constants/pieces.constants.ts';
+import { rotateN, reflect } from '../../../src/pieces/transform.ts';
+import { degreeByCellIndex } from '../../../src/musical-model/music.ts';
+import { SHAPES, ANCHOR_INDEX, CELLS_PER_PIECE } from '../../../src/pieces/pieces.ts';
 import { PIECE_KEYS } from '../pieces.ts';
-import type { Cell } from '../../../src/domain/types/transform.types.ts';
+import type { Cell } from '../../../src/pieces/transform.ts';
 
 describe('renderAscii', () => {
   test('marca la celda de agarre y deja los huecos del bounding box', () => {

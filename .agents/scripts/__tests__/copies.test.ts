@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { COPIES, GENERATED_MARK, differences, planCopies, realDisk, rebaseLinks, ruleFolders, sync, type Disk, type Tree } from '../copies.ts';
+import { COPIES, GENERATED_MARK, contractSection, differences, planCopies, realDisk, rebaseLinks, ruleFolders, sync, type Disk, type Tree } from '../copies.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -27,6 +27,7 @@ function fakeDisk(initial: Tree) {
 describe('ruleFolders: the static prefix of each glob, minimal cover', () => {
   it.each([
     [['src/audio/**/*.ts', 'src/components/Spectrum.tsx'], ['src/audio', 'src/components']],
+    [['src/playback/**', 'src/spectrum/Spectrum.tsx', 'src/**/*.tsx'], ['src']],
     [['src/**/*.{ts,tsx}', 'src/components/**/*.tsx', 'mcp-server/src/**/*.ts'], ['mcp-server/src', 'src']],
     [['specs/**'], ['specs']],
     [['README.md'], ['']],
@@ -85,6 +86,26 @@ describe('planCopies', () => {
     expect(agents.startsWith(GENERATED_MARK)).toBe(true);
     expect(agents).toContain('`.agents/rules/a.md`, `.agents/rules/b.md`');
     expect(agents.indexOf('# A')).toBeLessThan(agents.indexOf('# B'));
+    expect(agents).toContain('> Applies to `src/App.tsx`.\n\n# A');
+  });
+
+  it('opens the AGENTS.md of a capability folder with its contract, then the rules that cover it', () => {
+    const contract = (code: string) => `---\ncapability_id: CAP-${code}\nstatus: draft\n---\n\n# Capability: ${code}\n`;
+    const plan = planCopies(new Map([
+      ...sources(),
+      ['specs/alpha/alpha.md', contract('ALP')],
+      ['specs/beta/beta.md', contract('BET')],
+      ['specs/_template/_template.md', contract('TPL')],
+      ['specs/alpha/notes.md', 'a companion file'],
+      ['.agents/rules/b.md', rule(['src/beta/**'], '# B\n')],
+    ]));
+    expect(plan.files.get('src/alpha/AGENTS.md')).toBe(
+      `${GENERATED_MARK} from \`specs/alpha/alpha.md\`. Edit the source. -->\n\n${contractSection('alpha', contract('ALP'))}`);
+    const beta = plan.files.get('src/beta/AGENTS.md') ?? '';
+    expect(beta.startsWith(`${GENERATED_MARK} from \`specs/beta/beta.md\`, \`.agents/rules/b.md\`.`)).toBe(true);
+    expect(beta.indexOf('# Capability: BET')).toBeLessThan(beta.indexOf('# B'));
+    expect([...plan.files.keys()].filter(f => f.startsWith('src/')).sort()).toEqual(['src/alpha/AGENTS.md', 'src/beta/AGENTS.md']);
+    expect(plan.problems).toEqual([]);
   });
 
   it('reports a missing source, a reach into another skill, an undeclared copy and a root rule', () => {
@@ -102,6 +123,24 @@ describe('planCopies', () => {
       `.agents/skills/x/scripts/${path.posix.basename([...COPIES.keys()][1])}: has the name of \`${[...COPIES.keys()][1]}\` but is not a declared copy`,
       '.agents/rules/root.md: applies to the repo root, whose AGENTS.md is written by hand',
     ]);
+  });
+});
+
+describe('contractSection', () => {
+  const contract = (status: string) =>
+    `---\nschema_version: 1\n# a note\ncapability_id: CAP-ABC\nstatus: ${status}\n---\n\n# Capability: alpha beta\n\nbody\n`;
+
+  it('points the code folder at its contract, with its title and its code', () => {
+    const section = contractSection('alpha', contract('draft')) ?? '';
+    expect(section.startsWith('# Capability: alpha beta\n')).toBe(true);
+    expect(section).toContain('[`specs/alpha/alpha.md`](../../specs/alpha/alpha.md), `CAP-ABC`');
+    expect(section).toContain('`AC-ABC-###`');
+    expect(section).toContain('[`src/AGENTS.md`](../AGENTS.md)');
+  });
+
+  it('a superseded contract gets no section, and a contract with no title uses the folder name', () => {
+    expect(contractSection('alpha', contract('superseded'))).toBeNull();
+    expect(contractSection('alpha', 'no frontmatter, no title')).toContain('# alpha\n');
   });
 });
 
@@ -174,8 +213,10 @@ describe('realDisk', () => {
     put('src/AGENTS.md', 'agents');
     put('node_modules/p/AGENTS.md', 'dependency');
     put('src/app.ts', 'not read');
+    put('specs/alpha/alpha.md', 'contract');
+    put('specs/alpha/notes.md', 'companion, not read');
     const disk = realDisk(root);
-    expect([...disk.read().keys()].sort()).toEqual(['.agents/rules/r.md', '.claude/rules/r.md', 'src/AGENTS.md']);
+    expect([...disk.read().keys()].sort()).toEqual(['.agents/rules/r.md', '.claude/rules/r.md', 'specs/alpha/alpha.md', 'src/AGENTS.md']);
     disk.write('.claude/skills/s/SKILL.md', 'new');
     expect(readFileSync(path.join(root, '.claude/skills/s/SKILL.md'), 'utf8')).toBe('new');
     disk.remove('.claude/rules/r.md');

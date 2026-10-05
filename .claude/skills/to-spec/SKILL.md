@@ -61,7 +61,7 @@ These do touch it: a new rule, a changed fixed value, a removed behavior, an edg
 ## Step 1: Choose the capability
 
 List `specs/`: each folder is one capability. Its Purpose and Dependencies say what it decides.
-A capability is a slice of what the instrument does, not a layer or a module.
+A capability is a slice of what the instrument does, not a module. Its code lives in `src/<capability>/`.
 
 If the change fits none, it can be a new capability: a free three-letter code and an English
 folder name. The gate goes red if the code repeats. Before you open it, prove it is not a rule of
@@ -77,7 +77,7 @@ Write the contract against the code, not against memory.
    `simulate_board` or `check_invariants` before you derive the musical model by hand.
 2. Check that an ID is free: `rg -n "AC-<COD>-" specs/ src/ mcp-server/`.
 3. **Cite a fixed value by name; do not copy it.** The exact number lives in the code, under
-   `<layer>/constants/`.
+   the module that owns the value.
 4. **A gap is an `OQ-<COD>-###`**, with why it is still open, who decides, and what it blocks.
    Never an invented value.
 5. **Measure in the process that runs the behavior.** A rule about sound is measured on an audio
@@ -117,7 +117,7 @@ Before you report done, confirm four things:
 - Every rule has a criterion that verifies it, or is declared human judgment. A rule without a
   criterion is a promise.
 - Every fixed value is cited, not copied.
-- The spec is layer-agnostic: no paths, no symbol names. Only behavior.
+- The spec names no file and no symbol: only behavior. Its folder in `src/` is the only link.
 
 ## Step 5: Verify the shape
 
