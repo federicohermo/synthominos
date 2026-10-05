@@ -63,8 +63,8 @@ export function segments(command: string): Word[][] {
     current = [];
     redirect = false;
   };
-  // The bodies of the line's heredocs follow its newline. A body is data, so a `>` in it writes no
-  // file. If a shell on the line reads it, it is a script and its lines are commands.
+  // The line decides, not the pipe: a shell anywhere on the line of the `<<` makes each body a
+  // script, so a data heredoc beside `bash x.sh` is read as commands.
   const endLine = (newline: number) => {
     const programs = result.slice(line).flatMap(s => s.filter(w => !w.redirect).slice(0, 1));
     const script = programs.some(w => SHELLS.has(programName(w.text)));
@@ -121,8 +121,8 @@ export function segments(command: string): Word[][] {
       i += heredoc[0].length - 1;
       continue;
     }
-    // A `#` that starts a word begins a comment: a `>` in it writes no file. The comment stops
-    // before the newline, which still ends the line.
+    // The comment stops before its newline: the newline still ends the line and opens its heredoc
+    // bodies.
     if (c === '#' && !inWord) {
       const end = command.indexOf('\n', i);
       i = (end === -1 ? command.length : end) - 1;
