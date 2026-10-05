@@ -212,11 +212,11 @@ export default function App() {
 
   // Memoized: `hover` renders this tree for each crossed cell, and `OrientationPanel` is a `memo`.
   const orientacion = useMemo(() => ({
-    selected, orientaciones, regimen, noteSet,
+    selected, orientaciones, regimen,
     onSelect: elegirPieza,
     onRegimen: setRegimen,
     onResetOrientacion: resetearOrientacion,
-  }), [selected, orientaciones, regimen, noteSet, elegirPieza, resetearOrientacion]);
+  }), [selected, orientaciones, regimen, elegirPieza, resetearOrientacion]);
 
   // `h-dvh`: on iOS, `100vh` includes the browser bar, and the board jumps when the bar hides.
   // `bg-fondo` is one of four places that `fondo-sincronizado.test.ts` keeps in sync.

@@ -16,7 +16,6 @@ const orientacion = (over: Partial<PropsDeOrientacion> = {}): PropsDeOrientacion
   selected: 'F',
   orientaciones: ORIENTACIONES_INICIALES,
   regimen: REGIMEN.escala,
-  noteSet: [60, 62, 64, 67, 69],
   onSelect: vi.fn(),
   onRegimen: vi.fn(),
   onResetOrientacion: vi.fn(),

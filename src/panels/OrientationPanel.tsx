@@ -13,7 +13,6 @@ export interface PropsDeOrientacion {
   selected: PieceKey;
   orientaciones: MemoriaDeOrientacion;
   regimen: RegimenDeRotacion;
-  noteSet: readonly number[];
   onSelect: (piece: PieceKey) => void;
   onRegimen: (regimen: RegimenDeRotacion) => void;
   onResetOrientacion: () => void;
