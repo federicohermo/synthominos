@@ -82,6 +82,12 @@ describe('sameCode: two versions of a file, comments and layout aside', () => {
     expect(sameCode(code, code.replace('//${x}', '//${x + 1}'), 'src/a.ts')).toBe(false);
   });
 
+  it('the line ending of a checkout is not code, also inside a template literal', () => {
+    const multiline = 'export const usage = `first\nsecond\n`;\n';
+    expect(sameCode(multiline, multiline.replaceAll('\n', '\r\n'), 'src/a.ts')).toBe(true);
+    expect(sameCode('{\n  "a": 1\n}\n', '{\r\n  "a": 1\r\n}\r\n', 'package.json')).toBe(true);
+  });
+
   it('a JSX comment is not code, and the JSX next to it is', () => {
     const jsx = (comment: string, text: string) => `const A = () => <div>{/* ${comment} */}<b>${text}</b></div>;`;
     expect(sameCode(jsx('the board', 'x'), jsx('the board, because the grid rules', 'x'), 'src/A.tsx')).toBe(true);

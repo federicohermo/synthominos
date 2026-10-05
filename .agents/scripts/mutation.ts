@@ -27,8 +27,12 @@ function codeOf(text: string, file: string): string {
   return ts.createPrinter({ removeComments: true }).printFile(ts.createSourceFile(file, text, ts.ScriptTarget.Latest, false, kind));
 }
 
+// Git gives the base with LF, and a Windows checkout has CRLF: the printer keeps it inside a template literal.
+const lf = (text: string) => text.replaceAll('\r\n', '\n');
+
 export function sameCode(before: string, now: string, file: string): boolean {
-  return TYPESCRIPT.test(file) ? codeOf(before, file) === codeOf(now, file) : before === now;
+  const [a, b] = [lf(before), lf(now)];
+  return TYPESCRIPT.test(file) ? codeOf(a, file) === codeOf(b, file) : a === b;
 }
 
 export function mutationTarget(changed: readonly string[], mutate: readonly string[]): Target {
