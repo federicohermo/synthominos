@@ -155,6 +155,8 @@ export default tseslint.config([
   globalIgnores([
     'dist', '.claude/worktrees', '.claude/skills', '.claude/rules', '.claude/agents', '.codex',
     '.agents/skills/*/scripts', '*/**/AGENTS.md',
+    // What a mutation run writes: the sandbox, which is a copy of the repo, and the report.
+    '.stryker-tmp', 'reports',
   ]),
 
   {
@@ -359,7 +361,7 @@ export default tseslint.config([
     files: [
       'src/**/__tests__/**/*.{ts,tsx}', '__tests__/*.ts', 'docs/__tests__/*.ts',
       'specs/__tests__/*.ts', '.claude/scripts/__tests__/*.ts', '.agents/scripts/__tests__/*.ts',
-      'mcp-server/**/__tests__/**/*.ts',
+      '.spec-anchored/__tests__/*.ts', 'mcp-server/**/__tests__/**/*.ts',
     ],
     rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
   },
@@ -381,7 +383,7 @@ export default tseslint.config([
     // sea que recibian `window` y `document` definidos y `process` NO.
     files: [
       'mcp-server/**/*.ts', '__tests__/*.ts', 'docs/__tests__/*.ts',
-      'specs/__tests__/*.ts', '.claude/scripts/**/*.ts', '.agents/scripts/**/*.ts', '*.config.ts',
+      'specs/__tests__/*.ts', '.claude/scripts/**/*.ts', '.agents/scripts/**/*.ts', '.spec-anchored/**/*.ts', '*.config.ts',
     ],
     languageOptions: { globals: globals.node },
   },
@@ -535,7 +537,7 @@ export default tseslint.config([
     files: [
       'src/**/__tests__/**/*.{ts,tsx}', '__tests__/*.ts', 'docs/__tests__/*.ts',
       'specs/__tests__/*.ts', '.claude/scripts/__tests__/*.ts',
-      'eslint-rules/__tests__/*.ts', '.agents/scripts/__tests__/*.ts',
+      'eslint-rules/__tests__/*.ts', '.agents/scripts/__tests__/*.ts', '.spec-anchored/__tests__/*.ts',
     ],
     plugins: { vitest },
     rules: {
@@ -645,4 +647,29 @@ export default tseslint.config([
       }],
     },
   },
+
+  {
+    // The cyclomatic complexity of each function of the product, at most 10. It is the
+    // complexity gate of the implementation protocol: the two hardening agents work under it.
+    //
+    // It covers the product and not the harness. The kernel in `.spec-anchored/` keeps the
+    // shape of the Python functions it ports, and one function per contract there is the
+    // property that lets a reader compare the two.
+    files: ['src/**/*.{ts,tsx}', 'mcp-server/src/**/*.ts'],
+    rules: { complexity: ['error', 10] },
+  },
+  // The files that were over 10 on 2026-10-04, each with the value measured that day as its
+  // ceiling. A ceiling goes down when the function gets simpler. It never goes up, and no file
+  // joins this list: a new function over 10 is split.
+  ...[
+    ['src/board-editing/Board.tsx', 22],
+    ['src/board-editing/input.ts', 17],
+    ['src/pieces/invariants.ts', 16],
+    ['src/pieces/transform.ts', 15],
+    ['src/circuit/sequence.ts', 13],
+    ['src/playback/playhead-loop.ts', 12],
+    ['src/playback/__tests__/test-context.ts', 12],
+    ['src/circuit/routing.ts', 11],
+    ['mcp-server/src/symbols.ts', 25],
+  ].map(([file, ceiling]) => ({ files: [file], rules: { complexity: ['error', ceiling] } })),
 ])

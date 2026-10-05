@@ -14,12 +14,16 @@ pentomino-games/           # repo root: the app lives here, with no subdirectory
 ├── mcp-server/            # Domain MCP server: tooling, NOT in the bundle
 ├── __tests__/             # Gates on files outside src/: the root files and the branch model
 ├── .agents/               # The harness, canonical for Claude Code and Codex: rules, scripts, skills
-├── .claude/               # Claude Code: settings, generated copies of rules and skills, one hook script
-├── .codex/                # Codex: hooks.json
-├── .github/               # The verify workflow and the task-brief issue template
+├── agents/                # The two internal agents of a protocol run, one contract each
+├── policy/                # The policy profiles of a run, as files equal to the kernel's
+├── .spec-anchored/        # The kernel that checks the artifacts of a run, with its tests
+├── .claude/               # Claude Code: settings, generated copies, one hook script
+├── .codex/                # Codex: hooks.json, generated copies
+├── .github/               # The workflows and the task-brief issue template
 ├── .mcp.json              # Registers the server; committed, nothing to configure
 ├── index.html             # Vite entry point (at the root, not in public/)
 ├── vite.config.ts         # Plugins react() + tailwindcss(), and the two Vitest projects
+├── stryker.config.json    # Mutation, `pnpm mutation`; Stryker runs vitest.stryker.config.ts
 ├── eslint.config.js       # Flat config v9: direction zones + the repo rules
 ├── eslint-rules/          # The two local rules `local/comment-*`, bloques.mjs and their __tests__/
 ├── vercel.json            # Deploy config (see infra/deploy.md)
@@ -38,10 +42,9 @@ source. Do not edit a copy by hand.
 ```text
 .agents/
 ├── rules/                        one rule per subject; its `paths:` say which folders it covers
-│   └── audio · comments · domain · mcp-server · specs · ui (.md)
-├── skills/                       shape · to-issue · to-spec · implement-feature · implement-batch ·
-│                                   pr-review · pr-review-batch · review-spec-drift
-│                                   A skill carries copies of the scripts and docs it uses
+├── skills/                       a skill carries copies of the scripts and docs it uses
+├── protocols/                    the implementation protocol: phases 0 to 10, and its references
+├── routines/                     the prompt of a scheduled routine
 └── scripts/                      TypeScript that node runs without a build
     ├── hook.ts                   the PreToolUse hook of both harnesses: `hook.ts <claude|codex>`
     ├── protocol.ts               how each harness sends its payload, and how it becomes an Intent
@@ -54,15 +57,17 @@ source. Do not edit a copy by hand.
     ├── sync.ts · copies.ts       writes or checks the generated copies
     ├── task-brief.ts · brief.ts  starts and checks an issue draft against the task-brief template
     ├── pr-diff.ts · diff.ts      materializes the diff of one PR and measures its review axes
+    ├── mutation-target.ts · mutation.ts
+    │                             the changed files that a mutation run takes
     ├── screenshots-to-branch.ts · screenshots.ts
     │                             pushes the screenshots of an issue to the orphan branch
     │                               screenshots/<N>
     └── __tests__/                one per module
 ```
 
-Each entrypoint (`hook.ts`, `sync.ts`, `task-brief.ts`, `pr-diff.ts`, `screenshots-to-branch.ts`)
-has no branches: the logic lives in the module next to it, with git and the disk injected, so a
-test can drive it.
+Each entrypoint (`hook.ts`, `sync.ts`, `task-brief.ts`, `pr-diff.ts`, `screenshots-to-branch.ts`,
+`mutation-target.ts`) has no branches: the logic lives in the module next to it, with git and the
+disk injected, so a test can drive it.
 
 The generated copies:
 
@@ -70,6 +75,7 @@ The generated copies:
 |---|---|
 | `.agents/skills/` | `.claude/skills/` |
 | `.agents/rules/` | `.claude/rules/` |
+| `agents/<name>.md` | `.claude/agents/<name>.md`, and its TOML form in `.codex/agents/<name>.toml` |
 | each rule, by its `paths:` | the `AGENTS.md` of each folder it covers: `src/`, the capability folders of the domain and audio rules, `mcp-server/`, `mcp-server/src/`, `specs/` |
 | each contract in `specs/` | the opening of `src/<capability>/AGENTS.md`: a pointer to the contract, before the rules of that folder |
 
@@ -247,9 +253,10 @@ grep -rq "App.css" src --include="*.tsx" --include="*.ts" --include="*.css"
 `pnpm test` runs Vitest in **two projects and one command**. The split is not by layer. It is by what
 the test needs:
 
-- **`node`**: `environment: 'node'` against `node-web-audio-api`, over **seven** roots. There are 42
+- **`node`**: `environment: 'node'` against `node-web-audio-api`, over **eight** roots. There are 50
   files: 21 in `src/`, 4 in the root `__tests__/`, 3 in `docs/`, 1 in `specs/`, 1 in
-  `.claude/scripts/`, 2 in `eslint-rules/` and 10 in `.agents/scripts/`. The domain is pure and the
+  `.claude/scripts/`, 2 in `eslint-rules/`, 11 in `.agents/scripts/` and 7 in
+  `.spec-anchored/`. The domain is pure and the
   audio has a native Web Audio implementation, so both run there with no adaptation. A test that is
   **not** the test of a module reads a file **from disk**: the browser project serves its own document
   and never loads those files. **Each gate lives next to the subject it verifies**, not next to what
@@ -273,9 +280,11 @@ the test needs:
   - `.claude/scripts/__tests__/lint-al-cerrar.test.ts`: the hook that lints what changed when a turn
     ends.
   - `eslint-rules/__tests__/`: the `RuleTester` of the two local comment rules. ESLint runs them, not
-    the app, so without this root they stay unverified. It is the only root outside `src/` that
+    the app, so without this root they stay unverified. Like the two roots below, it
     enters coverage, because it verifies code of this repo and not a text file.
   - `.agents/scripts/__tests__/`: one per harness module. They also enter coverage.
+  - `.spec-anchored/__tests__/`: the kernel of the implementation protocol, against the answers of
+    the Python kernel it was ported from. They also enter coverage.
 - **`browser`**: real Chromium, through Playwright, over `src/**/__tests__/*.browser.test.tsx`. There
   are 12: the six components, `App.tsx`, the accessibility-tree gate, the three hooks and
   `playback/engine.ts`. They render with `vitest-browser-react`. The `setupFiles` (`browser-setup.ts`)

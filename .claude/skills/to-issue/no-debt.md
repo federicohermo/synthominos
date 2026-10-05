@@ -16,7 +16,7 @@ discharges, and discharging has a closed list of forms.
 | **review** (`pr-review`, `pr-review-batch`) | with everything they found discharged, verified, committed and pushed |
 | **contract** (`to-spec`) | with the whole behavior of the capability in criteria an agent can close. A gap is an `OQ-<COD>-###`, never an invented value |
 | **plan** (`to-issue`) | with the issue published, its boundaries measured against today's tree, and its type and spec declared |
-| **implementation** (`implement-feature`, `implement-batch`) | with everything the issue asks done, the PR open, and a test that names each criterion it delivers |
+| **implementation** (`implement-feature`, `implement-batch`, `implement-orchestrated`, `implement-backlog`) | with everything the issue asks done, the PR open, and a test that names each criterion it delivers |
 
 **Discharged does not mean put into this PR.** Where the fix lands is a separate decision from
 whether it is done. Mixing the two breaks the review.
@@ -67,6 +67,10 @@ five is yours.**
 
 2. **Fixed upstream, now.** The finding belonged to the contract. A fix that fights a criterion
    means **the criterion is wrong**, and it is corrected in this run, in the same PR.
+
+   **The person approves the exact old and new text before the edit.** Only the flows that
+   `.agents/rules/truth-layer.md` names write `specs/`. A run with no person to ask does not make
+   the edit: it hands both texts to whoever asks the person, and that is discharge 4.
 
    **Never the other way: the spec is not adjusted to match the code.** If the code does not meet
    a criterion, fix the code. If the criterion no longer describes the instrument, that is a

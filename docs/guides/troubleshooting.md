@@ -123,8 +123,18 @@ import { describe, it, expect } from 'vitest';
 Es deliberado, y **el motivo cambió con el spec 022**. Hasta ahí lo forzaba `@types/jest`, que estaba en
 el árbol declarando las mismas globales con firmas distintas; ese paquete se fue con las otras seis
 `devDependencies` huérfanas, así que hoy `globals: true` está **disponible y sin ejercer**. No se ejerce
-porque ejercerlo es sacarle el import a los 54 archivos de test y no compra nada: el import explícito
+porque ejercerlo es sacarle el import a los 62 archivos de test y no compra nada: el import explícito
 dice de dónde sale `describe`, que es lo que se pierde con las globales.
+
+### `Failed to delete stryker temp directory`, and `node` processes that stay alive
+
+On Windows, `pnpm mutation` copies the repo to `.stryker-tmp/` and cannot delete it when a process
+still holds a file. A run that is stopped from outside also leaves its worker processes alive, and
+they keep the CPU.
+
+**Solution:** end the `node` processes whose command line names `@stryker-mutator`, by PID, then
+delete `.stryker-tmp/`. Git, ESLint, the link gate and the copy generator ignore that folder, so a
+leftover breaks no other gate.
 
 ## Audio
 

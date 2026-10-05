@@ -66,7 +66,8 @@ does.
 3. **Write the spec** only when the change creates, modifies or deletes behavior — skill
    `to-spec`. It is the first commit of the `feature/` branch, or `bugfix/` if the bug was an
    unwritten rule.
-4. **Implement** — skill `implement-feature`, test first. The PR states
+4. **Implement** — skill `implement-feature`, test first, through the phases of the
+   [implementation protocol](./.agents/protocols/implementation-protocol.md). The PR states
    `AC-<COD>-### → test → result` for each criterion it touches.
 
 - **The code answers to the spec.** If the code fails a criterion, fix the code. If the criterion
@@ -85,18 +86,16 @@ touch geometry or the musical model (`check_invariants`), or grep for a symbol (
 
 ## The harness
 
-`.agents/` is canonical for both Claude Code and Codex: `skills/`, `rules/`, `scripts/`. After you
-edit any of it, run `node .agents/scripts/sync.ts` and commit the copies it writes (`.claude/`,
-`.codex/`, and the `AGENTS.md` of each folder a rule covers).
+`.agents/` is canonical for both Claude Code and Codex. After you edit it or `agents/`, run
+`node .agents/scripts/sync.ts` and commit the copies it writes. A run of the implementation
+protocol never edits `.agents/`, `agents/`, `policy/` or `.spec-anchored/`: that is a `harness/` PR.
 
 ## Documentation
 
 | Document | When to read it |
 |---|---|
-| [Overview](./docs/architecture/overview.md) | The capabilities, the shell, and what lives where |
-| [Directory structure](./docs/architecture/directory-structure.md) | Where each thing goes |
-| [Musical model](./docs/architecture/modelo-musical.md) | Piece → tonic, rotation → scale or order, reflection → retrograde |
-| [Audio](./docs/architecture/audio.md) | Web Audio graph, ADSR, lookahead scheduler |
+| [Overview](./docs/architecture/overview.md) · [Directory structure](./docs/architecture/directory-structure.md) | The capabilities and the shell; where each thing goes |
+| [Musical model](./docs/architecture/modelo-musical.md) · [Audio](./docs/architecture/audio.md) | Piece → tonic, rotation → scale or order; the Web Audio graph and the scheduler |
 | [DESIGN.md](./DESIGN.md) | The visual language: the 12 colors and what a cell shows |
 | [Constitution](./docs/architecture/constitution.md) · [Decisions](./docs/architecture/decisions/) | Non-negotiable principles, and why each big choice was made |
 | [Quickstart](./docs/guides/quickstart.md) · [Verification](./docs/guides/verification.md) | Setup; what `verify` runs and why |

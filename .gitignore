@@ -35,3 +35,11 @@ dist-ssr
 # `projectId` y el `orgId`: son de la cuenta y no del repo, asi que commitearlos ataria
 # el clone de cualquier otro a este proyecto de Vercel.
 .vercel/
+
+# The state of a run of the implementation protocol: logs, approvals, evidence, handoffs.
+# The PR and the issue are the durable record. See .agents/protocols/implementation-protocol.md.
+.agent-runs/
+
+# What a mutation run writes: the sandbox of Stryker and its report. `pnpm mutation`.
+.stryker-tmp/
+reports/

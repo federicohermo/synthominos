@@ -170,21 +170,10 @@ CI on each PR, and the ruleset that blocks a red merge into `main`.
 The split is by what the test needs:
 
 - **`node`**: `environment: 'node'` with `node-web-audio-api`. The domain is pure, and the audio
-  layer has a native Web Audio implementation, so it runs there without adaptation. Its `include`
-  has **seven** roots. Six of them hold gates that **do not import a line of `src/`**. Each gate
-  lives next to the **subject** it verifies, not next to what the subject touches:
-  - `src/**/__tests__/`: the app.
-  - `__tests__/` at the root: the files outside `src/` (`index.html`, `public/manifest.json`,
-    `README.md`) and the two-branch model.
-  - `docs/__tests__/`: the **documentation**. Links and anchors of every `.md`, the map in
-    `directory-structure.md`, and the line budget of `AGENTS.md` and `CLAUDE.md`.
-  - `specs/__tests__/`: the **contracts**. Every criterion of a `ratified` spec has a test that
-    cites it.
-  - `eslint-rules/__tests__/`: the two local comment rules, through `RuleTester`.
-  - `.agents/scripts/__tests__/`: the **harness scripts**: the branch and worktree hook, the
-    worktree cleaner, and the copy generator. One test runs `sync.ts --check` on the real tree,
-    so a stale generated copy turns `suite` red.
-  - `.claude/scripts/__tests__/`: the `Stop` hook above.
+  layer has a native Web Audio implementation, so it runs there without adaptation. Only one of
+  its `include` roots is `src/`. The others hold gates that **do not import a line of `src/`**:
+  each gate lives next to the **subject** it verifies, not next to what the subject touches. The
+  list, with the subject of each root, is in `vite.config.ts`.
 - **`browser`**: real Chromium, through Playwright, for `*.browser.test.tsx` files. It exists
   because jsdom cannot do the job. `Spectrum.tsx` needs a 2D canvas, `createLinearGradient`,
   `ResizeObserver`, `matchMedia` and a `getBoundingClientRect` with numbers. `playback/engine.ts` needs
@@ -194,9 +183,9 @@ The split is by what the test needs:
 The discriminant is the **suffix**, not a folder. A test of `Board.tsx` that needs a browser is
 still a test of `Board.tsx`, and it lives next to the others.
 
-The coverage `include` is `src/**`, `eslint-rules/**/*.mjs` and `.agents/scripts/*.ts`. The last
-two are code of this repo that runs from outside (ESLint, Claude Code, Codex), and their tests
-import it in the same process. `mcp-server/**` is in the coverage `exclude`. v8 reports every file
+The coverage `include` holds `src/**` and the code of this repo that runs from outside (ESLint,
+Claude Code, Codex, a run of the implementation protocol), whose tests import it in the same
+process. `mcp-server/**` is in the coverage `exclude`. v8 reports every file
 that **ran**, and `include` only decides which untouched files join the denominator. So a test
 that imports from the server pulls the whole server file into the table. The server has its own
 gate at 100: `mcp:test`.

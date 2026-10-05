@@ -15,3 +15,10 @@ packages:
 # cambio es poner `true`, no borrar la línea — el `false` es la decisión, no la ausencia de decisión.
 allowBuilds:
   esbuild: false
+
+# `@stryker-mutator/core` 10.0.0 brings `typed-rest-client` 2.3.1, which pins a `qs` with three
+# open advisories. Stryker uses that client only to upload a report to its dashboard, which this
+# repo does not do. The override takes the patched `qs`. Remove it when Stryker moves to a
+# `typed-rest-client` that asks for `qs` >= 6.16.
+overrides:
+  qs: ^6.16.0

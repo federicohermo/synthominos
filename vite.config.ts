@@ -57,11 +57,12 @@ export default defineConfig({
           name: 'node',
           environment: 'node',
           /**
-           * Seven roots, and six are not `src/`: **each gate lives next to its subject**.
+           * Eight roots, and seven are not `src/`: **each gate lives next to its subject**.
            * `__tests__/` checks the root files (`index.html`, the manifest, `README.md`);
            * `docs/__tests__/` the documentation; `specs/__tests__/` the capability
            * contracts; `.claude/scripts/__tests__/` and `.agents/scripts/__tests__/` the
-           * harness scripts; `eslint-rules/__tests__/` the local lint rules.
+           * harness scripts; `eslint-rules/__tests__/` the local lint rules;
+           * `.spec-anchored/__tests__/` the kernel of the implementation protocol.
            *
            * None of them imports app code, so `src/__tests__/` keeps only what belongs to
            * the app. Without one of these entries its gate stops running SILENTLY: a red
@@ -75,6 +76,7 @@ export default defineConfig({
             '.claude/scripts/__tests__/*.test.ts',
             'eslint-rules/__tests__/*.test.ts',
             '.agents/scripts/__tests__/*.test.ts',
+            '.spec-anchored/__tests__/*.test.ts',
           ],
         },
       },
@@ -152,13 +154,14 @@ export default defineConfig({
       // el generador de copias— y sus tests lo importan en el mismo proceso. Las copias que
       // viajan dentro de los skills no entran: nadie las ejecuta desde un test, y son byte a
       // byte las de aca.
-      include: ['src/**/*.{ts,tsx}', 'eslint-rules/**/*.mjs', '.agents/scripts/*.ts'],
+      include: ['src/**/*.{ts,tsx}', 'eslint-rules/**/*.mjs', '.agents/scripts/*.ts', '.spec-anchored/*.ts'],
 
       exclude: [
         // Son los tests.
         'src/**/__tests__/**',
         'eslint-rules/**/__tests__/**',
         '.agents/scripts/__tests__/**',
+        '.spec-anchored/__tests__/**',
         // Declaraciones de tipo: no llegan al runtime.
         'src/vite-env.d.ts',
         // Bootstrap: `createRoot(...).render(<App />)`. Cubrirlo verifica que
