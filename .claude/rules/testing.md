@@ -15,6 +15,7 @@ The floor for every test of the product. What `pnpm verify` runs is in
    - Pure logic: a `node` test, by example or by property.
    - The Web Audio graph, a canvas, the DOM or a layout: a browser test, `*.browser.test.tsx`.
    - A tool of the MCP server: a `node --test` file in `mcp-server/`.
+   - A time budget: a `*.budget.test.ts`. `verify` runs it alone, never under coverage.
 3. **A bug fix keeps a regression test**, at the boundary where the defect is.
 4. **Do not mock the boundary you prove.** A test of the engine runs a real `AudioContext`. A test
    of the shell may replace the engine, because its subject is the shell.

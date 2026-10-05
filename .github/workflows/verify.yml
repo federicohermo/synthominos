@@ -8,7 +8,7 @@
 #      vitest—. Enumerar los nodos aca crearia un segundo lugar donde esa forma vive, y el dia que
 #      alguien toque el script la CI seguiria corriendo el viejo.
 #   2. Y no es principio: hay evidencia. El spec 029 le cambio la forma —el nodo `test` paso a ser
-#      `suite`, que es `test && coverage` con umbral 100—. Un workflow que enumerara nodos habria
+#      `suite`, que era `test && coverage` con umbral 100—. Un workflow que enumerara nodos habria
 #      quedado corriendo `test` a secas, o sea verde sin el gate de coverage, que es exactamente el
 #      modo de falla que este workflow existe para cerrar.
 #

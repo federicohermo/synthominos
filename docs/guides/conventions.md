@@ -39,7 +39,8 @@ impose and check:
   a component cannot be exported, so it cannot be tested.
 - **The MCP server loads the modules it imports with plain node**, so those modules cannot touch
   React, the DOM or an `AudioContext` when they load. `pnpm mcp:test` fails if one does.
-- **A test picks its project by suffix**: `*.browser.test.tsx` runs in Chromium, the rest in node.
+- **A test picks its project by suffix**: `*.browser.test.tsx` runs in Chromium, `*.budget.test.ts`
+  runs alone in `budget`, the rest in node.
   Logic in a pure `.ts` module is tested in node, which is cheap.
 
 **`mcp-server/` imports from `src/`, never the reverse.** A lint zone (`import-x/no-restricted-paths`)

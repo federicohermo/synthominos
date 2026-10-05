@@ -14,8 +14,9 @@ fix lands: inside the PR's scope, in this PR; outside it, in its own PR opened i
 
 The method (axes, confidence filter, triage) is in [findings.md](findings.md).
 
-`gh` is not on PATH on this machine. Run it as `"/c/Program Files/GitHub CLI/gh.exe"`; this skill
-writes it as `gh`.
+On Windows `gh` may be outside PATH: run it as `"/c/Program Files/GitHub CLI/gh.exe"` where this
+skill writes `gh`. In a cloud session GraphQL answers 403, so `gh pr` and `gh issue` fail: use the
+REST API, for example `gh api 'repos/<owner>/<repo>/pulls?state=open'`.
 
 This skill works in the main checkout, on the PR branch. No worktree and no scaffold branch: one
 PR needs neither, and the PR branch already carries the prefix the hook accepts.
@@ -37,7 +38,8 @@ If there is none, ask which. Do not review `staging` against itself.
    in the report. A line that is not `+` in your `pr.diff` is not yours. With two or more PRs in
    the chain, use `pr-review-batch`.
 3. **The author.** If it is not you, the run is `--dry`: review and report, write nothing, push
-   nothing.
+   nothing. You are the login that `gh api user --jq .login` answers: compare it with the PR's
+   `author.login`.
 
 With `--dry`, write nothing: no fixes, no PRs, no push.
 
@@ -120,8 +122,9 @@ pnpm verify > <temp-dir>/verify.log 2>&1; echo "exit=$?"
 Read the verdict from the exit code, never from a grep. If it is red:
 
 1. Is the failing test in a file the PR touches? Then it is yours: fix it.
-2. If not, and it is a performance budget or a wall-clock test, run `pnpm test` alone. These tests
-   measure the machine, and a busy machine fails them.
+2. If not, and it is a time budget or a wall-clock test, run it alone: `pnpm run budgets` for a
+   budget, the file for a wall-clock test. These tests measure the machine, and a busy machine
+   fails them.
 3. Green alone: continue, and report both runs with the test name.
 4. Red again: do not push. Report it.
 

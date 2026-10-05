@@ -35,7 +35,7 @@ Es tooling: no entra al bundle ni al deploy.
   el server contesta que no tiene resources, el registro corre igual y no lo ve nadie.
 - **`find_symbol` es la única que mira el código como texto, y su índice no se persiste.** Se construye
   en cada consulta desde disco: medido en su momento sobre 36 + 16 archivos daba 112 ms en frío y
-  ~50 ms después, y hoy el índice son 70 archivos más 17 que solo aportan aristas. Si alguna vez hace
+  ~50 ms después, y hoy el índice son 72 archivos más 17 que solo aportan aristas. Si alguna vez hace
   falta acelerarlo, cachear por `mtime` — **no** generar un archivo de índice: el server no tiene paso
   de build y lo que lo hace confiable es que no haya artefacto que pueda quedar viejo.
 - **El grafo de `find_symbol` incluye a este paquete, y el índice de símbolos no.** Se leen los imports

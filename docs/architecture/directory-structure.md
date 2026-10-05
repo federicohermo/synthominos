@@ -22,7 +22,7 @@ pentomino-games/           # repo root: the app lives here, with no subdirectory
 ├── .github/               # The workflows and the task-brief issue template
 ├── .mcp.json              # Registers the server; committed, nothing to configure
 ├── index.html             # Vite entry point (at the root, not in public/)
-├── vite.config.ts         # Plugins react() + tailwindcss(), and the two Vitest projects
+├── vite.config.ts         # Plugins react() + tailwindcss(), and the three Vitest projects
 ├── stryker.config.json    # Mutation, `pnpm mutation`; Stryker runs vitest.stryker.config.ts
 ├── eslint.config.js       # Flat config v9: direction zones + the repo rules
 ├── eslint-rules/          # The two local rules `local/comment-*`, bloques.mjs and their __tests__/
@@ -231,7 +231,8 @@ There is no layer rule. Three constraints come from the tools, and the tools che
   that a test or another module needs goes in a `.ts` module.
 - **The MCP server loads the modules it imports with plain node.** A module it imports cannot touch
   React, the DOM or an `AudioContext` when it loads. `pnpm mcp:test` fails if one does.
-- **A test picks its project by suffix:** `*.browser.test.tsx` runs in Chromium, the rest in node.
+- **A test picks its project by suffix:** `*.browser.test.tsx` runs in Chromium, `*.budget.test.ts`
+  runs alone in `budget`, the rest in node.
 
 `mcp-server/` imports from `src/` and never the reverse; a lint zone in `eslint.config.js` enforces
 it. No rule orders the modules of `src/` among themselves. A run of `import-x/no-cycle` found no
@@ -250,8 +251,8 @@ grep -rq "App.css" src --include="*.tsx" --include="*.ts" --include="*.css"
 
 ### Tests
 
-`pnpm test` runs Vitest in **two projects and one command**. The split is not by layer. It is by what
-the test needs:
+`pnpm test` runs Vitest in **two projects and one command**. A third project, `budget`, holds the
+time budgets and runs alone. The split is not by layer. It is by what the test needs:
 
 - **`node`**: `environment: 'node'` against `node-web-audio-api`, over **eight** roots. There are 50
   files: 21 in `src/`, 4 in the root `__tests__/`, 3 in `docs/`, 1 in `specs/`, 1 in
@@ -293,8 +294,8 @@ the test needs:
 
 The discriminant is the **suffix**, not the folder: a test of `Board.tsx` that needs a browser is
 still a test of `Board.tsx` and lives next to it. The `include` patterns end in `__tests__/` with one
-`*`, so they match neither the helpers that are not tests (`test-context.ts` and `browser-setup.ts`
-lack the `.test.` before the extension) nor the `__screenshots__/` artifacts.
+`*`, so they match neither the helpers that are not tests (`test-context.ts`, `browser-setup.ts`
+and `tiling.ts` lack the `.test.` before the extension) nor the `__screenshots__/` artifacts.
 
 **Chromium is not in the lockfile:** a fresh clone needs `pnpm exec playwright install chromium`
 before the first `pnpm verify`.

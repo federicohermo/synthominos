@@ -10,8 +10,9 @@ from start to end.
 
 ## `pnpm verify` is the convergence node
 
-It runs `lint ‖ typecheck ‖ suite ‖ mcp:test` in parallel. Run it before every PR. Measured with a
-warm cache: **41.2 s in series against 23.7 s in parallel**. A red node returns exit 1.
+It runs `lint ‖ typecheck ‖ suite ‖ mcp:test` in parallel, then the time budgets alone. Run it
+before every PR. Measured with a warm cache, before the budgets had their own step: **41.2 s in
+series against 23.7 s in parallel**. A red node returns exit 1.
 
 **It does not depend on memory.** `.github/workflows/verify.yml` runs it on each `pull_request` and
 on each push to `staging` and `main`. The workflow installs Chromium itself.
@@ -23,8 +24,8 @@ list kept `test` and stayed green without the coverage gate.
 
 ### Two parts of its exact shape are not cosmetic
 
-The script is `pnpm --filter "{.}" run --parallel "/^(…)$/"`. Both parts were found by failing
-green:
+Its parallel block is `pnpm --filter "{.}" run --parallel "/^(…)$/"`. Both parts were found by
+failing green:
 
 - **`--filter "{.}"` is mandatory.** `--parallel` is a recursive workspace flag and **excludes
   the root package**. Without the filter, it runs only the scripts of `mcp-server` and reports
@@ -35,23 +36,27 @@ green:
   Vitest without a TTY does not enter watch mode. The visible cost is duplicate work. In an
   interactive terminal it waits for input. The anchor removes the question.
 
-## `suite` is TWO Vitest passes, in sequence and not in parallel
+## The time budgets run alone, after everything else
 
-First `test` runs without instrumentation. Then `coverage` runs, with a threshold of **100** on all
-four metrics. Two measured reasons decide the shape:
+`suite` is one Vitest run, with coverage and a threshold of **100** on all four metrics. The time
+budgets of the circuit are not in it. They are the `budget` project, `*.budget.test.ts`, and
+`verify` runs it by itself when the parallel block ends. Two measurements decide the shape:
 
-- **Instrumentation measures the instrument.** v8 inserts a counter in each branch. The two
-  performance budgets of the circuit go from 1.8 ms to **11.3 ms** against a ceiling of 5 ms. A
-  `skipIf` skips them under coverage, and the clean pass verifies the budget **locally**. The same
-  `skipIf` skips them when `CI` is set. The Actions runner gave **8.4 ms and 15.7 ms** in two runs
-  of the same commit. It is not a slow machine with its own number. It is a VM without a stable
-  number, and no ceiling means anything there. The cost, stated next to the `skipIf`: **CI does not
-  verify these two budgets.** The `verify` on your machine does.
-- **In sequence, because in parallel the budget also fails, for a different reason.** Five heavy
-  processes compete for CPU, the median goes up, and `verify` went red with nothing wrong. The
-  comment of AC8 in `sequence.test.ts` documents the same failure mode, from when its ceiling went
-  from 2 to 4. A chain leaves **four** concurrent nodes, the same contention as before the second
-  pass existed. The budget then measures what it says it measures.
+- **Instrumentation measures the instrument.** v8 counts each branch. Under it the first budget
+  goes from 1.8 ms to **11.3 ms**, against a ceiling of 5 ms.
+- **Contention measures the machine.** Next to lint, typecheck and the MCP suite the median goes
+  up with nothing wrong in the product. The budget of the large board gave **8.07 ms** in one run
+  of `verify` in three, against 3.1 ms alone
+  ([#107](https://github.com/federicohermo/synthominos/issues/107)). Its ceiling had already gone
+  from 5 to 8 for this reason, and the contract says 5.
+
+`suite` was two passes, a clean one and an instrumented one, only so that the budgets had a clean
+run. With the budgets in their own step, the clean pass verified nothing more, and it is gone.
+
+**CI does not verify the budgets**: a `skipIf` skips them when `CI` is set. The Actions runner
+gave **8.4 ms and 15.7 ms** in two runs of the same commit. It is not a slow machine with its own
+number. It is a VM without a stable number, and no ceiling means anything there. The `verify` on
+your machine does verify them.
 
 ### Why the threshold is 100 and not 95
 
@@ -74,8 +79,9 @@ Linting with type information took it from ~2.5 s to **11.0 s**. The measurement
 `node:test`. What did not pay was cut. `import-x/no-cycle` cost **15 s more** and found zero
 cycles, so it is not in the config.
 
-Even so, `lint` does not set the clock of `verify`. **`suite` does, with 19.4 s.** Each number is
-measured without the other change; the pair above is measured with both in place.
+Even so, `lint` did not set the clock of `verify` then. **`suite` did, with 19.4 s.** Each number is
+measured without the other change; the pair above is measured with both in place. Since `suite` is
+one pass, `lint` ends last: in three runs of the parallel block on one machine, 3 to 4 s after it.
 
 `lint` also lints **every `.md`** of the repo, with the full `@eslint/markdown` preset. The detail is
 in `eslint.config.js`, next to the block. This page does not write the file count on purpose: that
@@ -141,7 +147,7 @@ session stuck for ten minutes.
   `**/*.js`, and in flat config that glob does not match `.mjs`. So the `.mjs` files, this hook
   included, get zero rules today
   ([#143](https://github.com/federicohermo/pentomino-games/issues/143)).
-- **It does not run the suite.** The suite is the clock of `verify`, and
+- **It does not run the suite.** The suite is the slowest test node of `verify`, and
   [#97](https://github.com/federicohermo/pentomino-games/issues/97) documents an intermittent test.
   In a node that a person types, that is a nuisance. In a hook on every turn, it blocks the end of
   the turn at random, and that is the fastest way to get the hook turned off.
@@ -165,7 +171,7 @@ this repo measures before it adds a dependency. This is an agent harness, and it
 harness does. The other half protects the repository, whatever wrote the change: `pnpm verify` in
 CI on each PR, and the ruleset that blocks a red merge into `main`.
 
-## The tests are two Vitest projects and one command
+## The tests are three Vitest projects
 
 The split is by what the test needs:
 
@@ -179,6 +185,8 @@ The split is by what the test needs:
   `ResizeObserver`, `matchMedia` and a `getBoundingClientRect` with numbers. `playback/engine.ts` needs
   `new AudioContext()` and `window.setInterval`. Coverage with jsdom needs a mock of exactly the
   code under test. That is coverage without verification.
+- **`budget`**: the time budgets, `*.budget.test.ts`, in `environment: 'node'`. `test` and
+  `coverage` name the two projects above, so neither runs it; `verify` runs it alone, at the end.
 
 The discriminant is the **suffix**, not a folder. A test of `Board.tsx` that needs a browser is
 still a test of `Board.tsx`, and it lives next to the others.

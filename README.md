@@ -22,7 +22,8 @@ pnpm verify                             # the gate before a PR
 ```
 
 Chromium is not in the lockfile, and the `browser` project of Vitest needs it. Without the second line,
-the first `verify` of a fresh clone fails. `verify` runs `lint ‖ typecheck ‖ suite ‖ mcp:test`, and
+the first `verify` of a fresh clone fails. `verify` runs `lint ‖ typecheck ‖ suite ‖ mcp:test`, then
+the time budgets alone, and
 `suite` gates coverage at 100 on all four metrics. The other scripts are in `package.json`.
 
 ## Where to go

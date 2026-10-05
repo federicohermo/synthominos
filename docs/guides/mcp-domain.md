@@ -187,7 +187,7 @@ The `grep` in the comparison covers both packages, because that is what matches 
 includes `mcp-server/`, and that is the part that is easy to forget.
 
 Build cost: **112 ms** on the first query and ~50 ms after, measured over 36 + 16 files. The index
-later grew; today it is 70 files plus 17 that only add edges. This cost is what allows the index to stay
+later grew; today it is 72 files plus 17 that only add edges. This cost is what allows the index to stay
 unpersisted. If it ever hurts, the answer is a cache keyed by `mtime`, not an artifact that someone
 must regenerate.
 

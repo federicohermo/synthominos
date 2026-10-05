@@ -19,8 +19,9 @@ owns that (step 5).
 
 The method of each agent is [findings.md](findings.md).
 
-`gh` is not on PATH on this machine. Run it as `"/c/Program Files/GitHub CLI/gh.exe"`; this skill
-writes it as `gh`.
+On Windows `gh` may be outside PATH: run it as `"/c/Program Files/GitHub CLI/gh.exe"` where this
+skill writes `gh`. In a cloud session GraphQL answers 403, so `gh pr` and `gh issue` fail: use the
+REST API, for example `gh api 'repos/<owner>/<repo>/pulls?state=open'`.
 
 ## Step 0: The PR map and the chain of bases
 
@@ -53,7 +54,9 @@ gh pr list --state open --json number,headRefName,baseRefName,author,title
    the whole batch, silently. Named variables such as `$n` travel intact.
 6. **Compare against `staging`.** If `staging` moved over files of the batch, the lowest PR may lag.
    Report it; do not update from here.
-7. **An author other than `git config user.name` makes that PR `--dry`**, that PR alone.
+7. **An author other than you makes that PR `--dry`**, that PR alone. You are the login that
+   `gh api user --jq .login` answers: compare it with the PR's `author.login`.
+   `git config user.name` is not a login, and in a cloud session it is `Claude`.
 
 With `--dry`, write nothing in any PR. Run to the report and stop.
 
@@ -157,7 +160,8 @@ PRs went red on the first run, always in clock tests, always in files the PR did
 three were fine.
 
 1. Is the failing test in a file the PR touches? Then it is yours: fix it.
-2. If not, and it is a budget or a wall clock, run `pnpm test` alone.
+2. If not, and it is a budget or a wall clock, run it alone: `pnpm run budgets` for a budget,
+   the file for a wall-clock test.
 3. Green: continue, and report both runs with the test name.
 4. Red again: do not push. Report it as a blocker of the batch, not of the PR.
 
