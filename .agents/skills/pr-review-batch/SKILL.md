@@ -273,7 +273,7 @@ In this order, in about 40 lines plus the table:
 4. **The new PRs this run opened**, with numbers and their merge order.
 5. **What forced a contract correction**, and **which `SKILL.md` this run fixed**, with which rule.
 6. **The stack after step 6**: which chain is up to date against which, with which SHA, and each
-   conflict with the criterion that resolved it. Next to it, the check: `git log <lower>..<upper>`
+   conflict with the criterion that resolved it. Next to it, the check: `git log <upper>..<lower>`
    is empty for each chain, and no new remote ref appeared.
 7. **What remains between independent chains, with the resolved text.** And the merge order, bottom
    up. Merge commits only: a squash forces a rebase of the PR above.
