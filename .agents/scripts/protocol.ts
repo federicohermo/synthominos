@@ -46,6 +46,7 @@ export function segments(command: string): Word[][] {
   let inWord = false;
   let quote: string | null = null;
   let redirect = false;
+  const heredocs: { readonly delimiter: string; readonly stripTabs: boolean }[] = [];
 
   const closeWord = () => {
     if (inWord) {
@@ -60,6 +61,20 @@ export function segments(command: string): Word[][] {
     if (current.length > 0) result.push(current);
     current = [];
     redirect = false;
+  };
+  const skipBodies = (newline: number) => {
+    let at = newline;
+    for (const { delimiter, stripTabs } of heredocs.splice(0)) {
+      let closed = false;
+      while (!closed && at < command.length) {
+        const start = at + 1;
+        at = command.indexOf('\n', start);
+        if (at === -1) at = command.length;
+        const line = command.slice(start, at);
+        closed = (stripTabs ? line.replace(/^\t+/, '') : line) === delimiter;
+      }
+    }
+    return at;
   };
 
   for (let i = 0; i < command.length; i++) {
@@ -86,6 +101,19 @@ export function segments(command: string): Word[][] {
         continue;
       }
       redirect = true;
+      continue;
+    }
+    // A heredoc body is text, not a command: a `>` in it writes no file.
+    // The `<<` at the end of a here-string (`<<<`) opens no heredoc.
+    const heredoc = c === '<' && command[i - 1] !== '<' ? /^<<(-?)[ \t]*([^\s<>;&|()]+)/.exec(command.slice(i)) : null;
+    if (heredoc !== null) {
+      heredocs.push({ delimiter: heredoc[2].replace(/['"\\]/g, ''), stripTabs: heredoc[1] === '-' });
+      i += heredoc[0].length - 1;
+      continue;
+    }
+    if (c === '\n' && heredocs.length > 0) {
+      closeSegment();
+      i = skipBodies(i);
       continue;
     }
     if (c === ';' || c === '\n' || c === '|' || c === '&') {

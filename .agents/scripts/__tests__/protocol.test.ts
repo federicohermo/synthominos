@@ -38,6 +38,40 @@ describe('segments: quotes, separators and redirections', () => {
   });
 });
 
+describe('segments: a heredoc body is text, not a command', () => {
+  it('a body line marks no redirection, and the delimiter is not a word', () => {
+    expect(segments("cat <<'EOF'\n- new files + tests -> src/x.ts\nEOF")).toEqual([[{ text: 'cat', redirect: false }]]);
+  });
+  it('a redirection on the line of the << still writes', () => {
+    expect(writesOf("cat <<'EOF' > src/a.ts\n-> src/x.ts\nEOF")).toEqual(['D:\\repo\\src\\a.ts']);
+  });
+  it.each([
+    ["<<'EOF'", 'EOF'],
+    ['<<"EOF"', 'EOF'],
+    ['<<\\EOF', 'EOF'],
+    ['<< EOF', 'EOF'],
+    ['<<-EOF', '\t\tEOF'],
+  ])('%s: the body ends at the line that equals the delimiter', (open, close) => {
+    expect(writesOf(`cat ${open}\n-> src/x.ts\n${close}\necho y > src/b.ts`)).toEqual(['D:\\repo\\src\\b.ts']);
+  });
+  it('only <<- lets the closing line start with tabs', () => {
+    expect(writesOf('cat <<EOF\n-> src/x.ts\n\tEOF\necho y > src/b.ts')).toEqual([]);
+  });
+  it('the line after the closing line is a command again: its redirection writes', () => {
+    expect(writesOf("cat <<'EOF' > /tmp/n.md\n-> src/x.ts\nEOF\necho y > src/b.ts")).toEqual(['D:\\tmp\\n.md', 'D:\\repo\\src\\b.ts']);
+  });
+  it('two heredocs on one line: their bodies follow in order', () => {
+    const command = "cat <<A > /tmp/a; cat <<'B' > /tmp/b\n-> src/x.ts\nA\n-> src/y.ts\nB\necho y > src/b.ts";
+    expect(writesOf(command)).toEqual(['D:\\tmp\\a', 'D:\\tmp\\b', 'D:\\repo\\src\\b.ts']);
+  });
+  it('a heredoc that never closes: the rest of the command is its body', () => {
+    expect(writesOf("cat <<'EOF' > /tmp/n.md\n-> src/x.ts\necho y > src/b.ts")).toEqual(['D:\\tmp\\n.md']);
+  });
+  it('a here-string (<<<) has no body: the next line is a command', () => {
+    expect(writesOf('cat <<<EOF > /tmp/a\necho y > src/b.ts\ncat <<EOF\n-> src/x.ts\nEOF')).toEqual(['D:\\tmp\\a', 'D:\\repo\\src\\b.ts']);
+  });
+});
+
 describe('commandIntent: what it writes', () => {
   it.each([
     ['echo x > src/a.ts', ['D:\\repo\\src\\a.ts']],
@@ -160,6 +194,10 @@ describe('handle', () => {
   });
   it('without an argument it is Claude, and an unreadable payload is warned', () => {
     expect(handle([], 'x', git).stdout).toMatch(/systemMessage.*unreadable/);
+  });
+  it('a heredoc that writes a note outside src/ is not denied for the arrow in its body', () => {
+    const command = "cat >> /tmp/scratchpad/notes.md <<'EOF'\n- new files + tests -> src/panels/; ...\nEOF";
+    expect(handle(['claude'], JSON.stringify({ cwd: CWD, tool_name: 'Bash', tool_input: { command } }), git)).toEqual({ stdout: '', stderr: '' });
   });
   it('never throws: an error becomes a warning', () => {
     const broken: Git = { ...git, get paths(): never { throw new Error('boom'); } };
