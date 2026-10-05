@@ -158,6 +158,7 @@ describe('commandIntent: which pull requests it opens', () => {
     ['gh pr create -H fork:bugfix/y', [{ cwd: CWD, head: 'bugfix/y' }]],
     ['gh pr create --head=refactor/z', [{ cwd: CWD, head: 'refactor/z' }]],
     ['gh pr create --head', [{ cwd: CWD, head: null }]],
+    ['gh pr new --head improvement/w', [{ cwd: CWD, head: 'improvement/w' }]],
     ['cd .claude/worktrees/a && gh pr create', [{ cwd: 'D:\\repo\\.claude\\worktrees\\a', head: null }]],
     ['gh pr view 12', []],
     ['gh issue create', []],

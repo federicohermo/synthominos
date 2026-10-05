@@ -8,6 +8,7 @@ import { pullRequestRule, runFindings, type RunStore } from '../run-gate.ts';
 const TREE = '/repo';
 const RUN = '/repo/.agent-runs/RUN-138-20261004T2130Z';
 const BASE = 'b'.repeat(40);
+const BRANCH = 'feature/138-x';
 const PLAN = '1. add the validator\n2. test it\n';
 const INSTANCE = { base_profile: 'orchestrated-autonomous/v1', overlay: { authorized_scope_roots: ['src/circuit'] } };
 
@@ -55,12 +56,12 @@ function storeOf(runs: Record<string, ReadonlyMap<string, string>>, diff: string
   const store: RunStore = {
     list: dir => (dir === `${TREE}/.agent-runs` ? Object.keys(runs).map(run => path.posix.basename(run)) : [...(runs[dir]?.keys() ?? [])]),
     read: file => runs[path.posix.dirname(file)]?.get(path.posix.basename(file)) ?? null,
-    diff: (tree, base) => { asked.push([tree, base]); return diff; },
+    diff: (tree, base, branch) => { asked.push([tree, base, branch]); return diff; },
   };
   return { store, asked };
 }
 
-const findings = (files: ReadonlyMap<string, string>, diff: string | null = INSIDE) => runFindings(RUN, TREE, git, storeOf({ [RUN]: files }, diff).store);
+const findings = (files: ReadonlyMap<string, string>, diff: string | null = INSIDE) => runFindings(RUN, TREE, BRANCH, git, storeOf({ [RUN]: files }, diff).store);
 const withFile = (name: string, text: string | null, base = runFiles()) => {
   const files = new Map(base);
   if (text === null) files.delete(name);
@@ -71,8 +72,8 @@ const withFile = (name: string, text: string | null, base = runFiles()) => {
 describe('runFindings: what the kernel refuses in a run folder', () => {
   it('a run whose approval and scope hold has no finding, and the diff starts at the approved base', () => {
     const { store, asked } = storeOf({ [RUN]: runFiles() });
-    expect(runFindings(RUN, TREE, git, store)).toEqual([]);
-    expect(asked).toEqual([[TREE, BASE]]);
+    expect(runFindings(RUN, TREE, BRANCH, git, store)).toEqual([]);
+    expect(asked).toEqual([[TREE, BASE, BRANCH]]);
   });
 
   it('a plan saved with CRLF is the same plan', () => {
@@ -124,7 +125,7 @@ describe('runFindings: what the kernel refuses in a run folder', () => {
   });
 
   it('a base that git cannot diff from is a finding', () => {
-    expect(findings(runFiles(), null)).toEqual(['git cannot diff from the `base_sha` of the approval']);
+    expect(findings(runFiles(), null)).toEqual(['git cannot diff from the `base_sha` of the approval to `feature/138-x`']);
   });
 
   it('a file that is not JSON, and a bundle the kernel rejects, are findings with the reason', () => {
@@ -135,13 +136,13 @@ describe('runFindings: what the kernel refuses in a run folder', () => {
 
   it('a base that is not a string asks git nothing, and the kernel names the field', () => {
     const { store, asked } = storeOf({ [RUN]: withFile('approval.json', String(runFiles().get('approval.json')).replace(`"${BASE}"`, '5')) });
-    expect(runFindings(RUN, TREE, git, store)).toEqual(['base_sha: expected a string, got int']);
+    expect(runFindings(RUN, TREE, BRANCH, git, store)).toEqual(['base_sha: expected a string, got int']);
     expect(asked).toEqual([]);
   });
 
   it('an error that is not a refusal leaves the gate', () => {
     const store: RunStore = { list: () => [], read: () => { throw new Error('disk'); }, diff: () => null };
-    expect(() => runFindings(RUN, TREE, git, store)).toThrow('disk');
+    expect(() => runFindings(RUN, TREE, BRANCH, git, store)).toThrow('disk');
   });
 });
 
@@ -178,10 +179,11 @@ describe('pullRequestRule', () => {
     });
   });
 
-  it('lets the pull request through when the kernel accepts the last run of the branch', () => {
+  it('lets the pull request through when the kernel accepts the last run of the branch, judged on the named head', () => {
     const stale = withFile('plan.md', 'an older plan\n');
-    const runs = { '/repo/.agent-runs/RUN-138-20261004T2000Z': stale, [RUN]: runFiles() };
-    expect(pullRequestRule(pr('feature/138-x'), { ...git, branchOf: () => 'staging' }, storeOf(runs).store)).toEqual({ kind: 'no-opinion' });
+    const { store, asked } = storeOf({ '/repo/.agent-runs/RUN-138-20261004T2000Z': stale, [RUN]: runFiles() });
+    expect(pullRequestRule(pr(BRANCH), { ...git, branchOf: () => 'staging' }, store)).toEqual({ kind: 'no-opinion' });
+    expect(asked).toEqual([[TREE, BASE, BRANCH]]);
   });
 
   it('denies the pull request with each finding of the kernel', () => {

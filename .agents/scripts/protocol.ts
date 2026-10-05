@@ -176,7 +176,7 @@ export function commandIntent(command: string, cwd: string, paths: PlatformPath)
       if (opening !== null) worktrees.push(opening);
       continue;
     }
-    if (name === 'gh' && rest[0] === 'pr' && rest[1] === 'create') {
+    if (name === 'gh' && rest[0] === 'pr' && (rest[1] === 'create' || rest[1] === 'new')) {
       pullRequests.push({ cwd: here, head: headOf(rest) });
       continue;
     }

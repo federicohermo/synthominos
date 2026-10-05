@@ -104,12 +104,21 @@ describe('realRunStore', () => {
     expect(store.read(path.join(repo, 'src', 'no-such-file.ts'))).toBeNull();
   });
 
-  it('asks git for the NUL diff from the base, and answers null when git refuses', () => {
+  it('asks git for the NUL diff from the base to the branch, and answers null when git refuses', () => {
     const asked: (readonly string[])[] = [];
     const store = realRunStore((args, cwd) => { asked.push([...args, cwd]); return 'M\0src/a.ts\0'; });
-    expect(store.diff(repo, 'abc')).toBe('M\0src/a.ts\0');
-    expect(asked).toEqual([['diff', '--name-status', '-z', '--find-renames', '--find-copies', 'abc..HEAD', repo]]);
-    expect(realRunStore().diff(repo, 'no-such-ref-for-the-run-gate')).toBeNull();
+    expect(store.diff(repo, 'abc', 'feature/x')).toBe('M\0src/a.ts\0');
+    expect(asked).toEqual([['diff', '--name-status', '-z', '--find-renames', '--find-copies', 'abc..refs/heads/feature/x', repo]]);
+    expect(realRunStore().diff(repo, 'no-such-ref-for-the-run-gate', 'feature/wt')).toBeNull();
+  });
+
+  it('diffs the branch, not the HEAD of the tree that opens the PR', () => {
+    const wt = path.join(repo, '.claude', 'worktrees', 'wt');
+    writeFileSync(path.join(wt, 'gate.txt'), 'x\n');
+    git(wt, 'add', 'gate.txt');
+    git(wt, 'commit', '-q', '-m', 'gate');
+    expect(realRunStore().diff(repo, 'HEAD', 'feature/wt')).toMatch(/^A\0gate\.txt\0|\0A\0gate\.txt\0/);
+    expect(realRunStore().diff(repo, 'HEAD', 'no-such-branch')).toBeNull();
   });
 });
 

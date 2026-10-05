@@ -63,9 +63,9 @@ export function realRunStore(run: RunGit = runGit): RunStore {
   return {
     list: dir => (existsSync(dir) ? readdirSync(dir) : []),
     read: file => (existsSync(file) ? readFileSync(file, 'utf8') : null),
-    diff(tree, base) {
+    diff(tree, base, branch) {
       try {
-        return run(['diff', '--name-status', '-z', '--find-renames', '--find-copies', `${base}..HEAD`], tree);
+        return run(['diff', '--name-status', '-z', '--find-renames', '--find-copies', `${base}..refs/heads/${branch}`], tree);
       } catch {
         return null;
       }
