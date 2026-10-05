@@ -25,7 +25,7 @@ export default function Playhead() {
         className="absolute top-0 left-0 z-10 pointer-events-none"
         style={{ width: celdas(1), height: celdas(1), padding: celdas(AIRE_RAZON), display: 'none' }}
       >
-        <div ref={resalteRef} className="w-full h-full" style={{ borderRadius: celdas(RADIO_RAZON), boxShadow: borde(NOTA) }} />
+        <div ref={resalteRef} className="size-full" style={{ borderRadius: celdas(RADIO_RAZON), boxShadow: borde(NOTA) }} />
       </div>
     </>
   );
