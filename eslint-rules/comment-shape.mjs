@@ -1,77 +1,67 @@
-import { bloquesDeComentario, esDirectiva } from './bloques.mjs'
+import { commentBlocks, isDirective } from './comment-blocks.mjs'
 
 /**
- * `local/comment-shape` — la forma del comentario, y solo donde la forma delata un
- * problema de EXACTITUD.
+ * `local/comment-shape`: the shape of a comment, only where the shape shows a problem of
+ * ACCURACY.
  *
- * Portada de `bait-landing-frontend`, que ya la corre lintada, pero **no copiada**: esa
- * regla verbatim sobre este arbol da 1007 hallazgos en 92 de 93 archivos, y un gate que
- * enciende en rojo el arbol entero no se arregla, se apaga. De sus ocho chequeos quedan
- * cuatro (spec 051).
+ * Ported from `bait-landing-frontend`, and not copied: that rule as it is gives 1007 findings
+ * in 92 of the 93 files of this tree, and a gate that turns the whole tree red is not fixed.
+ * It is switched off. Four of its eight checks stay.
  *
- * El criterio del recorte es uno solo, y explica todo lo que sigue: **el consumidor
- * principal de los comentarios de este repo es un modelo leyendo el codigo para
- * cambiarlo**, y para el lo que importa no es cuanto dice un comentario sino que lo que
- * dice siga siendo cierto. Un comentario largo y verdadero es barato; uno corto y podrido
- * es caro. Asi que las reglas que quedan atacan la exactitud, no la longitud.
+ * One criterion decides the cut: **the main reader of the comments of this repo is a model
+ * that reads the code to change it.** For that reader, what matters is not how much a comment
+ * says. It is that what it says is still true. A long and true comment is cheap, and a short
+ * and rotten one is expensive. So the checks that stay are about accuracy, not length.
  */
 
-// ## No hay chequeo de longitud, ni de densidad, ni de comentario al final de linea
+// ## No check of length, of density, or of a comment at the end of a line
 //
-// Es lo primero que un lector va a querer agregar, asi que va escrito aca al lado del
-// codigo: los cuatro se midieron sobre este arbol y se rechazaron, uno por uno.
+// A reader will want to add these first. The four were measured on this tree and rejected:
 //
-// - `largo` (302 hallazgos) y `densidad` (49) son presupuestos de PROSA. Chocan con «Sin
-//   objetivo numerico» de `conventions.md` y tambien con la evidencia: desactivar los
-//   conceptos de comentario en un modelo degrada la refinacion de codigo hasta un -90 %
-//   (arXiv:2512.16790), y refinar codigo es exactamente lo que se hace aca. Recortar por
-//   numero optimiza la variable equivocada. Este repo no acorta un comentario por largo.
-// - `trailing` (49) es una decision explicita del dueno del repo: el comentario al final
-//   de la linea SE PERMITE. Ancla la explicacion al token exacto sin gastar una linea, y
-//   ningun benchmark dice que dane.
-// - `anclaje` (25) son 25 falsos positivos: todos sobre JSX de `Board.tsx` que esta bien.
+// - Length (302 findings) and density (49) are budgets of PROSE. Switching off the comment
+//   concepts of a model degrades code refinement by up to 90 % (arXiv:2512.16790), and
+//   refining code is what happens here. This repo does not shorten a comment for its length.
+// - A trailing comment (49) is allowed, by a decision of the owner of the repo. It anchors
+//   the explanation to the exact token and costs no line.
+// - Anchoring (25) gave 25 false positives, all on JSX of `Board.tsx` that is right.
 //
-// Y la que un lector va a proponer por el otro lado: `no-inline-comments`, del core de
-// ESLint, hace exactamente lo de `trailing`. Se evaluo y se rechazo por lo de arriba —este
-// repo permite el comentario al final de linea— y ademas esta *frozen*, con la deprecacion
-// aceptada (https://github.com/eslint/eslint/issues/19350) y su reemplazo en `@stylistic`
-// todavia sin existir (https://github.com/eslint-stylistic/eslint-stylistic/issues/758).
+// `no-inline-comments`, of the core of ESLint, does what the trailing check did. It is
+// rejected for the same reason, and it is frozen
+// (https://github.com/eslint/eslint/issues/19350).
 
-// Codigo archivado en un comentario: abre como sentencia y cierra como sentencia. Lo que
-// se comento «por las dudas» lo guarda git, que ademas dice cuando y por que se fue.
+// Code archived in a comment: it opens as a statement and closes as one. What was commented
+// out "just in case" is in git, which also says when and why it left.
 const CODE_LIKE = /^\s*(const|let|var|return|if|for|while|import|export|function|await)\b[\s\S]*[;{)]\s*$/
 
-// Un comentario JSX corto que trae una de estas explica un porque, y eso no es una
-// etiqueta por corto que sea: `{/* … porque … */}` se queda.
-const CAUSAL = /\b(porque|para que|si no|evita|rompe|hace falta|necesita|no se puede)\b/i
+// A short JSX comment that holds one of these gives a reason, and a reason is not a label
+// however short it is.
+const CAUSAL = /\b(because|so that|otherwise|or else|avoids?|prevents?|breaks?|needs?|must|cannot|keeps?)\b/i
 
-const MAX_PALABRAS_ETIQUETA = 6
+const MAX_LABEL_WORDS = 6
 
 /**
- * El tope del resumen, en lineas, y una constante del modulo y no una opcion.
+ * The limit of the summary, in lines. A constant of the module, not an option.
  *
- * `schema` va vacio a proposito: los cinco numeros que la regla de origen tomaba por
- * opciones eran justamente los presupuestos de prosa que este port rechaza, y no queda
- * ninguno que configurar.
+ * `schema` is empty on purpose: the five numbers the original took as options were the prose
+ * budgets this port rejects, and none is left to configure.
  */
-const MAX_LINEAS_RESUMEN = 2
+const MAX_SUMMARY_LINES = 2
 
 /** @type {import('eslint').Rule.RuleModule} */
 const commentShape = {
   meta: {
     type: 'suggestion',
     docs: {
-      description:
-        'Comentarios vacios, codigo archivado, etiquetas JSX y el resumen del docblock',
+      description: 'Empty comments, archived code, JSX labels and the summary of a docblock',
     },
     schema: [],
     messages: {
-      vacio: 'Comentario vacio: borralo.',
-      codigo: 'Codigo comentado: no se archiva en un comentario, lo guarda git.',
-      etiqueta:
-        'Comentario JSX que solo reetiqueta el marcado ({{txt}}): lo dice el JSX, y miente en cuanto cambie.',
-      resumen:
-        'El primer parrafo del docblock ocupa {{n}} lineas (maximo {{max}}): dejalo en {{max}} y baja el resto al cuerpo, que no tiene tope.',
+      empty: 'Empty comment: delete it.',
+      code: 'Commented-out code: git keeps it, a comment does not.',
+      label:
+        'This JSX comment only names the markup again ({{text}}): the JSX says it, and the comment lies when the markup changes.',
+      summary:
+        'The first paragraph of the docblock takes {{n}} lines (maximum {{max}}): keep {{max}} and move the rest to the body, which has no limit.',
     },
   },
 
@@ -83,26 +73,25 @@ const commentShape = {
         const m = source.getText(node).match(/^\{\s*\/\*([\s\S]*?)\*\/\s*\}$/)
         if (!m) return
 
-        const txt = m[1].trim()
-        if (esDirectiva(txt)) return
+        const text = m[1].trim()
+        if (isDirective(text)) return
 
-        if (txt.split(/\s+/).length <= MAX_PALABRAS_ETIQUETA && !CAUSAL.test(txt)) {
-          context.report({ node, messageId: 'etiqueta', data: { txt: txt.slice(0, 40) } })
+        if (text.split(/\s+/).length <= MAX_LABEL_WORDS && !CAUSAL.test(text)) {
+          context.report({ node, messageId: 'label', data: { text: text.slice(0, 40) } })
         }
       },
 
       'Program:exit'() {
-        for (const group of bloquesDeComentario(source)) {
-          const c = group[0]
-          const body = c.value.trim()
+        for (const group of commentBlocks(source)) {
+          const first = group[0]
+          const body = first.value.trim()
 
           if (!body || /^\*+$/.test(body)) {
-            context.report({ node: c, messageId: 'vacio' })
+            context.report({ node: first, messageId: 'empty' })
             continue
           }
 
-          // Despega los `*` de margen para que el texto que se juzga sea el que se lee, y
-          // no el andamio del bloque.
+          // Take the margin `*` off, so that the text judged is the text a person reads.
           const clean = group
             .map((x) =>
               x.value
@@ -115,37 +104,33 @@ const commentShape = {
             .trim()
 
           if (CODE_LIKE.test(clean)) {
-            context.report({ node: c, messageId: 'codigo' })
+            context.report({ node: first, messageId: 'code' })
             continue
           }
 
           /*
-           * `resumen` mira UNICAMENTE docblocks. No se le pide resumen a las corridas de
-           * `//`: serian 516 ediciones para inventar una convencion que el repo nunca tuvo
-           * —solo el 2,6 % las tiene hoy— y ningun benchmark dice que estructurar un
-           * comentario de linea ayude.
+           * `summary` looks ONLY at docblocks. A run of `//` is not asked for a summary: that
+           * would be 516 edits to invent a convention the repo never had.
            */
-          const esDocblock = c.type === 'Block' && c.value.startsWith('*')
-          if (!esDocblock) continue
+          const isDocblock = first.type === 'Block' && first.value.startsWith('*')
+          if (!isDocblock) continue
 
           /*
-           * El resumen es el PRIMER PARRAFO —hasta la primera linea en blanco— y no lo que
-           * hay antes del primer `@tag`, que es como cortaba la regla de origen. Ese corte
-           * aca daria 308 hallazgos en vez de 99: de 617 docblocks del repo solo 2 tienen
-           * algun tag y `@remarks` tiene cero, asi que cortar por tag hace que «el resumen»
-           * sea el docblock entero. `@remarks` se acepta si alguien lo escribe, y no se
-           * exige.
+           * The summary is the FIRST PARAGRAPH, up to the first blank line. It is not what
+           * comes before the first `@tag`, which is how the original cut: of the 617
+           * docblocks of the repo only 2 have a tag, so that cut makes the whole docblock
+           * "the summary". `@remarks` is accepted and not required.
            *
-           * El cuerpo que sigue al primer parrafo no tiene tope, y eso es el punto: lo que
-           * sobra baja, no se borra.
+           * The body after the first paragraph has no limit, and that is the point: what does
+           * not fit goes down, it is not deleted.
            */
-          const resumen = clean.split(/\n\s*\n/)[0]
-          const lineas = resumen.split('\n').length
-          if (lineas > MAX_LINEAS_RESUMEN) {
+          const summary = clean.split(/\n\s*\n/)[0]
+          const lines = summary.split('\n').length
+          if (lines > MAX_SUMMARY_LINES) {
             context.report({
-              node: c,
-              messageId: 'resumen',
-              data: { n: lineas, max: MAX_LINEAS_RESUMEN },
+              node: first,
+              messageId: 'summary',
+              data: { n: lines, max: MAX_SUMMARY_LINES },
             })
           }
         }

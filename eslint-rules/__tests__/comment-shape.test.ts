@@ -3,17 +3,17 @@ import { RuleTester } from 'eslint'
 import rule from '../comment-shape.mjs'
 
 /*
- * `RuleTester` no registra sus casos como tests por si solo: llama a los `describe`/`it`
- * GLOBALES, y este repo no corre vitest con `globals: true`. Sin estas dos lineas la
- * corrida falla con `No test suite found in file` — medido en este mismo repo.
+ * `RuleTester` does not register its cases as tests by itself: it calls the GLOBAL
+ * `describe` and `it`, and this repo does not run Vitest with `globals: true`. Without these
+ * two lines the run fails with `No test suite found in file`.
  */
 RuleTester.describe = describe
 RuleTester.it = it
 
 /*
- * JSX prendido para todos los casos y no solo para los de `etiqueta`, que son los unicos
- * que lo necesitan: espree parsea igual el codigo que no lo usa, y dos `RuleTester` para
- * una sola regla dan dos suites con el mismo nombre.
+ * JSX is on for every case and not only for the `label` cases, the only ones that need it:
+ * espree parses the code that does not use it the same way, and two `RuleTester` for one rule
+ * give two suites with one name.
  */
 const tester = new RuleTester({
   languageOptions: {
@@ -23,124 +23,106 @@ const tester = new RuleTester({
   },
 })
 
-/** Un docblock de 48 lineas cuyo primer parrafo son 2: el caso de AC3, en verde. */
+/** A docblock of 48 lines whose first paragraph takes 2. */
 const DOCBLOCK_48 = [
   '/**',
-  ' * Resumen que abre en dos lineas,',
-  ' * y termina en la segunda.',
+  ' * A summary that opens in two lines,',
+  ' * and ends on the second.',
   ' *',
-  ...Array.from({ length: 43 }, (_, i) => ` * Linea ${i} del cuerpo, que no tiene tope.`),
-  ' */',
-  'const a = 1;',
-].join('\n')
-
-/** Dos lineas de resumen y cuarenta de cuerpo: el caso de AC4, en verde. */
-const DOS_MAS_CUARENTA = [
-  '/**',
-  ' * Resumen que abre en dos lineas,',
-  ' * y termina en la segunda.',
-  ' *',
-  ...Array.from({ length: 40 }, (_, i) => ` * Linea ${i} del cuerpo.`),
+  ...Array.from({ length: 43 }, (_, i) => ` * Line ${i} of the body, which has no limit.`),
   ' */',
   'const a = 1;',
 ].join('\n')
 
 /**
- * Cuarenta comentarios en cien lineas exactas: el caso de densidad de AC3, en verde.
+ * Forty comments in exactly one hundred lines: no check of density.
  *
- * Son 40 bloques de dos lineas —comentario y sentencia— mas 20 de relleno. De paso cubre
- * las dos formas de NO agrupar una corrida: comentarios de linea separados por codigo.
+ * It also covers the two ways a run is NOT grouped: line comments with code between them.
  */
-const CUARENTA_EN_CIEN = [
-  ...Array.from({ length: 40 }, (_, i) => `// nota numero ${i}\nconst a${i} = ${i};`),
+const FORTY_IN_A_HUNDRED = [
+  ...Array.from({ length: 40 }, (_, i) => `// note number ${i}\nconst a${i} = ${i};`),
   ...Array.from({ length: 20 }, (_, i) => `const b${i} = ${i};`),
 ].join('\n')
 
 tester.run('comment-shape', rule, {
   valid: [
-    // ## AC3 — nada se reporta por longitud, por densidad ni por estar al final de linea
-    { name: 'un comentario al final de una linea de codigo', code: 'const a = 1; // nota' },
-    { name: 'un docblock de 48 lineas', code: DOCBLOCK_48 },
-    { name: 'cuarenta comentarios en cien lineas', code: CUARENTA_EN_CIEN },
+    // Nothing is reported for length, for density, or for being at the end of a line.
+    { name: 'a comment at the end of a line of code', code: 'const a = 1; // note' },
+    { name: 'a docblock of 48 lines', code: DOCBLOCK_48 },
+    { name: 'forty comments in a hundred lines', code: FORTY_IN_A_HUNDRED },
 
-    // ## AC4 — el tope es el primer parrafo, y `@remarks` no se exige
-    { name: 'dos lineas de resumen y cuarenta de cuerpo', code: DOS_MAS_CUARENTA },
+    // The limit is on the first paragraph, and `@remarks` is not required.
     {
-      name: 'con `@remarks`, que se acepta',
-      code: '/**\n * Resumen de una linea.\n *\n * @remarks El detalle, que no tiene tope.\n */\nconst a = 1;',
+      name: 'with `@remarks`, which is accepted',
+      code: '/**\n * A summary of one line.\n *\n * @remarks The detail, which has no limit.\n */\nconst a = 1;',
     },
     {
-      name: 'sin `@remarks`, que no se exige',
-      code: '/**\n * Resumen de una linea.\n *\n * El detalle, que tampoco necesita el tag.\n */\nconst a = 1;',
-    },
-
-    // ## Lo que se conserva del original
-    {
-      // Una corrida de `//` es UN comentario: el docblock es lo unico a lo que se le pide
-      // resumen, asi que tres lineas seguidas de `//` pasan.
-      name: 'una corrida de tres `//` consecutivos',
-      code: '// Primera linea de la corrida,\n// segunda,\n// y tercera.\nconst a = 1;',
-    },
-    {
-      // Un `//` pegado abajo de un bloque NO continua la corrida del bloque: son dos
-      // comentarios distintos y cada uno se juzga solo.
-      name: 'un bloque seguido de un `//`',
-      code: '/* nota suelta */\n// otra nota\nconst a = 1;',
-    },
-    {
-      // Las directivas de herramienta no son prosa y quedan afuera del filtro.
-      name: 'directivas de herramienta',
-      code: '/* global window */\n// @ts-expect-error el tipo se afloja a proposito\nconst a = 1;',
+      name: 'without `@remarks`, which is not required',
+      code: '/**\n * A summary of one line.\n *\n * The detail, which does not need the tag.\n */\nconst a = 1;',
     },
 
-    // ## `etiqueta` — lo que NO es una etiqueta
     {
-      name: 'un contenedor JSX que no es un comentario',
-      code: 'const valor = 1;\nconst App = () => <div>{valor}</div>;',
+      // A run of `//` is ONE comment. Only a docblock is asked for a summary, so three
+      // lines of `//` in a row pass.
+      name: 'a run of three consecutive `//`',
+      code: '// First line of the run,\n// second,\n// and third.\nconst a = 1;',
     },
     {
-      name: 'un comentario JSX de mas de seis palabras',
-      code: 'const App = () => <div>{/* El orden de estos dos nodos lo fija el recorrido */}</div>;',
+      // A `//` right under a block does NOT continue the block: they are two comments.
+      name: 'a block followed by a `//`',
+      code: '/* a loose note */\n// another note\nconst a = 1;',
     },
     {
-      name: 'un comentario JSX corto que explica un porque',
-      code: 'const App = () => <div>{/* Va aca porque el grid manda */}</div>;',
+      name: 'tool directives',
+      code: '/* global window */\n// @ts-expect-error the type is loosened on purpose\nconst a = 1;',
+    },
+
+    // What is NOT a label.
+    {
+      name: 'a JSX container that is not a comment',
+      code: 'const value = 1;\nconst App = () => <div>{value}</div>;',
     },
     {
-      name: 'un comentario JSX que es una directiva',
+      name: 'a JSX comment of more than six words',
+      code: 'const App = () => <div>{/* The tour fixes the order of these two nodes */}</div>;',
+    },
+    {
+      name: 'a short JSX comment that gives a reason',
+      code: 'const App = () => <div>{/* Here because the grid rules */}</div>;',
+    },
+    {
+      name: 'a JSX comment that is a directive',
       code: 'const App = () => <div>{/* global window */}</div>;',
     },
   ],
 
   invalid: [
-    // ## AC2 — un caso por `messageId`, y con el `messageId`: contar errores deja pasar
-    // en verde a una regla que reporta el mensaje equivocado.
+    // One case for each `messageId`, with the `messageId`: a count of errors lets a rule that
+    // reports the wrong message pass.
     {
-      name: 'un comentario sin cuerpo',
+      name: 'a comment with no body',
       code: 'const a = 1;\n//',
-      errors: [{ messageId: 'vacio' }],
+      errors: [{ messageId: 'empty' }],
     },
     {
-      name: 'un comentario que solo tiene asteriscos',
+      name: 'a comment that holds only asterisks',
       code: 'const a = 1;\n/***/',
-      errors: [{ messageId: 'vacio' }],
+      errors: [{ messageId: 'empty' }],
     },
     {
-      name: 'codigo archivado en un comentario',
-      code: '// const viejo = calcular(1);',
-      errors: [{ messageId: 'codigo' }],
+      name: 'code archived in a comment',
+      code: '// const old = compute(1);',
+      errors: [{ messageId: 'code' }],
     },
     {
-      name: 'un comentario JSX que solo reetiqueta el marcado',
-      code: 'const App = () => <div>{/* El tablero */}</div>;',
-      errors: [{ messageId: 'etiqueta' }],
+      name: 'a JSX comment that only names the markup again',
+      code: 'const App = () => <div>{/* The board */}</div>;',
+      errors: [{ messageId: 'label', data: { text: 'The board' } }],
     },
-
-    // ## AC4 — el primer parrafo pasa de dos lineas
     {
-      name: 'un docblock cuyo primer parrafo tiene tres lineas',
-      code: '/**\n * Primera linea del resumen,\n * segunda linea del resumen,\n * y una tercera que ya sobra.\n */\nconst a = 1;',
-      errors: [{ messageId: 'resumen', data: { n: '3', max: '2' } }],
+      name: 'a docblock whose first paragraph takes three lines',
+      code: '/**\n * First line of the summary,\n * second line of the summary,\n * and a third one that is too many.\n */\nconst a = 1;',
+      errors: [{ messageId: 'summary', data: { n: '3', max: '2' } }],
     },
   ],
 })
