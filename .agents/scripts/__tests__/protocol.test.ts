@@ -70,6 +70,45 @@ describe('segments: a heredoc body is text, not a command', () => {
   it('a here-string (<<<) has no body: the next line is a command', () => {
     expect(writesOf('cat <<<EOF > /tmp/a\necho y > src/b.ts\ncat <<EOF\n-> src/x.ts\nEOF')).toEqual(['D:\\tmp\\a', 'D:\\repo\\src\\b.ts']);
   });
+  it.each([
+    "bash <<'EOF'",
+    "cat <<'EOF' | bash",
+    'sh -s <<EOF',
+    "/usr/bin/zsh <<'EOF'",
+    "cat <<'EOF' | PowerShell.exe -Command -",
+  ])('%s: a shell reads the body as a script, so its lines are commands', open => {
+    expect(writesOf(`${open}\nrm -rf src\nEOF`)).toEqual(['D:\\repo\\src']);
+  });
+  it('the closing line of a script body is not a word', () => {
+    const bash = [{ text: 'bash', redirect: false }];
+    const rm = [{ text: 'rm', redirect: false }, { text: '-rf', redirect: false }, { text: 'src', redirect: false }];
+    expect(segments("bash <<'EOF'\nrm -rf src\nEOF")).toEqual([bash, rm]);
+  });
+  it('only a shell on the line of the << makes its body a script', () => {
+    const command = "bash x.sh\ncat <<'EOF' > /tmp/n.md\n-> src/x.ts\nEOF\nbash <<'EOF'\nrm -rf src\nEOF";
+    expect(writesOf(command)).toEqual(['D:\\tmp\\n.md', 'D:\\repo\\src']);
+  });
+});
+
+describe('segments: a comment is not a command', () => {
+  it('a # that starts a word comments out the rest of the line', () => {
+    expect(segments('echo hi # see -> src/x')).toEqual([[{ text: 'echo', redirect: false }, { text: 'hi', redirect: false }]]);
+  });
+  it.each([
+    'git log a#b > out.txt # -> src/x',
+    'echo $# > out.txt # -> src/x',
+    'curl https://example.org/a#top > out.txt # -> src/x',
+  ])('a # inside a word is not a comment: %s', command => {
+    expect(writesOf(command)).toEqual(['D:\\repo\\out.txt']);
+  });
+  it('a # inside quotes is text', () => {
+    const words = [{ text: 'echo', redirect: false }, { text: 'see # -> src/x', redirect: false }, { text: 'out.txt', redirect: true }];
+    expect(segments('echo "see # -> src/x" > out.txt # -> src/y')).toEqual([words]);
+  });
+  it('a comment does not end a heredoc body early, in data or in a script', () => {
+    expect(writesOf("cat <<'EOF' > /tmp/n.md # -> src/a\n# EOF\n- tests -> src/x\nEOF\necho y > src/b.ts")).toEqual(['D:\\tmp\\n.md', 'D:\\repo\\src\\b.ts']);
+    expect(writesOf("bash <<'EOF' # run it\n# EOF\nrm -rf src\nEOF")).toEqual(['D:\\repo\\src']);
+  });
 });
 
 describe('commandIntent: what it writes', () => {
@@ -198,6 +237,10 @@ describe('handle', () => {
   it('a heredoc that writes a note outside src/ is not denied for the arrow in its body', () => {
     const command = "cat >> /tmp/scratchpad/notes.md <<'EOF'\n- new files + tests -> src/panels/; ...\nEOF";
     expect(handle(['claude'], JSON.stringify({ cwd: CWD, tool_name: 'Bash', tool_input: { command } }), git)).toEqual({ stdout: '', stderr: '' });
+  });
+  it('a heredoc that a shell reads is a script: its rm of src/ is denied', () => {
+    const command = "bash <<'EOF'\nrm -rf src\nEOF";
+    expect(handle(['claude'], JSON.stringify({ cwd: CWD, tool_name: 'Bash', tool_input: { command } }), git).stdout).toMatch(/"permissionDecision":"deny"/);
   });
   it('never throws: an error becomes a warning', () => {
     const broken: Git = { ...git, get paths(): never { throw new Error('boom'); } };

@@ -47,6 +47,7 @@ export function segments(command: string): Word[][] {
   let quote: string | null = null;
   let redirect = false;
   const heredocs: { readonly delimiter: string; readonly stripTabs: boolean }[] = [];
+  let line = 0;
 
   const closeWord = () => {
     if (inWord) {
@@ -62,18 +63,28 @@ export function segments(command: string): Word[][] {
     current = [];
     redirect = false;
   };
-  const skipBodies = (newline: number) => {
+  // The bodies of the line's heredocs follow its newline. A body is data, so a `>` in it writes no
+  // file. If a shell on the line reads it, it is a script and its lines are commands.
+  const endLine = (newline: number) => {
+    const programs = result.slice(line).flatMap(s => s.filter(w => !w.redirect).slice(0, 1));
+    const script = programs.some(w => SHELLS.has(programName(w.text)));
     let at = newline;
     for (const { delimiter, stripTabs } of heredocs.splice(0)) {
-      let closed = false;
-      while (!closed && at < command.length) {
+      const body = at + 1;
+      let end = command.length;
+      while (at < command.length) {
         const start = at + 1;
         at = command.indexOf('\n', start);
         if (at === -1) at = command.length;
-        const line = command.slice(start, at);
-        closed = (stripTabs ? line.replace(/^\t+/, '') : line) === delimiter;
+        const text = command.slice(start, at);
+        if ((stripTabs ? text.replace(/^\t+/, '') : text) === delimiter) {
+          end = start;
+          break;
+        }
       }
+      if (script) result.push(...segments(command.slice(body, end)));
     }
+    line = result.length;
     return at;
   };
 
@@ -103,7 +114,6 @@ export function segments(command: string): Word[][] {
       redirect = true;
       continue;
     }
-    // A heredoc body is text, not a command: a `>` in it writes no file.
     // The `<<` at the end of a here-string (`<<<`) opens no heredoc.
     const heredoc = c === '<' && command[i - 1] !== '<' ? /^<<(-?)[ \t]*([^\s<>;&|()]+)/.exec(command.slice(i)) : null;
     if (heredoc !== null) {
@@ -111,14 +121,17 @@ export function segments(command: string): Word[][] {
       i += heredoc[0].length - 1;
       continue;
     }
-    if (c === '\n' && heredocs.length > 0) {
-      closeSegment();
-      i = skipBodies(i);
+    // A `#` that starts a word begins a comment: a `>` in it writes no file. The comment stops
+    // before the newline, which still ends the line.
+    if (c === '#' && !inWord) {
+      const end = command.indexOf('\n', i);
+      i = (end === -1 ? command.length : end) - 1;
       continue;
     }
     if (c === ';' || c === '\n' || c === '|' || c === '&') {
       // `&&`, `||`, `|`, `;`, newline and `&` all end the segment.
       closeSegment();
+      if (c === '\n') i = endLine(i);
       continue;
     }
     if (/\s/.test(c)) {
@@ -180,6 +193,7 @@ function cmdletTargets(rest: readonly string[], position: number, params: readon
 
 /** Sinks: redirecting there writes no file. */
 const SINKS = new Set(['/dev/null', '$null', 'nul']);
+const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh', 'pwsh', 'powershell']);
 const CHANGE_DIR = new Set(['cd', 'pushd', 'chdir', 'set-location', 'sl']);
 /** `git worktree add` options that take the next word as their value. */
 const TAKES_VALUE = new Set(['-b', '-B', '--reason']);
