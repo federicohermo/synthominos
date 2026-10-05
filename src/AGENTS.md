@@ -106,10 +106,9 @@ salieron a `playhead-loop.ts` y `spectrum-loop.ts` sin cambiar una línea de com
 
 Desde ese spec la UI tiene **dos clases de test y las dos corren con `pnpm test`**: los `.ts`
 puros en el proyecto `node` —`input.ts`, `cell-text.ts`, `cell-name.ts`, `piece-mini.ts`,
-`orientation-text.ts`, `route-source.ts`, `engine-bridge.ts`, `palette.ts` y los dos
-`-loop.ts`— y los
+`orientation-text.ts`, `route-source.ts`, `engine-bridge.ts` y `palette.ts`— y los
 `*.browser.test.tsx` en un
-Chromium de verdad, que es donde se verifican los seis componentes, `App.tsx` y los dos hooks. El
+Chromium de verdad, que es donde se verifican los seis componentes, los dos `-loop.ts`, `App.tsx` y los tres hooks. El
 discriminante es el **sufijo**, no la carpeta. Y el umbral es 100 en las cuatro métricas: lo que se
 agregue acá viene con su test o no mergea.
 
@@ -153,7 +152,7 @@ con nodos que crea y destruye él mismo.
   suave que `.agents/rules/audio.md` obliga a chequear en todo llamador. `MOTOR` es el cableado real y
   vive en `use-engine.ts`, el único módulo de la UI que importa la **API de transporte** del motor
   (`startClock`, `stopClock`, `clockRunning`, `setSequence`, `setBpm`, `setClicksAudible`). No es el
-  único que importa `playback/engine.ts`: `Playhead.tsx`, `Spectrum.tsx` y `route-source.ts` también, pero
+  único que importa `playback/engine.ts`: `playhead-loop.ts`, `spectrum-loop.ts` y `route-source.ts` también, pero
   los tres piden **lecturas** —`playheadOffset`, `readSpectrum`, `cycleGeneration`— y ninguna de las
   tres arranca, frena ni agenda nada.
 - **Nunca mutar objetos ya entregados a React.** Ese fue exactamente el bug de los loops que motivó el
@@ -162,9 +161,9 @@ con nodos que crea y destruye él mismo.
 - **Efectos que reconcilian**, no que ejecutan comandos. Con flag de cancelación si hacen trabajo
   asincrónico; sincrónicos si la limpieza tiene que ganarle al re-montaje de StrictMode.
 - **`key` por id, nunca por índice**, en listas de elementos removibles.
-- **Un solo export por `.tsx`.** `react-refresh/only-export-components` lo exige. Los tipos de props
-  que se comparten entre un contenedor y sus paneles van al componente que las recibe, como `PropsDeOrientacion` en `OrientationPanel.tsx`
-  (`OrientationPanel.tsx`); los que no se comparten quedan inline y sin exportar. Es la misma regla que
+- **Un solo export de valor por `.tsx`.** `react-refresh/only-export-components` lo exige; un tipo no cuenta. Los tipos de props
+  que se comparten entre un contenedor y sus paneles van al componente que las recibe, como `PropsDeOrientacion` en `OrientationPanel.tsx`;
+  los que no se comparten quedan inline y sin exportar. Es la misma regla que
   mantuvo al dominio sin tests mientras vivía acá, y la que le sacó al shell sus seis `useEffect` con
   el spec 022.
 - **Lo que sale de una constante va por estilo inline, no por clase.** Tailwind escanea el fuente: una

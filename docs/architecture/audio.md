@@ -162,7 +162,7 @@ El click **mudo** suena igual en cualquier celda —es una campana de altura fij
 esa altura no sale del modelo (ver [más abajo](#el-click))—; desde
 el spec 011 el recorrido puede cruzar una celda ocupada, y ese cruce lleva su nota en `note` —MIDI,
 ausente cuando la celda está vacía—. La celda en sí sigue sin ser información que el motor pueda usar,
-y `Sequence` sigue sin poder importar `Cell` del dominio ni con `import type`, porque el motor habla MIDI y
+y `Sequence` sigue sin importar `Cell` del dominio ni con `import type`, porque el motor habla MIDI y
 no importa el circuito: `note` viaja como número plano, no como referencia a la
 celda que lo originó. Pero **ya no es cierto que para sonar alcance con contar clicks** — un click con
 `note` suena distinto de uno sin ella (ver [más abajo](#el-click)). `setSequence(next)` reemplaza a
@@ -207,7 +207,7 @@ más fina y su propio cambio.
 
 Un salto de `d` celdas entre la salida de una pieza y la entrada de la siguiente produce `d − 1`
 eventos intermedios, uno por celda del camino que devuelve `routeBetween(a, b, placed)`
-(`board-editing/placement.ts`). Sobre celda **vacía** suena una **campana de altura fija** de 50 ms a volumen
+(`circuit/routing.ts`). Sobre celda **vacía** suena una **campana de altura fija** de 50 ms a volumen
 bajo (`CLICK_MIDI`, `CLICK_VELOCITY`, `CLICK_SECONDS` en `voice.ts`) — `scheduleClick` en
 `voice.ts` es la otra forma de sonido del motor, aparte de `scheduleVoice`.
 
@@ -256,7 +256,7 @@ obstáculos: medido, entre el 71 % y el 88 % de los tramos pisaban una pieza, y 
 12 piezas caían ahí los 21 clicks del ciclo. Esquivar las piezas dejó de ser "un spec propio" —así lo
 anotaba el 009 en su tabla de riesgos— y es exactamente lo que hace el 011: `routeBetween` no es un
 BFS que rodea a cualquier costo, es un camino de **costo mínimo** con peso 1 en celda vacía y
-`CROSS_COST = 5` (`board-editing/placement.ts`) en celda ocupada, así que
+`CROSS_COST = 5` (`circuit/routing.ts`) en celda ocupada, así que
 rodea cuando el rodeo sale barato y cruza —sonando la nota— cuando rodear cuesta más caro. El
 interruptor de clicks queda, pero ya no es la única mitigación: la mitigación de fondo es el peso.
 
@@ -313,8 +313,8 @@ Dos cosas del snippet que no son detalle:
   lograr lo mismo desde acá; con una sola llamada a `setSequence` deja de hacer falta, y colocar o
   quitar con el transporte parado igual deja la secuencia lista para cuando arranque.
 - **Es una proyección, no una traducción.** `offset` y `notes` viajan tal cual; lo que se cae es
-  `pieceId` —el motor no tiene a quién devolvérselo— y `cell` en los clicks, porque el motor no puede
-  importar `Cell` ni como `import type` ([arriba](#el-recorrido-en-el-scheduler)). Las celdas no se
+  `pieceId` —el motor no tiene a quién devolvérselo— y `cell` en los clicks, porque el motor no
+  importa `Cell` ni como `import type` ([arriba](#el-recorrido-en-el-scheduler)). Las celdas no se
   pierden: siguen en `placed`.
 
 Antes este efecto iteraba piezas y armaba un job por cada una; hoy es **una sola llamada**:

@@ -52,7 +52,7 @@ El porqué de cada decisión, con las mediciones que la respaldan, está en
   pasa de dos a tres claves, y el union `Hit` (`playback/scheduler.ts`) gana una tercera rama
   con su propio `hz` —no un `hz?: number` sobre la rama del click—. La construye `collectHits` en
   `playback/scheduler.ts`; `engine.ts` solo la despacha. La `Sequence` sigue sin llevar `Cell` ni ningún
-  otro tipo de `domain/` —ni con `import type`—, pero desde el spec 011 **ya no es cierto que para
+  otro tipo del modelo —ni con `import type`—, pero desde el spec 011 **ya no es cierto que para
   sonar alcance con contar clicks**: `clicks` es `{ offset: number; note?: number }[]`.
   `proyectarAlMotor` (`playback/engine-bridge.ts`) sigue llevando `buildSequence(placed, regimen)`
   a esa versión antes de que `use-engine.ts` la pase a `setSequence`. Es D7/D8 del spec 009 más la

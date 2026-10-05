@@ -44,7 +44,7 @@ const ZONAS = [
  */
 /**
  * Los cuatro nodos que nombran un modulo por su ruta. Se listan los cuatro y no solo
- * `ImportDeclaration` porque las otras formas pueden aparecer —hoy hay cuatro `import()`
+ * `ImportDeclaration` porque las otras formas pueden aparecer —hoy hay ocho `import()`
  * en los tests que reimportan con `vi.resetModules()`— y una regla que cubre una sola de ellas es
  * exactamente la red que este spec vino a borrar: pasa en verde y se lee como completa.
  *
@@ -72,7 +72,7 @@ const REGLAS_DEL_REPO = [
   {
     // "Sin barrels, con extension explicita, sin alias." Omitir la extension no rompe la
     // app —Vite y el `moduleResolution: bundler` del tsconfig resuelven igual— asi que el
-    // error seria invisible del lado del navegador y solo aparece al cargar `domain/` con
+    // error seria invisible del lado del navegador y solo aparece al cargar `src/` con
     // node crudo, que es justo lo que hace el MCP server del 006.
     selector: NODOS_CON_RUTA.map((nodo) => nodo + SIN_EXTENSION).join(', '),
     message: 'Todo import local lleva extension explicita: ./music.ts, no ./music.',
@@ -105,7 +105,7 @@ const REGLAS_DEL_REPO = [
   },
   {
     // La otra mitad de "sin estado global": el import de `react` es legitimo en
-    // ui/, asi que lo que hay que prohibir es la llamada, no el paquete.
+    // un componente, asi que lo que hay que prohibir es la llamada, no el paquete.
     selector: "CallExpression[callee.name='createContext'], CallExpression[callee.property.name='createContext']",
     message: 'Sin estado global: ni Context, ni Redux, ni Zustand. El estado vive en App.tsx.',
   },
@@ -123,7 +123,7 @@ const REGLAS_DEL_REPO = [
  * que el spec 005 saco el dominio de `App.tsx`.
  *
  * Se ancla en el nombre y no en el import porque el import de `react` es legitimo en
- * `ui/`: lo que hay que prohibir es la llamada, igual que con `createContext`.
+ * un componente: lo que hay que prohibir es la llamada, igual que con `createContext`.
  *
  * **Y nombra los DOS hooks, no solo `useEffect`.** El spec 049 lo escribio con uno; al
  * implementarlo aparecio que `use-grid.ts` monta su efecto con `useLayoutEffect` —el 021 lo
@@ -135,7 +135,7 @@ const REGLAS_DEL_REPO = [
  */
 const REGLA_EFECTOS = {
   selector: "CallExpression[callee.name=/^use(Layout)?Effect$/]",
-  message: 'Un .tsx no declara la logica de un efecto: va a un modulo de ui/ y el .tsx lo monta.',
+  message: 'Un .tsx no declara la logica de un efecto: va a un modulo .ts y el .tsx lo monta.',
 }
 
 export default tseslint.config([
@@ -200,7 +200,7 @@ export default tseslint.config([
     // El costo esta medido y es lo que hace que entre: `recommendedTypeChecked` sobre el
     // repo entero da 100 hallazgos, y 97 son un solo patron de `node:test` que se apaga con
     // una opcion (ver `no-floating-promises` abajo). Lo que compra es prospectivo y es el
-    // punto: `no-floating-promises` sobre `audio/` —donde `resume()` y `close()` devuelven
+    // punto: `no-floating-promises` sobre `playback/` —donde `resume()` y `close()` devuelven
     // promesas— es el error que ningun test de este repo puede ver, porque el audio no se
     // testea por su sonido.
     files: ['**/*.{ts,tsx}'],
@@ -501,7 +501,7 @@ export default tseslint.config([
   {
     // Los DOS `.tsx` que montan un efecto, nombrados uno por uno y no por glob. El
     // precedente es el de las tres aserciones no nulas de arriba, y el motivo de que sea por
-    // archivo es que un glob crece solo: `src/*.tsx` eximiria a todo componente
+    // archivo es que un glob crece solo: `src/**/*.tsx` eximiria a todo componente
     // futuro sin que nadie lo decida.
     //
     // Los dos cumplen el motivo de la regla y violan su letra, que es lo que los hace
