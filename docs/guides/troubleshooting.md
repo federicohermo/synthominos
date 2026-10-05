@@ -39,6 +39,19 @@ A pinned Node version did not change the number.
 **Fix:** write the comparator with no branch: `Number(a > b) - Number(a < b)`. In general, no branch
 can depend on an order that the environment gives.
 
+### The `mutation` job fails on a PR that changed one line
+
+`Final mutation score … under breaking threshold 100`, and the surviving mutants are in code the
+PR did not touch.
+
+**Cause:** the job judges each changed file whole. A file that was never mutated brings all its
+old mutants to the first PR that touches it:
+[the decision](../architecture/decisions/2026-10-04-mutation-judges-a-changed-file-whole.md).
+
+**Fix:** before the push, run `node .agents/scripts/mutation-target.ts origin/staging --report` on
+the committed branch, then `pnpm mutation --mutate <the eligible files>`. Kill each survivor with a
+test or with simpler code, in the same PR.
+
 ### `Failed to delete stryker temp directory`, and `node` processes that stay alive
 
 On Windows, `pnpm mutation` copies the repo to `.stryker-tmp/`.
