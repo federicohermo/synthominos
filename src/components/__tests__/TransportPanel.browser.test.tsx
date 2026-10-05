@@ -118,8 +118,8 @@ describe('TransportPanel', () => {
 
     const boton = page.getByRole('button', { name: 'Pausa' });
     await expect.element(boton).toHaveTextContent('⏸');
-    // `bg-slate-900 text-white` es el mismo idioma con el que la tarjeta marca lo
-    // activo en Rotacion y Reflexion, aplicado al mismo concepto.
+    // `bg-slate-900 text-white` es el mismo idioma con el que el dock marca lo activo
+    // —la casilla de la pieza en la mano, el regimen elegido—, aplicado al mismo concepto.
     await expect.element(boton).toHaveClass(/bg-slate-900/);
 
     // Y el `title` dice lo mismo que el nombre accesible: el puntero y el lector no

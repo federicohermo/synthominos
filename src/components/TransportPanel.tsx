@@ -110,8 +110,8 @@ export default function TransportPanel({ transporte }: { transporte: PropsDeTran
           color lo repite para que se lea de un vistazo. Solo el icono, sin la palabra: ▶ y ⏸
           son el vocabulario universal del transporte y no necesitan glosa. Y medido, la
           etiqueta no entra: con "▶ Reproducir" el boton pide 119 px de min-content contra
-          los 148 del interior de la tarjeta a 768 —el ancho mas apretado, el mismo que
-          gobierna la grilla de piezas— asi que la fila desbordaba y el texto envolvia a dos
+          los 148 del interior de la tarjeta a 768 —el ancho mas apretado de aquella
+          tarjeta— asi que la fila desbordaba y el texto envolvia a dos
           lineas. Con el icono solo mide 37,8 px.
 
           `aria-label` en los tres porque al sacar el texto se quedan sin nombre accesible:
@@ -126,8 +126,9 @@ export default function TransportPanel({ transporte }: { transporte: PropsDeTran
           metronomo apagado (`bg-slate-100`) y `↺` (`bg-slate-200`): el boton principal del
           instrumento quedaria indistinguible de los dos secundarios. El verde es lo que un
           transporte pide leer como "apreta esto para que suene". */}
-      {/* `flex-wrap` por lo mismo que la fila de arriba: son tres controles desde que el
-          019 le mudo el metronomo, y el dock sigue siendo el panel mas angosto de la app. */}
+      {/* `flex-wrap` como red y no porque hoy envuelva: los tres botones —tres desde que el
+          019 le mudo el metronomo— piden 124,5 px en una linea y la rejilla le da al dock 204
+          de interior, medido. Si la rejilla se angosta, envolver es lo unico que no desborda. */}
       <div className="flex flex-wrap gap-2">
         <button
           type="button"

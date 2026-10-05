@@ -514,8 +514,9 @@ describe('App — la orientacion, por panel y por gesto', () => {
     // dejaste), AC7 (el `0°` no toca las otras once) y AC9 (la línea sigue a la pieza).
     const { container } = await render(<App />);
     const linea = () => [...container.querySelectorAll('p > span')].find(e => /^\d+°/.test(e.textContent!))!;
-    // Los dos encabezados de los flotantes son `<button>` SIN `aria-label` —su nombre es su
-    // texto visible— asi que hay que filtrarlos antes de leerlo.
+    // La miniatura se reconoce por su letra con la coma: el asa y el plegado de los dos
+    // flotantes tambien llevan `aria-label` —el chasis del 052 parte cada encabezado en
+    // dos botones con nombre propio—, y los dos empiezan con el titulo del panel.
     const nombreDe = (key: string) => [...container.querySelectorAll('button')]
       .map(b => b.getAttribute('aria-label'))
       .find(n => n !== null && n.startsWith(`${key},`));
