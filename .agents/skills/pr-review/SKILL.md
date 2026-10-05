@@ -98,7 +98,8 @@ a concrete form: no test title cites the AC, or the test that cites it does not 
 
 The reverse holds too: **an AC that cannot be seen to fail is a finding about the spec.** "The
 board shows the piece" is not one; "after a drop on column 3, row 2, the cell holds piece L" is.
-Rewrite the criterion in the spec, in this PR, and check that the diff meets it. It is also a
+Rewrite the criterion in the spec, in this PR, once the person approves its old and new text
+(`.agents/rules/truth-layer.md`), and check that the diff meets it. It is also a
 correction of `to-spec`: add the rule there, per the loop in `no-debt.md`, and say so in the report.
 
 ## Step 5: Find and fix

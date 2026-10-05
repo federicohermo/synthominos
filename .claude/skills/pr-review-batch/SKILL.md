@@ -82,8 +82,9 @@ Five clauses. They go **verbatim** in the preamble:
    worse one, or skip it. Step 6 pays the conflict.
 5. **Every finding is discharged, and no discharge is an issue.** Inside your PR's scope, into your
    PR. Outside it, into its own PR from `staging`, opened by you in this run. A fix that conflicts
-   with an AC is discharged by correcting the AC in the spec. The only things you return unapplied
-   are a `BELONGS-TO-PR-<N>` and a `BLOCKED`.
+   with an AC is discharged by correcting the AC in the spec, once the person approves the old and
+   the new text (`.agents/rules/truth-layer.md`): return both as a `DECISION`. The only things you
+   return unapplied are a `BELONGS-TO-PR-<N>`, a `BLOCKED` and a `DECISION`.
 
 No agent rebases, uses `--force`, or merges. Each agent pushes with
 `git push origin HEAD:refs/heads/<headRefName>`.
@@ -144,8 +145,8 @@ differences:
 8. **Its report goes to the parent**, in 30 to 50 lines: the verdict first, blockers with
    `file:line`, `BLOCKED` items with who blocked them, `BELONGS-TO-PR-<N>` items, whether
    `pnpm verify` passed first or second, **the exact list of files it touched**, and **the SHA it
-   pushed**. Each finding returned unapplied is a `BELONGS-TO-PR-<N>` or a `BLOCKED`. There is no
-   third box.
+   pushed**. Each finding returned unapplied is a `BELONGS-TO-PR-<N>`, a `BLOCKED` or a
+   `DECISION` with the old and the new text of the AC. There is no fourth box.
 9. **It does not claim which other PRs touch its files.** It cannot know.
 
 ## Step 4: The contention protocol
@@ -183,6 +184,8 @@ The parent does not audit again. It crosses.
   runs in the main checkout with permissions an agent lacks:
   - Apply each `BLOCKED` yourself. If the hook blocked it, check the branch name first. What you
     cannot apply either makes the run fail.
+  - Ask the person each `DECISION` in one round, then apply the text the person approves in the
+    PR that found it.
   - Apply a fix the review exposed in a skill or in the repo, not in a PR. It is discharge 3 of
     `no-debt.md`, and the easiest to skip.
 - **With `--comment`**, one general comment per PR, headed by the SHA: blockers fixed, improvements
