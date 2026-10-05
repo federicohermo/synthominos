@@ -39,14 +39,6 @@ import { encolar, reiniciar } from './route-source.ts';
 /**
  * El transporte real, cableado al rol que espera `alternarTransporte`.
  *
- * Const de módulo y NO exportada, pese a la regla del repo de que los
- * módulos no declaran constantes: esa regla existe para los VALORES FIJOS que tenían que
- * coincidir en dos lados, y esto no es un valor sino el cableado de tres funciones
- * importadas de `playback/engine.ts`. Mandarlo a `constants/`, que hoy sólo tiene datos, la
- * obligaría a importar el singleton del `AudioContext`. Precedente exacto en la misma
- * capa: `route-source.ts` declara `RUTA_VACIA` y `cell-text.ts` su `memo`, los dos consts
- * de módulo y ninguno en `constants/`.
- *
  * Vive acá y no en `engine-bridge.ts` porque éste es el único módulo de la capa que importa la API
  * de transporte del motor de verdad: la pura lo recibe por parámetro justamente para no tener que
  * hacerlo.

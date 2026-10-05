@@ -37,7 +37,7 @@ Do not report what `pnpm verify` already rejects. The PR cannot be green with it
 
 | A tool checks it: do not report | No tool checks it: it is yours |
 |---|---|
-| The dependency direction between layers | The comment says why, not what |
+| The dependency direction: `mcp-server/` imports `src/`, never the reverse | The comment says why, not what |
 | The explicit `.ts`/`.tsx` extension, no barrels, no aliases | Comment and commit language, as `docs/guides/conventions.md` sets |
 | `enum`, `any`, `@ts-ignore`, `eslint-disable`, the `!` outside its overrides | A deletion sits in its own commit |
 | Global state (store packages and `createContext`) | A new value does not duplicate one that exists under another name |
@@ -137,8 +137,8 @@ one had a reason. And defect detection in review falls from 87 % under 100 lines
 | 🟡 on a line your diff adds or rewrites | yes | this PR (see below) |
 | 🟡 preexisting, in a file the PR touches | yes | this PR if the fix is small; else its own PR |
 | 🟡 in a file the PR does not touch | yes | its own PR, opened in this run |
-| 🟡 whose fix conflicts with an AC | yes, by correcting the AC | the spec, in this PR |
-| 🟡 whose fix is a redesign bigger than the PR | yes, by correcting the scope | the spec and the issue |
+| 🟡 whose fix conflicts with an AC | yes, by correcting the AC, once the person approves its old and new text (`.agents/rules/truth-layer.md`) | the spec, in this PR |
+| 🟡 whose fix is a redesign bigger than the PR | yes, by correcting the scope, once the person approves it | the spec and the issue |
 | A decision that belongs to the user | ask now, and wait | the answer, written down |
 | A fix that a tool denied | see "Blocked" | the run fails |
 

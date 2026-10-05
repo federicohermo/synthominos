@@ -59,8 +59,8 @@ and on a no-change. On success it stays: the issue is in flight until a person m
    ```
 
 5. **Read the terminal** from `.agent-runs/<run-id>/result.json`, not from the transcript, and
-   check it with `node .spec-anchored/spec-anchored.ts validate-result`. The run is done when one
-   of these holds:
+   check it with `node .spec-anchored/spec-anchored.ts validate-result .agent-runs/<run-id>/result.json`.
+   The run is done when one of these holds:
 
    | Terminal | What is true |
    |---|---|

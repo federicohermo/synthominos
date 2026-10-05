@@ -44,7 +44,7 @@ K resolve-policy <profile id | instance file>         # policy_sha256
 |---|---|
 | `run_id` | `RUN-<issue>-<UTC time>`, for example `RUN-138-20261004T2130Z` |
 | `ticket_ref` | `federicohermo/synthominos#<N>` |
-| `base_sha` | The tip of the branch when the run starts: `origin/staging` on a fresh fetch, or the spec commit in a supervised run |
+| `base_sha` | The tip of the branch when the run starts: `origin/staging` on a fresh fetch, the spec commit in a supervised run, or the tip of the branch it stacks on |
 | `spec_entrypoint` | The contract of the capability in the manifest. A change that touches only `mcp-server/` names the contract of the capability whose functions the tool runs. |
 | `spec_pinned_commit` | The commit that holds the effective contract: `origin/staging`, or the spec commit of the run's branch |
 | `spec-corpus.json` | An object: the path of each contract the plan reads, and `K canonicalize <path> --allow-hard-breaks` of it |

@@ -29,7 +29,7 @@ tester.run('comment-anchor', regla, {
     { name: 'cita viva', code: '// la geometria vive en src/pieces/transform.ts' },
     {
       // El indice empareja por BASENAME: la ruta esta mal —el archivo esta en
-      // `src/domain/constants/`— y aun asi pasa. Es la decision de diseno de la
+      // `src/pieces/`— y aun asi pasa. Es la decision de diseno de la
       // regla: lo que caza es el archivo borrado o renombrado, no el formato de
       // la ruta. Exigir la ruta exacta convertiria las 309 citas vivas en 309
       // problemas de formato.

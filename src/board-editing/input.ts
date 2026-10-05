@@ -123,8 +123,7 @@ export interface EventoDeModificador {
  *
  * Const-object y no `enum` — el `erasableSyntaxOnly` del tsconfig los rechaza, y es la
  * misma opción que permite que node cargue `src/` sin compilar. El precedente exacto
- * es `MARCA` en `route-source.ts`, y vive acá y no en `input.ts` porque los módulos
- * de este repo no declaran constantes.
+ * es `MARCA` en `route-source.ts`.
  *
  * No hay una quinta acción `no-hacer-nada`: la ausencia de acción es `null`, y eso deja
  * que el llamador use el mismo valor para decidir si hace `preventDefault` — si el

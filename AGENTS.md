@@ -32,8 +32,8 @@ src/App.tsx, main.tsx    the shell; mcp-server/ imports from src/, never the rev
 
 **The folder is the capability.** `src/circuit/` is the code of `specs/circuit/circuit.md`, and its
 generated `AGENTS.md` points there. A new file goes in the capability whose rule it implements. A
-constant or a type lives in the module that owns it. There is no layer rule: a `.tsx` exports only
-its component, so logic goes in a `.ts` module, which the `node` project tests. Detail:
+constant or a type lives in the module that owns it. There is no layer rule: a `.tsx` exports no value
+but its component, so logic goes in a `.ts` module, which the `node` project tests. Detail:
 [directory structure](./docs/architecture/directory-structure.md) · [constitution](./docs/architecture/constitution.md).
 
 ## Rules, and who verifies each

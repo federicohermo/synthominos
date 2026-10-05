@@ -187,7 +187,7 @@ the YAML does not need a change when the shape of `verify` changes. When `test` 
 list would have stayed green without the coverage gate. A local run is still worth it: you learn
 faster here than in the PR.
 
-`pnpm mcp:test` is not optional when you touch `src/` or `src/`. The server imports
+`pnpm mcp:test` is not optional when you touch `src/`. The server imports
 those modules with plain node, and an import without an extension **does not** break the app build.
 `pnpm lint` catches that case first, on the whole repo. `mcp:test` still checks that the modules
 really *load* in node.

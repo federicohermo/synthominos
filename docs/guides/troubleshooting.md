@@ -123,7 +123,7 @@ import { describe, it, expect } from 'vitest';
 Es deliberado, y **el motivo cambió con el spec 022**. Hasta ahí lo forzaba `@types/jest`, que estaba en
 el árbol declarando las mismas globales con firmas distintas; ese paquete se fue con las otras seis
 `devDependencies` huérfanas, así que hoy `globals: true` está **disponible y sin ejercer**. No se ejerce
-porque ejercerlo es sacarle el import a los 50 archivos de test y no compra nada: el import explícito
+porque ejercerlo es sacarle el import a los 62 archivos de test y no compra nada: el import explícito
 dice de dónde sale `describe`, que es lo que se pierde con las globales.
 
 ### `Failed to delete stryker temp directory`, and `node` processes that stay alive
@@ -185,7 +185,7 @@ node:internal/modules/esm/resolve:274
 ```
 
 Casi siempre es **un import sin extensión dentro de `src/`**. El server corre con node crudo, que
-necesita el `./music.constants.ts` completo; Vite resuelve igual sin la extensión, así que el error
+necesita el `./music.ts` completo; Vite resuelve igual sin la extensión, así que el error
 **no rompe la app** y solo aparece del lado del server.
 
 Es un modo de falla asimétrico y está verificado: sacándole el `.ts` a un import de `src/`, el
@@ -199,7 +199,7 @@ todo el repo, y no solo sobre lo que el server llega a importar.
 
 El server importó un `.tsx`. El type-stripping de node no transforma JSX: **`App.tsx` y los componentes
 son inalcanzables desde el server, y no es cuestión de configuración.** Si una tool necesita algo que
-hoy vive en un `.tsx`, eso tiene que bajar a `src/` primero — en su propio commit.
+hoy vive en un `.tsx`, eso tiene que salir a un módulo `.ts` primero — en su propio commit.
 
 ### El server arranca pero Claude Code no lo ve
 

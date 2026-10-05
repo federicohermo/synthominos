@@ -8,7 +8,9 @@
 #   - `mutation` takes minutes for one file and much longer for many. It runs on the files a PR
 #     changes, not on the tree.
 #
-# What each one decides is in docs/guides/verification.md.
+# Why `mutation` runs on the changed files and judges each one whole is in
+# docs/architecture/decisions/2026-10-04-mutation-judges-a-changed-file-whole.md. What `secrets`
+# and `audit` decide is in the comments of their steps below.
 name: hardening
 
 on:

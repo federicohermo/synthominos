@@ -12,10 +12,16 @@ writes it.
 |---|---|---|
 | The `to-spec` skill | A new contract, or the delta of a behavior change. It is the first commit of the branch. | The person in the session |
 | The gated amendment of a supervised run | The exact paths that the scope manifest grants in `allowed_spec_paths` | The person, who approves the fingerprint |
+| The correction of a review: discharge 2 of `no-debt.md`, in `pr-review` and `pr-review-batch` | A criterion that cannot be seen to fail, or that a right fix fights, in the PR under review | The person, who approves the exact old and new text before the edit |
 | The `review-spec-drift` skill | Nothing. It reports. | The person, for each finding |
 
 - **An orchestrated or an unattended run never writes `specs/`.** It stops with
   `SPEC_CHANGE_REQUIRED` and proposes the change in a comment on the issue.
+- **A review agent with no person in its session never writes `specs/`.** It returns the old and
+  the new text as a `DECISION`, and its parent asks the person.
+- **`specs/AGENTS.md` and `specs/__tests__/` hold no contract.** `node .agents/scripts/sync.ts`
+  writes the first from `.agents/rules/`, and the second is the spec gate. A `harness/` PR changes
+  them.
 - **`status: ratified` is a write.** A run that cites the last criterion of a contract names the
   status change in its plan, and its manifest grants the path.
 - **The code answers to the contract.** If the code fails a criterion, fix the code. If the

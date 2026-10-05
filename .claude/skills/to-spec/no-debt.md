@@ -68,6 +68,10 @@ five is yours.**
 2. **Fixed upstream, now.** The finding belonged to the contract. A fix that fights a criterion
    means **the criterion is wrong**, and it is corrected in this run, in the same PR.
 
+   **The person approves the exact old and new text before the edit.** Only the flows that
+   `.agents/rules/truth-layer.md` names write `specs/`. A run with no person to ask does not make
+   the edit: it hands both texts to whoever asks the person, and that is discharge 4.
+
    **Never the other way: the spec is not adjusted to match the code.** If the code does not meet
    a criterion, fix the code. If the criterion no longer describes the instrument, that is a
    design decision and goes through discharge 4.
