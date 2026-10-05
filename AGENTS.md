@@ -39,8 +39,10 @@ The linter, the typecheck and the gates state the rest, each with its reason.
 - **Deletions go in their own commit.**
 - **Everything written into the repo is English**, in the style of ASD-STE100. The player reads
   Spanish: the strings of the instrument are behavior.
-- **Document nothing that a reader can infer from the code**, a config or a contract. A reason goes
-  in a comment, a decision with a cost in a decision record, a trap in the troubleshooting guide.
+- **Document nothing that a reader can infer from the code**, a config or a contract. A decision
+  with a cost goes in a decision record, a trap in the troubleshooting guide.
+- **Write no comment by default.** A comment is one fact that the code cannot say, in three lines
+  at most: a trap, a constraint from outside the file, the reason for a choice that looks wrong.
 
 ## Before a change
 

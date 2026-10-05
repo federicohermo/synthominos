@@ -9,9 +9,11 @@ paths:
 These two trees are linted by `local/comment-shape` and `local/comment-anchor`. The reason for
 each check is next to its code, in `eslint-rules/`.
 
-**A comment says why, not what**: a decision, a constraint, a bug it avoids. The test is the one of
-Ousterhout: the comment is at a DIFFERENT level of abstraction from the code. `// normalized` above
-`return c` fails it. A sentence that a reader can infer from the code below is deleted.
+**Delete by default.** A comment survives only if a reader of the code, its names, its types, its
+tests and the contract would break the code or misread it without the comment: a trap, a
+constraint from outside the file, the reason for a choice that looks wrong. It is one fact, in
+three lines at most. What the code does is not a comment. A decision with a cost is a
+[decision record](../../docs/architecture/decisions/2026-10-04-a-comment-is-one-fact-in-three-lines.md).
 
 ## What each `messageId` catches
 
@@ -20,21 +22,13 @@ Ousterhout: the comment is at a DIFFERENT level of abstraction from the code. `/
 | `comment-shape` | `empty` | A comment with no body |
 | `comment-shape` | `code` | Code archived in a comment. Git keeps it, with the date and the reason. |
 | `comment-shape` | `label` | A JSX comment of six words or less with no reason word. The markup says it. |
-| `comment-shape` | `summary` | A docblock whose **first paragraph** takes more than 2 lines |
+| `comment-shape` | `long` | A comment of more than 3 lines. Blank lines and JSDoc tag lines do not count. |
 | `comment-anchor` | `dead` | A citation with the shape of a file that does not resolve against the tree |
 | `comment-anchor` | `history` | `previously`, `formerly`, `until recently`, `no longer`, `anymore`, `used to be` |
 | `comment-anchor` | `provenance` | A spec of the old regime: `spec 031`, a bare `031` used as a name, `AC6` |
 
 A run of consecutive `//` lines is **one** comment for both rules. A directive (`eslint`, `ts-`,
 `c8`) is not read.
-
-## The first paragraph of a docblock: 2 lines at most
-
-The summary is the first paragraph, up to the first blank line. It says what the thing is. What
-follows has no limit: it says why it is so.
-
-A reader with a budget of lines, a person in a hurry or an agent, knows from the first line if the
-file is the one it needs. A run of `//` is not asked for a summary.
 
 ## A citation must resolve
 
@@ -64,12 +58,6 @@ contract fits, cite it with its capability code: `AC-CIR-006`. The one table fro
 its issue is in
 [the decision](../../docs/architecture/decisions/2026-10-04-contract-per-capability.md).
 
-## What is NOT checked, and was measured
+## What is not checked
 
-- **Length and density.** 302 and 49 findings, rejected. No comment of this repo is shortened for
-  its length.
-- **A comment at the end of a line.** It is allowed: it anchors the explanation to the exact token.
-- **A ban on naming a file.** The repo these rules come from has it. Here it is the opposite.
-
-What is checked is accuracy, not length. A long and true comment is cheap. A short and rotten one
-is expensive.
+A comment at the end of a line is allowed: it anchors the reason to the exact token.

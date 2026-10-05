@@ -38,9 +38,9 @@ names those in one line, and gives in full the directives that no tool enforces.
 13. Write no comment that skips a coverage branch (`no-warning-comments`). Delete the branch or
     make it reachable. The rule reads text: a comment that spells one of its three terms fails
     too, so name the mechanism and not the term.
-14. Write a comment by [the comment rules](../../.agents/rules/comments.md). Two local lint rules
-    check accuracy, and none checks length:
-    [the decision](../architecture/decisions/2026-10-04-comment-checks-measure-accuracy-not-length.md).
+14. Write a comment by [the comment rules](../../.agents/rules/comments.md). A comment is one fact
+    the code cannot say, in three lines at most, and two local lint rules check it:
+    [the decision](../architecture/decisions/2026-10-04-a-comment-is-one-fact-in-three-lines.md).
 15. Write a commit message in the imperative, with no Conventional Commits scope. The body gives
     the reason and the root cause, not the list of files. Put a deletion in its own commit.
 
