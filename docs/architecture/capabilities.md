@@ -55,6 +55,9 @@ flowchart TD
   PNL -.-> ACC
 ```
 
+This map is written by hand: it says what passes. [The module map](./modules.md) is generated
+from the imports: it says which file reads which.
+
 A dotted line is not a request. Accessibility reads the state of the other capability and exposes
 it in the accessible tree: the orientation of each piece, the note and the step of each cell, the
 board size, the transport state and the tempo, and the controls of each panel.
