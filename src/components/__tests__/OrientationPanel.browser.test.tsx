@@ -51,7 +51,7 @@ const orientacion = (over: Partial<PropsDeOrientacion> = {}): PropsDeOrientacion
 });
 
 describe('OrientationPanel', () => {
-  it('son las doce, cada una nombrada por su letra', async () => {
+  it('son las doce, cada una nombrada por su letra y mostrandola', async () => {
     // La vuelta va por el NOMBRE ACCESIBLE y no por el `textContent` del panel. El simbolo
     // de la casilla es `aria-hidden`, para que el lector no deletree la letra dos veces, asi
     // que el texto visible que el panel expone al arbol de accesibilidad es cero: una
@@ -60,7 +60,13 @@ describe('OrientationPanel', () => {
     const { container } = await render(<OrientationPanel orientacion={orientacion()} />);
     expect(container.querySelectorAll('button').length).toBe(PIEZAS.length);
     for (const key of PIEZAS) {
-      await expect.element(page.getByRole('button', { name: new RegExp(`^${key},`) })).toBeVisible();
+      const casilla = page.getByRole('button', { name: new RegExp(`^${key},`) });
+      await expect.element(casilla).toBeVisible();
+      // Y la otra mitad, la del ojo: la letra es el simbolo de la casilla y se VE en ella. El
+      // nombre accesible no lo prueba —lo da el `aria-label`, con o sin simbolo en pantalla—.
+      const simbolo = casilla.element().querySelector('[aria-hidden="true"]');
+      expect(simbolo?.textContent, key).toBe(key);
+      expect(simbolo, key).toBeVisible();
     }
   });
 

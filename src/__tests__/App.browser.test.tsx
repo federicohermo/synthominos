@@ -1369,34 +1369,46 @@ describe('App — los dos flotantes se arrastran', () => {
     });
   });
 
-  it('052 AC6 — un arrastre que cruza el tablero no coloca, no rota y no refleja', async () => {
+  it('052 AC6 — un arrastre que cruza el tablero no coloca, no quita, no rota y no refleja', async () => {
     // El chasis flota `fixed` con `z-20` encima de la grilla, así que un gesto que lo mueve
     // pasa por arriba de celdas que responden al click, a la rueda y al botón derecho. Los
-    // dos oráculos se leen del DOM: cuántas celdas se llaman «pieza» —el fantasma no cuenta,
-    // porque una celda con fantasma se llama «libre»— y los doce nombres de las miniaturas,
-    // que dicen la rotación y la reflexión de cada pieza.
+    // dos oráculos se leen del DOM: los nombres de las celdas con pieza —el fantasma no
+    // cuenta, porque una celda con fantasma se llama «libre»— y los doce nombres de las
+    // miniaturas, que dicen la rotación y la reflexión de cada pieza.
+    //
+    // Sobre un tablero CON una pieza, y el panel se suelta ENCIMA de ella: un click sobre la
+    // pieza que está en la mano la quita, así que es el único destino donde un `click`
+    // perdido se ve. Sobre un tablero vacío, «no tocó el tablero» sólo podía fallar colocando.
     const { container } = await render(<App />);
-    const conPieza = () => celdas(container).filter(e => e.getAttribute('aria-label')!.includes('pieza')).length;
+    const medio = Math.floor(anchoDe(container) / 2);
+    await userEvent.click(celda(container, medio, 3));
+    await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
+    const conPieza = () => celdas(container)
+      .map(e => e.getAttribute('aria-label')!)
+      .filter(n => n.includes('pieza'));
     const orientaciones = () => [...container.querySelectorAll('button')]
       .map(b => b.getAttribute('aria-label'))
       .filter(n => n !== null && /^[A-Z], rotación/.test(n));
+    const colocadas = conPieza();
+    expect(colocadas).toHaveLength(SHAPES.F.length);
     const antes = orientaciones();
     expect(antes).toHaveLength(12);
 
-    // El gesto termina sobre el medio de la grilla, que es donde el chasis y el tablero
-    // comparten más superficie.
+    // El arrastre va por Playwright y no por eventos despachados a mano sobre el asa: así
+    // pasa por el hit-testing del navegador —el panel tiene que estar ENCIMA de la grilla
+    // para recibir el `pointerdown`— y termina con el `click` que un arrastre de verdad
+    // sintetiza. `force` porque el destino queda tapado por el panel que llega, que es
+    // justo el caso.
     const asa = asaDe('Piezas');
     const dock = asa.closest('aside')!;
     const cajaDelDock = dock.getBoundingClientRect();
-    const origen = asa.getBoundingClientRect();
-    const destino = celda(container, Math.floor(anchoDe(container) / 2), 3).getBoundingClientRect();
-    arrastrar(asa, destino.left - origen.left, destino.top - origen.top);
+    await userEvent.dragAndDrop(asa, celda(container, medio, 3), { force: true });
 
     // Que el gesto OCURRIÓ se afirma primero, y es lo que vuelve falseable el par de abajo:
     // un arrastre que no arranca deja el tablero intacto por el motivo equivocado.
     await vi.waitFor(() => expect(movio(dock, cajaDelDock)).not.toEqual([0, 0]));
     await new Promise(r => setTimeout(r, 30));
-    expect(conPieza()).toBe(0);
+    expect(conPieza()).toEqual(colocadas);
     expect(orientaciones()).toEqual(antes);
   });
 });
