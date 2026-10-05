@@ -6,9 +6,9 @@ argument-hint: "[a feature of features/README.md]"
 
 # verify-synthominos
 
-Prove a behavior of the instrument on the real app. The surface is one web page: a board, a
-palette of twelve pieces, a transport and a spectrum. There is no backend, no login and no stored
-state: a reload is a clean instrument.
+Prove a behavior of the instrument on the real app. The surface is one web page: a board, the dock
+with the twelve slots and the transport row, and the spectrum. There is no backend, no login and no
+stored state: a reload is a clean instrument.
 
 A proof drives the path of a player: a click, a key, the wheel. It never calls a function of
 `src/` and never sets state from the console. It records each action with the state the page shows
@@ -17,7 +17,7 @@ after it. `pnpm verify` runs the tests; this skill shows the app.
 ## Launch
 
 ```sh
-node .agents/skills/verify-synthominos/scripts/prove.mjs <feature>
+node .agents/skills/verify-synthominos/scripts/prove.ts <feature>
 ```
 
 With no URL, the script starts a Vite dev server of its own on the first free port from 5300, and
@@ -32,28 +32,30 @@ A fresh clone needs `pnpm install` and `pnpm exec playwright install chromium` f
 ## Doctor
 
 ```sh
-node .agents/skills/verify-synthominos/scripts/doctor.mjs <url>
+node .agents/skills/verify-synthominos/scripts/doctor.ts <url>
 ```
 
 Read-only. Exit 0 means the instance is this app and can be driven: the title, the board, the
-twelve pieces, the transport, and no console error. Run it first when a proof fails on its first
-step.
+twelve slots, the play button, and no console error. Exit 1 prints the check that failed, or why the
+page did not open. Run it first when a proof fails on its first step.
 
 ## Drive
 
 The handles are accessible names, and the names are Spanish: they are what the player reads.
-`scripts/app.mjs` gives them to a proof, and [the feature map](./features/README.md) says which
-ones each feature uses.
+`App` in `scripts/proofs.ts` gives them to a proof, and [the feature map](./features/README.md) says
+which ones each feature uses.
 
 | Handle | Name |
 |---|---|
 | The board | role `grid`, `Tablero de <W> por <H>`. The size depends on the viewport: read it, do not assume it. |
 | A cell | role `gridcell`, `fila <y+1>, columna <x+1>, libre` or `…, pieza <L>[ muteada], nota <N>, paso <k> de 4` |
-| A piece of the palette | role `button`, `<L>, rotación <deg>°[, reflejada]`, with `aria-pressed` |
-| The transport | buttons `Reproducir` / `Pausa`, `Recorrido en el vacío`, `Vaciar el tablero y frenar el transporte` |
+| The slot of a piece | role `button`, `<L>, rotación <deg>°[, reflejada]`, with `aria-pressed` |
+| The transport row | buttons `Reproducir` / `Pausa`, `Recorrido en el vacío`, `Vaciar el tablero y frenar el transporte` |
 | What an edit says | the `aria-live` region |
 
-To add a proof, add a function to `PROOFS` in `scripts/prove.mjs` and a file to `features/`.
+To add a proof, add a function to `PROOFS` in `.agents/scripts/proofs.ts`, its cases to
+`.agents/scripts/__tests__/proofs.test.ts`, and a file to `features/`. The scripts of this skill are
+copies: run `node .agents/scripts/sync.ts` after the change.
 
 ## Evidence
 
@@ -63,12 +65,14 @@ Each run writes `.agent-runs/verify/<time>-<feature>/`:
 - `final.png`: the page at the end.
 
 A proof passes when each step holds and the console has no error. Read the verdict from the exit
-code. Sound is proved by the spectrum canvas: it has no painted pixel until audio reaches the
-analyser. Chromium runs with `--autoplay-policy=no-user-gesture-required`, because a headless page
-has no gesture before the first click.
+code. A step that throws is a failed step, and the evidence is still written. Sound is proved by
+the spectrum: `app.litPixels()` counts its opaque pixels. A bar is opaque and the idle state is dim,
+so the count is above zero only while the instrument sounds. Chromium runs with
+`--autoplay-policy=no-user-gesture-required`, because a headless page has no gesture before the
+first click.
 
 ## Cleanup
 
-The script closes the browser and the server it started, also when a step throws. It keeps the
-evidence. It never stops a server it did not start. `.agent-runs/` is ignored by git: delete an
-old run by hand when you do not need it.
+The scripts close the browser and the server they started, also when a step throws or the page is
+not the instrument. They keep the evidence. They never stop a server they did not start.
+`.agent-runs/` is ignored by git: delete an old run by hand when you do not need it.

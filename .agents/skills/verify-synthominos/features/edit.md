@@ -2,13 +2,14 @@
 
 ## Sub-features
 
-- `Alt`+click on a placed piece mutes it, and again gives it its sound back.
-- A click on a placed piece removes it.
+- `Alt`+click on an own piece mutes it, and again gives it its sound back. An own piece is a placed
+  piece of the type in hand.
+- A click on an own piece removes it. A click on a placed piece of another type does nothing.
 - The reset button empties the board and stops the transport.
 
 ## How to get to it (user POV)
 
-Place a piece, then click it with or without `Alt`. The reset button is in the transport.
+Place a piece, then click it with or without `Alt`. The reset button is in the transport row.
 
 ## Driving it with Playwright
 

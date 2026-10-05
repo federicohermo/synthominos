@@ -15,6 +15,10 @@ export const COPIES: ReadonlyMap<string, readonly string[]> = new Map(([
   ['.agents/scripts/screenshots.ts', ['implement-feature', 'implement-batch'], 'scripts/'],
   ['.agents/scripts/clean-worktrees.ts', ['implement-batch', 'pr-review-batch'], 'scripts/'],
   ['.agents/scripts/worktrees.ts', ['implement-batch', 'pr-review-batch'], 'scripts/'],
+  ['.agents/scripts/prove.ts', ['verify-synthominos'], 'scripts/'],
+  ['.agents/scripts/doctor.ts', ['verify-synthominos'], 'scripts/'],
+  ['.agents/scripts/proofs.ts', ['verify-synthominos'], 'scripts/'],
+  ['.agents/scripts/browser.ts', ['verify-synthominos'], 'scripts/'],
 ] as const).map(([from, skills, folder]) =>
   [from, skills.map(skill => `.agents/skills/${skill}/${folder}${path.posix.basename(from)}`)]));
 

@@ -2,14 +2,16 @@
 
 ## Sub-features
 
-- With two or more pieces, the cycle visits each one and walks the cells between them.
-- The switch `Recorrido en el vacío` makes the walk over empty cells sound.
-- A walk over a placed piece sounds the note of the cell it enters.
+- With two or more pieces, the circuit visits each one, and a leg goes from one piece to the next.
+- The click switch, `Recorrido en el vacío`, makes the clicks sound: the events of a leg on a cell
+  with no note.
+- A crossing sounds the note of the placed cell that a leg enters, with the click switch on or off.
+  Over a muted piece it is a click.
 - The playhead thickens the border of the cell that sounds.
 
 ## How to get to it (user POV)
 
-Place two pieces apart, press the switch, press play.
+Place two pieces apart, press the click switch, press play.
 
 ## Driving it with Playwright
 
