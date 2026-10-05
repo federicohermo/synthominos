@@ -66,7 +66,7 @@ Vitest runs **two projects with one command**. `*.test.ts` runs in `environment:
 `*.budget.test.ts` runs alone in a third project, `budget`, at the end of `verify`. **None runs
 in jsdom**, and this is not pending work. jsdom does not implement Web Audio, and it gives no 2D
 canvas, `ResizeObserver` or `matchMedia`. To cover `Spectrum.tsx` with it, a test would have to mock
-the exact code it wants to cover. The six components, `App.tsx` and the two hooks have tests: see
+the exact code it wants to cover. The six components, `App.tsx` and the three hooks have tests: see
 [the tests section](./architecture/directory-structure.md#tests).
 
 ---
