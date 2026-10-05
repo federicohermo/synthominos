@@ -39,8 +39,7 @@ export interface CheckResult {
 const PIECES = Object.keys(SHAPES) as PieceKey[];
 const REGIMENES: RegimenDeRotacion[] = Object.values(REGIMEN);
 
-/** `rotate90` gives `-0`, and to add 0 makes it `+0`. */
-const sameCell = (a: Cell, b: Cell): boolean => a[0] + 0 === b[0] + 0 && a[1] + 0 === b[1] + 0;
+const sameCell = (a: Cell, b: Cell): boolean => a[0] === b[0] && a[1] === b[1];
 
 const result = (name: string, failures: string[]): CheckResult =>
   ({ name, ok: failures.length === 0, failures });
@@ -172,19 +171,17 @@ export function checkNotes(): CheckResult {
     );
   }
   for (const p of PIECES) {
+    const enEscala = notesForRotation(BASE_MAP[p], DEFAULT_OCTAVE, 0, REGIMEN.escala);
     for (const regimen of REGIMENES) {
       const referencia = notesForRotation(BASE_MAP[p], DEFAULT_OCTAVE, 0, regimen);
 
       // The shift check below is relative to rotation 0, so a uniform shift passes it. This one
       // fixes rotation 0.
-      if (regimen === REGIMEN.orden) {
-        const enEscala = notesForRotation(BASE_MAP[p], DEFAULT_OCTAVE, 0, REGIMEN.escala);
-        if (referencia.join() !== enEscala.join()) {
-          failures.push(
-            `${p} rot0: the two regimes must give the same notes at rotation 0 ` +
-            `(escala ${enEscala.join(',')} vs orden ${referencia.join(',')})`,
-          );
-        }
+      if (referencia.join() !== enEscala.join()) {
+        failures.push(
+          `${p} rot0: the two regimes must give the same notes at rotation 0 ` +
+          `(escala ${enEscala} vs orden ${referencia})`,
+        );
       }
 
       for (const rot of ROTATIONS) {
@@ -195,11 +192,11 @@ export function checkNotes(): CheckResult {
         if (new Set(ns).size !== ns.length) failures.push(`${p} rot${rot} [${regimen}]: has a repeated note`);
 
         if (regimen === REGIMEN.escala) {
-          for (let i = 1; i < ns.length; i++) {
-            if (ns[i] <= ns[i - 1]) {
-              failures.push(`${p} rot${rot} [${regimen}]: note ${i} (${ns[i]}) is not above the note before it (${ns[i - 1]})`);
+          ns.slice(1).forEach((nota, i) => {
+            if (nota <= ns[i]) {
+              failures.push(`${p} rot${rot} [${regimen}]: note ${i + 1} (${nota}) is not above the note before it (${ns[i]})`);
             }
-          }
+          });
         } else {
           const desplazamiento = referencia.indexOf(ns[0]);
           if (desplazamiento < 0) {
@@ -223,15 +220,10 @@ export function checkNotes(): CheckResult {
   return result('notes', failures);
 }
 
-/** `+ 0` turns the `-0` of `rotate90` into `0`: the two serialize differently. */
 function canonicalKey(cells: Cell[]): string {
-  const variantes: string[] = [];
-  for (const rot of ROTATIONS) {
-    for (const mirror of [false, true]) {
-      const t = transformShape(cells, rot, mirror);
-      variantes.push(t.map(([x, y]) => `${x + 0},${y + 0}`).sort().join(' '));
-    }
-  }
+  const variantes = ROTATIONS.flatMap(rot => [false, true].map(mirror =>
+    transformShape(cells, rot, mirror).map(([x, y]) => `${x},${y}`).sort().join(),
+  ));
   return variantes.sort()[0];
 }
 
