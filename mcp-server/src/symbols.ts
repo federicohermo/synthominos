@@ -10,7 +10,7 @@ import { join, relative, posix } from 'node:path';
  * paso de build y no hay `generatedAt`. Cada llamada parsea `src/` de nuevo desde
  * disco, asi que la respuesta es HEAD en el momento de preguntar. Se puede porque
  * medirlo dio, sobre los 36 + 16 archivos de entonces, 112 ms en frio y ~50 ms
- * despues. Hoy el indice son 70 archivos mas 17 que solo aportan aristas; el dia
+ * despues. Hoy el indice son 72 archivos mas 17 que solo aportan aristas; el dia
  * que eso duela, la respuesta es cachear por mtime, no generar un artefacto que
  * alguien tenga que regenerar.
  *
