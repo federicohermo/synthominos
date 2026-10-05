@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import path from 'node:path';
-import { DOCTOR_USAGE, PROVE_USAGE, doctor, prove, settle, type App, type ProveSystem, type Spot, type Step } from '../proofs.ts';
+import { DOCTOR_USAGE, PROVE_USAGE, doctor, prove, settle, type App, type Mark, type ProveSystem, type Spot, type Step } from '../proofs.ts';
 
 /** A reading: the next value of a list, whose last value repeats, or a function of the actions so far. */
 type Reads = Record<string, unknown[] | ((calls: readonly string[]) => unknown)>;
@@ -41,6 +41,7 @@ function fakeApp(reads: Reads, options: FakeOptions = {}) {
     cellName: (x, y) => next(`name ${x},${y}`),
     announced: () => next('announced'),
     litPixels: () => next('lit'),
+    playhead: () => next('playhead'),
     key: key => act(`key ${key}`),
     wheel: deltaY => act(`wheel ${deltaY}`),
     blur: () => act('blur'),
@@ -110,9 +111,30 @@ const KEYBOARD: Reads = {
   'count button Reproducir': [1],
 };
 
-const SCRIPTS: Record<string, Reads> = { 'place-and-play': PLACE_AND_PLAY, orientation: ORIENTATION, edit: EDIT, keyboard: KEYBOARD };
+const ON_T: Mark = { cell: 'fila 3, columna 4, pieza T, nota D5, paso 4 de 4', outer: true };
+const ON_L: Mark = { cell: 'fila 6, columna 7, pieza L, nota D4, paso 0 de 4', outer: true };
+const ON_LEG: Mark = { cell: 'fila 7, columna 7, libre', outer: false };
 
-describe('the four proofs drive the path of a player', () => {
+/** No playhead before play and after pause. Between them, one mark for each wait, and the last one repeats. */
+function playheadOf(...marks: (Mark | null)[]) {
+  return (calls: readonly string[]) => {
+    if (!calls.includes('click button Reproducir') || calls.includes('click button Pausa')) return null;
+    return marks[Math.min(calls.filter(call => call === 'wait 50').length, marks.length - 1)];
+  };
+}
+
+const CIRCUIT: Reads = {
+  'name 2,3': ['fila 4, columna 3, pieza T, nota G4, paso 1 de 4'],
+  'name 6,3': ['fila 4, columna 7, pieza L, nota F#4, paso 2 de 4'],
+  'button Recorrido en el vacío aria-pressed': ['true'],
+  playhead: playheadOf(null, ON_T, ON_L, ON_LEG),
+};
+
+const SCRIPTS: Record<string, Reads> = {
+  'place-and-play': PLACE_AND_PLAY, orientation: ORIENTATION, edit: EDIT, keyboard: KEYBOARD, circuit: CIRCUIT,
+};
+
+describe('each proof drives the path of a player', () => {
   it.each([
     ['place-and-play', ['click piece T', 'click cell 4,4', 'wait 100', 'click button Reproducir', 'click button Pausa']],
     ['orientation', [
@@ -124,6 +146,10 @@ describe('the four proofs drive the path of a player', () => {
       'click cell 6,3', 'click cell 6,3', 'click button Vaciar el tablero y frenar el transporte',
     ]],
     ['keyboard', ['key w', 'click cell 3,3', 'blur', 'key Space', 'key Space']],
+    ['circuit', [
+      'click piece T', 'click cell 2,3', 'click piece L', 'click cell 6,3', 'click button Recorrido en el vacío',
+      'click button Reproducir', 'wait 50', 'wait 50', 'wait 50', 'click button Pausa',
+    ]],
   ])('%s passes when the page shows what the player expects', async (feature, actions) => {
     const { app, calls } = fakeApp(copy(SCRIPTS[feature]));
     const { sys, record } = fakeSystem(app);
@@ -146,6 +172,15 @@ describe('the four proofs drive the path of a player', () => {
     ['edit', 'the second placement fails', { 'name 6,3': [MUTED, L, FREE, FREE, FREE] }, 'place it again'],
     ['edit', 'reset leaves the piece', { 'name 6,3': [MUTED, L, FREE, L, L] }, 'press reset'],
     ['keyboard', 'the space bar does nothing', { 'count button Pausa': [0] }, 'press the space bar'],
+    ['circuit', 'the first piece is not placed', { 'name 2,3': ['fila 4, columna 3, libre'] }, 'place T and L apart'],
+    ['circuit', 'the second piece is not placed', { 'name 6,3': ['fila 4, columna 7, libre'] }, 'place T and L apart'],
+    ['circuit', 'the click switch stays off', { 'button Recorrido en el vacío aria-pressed': ['false'] }, 'press the click switch'],
+    ['circuit', 'a paused board shows a playhead', { playhead: [ON_T, ON_T, ON_L, ON_LEG, null] }, 'read the playhead before play'],
+    ['circuit', 'the playhead never reaches the piece T', { playhead: playheadOf(ON_L, ON_LEG) }, 'see the playhead on the piece T'],
+    ['circuit', 'the playhead never reaches the piece L', { playhead: playheadOf(ON_T, ON_LEG) }, 'see the playhead on the piece L'],
+    ['circuit', 'the playhead never leaves the pieces', { playhead: playheadOf(ON_T, ON_L) }, 'see the playhead on a free cell of a leg'],
+    ['circuit', 'a leg cell takes the mark of a note', { playhead: playheadOf(ON_T, ON_L, { ...ON_LEG, outer: true }) }, 'see the playhead on a free cell of a leg'],
+    ['circuit', 'the playhead stays after pause', { playhead: [null, ON_T, ON_L, ON_LEG] }, 'press pause'],
   ])('%s fails when %s', async (feature, _, fault, step) => {
     const { app } = fakeApp({ ...copy(SCRIPTS[feature]), ...fault });
     const { sys, record } = fakeSystem(app);
@@ -155,7 +190,7 @@ describe('the four proofs drive the path of a player', () => {
 });
 
 describe('prove', () => {
-  it.each([[[]], [['circuit']], [['edit', 'http://localhost:5173/', 'extra']]])('rejects %j with 2 and starts nothing', async args => {
+  it.each([[[]], [['chords']], [['edit', 'http://localhost:5173/', 'extra']]])('rejects %j with 2 and starts nothing', async args => {
     const { sys, err, launch, opened } = fakeSystem(fakeApp({}).app);
     expect(await prove(args, sys)).toBe(2);
     expect(err).toEqual([PROVE_USAGE]);

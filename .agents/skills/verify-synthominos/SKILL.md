@@ -52,6 +52,7 @@ which ones each feature uses.
 | The slot of a piece | role `button`, `<L>, rotación <deg>°[, reflejada]`, with `aria-pressed` |
 | The transport row | buttons `Reproducir` / `Pausa`, `Recorrido en el vacío`, `Vaciar el tablero y frenar el transporte` |
 | What an edit says | the `aria-live` region |
+| The playhead | no name. `app.playhead()` reads the cell under it. |
 
 To add a proof, add a function to `PROOFS` in `.agents/scripts/proofs.ts`, its cases to
 `.agents/scripts/__tests__/proofs.test.ts`, and a file to `features/`. The scripts of this skill are

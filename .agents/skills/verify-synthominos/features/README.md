@@ -9,4 +9,4 @@ when the file lists others.
 | [Orient a piece](./orientation.md) | `orientation` | pieces, panels |
 | [Mute, remove, reset](./edit.md) | `edit` | board-editing, accessibility |
 | [Keyboard](./keyboard.md) | `keyboard` | board-editing, accessibility |
-| [The circuit between pieces](./circuit.md) | none yet | circuit, playback |
+| [The circuit between pieces](./circuit.md) | `circuit` | circuit, playback |
