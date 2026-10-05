@@ -117,7 +117,8 @@ No comment skips it.
 it to a pure `.ts` module of its capability. That is the conversation coverage forces, and it keeps
 the instrument testable.
 
-**The test project follows the suffix.** `*.browser.test.tsx` runs in Chromium; everything else
+**The test project follows the suffix.** `*.browser.test.tsx` runs in Chromium,
+`*.budget.test.ts` runs alone in `budget`, and everything else
 runs in `node`. A change you can see is measured in the DOM of a browser test
 (`getComputedStyle`, a `Range` on the text node), not by looking.
 
