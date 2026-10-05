@@ -3,43 +3,42 @@ import type { PieceKey } from '../pieces/pieces.ts';
 import type { CellText } from '../musical-model/cell-text.ts';
 import type { Edicion } from '../board-editing/input.ts';
 
-// El ULTIMO paso, no cuantos hay: los pasos van de 0 a 4 y el nombre dice ese rango tal
-// cual, sin renumerar. Es la regla que `Board.tsx` ya tiene escrita para el `#N` que
-// pinta en la esquina -- "el paso va como el indice que devuelve el dominio (0..4) y sin
-// renumerar: lo que se lee en la celda es exactamente lo que responden los tests y el
-// `playOrder` del MCP server" -- y el nombre accesible NO puede desviarse: desde el spec
-// 026 el `title` es el eco del nombre, asi que renumerar aca dejaria a la celda mostrando
-// `#0` mientras el tooltip y el lector de pantalla dicen "paso 1". Dos canales diciendo
-// numeros distintos del mismo dato es exactamente lo que el repo evita.
+// The LAST step, not the count of steps: the steps go from 0 to 4 and the name says that
+// range as it is, with no renumbering. `Board.tsx` has the same rule for the `#N` it draws
+// in the corner: the step is the index that the domain gives (0..4), and what the cell
+// shows is exactly what the tests and the `playOrder` of the MCP server answer. The
+// accessible name CANNOT differ: the `title` is the echo of the name, so a renumbering
+// here leaves the cell with `#0` while the tooltip and the screen reader say "paso 1".
+// Two channels that give different numbers for the same datum is exactly what the repo
+// prevents.
 //
-// Vive como constante de modulo para que `cellNameFor` no repita el literal sin decir por que existe.
+// It is a module constant so that `cellNameFor` does not repeat the literal with no reason.
 const ULTIMO_PASO = 4;
 
-// La coordenada dicha en voz, contada desde 1 y sin parentesis — el argumento completo
-// esta en el docblock de `cellNameFor`, abajo. Vive como funcion de modulo porque la usan
-// los DOS textos que salen de este archivo: el nombre de la celda y el anuncio de la
-// edicion. Escrita dos veces serian dos formas de que el lector de pantalla cuente las
-// filas distinto segun lo que este anunciando.
+// The coordinate as speech, counted from 1 and with no parentheses. The full argument is
+// in the docblock of `cellNameFor`, below. It is a module function because the TWO texts
+// of this file use it: the cell name and the announcement of the edit. Written twice, the
+// screen reader could count the rows in two ways, one for each text.
 const coordenada = (x: number, y: number) => `fila ${y + 1}, columna ${x + 1}`;
 
 /**
- * Lo que una celda OCUPADA le aporta a su nombre accesible: la pieza, si esta muteada, y
- * su `CellText` -paso y nota-.
+ * What an OCCUPIED cell adds to its accessible name: the piece, whether it is muted, and
+ * its `CellText`, the step and the note.
  *
- * Ese `CellText` lo calculo `Board.tsx` para esa celda puntual, encadenando `occupantAt` +
+ * `Board.tsx` calculates that `CellText` for that one cell, with the chain `occupantAt` +
  * `occupantCellIndex` + `cellTextFor`.
  *
- * Los tres campos viajan juntos, en un solo objeto, y no como dos parametros
- * sueltos (`occupant: PlacedPiece | null` + `cell: CellText | null`) por lo que
- * pasa si se separan: una celda ocupada SIEMPRE tiene texto -`occupantAt` ya
- * garantizo que la pieza cubre la celda, asi que `occupantCellIndex` nunca da -1-,
- * asi que "ocupada pero sin texto" no es un cuarto caso del dominio, es un cuarto
- * caso que la FIRMA inventaria por su cuenta. `cellNameFor` tendria que decidir que
- * decir ahi sin que ese estado exista nunca del otro lado, que es la misma clase de
- * problema por la que `PlacedPiece.muted` es obligatorio y no `muted?: boolean`
- * (ver su doc en `board-editing/placement.ts`): una firma mas permisiva que la
- * realidad es una rama de codigo que ningun llamador real va a ejercer, y que
- * igual hay que mantener en 100% de cobertura inventandole un test.
+ * The three fields travel together, in one object, and not as two separate parameters
+ * (`occupant: PlacedPiece | null` + `cell: CellText | null`). The reason is what happens
+ * when they are apart. An occupied cell ALWAYS has text: `occupantAt` already guarantees
+ * that the piece covers the cell, so `occupantCellIndex` never gives -1. So "occupied but
+ * with no text" is not a fourth case of the domain. It is a fourth case that the
+ * SIGNATURE would invent. `cellNameFor` would have to decide what to say there, and that
+ * state never exists on the other side. It is the same class of problem that makes
+ * `PlacedPiece.muted` required and not `muted?: boolean` (see its doc in
+ * `board-editing/placement.ts`): a signature more permissive than reality is a branch
+ * that no real caller reaches, and that still needs an invented test to stay at 100%
+ * coverage.
  */
 export interface CeldaOcupada {
   readonly piece: PieceKey;
@@ -48,76 +47,67 @@ export interface CeldaOcupada {
 }
 
 /**
- * El nombre accesible de una celda del tablero: lo que anuncia un lector de
- * pantalla cuando el foco entra en el `gridcell` de `Board.tsx`.
+ * The accessible name of a board cell: what a screen reader announces when the focus
+ * enters the `gridcell` of `Board.tsx`.
  *
- * ## Por que vive en `accessibility/cell-name.ts` y no adentro de `Board.tsx`
+ * ## Why it lives in `accessibility/cell-name.ts` and not inside `Board.tsx`
  *
- * Mismo motivo que `cell-text.ts`, documentado ahi con el mismo detalle:
- * `react-refresh/only-export-components` prohibe que un `.tsx` exporte algo
- * ademas del componente, asi que una funcion pura escrita adentro de `Board.tsx`
- * no se puede importar desde un test y por lo tanto no se puede testear. Sacarla
- * a un `.ts` es lo unico que la deja bajo test -este archivo cubre las 96
- * orientaciones x los dos estados de muteo x la celda libre con un test de nodo,
- * sin Chromium y sin montar un solo componente.
+ * For the same reason as `cell-text.ts`, which documents it in the same detail:
+ * `react-refresh/only-export-components` forbids a `.tsx` to export anything but the
+ * component. So a test cannot import a pure function written inside `Board.tsx`, and
+ * cannot test it. A `.ts` file is the only way to put it under test: a node test covers
+ * the free cell, the occupied cell and the muted cell, with no Chromium and no mounted
+ * component.
  *
- * ## La firma: coordenada + el objeto ya armado, no `placed` de nuevo
+ * ## The signature: the coordinate + the object already built, not `placed` again
  *
- * Recibe `x`, `y` y `CeldaOcupada | null` -lo que `Board.tsx` YA tiene calculado
- * en el punto donde hoy arma el `title`- y no `placed: PlacedPiece[]` para volver
- * a llamar `occupantAt` adentro. Repetir esa cadena aca seria la SEGUNDA copia de
- * la misma derivacion, que es exactamente el error que este repo ya saco de
- * `cellsByPlayOrder` y de `Board.tsx` (ver el doc de `cellTextFor` en
- * `cell-text.ts`): dos lugares que calculan lo mismo son dos lugares que se
- * pueden desincronizar, y el bug del `#N` reflejado vivio ahi durante un spec
- * entero sin que ningun test lo viera.
+ * It takes `x`, `y` and `CeldaOcupada | null`, which `Board.tsx` ALREADY has at the point
+ * where it builds the `title`. It does not take `placed: PlacedPiece[]` to call
+ * `occupantAt` again inside. That chain repeated here would be the SECOND copy of the
+ * same derivation (see the doc of `cellTextFor` in `cell-text.ts`): two places that
+ * calculate the same thing are two places that can go out of sync. A copy of that kind
+ * gave a wrong `#N` on a reflected piece, and no test saw it.
  *
- * ## El fantasma NO entra, y por que la firma alcanza para garantizarlo
+ * ## The ghost does NOT enter, and why the signature is enough to guarantee it
  *
- * El fantasma es TRANSITORIO -depende de donde esta el cursor, no de que hay
- * colocado- y un nombre accesible que cambiara con el hover haria que el lector
- * de pantalla anunciara una celda distinta de la que realmente es: el foco no se
- * movio, pero el nombre si. El `title` de hoy si lo muestra -es un tooltip de
- * mouse, no algo que un lector de pantalla anuncie por foco- y eso se queda
- * igual; el nombre accesible no.
+ * The ghost is TRANSIENT: it depends on where the pointed cell is, not on what is placed.
+ * An accessible name that changes with the pointed cell would make the screen reader
+ * announce a cell different from the real one: the focus did not move, but the name did.
+ * The `title` does show the ghost: it is a mouse tooltip, not something a screen reader
+ * announces on focus. The accessible name does not.
  *
- * La exclusion no es un `if` que el llamador tiene que acordarse de escribir: es
- * estructural. En `Board.tsx:212` el fantasma solo puebla la variable `cell`
- * (via `ghostIndex`), nunca `occ` -`occ` sale unicamente de `occupantAt(placed,
- * x, y)`, que no sabe nada del cursor-. Como `CeldaOcupada` exige los tres campos
- * juntos y `occ` es lo unico que puede dar `piece`/`muted`, no hay forma de
- * construir un `CeldaOcupada` a partir de solo el fantasma: el llamador que arme
- * el argumento con la celda del fantasma **no tiene de donde sacar el resto** sin
- * inventarlo. La celda con fantasma y sin ocupante real sigue pasando `null`, que
- * es exactamente el mismo camino que una celda libre sin fantasma -y es correcto
- * que lo sea: para el arbol de accesibilidad las dos son "todavia no hay nada
- * colocado aca".
+ * The exclusion is not an `if` that the caller must remember to write: it is structural.
+ * In `Board.tsx` the ghost fills only the variable `cell` (through `ghostIndex`), never
+ * `occ`. `occ` comes only from `occupantAt(placed, x, y)`, which knows nothing of the
+ * pointed cell. `CeldaOcupada` requires the three fields together, and `occ` is the only
+ * source of `piece` and `muted`. So a `CeldaOcupada` cannot be built from the ghost
+ * alone: a caller that builds the argument from the ghost cell **has no source for the
+ * rest** and would have to invent it. A cell with a ghost and no real occupant still
+ * passes `null`, the same path as a free cell with no ghost. That is correct: for the
+ * accessible tree, both are "nothing is placed here yet".
  *
- * ## Prosa y no notacion
+ * ## Prose and not notation
  *
- * `(3,2)` se lee raro -un lector de pantalla dice "parentesis, tres, coma, dos,
- * parentesis" o se lo salta entero segun el motor-, asi que fila y columna se
- * cuentan desde 1 (persona, no indice) y van en frases separadas por comas, sin
- * parentesis ni signos. Mismo idioma que el de las miniaturas en
- * `OrientationPanel.tsx` -`"F, rotación 90°, reflejada"`-: una lista de hechos
- * dicha en voz, con el estado que aplica pegado al sustantivo que modifica
- * (`"reflejada"` ahi, `"muteada"` aca) en vez de un campo aparte. La letra de la
- * pieza se dice tal cual, sin deletrearla, siguiendo el mismo precedente.
+ * `(3,2)` reads badly: a screen reader says "parenthesis, three, comma, two,
+ * parenthesis" or skips it, depending on the engine. So the row and the column are
+ * counted from 1 (for a person, not an index) and go in phrases separated by commas,
+ * with no parentheses and no signs. It is the same language as the slot names in
+ * `OrientationPanel.tsx`, `"F, rotación 90°, reflejada"`: a list of facts as speech, with
+ * the state attached to the noun it modifies (`"reflejada"` there, `"muteada"` here) and
+ * not in a separate field. The piece letter is said as it is, not spelled out, after the
+ * same precedent.
  *
- * "Libre" y no "vacía" para la celda sin ocupante: es la palabra que ya usa el
- * comentario de `Board.tsx` para la misma celda ("no se confunde con una celda
- * libre porque una celda libre no tiene texto"), y reusarla evita que el tablero
- * tenga dos nombres para el mismo estado -uno en el comentario, otro en lo que
- * anuncia el lector de pantalla-.
+ * "libre" and not "vacía" for the cell with no occupant: the contract and the comments
+ * of `Board.tsx` call this cell free. One word avoids two names for the same state, one
+ * in the code and one in what the screen reader announces.
  *
- * El paso se dice `paso N de 4` y NO renumerado a `de 1 a 5`: el numero es el
- * indice del dominio, el mismo que la celda pinta como `#N` y el mismo que
- * responden los tests y el `playOrder` del MCP server. Desde este spec el `title`
- * es el eco del nombre, asi que renumerar aca dejaria a la celda mostrando `#0`
- * mientras el tooltip y el lector de pantalla dicen "paso 1" — dos canales
- * diciendo numeros distintos del mismo dato. El `de 4` es lo que agrega sobre el
- * `title` de hoy: sin el total, una persona que no ve el tablero no sabe si el
- * paso 4 es el ultimo o si faltan seis mas.
+ * The step is said as `paso N de 4` and NOT renumbered to `de 1 a 5`: the number is the
+ * index of the domain, the one the cell draws as `#N` and the one the tests and the
+ * `playOrder` of the MCP server answer. The `title` is the echo of the name, so a
+ * renumbering here leaves the cell with `#0` while the tooltip and the screen reader say
+ * "paso 1": two channels that give different numbers for the same datum. The `de 4` is
+ * what the name adds to the `title`: without the total, a person who does not see the
+ * board cannot tell whether step 4 is the last one or six more follow.
  */
 export function cellNameFor(x: number, y: number, occupied: CeldaOcupada | null): string {
   if (!occupied) return `${coordenada(x, y)}, libre`;
@@ -127,43 +117,41 @@ export function cellNameFor(x: number, y: number, occupied: CeldaOcupada | null)
 }
 
 /**
- * Lo que anuncia la region `aria-live` del shell despues de una edicion del tablero:
- * colocar, quitar o mutear.
+ * What the `aria-live` region of the shell announces after an edit of the board: place,
+ * remove or mute.
  *
- * Son las tres unicas cosas que cambian el tablero.
+ * These are the only three things that change the board.
  *
- * ## Por que sale de aca y no de una cadena escrita en `App.tsx`
+ * ## Why it comes from here and not from a string written in `App.tsx`
  *
- * Porque el anuncio y el nombre de la celda dicen la MISMA coordenada, y escrita en dos
- * archivos son dos formas de que se desincronicen — una contando las filas desde 0 y la
- * otra desde 1, o una diciendo `(3,2)` y la otra "fila 3, columna 4". Las dos salen de
- * `coordenada`, arriba. Y por lo mismo que `cellNameFor` no vive adentro de `Board.tsx`:
- * en un `.tsx` esto no se puede exportar, o sea que no se puede testear, y lo que un
- * lector de pantalla va a decir es exactamente el tipo de decision que se rompe en
- * silencio.
+ * Because the announcement and the cell name say the SAME coordinate, and written in two
+ * files they can go out of sync: one counts the rows from 0 and the other from 1, or one
+ * says `(3,2)` and the other "fila 3, columna 4". The two come from `coordenada`, above.
+ * It is also the reason why `cellNameFor` does not live inside `Board.tsx`: a `.tsx`
+ * cannot export this, so no test can reach it, and what a screen reader says is exactly
+ * the kind of decision that breaks in silence.
  *
- * ## `edicion` es la MISMA union que decide el gesto
+ * ## `edicion` is the SAME union that decides the gesture
  *
- * Es `Edicion`, la que devuelve `accionDeClick` — no un verbo suelto. Asi el anuncio no
- * puede describir una edicion que el tablero no hace, y una quinta edicion futura da
- * error de tipo aca en vez de quedarse muda. Las cuatro ramas de `EDICION` caen en tres
- * frases: `colocar` y `colocarMuteada` comparten la suya porque lo que las separa —si la
- * pieza suena— ya lo dice `muteada`.
+ * It is `Edicion`, the one `accionDeClick` returns, not a free verb. So the announcement
+ * cannot describe an edit that the board does not do. The four branches of `EDICION`
+ * fall into three phrases: `colocar` and `colocarMuteada` share theirs because what
+ * separates them, whether the piece sounds, is already said by `muteada`.
  *
- * ## `muteada` es el estado en el que la pieza QUEDA
+ * ## `muteada` is the state in which the piece ENDS
  *
- * No el que tenia. Del lado del shell sale de la misma variable que se guarda en
- * `PlacedPiece.muted`, asi que el anuncio no puede prometer un muteo distinto del que el
- * tablero acaba de aplicar. `quitar` no lo dice —la pieza se fue, y lo que hace falta
- * saber es cual y de donde—, pero igual lo recibe: pedirle al llamador que decida
- * cuando el campo importa seria mover esta misma decision al shell, que es de donde este
- * archivo la vino a sacar.
+ * Not the one it had. In the shell it comes from the same variable that is stored in
+ * `PlacedPiece.muted`, so the announcement cannot promise a mute different from the one
+ * the board applies. `quitar` does not say it: the piece is gone, and what matters is
+ * which piece and from where. But it still receives it: to ask the caller to decide when
+ * the field matters would move this same decision to the shell, and this file exists to
+ * take it out of there.
  *
- * ## "con sonido" y no "desmuteada"
+ * ## "con sonido" and not "desmuteada"
  *
- * Es lo que se recupera, no la deshecha de una operacion: la palabra tiene que decir en
- * que estado quedo la pieza, no que boton se apreto. Mismo criterio que "libre" arriba —
- * el nombre del estado, no el del gesto.
+ * It is what the piece gets back, not the undoing of an operation: the word must say in
+ * which state the piece ends, not which button was pressed. The same criterion as "libre"
+ * above: the name of the state, not the name of the gesture.
  */
 export function anuncioDeEdicion(
   edicion: Edicion, piece: PieceKey, x: number, y: number, muteada: boolean,

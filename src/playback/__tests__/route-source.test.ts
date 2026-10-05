@@ -9,20 +9,21 @@ import type { PieceKey } from '../../pieces/pieces.ts';
 import type { PlacedPiece } from '../../board-editing/placement.ts';
 
 /**
- * `route-source.ts` es donde vive AC9 —que la cabeza dibuje el circuito que SUENA y no
- * el que esta encolado—.
+ * `route-source.ts` holds BR-PLY-018: the playhead draws the sequence that SOUNDS, not
+ * the queued one.
  *
- * Es una maquina de estados con dos colas, un
- * contador ajeno y un velo que se recalcula en los dos bordes. Nada de eso lo mira
- * `pnpm verify` si no se lo testea: el modulo no tiene tipos que lo aten y su unico
- * consumidor es un loop de `requestAnimationFrame`, que no corre en los tests.
+ * It is a state machine with a sounding sequence and a queued one, a counter that belongs
+ * to the engine, and a veil that is computed again at two moments: when a sequence is
+ * queued and at the swap. `pnpm verify` sees none of that without these tests: no type
+ * ties the module, and its only consumer is a `requestAnimationFrame` loop, which the
+ * `node` tests do not run.
  *
- * El motor va mockeado porque la unica pieza suya que este modulo usa es
- * `cycleGeneration()`, un numero. Importar el `engine.ts` real arrastraria el
- * singleton del AudioContext para leer un contador.
+ * The engine is mocked because this module uses one part of it: `cycleGeneration()`, a
+ * number. An import of the real `engine.ts` would bring the singleton of the AudioContext
+ * to read a counter.
  *
- * El estado es de MODULO, asi que cada test lo reimporta con `vi.resetModules()`: sin
- * eso el orden de los tests seria parte del oraculo.
+ * The state belongs to the MODULE, so each test imports it again with
+ * `vi.resetModules()`: otherwise the order of the tests would be part of the oracle.
  */
 const motor = vi.hoisted(() => ({ generacion: 0 }));
 vi.mock('../engine.ts', () => ({ cycleGeneration: () => motor.generacion }));
@@ -36,7 +37,7 @@ beforeEach(async () => {
   rs = await import('../route-source.ts');
 });
 
-/** La cadena de colocacion completa, igual a la de `App.tsx` y a `sequence.test.ts`. */
+/** The full placement chain, the same as in `App.tsx` and in `sequence.test.ts`. */
 const colocar = (piece: PieceKey, rot: number, mirror: boolean, x: number, y: number, muted = false): PlacedPiece => {
   const base = rotateN(SHAPES[piece], rot);
   const shape = mirror ? reflect(base) : base;
@@ -50,10 +51,10 @@ const colocar = (piece: PieceKey, rot: number, mirror: boolean, x: number, y: nu
   };
 };
 
-/** Encola el tablero por el mismo camino que `playback/use-engine.ts`: una `buildSequence`, dos colas. */
+/** Queues the board by the same path as `playback/use-engine.ts`: one `buildSequence`, two queues. */
 const encolarTablero = (placed: readonly PlacedPiece[]): void => rs.encolar(buildSequence(placed, REGIMEN.escala, GRID_DEFAULT), placed);
 
-/** Lo que hace el motor al cerrar un ciclo: subir el contador. */
+/** What the engine does when a new sounding sequence starts: it raises the counter. */
 const cerrarCiclo = (): void => { motor.generacion++; };
 
 const clave = (c: readonly number[]): string => `${c[0]},${c[1]}`;
@@ -63,32 +64,28 @@ const UNA = [colocar('F', 0, false, 2, 2)];
 const DOS = [colocar('F', 0, false, 2, 2), colocar('L', 0, true, 7, 1)];
 
 /**
- * Un tablero cuyo recorrido cruza celdas OCUPADAS fuera del turno de su pieza —[2,1],
- * [1,2] y [1,1] de la `X`, siendo [1,1] su centro—.
+ * A board whose circuit enters OCCUPIED cells outside the turn of their piece: [2,1],
+ * [1,2] and [1,1] of the `X`, where [1,1] is its center.
  *
- * Esos cruces suenan una floritura
- * (`Click.note`, 69 = A4, 71 = B4 y 76 = E5). Verificado corriendo `buildSequence`
- * sobre este mismo tablero: son tres de sus cuatro clicks, y el cuarto cae en una celda
- * vacia.
+ * Those crossings sound the note of the cell (`Click.note`: 69 = A4, 71 = B4 and
+ * 76 = E5). Checked with a run of `buildSequence` on this board: they are three of its
+ * four clicks, and the fourth falls on an empty cell.
  *
- * ## Por que cambio de tablero
+ * ## Why this board
  *
- * El que estaba —`X`(4,2) + `F`(3,4) + `I`(5,0)— se eligio porque la `X` era el caso
- * ESTRUCTURAL: su celda central estaba rodeada por sus cuatro brazos y era siempre una
- * de sus dos puertas, asi que entrar a ella cruzaba si o si, por mucho que subiera
- * `CROSS_COST`. Esa propiedad venia del mapeo del 007 —el centro se llevaba el grado 0—
- * y **la perdio**: con el arpegio recorriendo la pieza, la `X` entra por un
- * brazo y sale por el opuesto. Ese tablero pasa a tener CERO cruces y este test se
- * habria quedado vacio en silencio, que es exactamente contra lo que su guarda existe.
+ * The arpeggio walks the piece, so the circuit enters the `X` by one arm and leaves by
+ * the opposite arm: a board with an `X` is not sure to cross its center. The board
+ * `X`(4,2) + `F`(3,4) + `I`(5,0) has ZERO crossings, and a test on it would pass on
+ * nothing. The guard of this test exists against exactly that.
  *
- * El de ahora depende de `CROSS_COST`: rodear la `X` es posible y cuesta mas. Si alguien
- * mueve la constante, la guarda de abajo —"exactamente tres clicks traen `note`"— falla
- * en rojo en vez de dejar el test sin nada que recorrer.
+ * This board depends on `CROSS_COST`: the way around the `X` is possible and costs more.
+ * If someone changes the constant, the guard below ("exactly three clicks carry `note`")
+ * fails. Otherwise the test would have nothing to iterate and would pass.
  */
 const CON_CRUCE = [colocar('X', 0, false, 1, 1), colocar('F', 0, false, 3, 2), colocar('N', 0, false, 2, 4)];
 
-describe('la ruta activa es la que suena, no la encolada', () => {
-  it('AC-PLY-031 — encolar no cambia lo que la cabeza dibuja: hace falta que el motor cierre el ciclo', () => {
+describe('the drawn sequence is the one that sounds, not the queued one', () => {
+  it('AC-PLY-031 — to queue does not change what the playhead draws: the engine must report the swap', () => {
     encolarTablero(UNA);
     expect(rs.rutaActiva()).toEqual([]);
 
@@ -96,13 +93,13 @@ describe('la ruta activa es la que suena, no la encolada', () => {
     expect(rs.rutaActiva()).not.toEqual([]);
   });
 
-  it('AC-PLY-031 — durante la espera sigue vigente el circuito VIEJO, entero', () => {
+  it('AC-PLY-031 — during the wait the OLD sequence stays, whole', () => {
     encolarTablero(UNA);
     cerrarCiclo();
     const vieja = [...rs.rutaActiva()];
 
-    // Se encola un tablero distinto —otra pieza, otro circuito, otro largo— y hasta
-    // el borde la cabeza tiene que seguir recorriendo el anterior.
+    // A different board is queued (another piece, another circuit, another length), and
+    // up to the boundary the playhead must still follow the old one.
     encolarTablero(DOS);
     expect(rs.rutaActiva()).toEqual(vieja);
 
@@ -112,9 +109,9 @@ describe('la ruta activa es la que suena, no la encolada', () => {
     expect(nueva).toHaveLength(buildSequence(DOS, REGIMEN.escala, GRID_DEFAULT).length);
   });
 
-  it('quitar una pieza tampoco la apaga antes de que deje de sonar', () => {
-    // El cruce con `placed` queda CONGELADO junto con la ruta: si el loop mirara el
-    // tablero en vivo, la pieza quitada se apagaria a mitad de ciclo.
+  it('a removed piece does not go dark before it stops sounding', () => {
+    // The join with `placed` is FROZEN together with the route: if the loop read the live
+    // board, the removed piece would go dark in the middle of the cycle.
     encolarTablero(DOS);
     cerrarCiclo();
     const conLas2 = rs.rutaActiva();
@@ -127,75 +124,77 @@ describe('la ruta activa es la que suena, no la encolada', () => {
     expect([...celdasL].every((c) => dibujadas().has(c))).toBe(true);
   });
 
-  it('la generacion se sincroniza aunque no haya pendiente', () => {
-    // Si un swap del motor sin contraparte aca dejara el contador atrasado, el
-    // proximo encolar entraria en vigencia al cuadro siguiente en vez de esperar su
-    // borde — que es justo lo que AC9 prohibe.
+  it('the generation is synchronized also when no sequence is queued', () => {
+    // If a swap of the engine with no counterpart here left the counter behind, the next
+    // queued sequence would take effect in the next frame and would not wait for its
+    // boundary. BR-PLY-018 forbids exactly that.
     cerrarCiclo();
     expect(rs.rutaActiva()).toEqual([]);
 
     encolarTablero(UNA);
-    expect(rs.rutaActiva()).toEqual([]);   // todavia no: le falta SU borde
+    expect(rs.rutaActiva()).toEqual([]);   // not yet: ITS boundary has not come
 
     cerrarCiclo();
     expect(rs.rutaActiva()).not.toEqual([]);
   });
 });
 
-describe('la tabla por offset', () => {
-  it('cada offset trae la celda que suena en el, con la nota separada del click', () => {
+describe('the table by offset', () => {
+  it('each offset gives the cell that sounds at it, with the note apart from the click', () => {
     encolarTablero(DOS);
     cerrarCiclo();
     const marcas = rs.rutaActiva();
     const s = buildSequence(DOS, REGIMEN.escala, GRID_DEFAULT);
 
-    // Las notas: la celda de `notes[j]` sale de la pura del dominio, no de aca.
+    // The notes: the cell of `notes[j]` comes from the pure function of the circuit, not
+    // from this module.
     for (const step of s.steps) {
       const pieza = DOS.find((p) => p.id === step.pieceId);
       const celdas = cellsByPlayOrder(pieza!);
       for (let j = 0; j < celdas.length; j++) {
-        expect(marcas[step.offset + j], `paso ${step.pieceId} nota ${j}`)
+        expect(marcas[step.offset + j], `step ${step.pieceId} note ${j}`)
           .toEqual({ cell: celdas[j], kind: MARCA.nota });
       }
     }
 
-    // Los clicks: la celda la trae la propia secuencia (D5 — la UI no calcula caminos).
-    // Ninguno de `DOS` cruza una celda ocupada, asi que los 8 son click mudo (MARCA.click).
+    // The clicks: the sequence itself carries the cell, because the UI computes no paths.
+    // No click of `DOS` enters an occupied cell, so the 8 are clicks with no note
+    // (MARCA.click).
     expect(s.clicks.length).toBeGreaterThan(0);
     expect(s.clicks.every((c) => c.note === undefined)).toBe(true);
     for (const c of s.clicks) expect(marcas[c.offset]).toEqual({ cell: c.cell, kind: MARCA.click });
 
-    // Y no hay agujeros ni sobrantes: el ciclo del recorrido esta cubierto entero.
+    // And there are no holes and no extras: the cycle of the sequence is covered whole.
     expect(marcas).toHaveLength(s.length);
     expect(marcas.filter((m) => m === null)).toEqual([]);
   });
 
-  it('con una sola pieza no hay clicks que dibujar', () => {
+  it('with one piece alone there are no clicks to draw', () => {
     encolarTablero(UNA);
     cerrarCiclo();
     const marcas = rs.rutaActiva();
-    // El ciclo mide 5 y el arpegio ocupa 5: el ultimo intervalo es el silencio con el
-    // que el ciclo vuelve a empezar contiguo, no un click.
+    // The cycle is 5 intervals and the arpeggio takes 5: the cycle starts again with no
+    // click between its end and its start.
     expect(marcas.filter((m) => m?.kind === MARCA.click)).toEqual([]);
     expect(marcas.filter((m) => m?.kind === MARCA.nota)).toHaveLength(5);
   });
 
-  it('un tablero vacio no deja marcas', () => {
+  it('an empty board leaves no marks', () => {
     encolarTablero([]);
     cerrarCiclo();
     expect(rs.rutaActiva()).toEqual([]);
     expect(rs.velo()).toEqual([]);
   });
 
-  it('un click sobre celda ocupada suena floritura y se marca MARCA.cruce', () => {
+  it('a click on an occupied cell sounds its note and is marked MARCA.cruce', () => {
     encolarTablero(CON_CRUCE);
     cerrarCiclo();
     const marcas = rs.rutaActiva();
     const s = buildSequence(CON_CRUCE, REGIMEN.escala, GRID_DEFAULT);
 
-    // Guarda del propio test: exactamente TRES de los clicks traen `note` (dos brazos de
-    // la `X` y su centro) y el resto no. Si esto dejara de ser cierto, los dos `for` de
-    // abajo podrian quedarse sin nada que recorrer y el test pasaria vacio.
+    // A guard of the test itself: exactly THREE of the clicks carry `note` (two arms of
+    // the `X` and its center) and the others do not. If that stopped being true, the two
+    // `for` loops below could have nothing to iterate and the test would pass on nothing.
     const conNota = s.clicks.filter((c) => c.note !== undefined);
     const sinNota = s.clicks.filter((c) => c.note === undefined);
     expect(conNota).toHaveLength(3);
@@ -206,25 +205,25 @@ describe('la tabla por offset', () => {
   });
 });
 
-describe('el velo de lo que todavia no sono', () => {
-  it('AC-PLY-034 — la pieza encolada va sin offset, y despues del swap con el intervalo en que estrena', () => {
+describe('the veil of what has not sounded yet', () => {
+  it('AC-PLY-034 — the queued piece has no offset, and after the swap each cell has the interval where it first sounds', () => {
     encolarTablero(UNA);
-    // Encolada y sin ciclo que la contenga: no hay instante que esperar, solo el swap.
+    // Queued, with no cycle that holds it: there is no instant to wait for, only the swap.
     expect(rs.velo().map((e) => e.offset)).toEqual([null, null, null, null, null]);
     expect(claves(rs.velo().map((e) => e.cell))).toEqual(claves(UNA[0].cells));
 
     cerrarCiclo();
     rs.rutaActiva();
 
-    // Ya entro al ciclo: ahora cada celda sabe CUANDO le toca, que es lo que hace
-    // visible que el orden de reproduccion no es el de colocacion.
+    // It has entered the cycle: each cell now knows WHEN its turn comes. That makes
+    // visible that the play order is not the placement order.
     const s = buildSequence(UNA, REGIMEN.escala, GRID_DEFAULT);
     const paso = s.steps[0];
     const celdas = cellsByPlayOrder(UNA[0]);
     expect(rs.velo()).toEqual(celdas.map((cell, j) => ({ id: 'F', cell, offset: paso.offset + j })));
   });
 
-  it('AC-PLY-034 — la que ya sonaba no vuelve al velo cuando entra otra', () => {
+  it('AC-PLY-034 — the piece that already sounded does not return to the veil when another enters', () => {
     encolarTablero(UNA);
     cerrarCiclo();
     rs.rutaActiva();
@@ -233,19 +232,19 @@ describe('el velo de lo que todavia no sono', () => {
     cerrarCiclo();
     rs.rutaActiva();
 
-    // Solo estrena la `L`: la `F` ya venia sonando, y volver a taparla leeria como que
-    // el tablero entero arranca de nuevo en cada swap.
+    // Only the `L` is new: the `F` already sounded, and to cover it again would read as
+    // if the whole board started again at each swap.
     expect(new Set(rs.velo().map((e) => e.id))).toEqual(new Set(['L']));
     expect(claves(rs.velo().map((e) => e.cell))).toEqual(claves(DOS[1].cells));
   });
 
-  it('la IDENTIDAD del array es la senal de cambio, y solo cambia en los dos bordes', () => {
-    // El loop de dibujo compara por referencia 60 veces por segundo: si el array se
-    // recreara en cada lectura, rearmaria los nodos del velo en cada cuadro.
+  it('the IDENTITY of the array is the change signal, and it changes only on a queue and at the swap', () => {
+    // The draw loop compares by reference 60 times each second: if each read created the
+    // array again, the loop would rebuild the nodes of the veil in each frame.
     encolarTablero(UNA);
     const alEncolar = rs.velo();
     expect(rs.velo()).toBe(alEncolar);
-    rs.rutaActiva();                      // sin cambio de generacion no pasa nada
+    rs.rutaActiva();                      // with no change of generation nothing happens
     expect(rs.velo()).toBe(alEncolar);
 
     cerrarCiclo();
@@ -254,34 +253,34 @@ describe('el velo de lo que todavia no sono', () => {
   });
 });
 
-describe('la cabeza recorre la pieza muteada, con el borde del click', () => {
+describe('the playhead walks the muted piece, with the border of the click', () => {
   const MUTEADA = [colocar('F', 0, false, 2, 2, true), colocar('L', 0, true, 7, 1)];
 
-  it('AC-PLY-033 — sus cinco celdas siguen marcadas, pero con MARCA.click y no MARCA.nota', () => {
-    // Sigue ocupando ese tiempo: la cabeza no puede saltearla, o el recorrido se leeria
-    // mas corto de lo que dura. Lo que cambia es el borde, y cambia porque lo que suena
-    // ahi ES un click — no es un efecto colateral de que las marcas se armen de
-    // `s.clicks`, es la razon por la que armarlas de ahi es correcto.
+  it('AC-PLY-033 — its five cells keep their marks, but with MARCA.click and not MARCA.nota', () => {
+    // It still takes that time: the playhead cannot skip it, or the cycle would read
+    // shorter than it lasts. What changes is the border, and it changes because what
+    // sounds there IS a click. That is not a side effect of the marks that come from
+    // `s.clicks`: it is the reason that source is correct.
     encolarTablero(MUTEADA);
     cerrarCiclo();
     const marcas = rs.rutaActiva();
     const celdas = cellsByPlayOrder(MUTEADA[0]);
     const s = buildSequence(MUTEADA, REGIMEN.escala, GRID_DEFAULT);
 
-    // Sin `Step` para la pieza muteada: sus celdas entran por la rama de los clicks.
+    // No `Step` for the muted piece: its cells enter through the branch of the clicks.
     expect(s.steps.map((st) => st.pieceId)).toEqual(['L']);
     for (let j = 0; j < celdas.length; j++) {
-      expect(marcas[j], `celda ${j}`).toEqual({ cell: celdas[j], kind: MARCA.click });
+      expect(marcas[j], `cell ${j}`).toEqual({ cell: celdas[j], kind: MARCA.click });
     }
-    // Y el ciclo sigue cubierto entero.
+    // And the cycle is still covered whole.
     expect(marcas).toHaveLength(s.length);
     expect(marcas.filter((m) => m === null)).toEqual([]);
   });
 
-  it('AC-PLY-035 — la pieza muteada no tiene velo de estreno, y la otra si', () => {
-    // Decision (a) del spec: el velo dice "esto todavia no sono", y una pieza muteada no
-    // va a sonar nunca. Atenuarla hasta que le "toque" prometeria algo que no pasa, y
-    // ademas la opacidad ya esta ocupada diciendo eso.
+  it('AC-PLY-035 — the muted piece has no veil, and the other piece has one', () => {
+    // The veil says "this has not sounded yet", and a muted piece will never sound. To
+    // dim it until its "turn" would promise something that does not occur. Also, the
+    // opacity is already taken to say that.
     encolarTablero(MUTEADA);
     cerrarCiclo();
     rs.rutaActiva();
@@ -290,28 +289,28 @@ describe('la cabeza recorre la pieza muteada, con el borde del click', () => {
 });
 
 /**
- * El velo huerfano, y su mitad que NO hay que arreglar.
+ * The orphan veil, and the half of it that must NOT be fixed.
  *
- * Este modulo avanza solo cuando `cycleGeneration()` sube, y ese contador lo mueve el
- * reloj. Con el transporte parado nada avanza, pero `encolar` igual recomputa el velo
- * leyendo `activa` y `estrenando` congelados: sin el reinicio, el Reset dejaria las cinco
- * celdas de una pieza borrada dibujadas sobre un tablero vacio.
+ * This module moves forward only when `cycleGeneration()` goes up, and the clock moves
+ * that counter. With the transport paused nothing moves forward, but `encolar` still
+ * computes the veil from the frozen `activa` and `estrenando`: without the reset, the
+ * five cells of a deleted piece would stay drawn on an empty board.
  *
- * El transporte no llega hasta aca —este modulo no sabe si el reloj corre—, asi que lo
- * unico que separa los dos tests de abajo es si hubo ORDEN explicita de volver a cero.
- * Que sea eso y no el estado del reloj es justamente la decision: `reiniciar()` lo llama
- * el Reset y nadie mas.
+ * The transport does not reach this module: it does not know whether the clock runs. So
+ * the only difference between the tests below is whether there was an explicit ORDER to
+ * return to zero. That it is the order, and not the state of the clock, is the decision:
+ * the reset calls `reiniciar()` and nobody else does.
  */
-describe('el reinicio es una orden, no una consecuencia', () => {
-  it('AC-PLY-036 — tras el Reset el velo queda vacio aunque el reloj este parado', () => {
+describe('the reset is an order, not a consequence', () => {
+  it('AC-PLY-036 — after the reset the veil is empty, also with the clock stopped', () => {
     encolarTablero(UNA);
     cerrarCiclo();
     rs.rutaActiva();
     expect(rs.velo()).toHaveLength(CELLS_PER_PIECE);
 
-    // El orden es el del shell: `resetBoard` da la orden y el efecto de reconciliacion
-    // reencola el tablero ya vacio en el render siguiente. Al reves tambien tiene que
-    // dar vacio, pero este es el que ocurre.
+    // The order is the one of the shell: `resetBoard` gives the order, and the
+    // reconciliation effect queues the empty board in the next render. The reverse order
+    // must give an empty veil too, but this is the order that occurs.
     rs.reiniciar();
     encolarTablero([]);
 
@@ -319,38 +318,39 @@ describe('el reinicio es una orden, no una consecuencia', () => {
     expect(rs.velo()).toEqual([]);
   });
 
-  it('el reinicio no adelanta el swap: la generacion se sincroniza, no vuelve a cero', () => {
-    // Si `reiniciar()` pusiera la generacion en 0 estando el motor en 1, el proximo
-    // cuadro veria una diferencia que no existe y estrenaria la pendiente FUERA del
-    // borde del ciclo — la misma mentira que `cycleGen` evita no reseteandose nunca.
+  it('the reset does not bring the swap forward: the generation is synchronized, it does not return to zero', () => {
+    // If `reiniciar()` set the generation to 0 with the engine at 1, the next frame would
+    // see a difference that does not exist and would start the queued sequence OUTSIDE
+    // the cycle boundary. `cycleGen` never resets, to prevent the same lie.
     encolarTablero(UNA);
     cerrarCiclo();
     rs.rutaActiva();
 
     rs.reiniciar();
     encolarTablero(UNA);
-    expect(rs.rutaActiva()).toEqual([]);   // todavia no: le falta SU borde
+    expect(rs.rutaActiva()).toEqual([]);   // not yet: ITS boundary has not come
 
     cerrarCiclo();
     expect(rs.rutaActiva()).not.toEqual([]);
-    // Y estrena entera: despues del reinicio nada "ya venia sonando".
+    // And the whole piece is veiled: after the reset nothing "already sounded".
     expect(new Set(rs.velo().map((e) => e.id))).toEqual(new Set(['F']));
   });
 
-  it('AC-PLY-037 — quitar la ultima pieza NO reinicia nada: el ciclo activo termina (D5 del 009)', () => {
+  it('AC-PLY-037 — removing the last piece does NOT reset anything: the sounding cycle ends', () => {
     encolarTablero(UNA);
     cerrarCiclo();
     const sonando = rs.rutaActiva();
     expect(sonando).toHaveLength(buildSequence(UNA, REGIMEN.escala, GRID_DEFAULT).length);
 
-    // Quitar es una EDICION del tablero: no hay orden de volver a cero, asi que hasta el
-    // borde la cabeza sigue recorriendo lo que suena y el velo sigue diciendo que a esas
-    // celdas todavia no les toco. Limpiar aca seria apagar una pieza que sigue sonando.
+    // To remove a piece is an EDIT of the board: there is no order to return to zero. So
+    // up to the boundary the playhead still follows what sounds, and the veil still says
+    // that those cells have not had their turn. To clear here would turn off a piece that
+    // still sounds.
     encolarTablero([]);
     expect(rs.rutaActiva()).toBe(sonando);
     expect(claves(rs.velo().map((e) => e.cell))).toEqual(claves(UNA[0].cells));
 
-    // Recien el cierre del ciclo la apaga, y ahi si el velo se vacia solo.
+    // Only the cycle boundary turns it off, and then the veil empties by itself.
     cerrarCiclo();
     expect(rs.rutaActiva()).toEqual([]);
     expect(rs.velo()).toEqual([]);
@@ -358,48 +358,49 @@ describe('el reinicio es una orden, no una consecuencia', () => {
 });
 
 /**
- * El unico camino por el que `construir` puede recibir un paso sin pieza, y el unico por
- * el que `porPieza` puede no tener una entrada que `ids` si tiene.
+ * The only path by which `construir` can get a step with no piece, and the only one by
+ * which `porPieza` can lack an entry that `ids` has.
  *
- * Su comentario en el fuente dice «no puede pasar», y con el shell de hoy es cierto: el
- * `useMemo` deriva la secuencia de `placed` y el hook entrega las dos juntas en el mismo
- * efecto. Pero la guarda no es decorativa y su comportamiento esta ELEGIDO —«el silencio
- * es preferible a la mentira, porque una celda equivocada se lee como que el modelo esta
- * mal»—, asi que la eleccion se verifica en vez de darse por buena: se llama a `encolar`
- * con las dos cosas desfasadas, que es exactamente lo que un refactor del shell podria
- * producir sin avisar.
+ * The comment in the source says that this cannot occur, and with the shell of today
+ * that is true: the `useMemo` derives the sequence from `placed`, and the hook gives the
+ * two together in the same effect. But the guard has a CHOSEN behavior: silence is better
+ * than a lie, because a wrong cell reads as a wrong model. So this test checks the
+ * choice: it calls `encolar` with the two out of step, which is what a refactor of the
+ * shell could cause with no warning.
  *
- * Los tres caminos que abre son el mismo desfasaje visto desde tres lugares: el `continue`
- * de `construir`, y los dos `?? []` de `recomputarVelo` —uno del lado de lo pendiente y
- * otro del lado de lo activo, porque el velo se recalcula en los dos bordes—.
+ * The three paths it opens are the same mismatch seen from three places: the `continue`
+ * of `construir`, and the two `?? []` of `recomputarVelo`. One is on the queued side and
+ * the other on the sounding side, because the veil is computed at the two moments.
  */
-describe('un paso cuya pieza no esta en el tablero', () => {
-  it('queda a oscuras en vez de dibujar una celda inventada, y no arrastra al resto', () => {
-    // La secuencia conoce a las dos piezas; el tablero que se entrega, a una sola.
+describe('a step whose piece is not on the board', () => {
+  it('stays dark and draws no invented cell, and does not affect the other pieces', () => {
+    // The sequence knows the two pieces. The board that is given knows only one.
     const seq = buildSequence(DOS, REGIMEN.escala, GRID_DEFAULT);
     const pasoF = seq.steps.find((st) => st.pieceId === 'F')!;
     const pasoL = seq.steps.find((st) => st.pieceId === 'L')!;
     rs.encolar(seq, [DOS[0]]);
 
-    // Borde 1 — el velo de lo ENCOLADO no inventa celdas para la pieza ausente.
+    // Moment 1, on the queue: the veil of the QUEUED sequence invents no cells for the
+    // missing piece.
     expect(rs.velo().some((e) => e.id === 'L')).toBe(false);
     expect(rs.velo().some((e) => e.id === 'F')).toBe(true);
 
     cerrarCiclo();
     const marcas = rs.rutaActiva();
 
-    // Los cinco offsets de la pieza que falta quedan en null: la cabeza los cruza a
-    // oscuras. Es el silencio del docblock, y es observable.
+    // The five offsets of the missing piece stay null: the playhead crosses them in the
+    // dark. This is the silence that the docblock describes, and it can be observed.
     for (let j = 0; j < CELLS_PER_PIECE; j++) {
       expect(marcas[pasoL.offset + j], `offset ${pasoL.offset + j}`).toBeNull();
     }
-    // Y la pieza que si estaba se dibuja entera: el desfasaje no la contagia.
+    // And the piece that is on the board is drawn whole: the mismatch does not spread
+    // to it.
     for (let j = 0; j < CELLS_PER_PIECE; j++) {
       expect(marcas[pasoF.offset + j]?.kind, `offset ${pasoF.offset + j}`).toBe(MARCA.nota);
     }
 
-    // Borde 2 — despues del swap, la pieza ausente entra a `estrenando` porque `ids` la
-    // lista, y aun asi no aporta una sola celda al velo.
+    // Moment 2, after the swap: the missing piece enters `estrenando` because `ids` lists
+    // it, and still it gives no cell to the veil.
     expect(new Set(rs.velo().map((e) => e.id))).toEqual(new Set(['F']));
   });
 });

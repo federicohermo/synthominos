@@ -3,44 +3,41 @@ import type { PieceKey } from '../pieces/pieces.ts';
 import { centroid, angleFromCentroid, pathThroughCells } from '../pieces/transform.ts';
 
 /**
- * El modelo musical: de una clase de altura, una rotacion y un REGIMEN, a cinco notas
- * MIDI.
+ * The musical model: from a pitch class, a rotation and a REGIME, to five MIDI notes.
  *
- * Que hace la rotacion es una de dos y se elige: con el regimen `escala`
- * elige la formula de escala —rotar cambia QUE NOTAS suena la pieza y no toca el
- * orden—, y con `orden` corre ciclicamente el arpegio sobre una pentatonica mayor fija
- * —rotar cambia POR DONDE ARRANCA y deja el material quieto—. Las dos son decisiones de
- * diseno del instrumento y no datos: por eso el mapeo vive aca y las formulas en
- * las constantes `PENT_*` de este mismo archivo.
+ * What the rotation does is one of two things, and the regime selects it. In the scale
+ * regime (`escala`) the rotation selects the scale formula: it changes WHICH NOTES the
+ * piece sounds and not their order. In the order regime (`orden`) it shifts the arpeggio
+ * cyclically on a fixed major pentatonic: it changes WHERE THE ARPEGGIO STARTS and not
+ * the material. The two are design decisions of the instrument and not data, so the
+ * mapping is here, and the formulas are the `PENT_*` constants of this file.
  *
- * Los dos existen a la vez porque cual de las dos reglas vuelve al instrumento mas
- * expresivo no es una pregunta que se conteste en el papel: tenerlos juntos construye la
- * comparacion para poder decidirla escuchando, y el regimen viaja como PARAMETRO justo
- * para que retirar el que pierda sea borrar una rama y no desenredarla. Medido, los dos
- * difieren en 36 de las 48 combinaciones de pieza x rotacion y coinciden exactamente en
- * las 12 de rotacion 0.
+ * The two exist together because the question of which rule makes the instrument more
+ * expressive has no answer on paper. To have them together builds the comparison, so
+ * that the ear can decide. The regime travels as a PARAMETER so that to remove the loser
+ * is to delete one branch and not to untangle it. Measured: the two differ in 36 of the
+ * 48 combinations of piece x rotation, and are exactly equal in the 12 at rotation 0.
  */
 
 /**
- * Que hace la rotacion: cambiar la ESCALA o cambiar el ORDEN.
+ * What the rotation does: it changes the SCALE or it changes the ORDER.
  *
- * Ver `REGIMEN`, en este mismo archivo, que es donde estan los dos valores y
- * el porque de que existan los dos.
+ * See `REGIMEN` in this file for the two values and the reason the two exist.
  *
- * Derivado del const-object y no un `enum`: `erasableSyntaxOnly` rechaza los enums, y
- * es la misma opcion que permite que node cargue `src/` sin compilar. Es el
- * mismo patron que `HitKind` sobre `HIT` y `MarcaKind` sobre `MARCA` — un conjunto
- * cerrado se escribe una sola vez, como valores, y el tipo se deriva.
+ * It is derived from the const object and is not an `enum`: `erasableSyntaxOnly` rejects
+ * an enum, and that same option lets node load `src/` with no build. It is the same
+ * pattern as `HitKind` over `HIT` and `MarcaKind` over `MARCA`: a closed set is written
+ * once, as values, and the type is derived.
  *
- * Viaja como PARAMETRO por todo el modelo —`notesForRotation`, `arpeggioFor`,
- * `noteAtCell`, `buildSequence`— y nunca como global: el repo no tiene estado global,
- * y el regimen es estado de `App.tsx` como el tempo. Eso es tambien lo que hace que
- * retirar uno de los dos, cuando se decida cual se queda, sea borrar una rama en vez
- * de desenredar un singleton.
+ * It travels as a PARAMETER through all the model (`notesForRotation`, `arpeggioFor`,
+ * `noteAtCell`, `buildSequence`) and never as a global: the repo has no global state, and
+ * the regime is state of `App.tsx`, like the tempo. That also makes the removal of one of
+ * the two, when the choice is made, the deletion of one branch and not the untangling of
+ * a singleton.
  */
 export type RegimenDeRotacion = (typeof REGIMEN)[keyof typeof REGIMEN];
 
-/** Las 12 clases de altura, en orden. El indice ES la clase de altura. */
+/** The 12 pitch classes, in order. The index IS the pitch class. */
 export const CHROMATIC = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'] as const;
 
 export const PENT_MAJOR: number[] = [0,2,4,7,9];
@@ -48,102 +45,101 @@ export const PENT_MINOR: number[] = [0,3,5,7,10];
 export const PENT_BLUES5: number[] = [0,3,5,6,7];
 
 /**
- * Los dos regimenes de rotacion: QUE cambia la rotacion.
+ * The two regimes of rotation: WHAT the rotation changes.
  *
- * - `escala` — el de siempre: elige entre las cuatro formulas de arriba, o sea que
- *   rotar cambia QUE NOTAS suena la pieza y no toca el orden.
- * - `orden` — la pentatonica mayor SIEMPRE, corrida `rot` posiciones: rotar cambia
- *   POR DONDE ARRANCA el arpegio y no toca el material.
+ * - `escala`: selects one of four formulas, built on the constants above. A rotation
+ *   changes WHICH NOTES the piece sounds and not their order.
+ * - `orden`: ALWAYS the major pentatonic, shifted `rot` positions. A rotation changes
+ *   WHERE THE ARPEGGIO STARTS and not the material.
  *
- * Existen los dos a la vez porque la pregunta —cual de las dos reglas vuelve al
- * instrumento mas expresivo— no se contesta en el papel: el spec construye la
- * comparacion para poder decidirla escuchando, y sacar el que pierda es borrar una
- * rama de `notesForRotation`.
+ * The two exist together because the question (which of the two rules makes the
+ * instrument more expressive) has no answer on paper. The two regimes build the
+ * comparison so that the ear can decide, and to remove the loser is to delete one branch
+ * of `notesForRotation`.
  *
- * La formula fija de `orden` es la pentatonica mayor y no otra, y eso es lo que hace
- * la comparacion AUDITABLE (D2): es la formula de la rotacion 0 en `escala`, asi que
- * a 0° los dos regimenes suenan identicos y divergen a medida que se rota. Con
- * cualquier otra formula fija los dos sistemas no se tocarian en ningun punto y
- * comparar seria comparar dos instrumentos distintos.
+ * The fixed formula of `orden` is the major pentatonic and no other, and that makes the
+ * comparison AUDITABLE: it is the formula of rotation 0 in `escala`, so at 0° the two
+ * regimes sound the same, and they diverge as the piece turns. With any other fixed
+ * formula the two systems would meet at no point, and the comparison would be of two
+ * different instruments.
  *
- * Const-object y no `enum`: `erasableSyntaxOnly` los rechaza, y es la misma opcion que
- * permite que node cargue `src/` sin compilar —de lo que viven el MCP server y
- * las mediciones del research—. El union type derivado es `RegimenDeRotacion`, en este mismo archivo.
+ * A const object and not an `enum`: `erasableSyntaxOnly` rejects an enum, and that same
+ * option lets node load `src/` with no build, which the MCP server needs. The derived
+ * union type is `RegimenDeRotacion`, in this file.
  */
 export const REGIMEN = { escala: 'escala', orden: 'orden' } as const;
 
 /**
- * El regimen con el que abre la app (AC11): `escala`, o sea que sin tocar nada el
- * instrumento suena como sonaba.
+ * The regime the app opens with: `escala`.
  *
- * Es el default del ESTADO de `App.tsx` y nunca un default de parametro: las funciones
- * del dominio piden el regimen sin valor por omision a proposito, para que un llamador
- * que se lo olvide falle en el typecheck en vez de recibir el regimen viejo en silencio
- * —son 36 de las 48 combinaciones las que difieren—. Mismo criterio que `dur` y `rel`
- * en `scheduleVoice`.
+ * It is the default of the STATE of `App.tsx` and never a default of a parameter. The
+ * functions of the domain take the regime with no default value on purpose: a caller that
+ * forgets it fails the typecheck, and does not get one regime in silence. The two differ
+ * in 36 of the 48 combinations. It is the same criterion as `dur` and `rel` in
+ * `scheduleVoice`.
  */
 export const DEFAULT_REGIMEN = REGIMEN.escala;
 
 /**
- * Notas que dispara una pieza: las cuatro formulas son pentatonicas.
+ * The notes that a piece fires: the four formulas are pentatonic.
  *
- * Coincide con `CELLS_PER_PIECE` y **tiene que coincidir**, no es una coincidencia: son 5
- * notas porque la escala es pentatonica y 5 celdas porque la pieza es un pentomino, y
- * `degreeByCellIndex` empareja las dos listas para que cada celda tenga su nota.
+ * It is equal to `CELLS_PER_PIECE` and it **must be**, not by chance: 5 notes because the
+ * scale is pentatonic and 5 cells because the piece is a pentomino, and
+ * `degreeByCellIndex` pairs the two lists so that each cell has its note.
  *
- * Una formula de 4 notas dejaria una celda sin nota —`ascendente[4]` seria
- * `undefined`, y `midiName` de eso no explota: devuelve `undefinedNaN` y lo
- * pinta en la celda— y una de 6 dejaria una nota que ninguna celda dispara.
+ * A formula of 4 notes would leave a cell with no note: `ascending[4]` would be
+ * `undefined`, and `midiName` of that does not throw. It returns `undefinedNaN`, and the
+ * cell paints it. A formula of 6 would leave a note that no cell fires.
  *
- * Lo verifica `checkNotes()` de `invariants.ts`, que es donde tiene que estar:
- * escrito solo aca es una afirmacion, no una red.
+ * `checkNotes()` of `invariants.ts` verifies it, and that is where it must be: written
+ * only here, it is a statement and not a net.
  */
 export const NOTES_PER_PIECE = 5;
 
 /**
- * Pieza → clase de altura de su tonica (F→C, I→C#, … Z→B).
+ * Piece → pitch class of its tonic (F→C, I→C#, … Z→B).
  *
- * Tipado `Record<PieceKey, number>` y no `as const`: agregar una pieza sin darle
- * tonica pasa a ser error de compilacion.
+ * It is typed `Record<PieceKey, number>` and not `as const`: a piece added with no tonic
+ * is a compile error.
  *
- * Cuidado con la colision de nombres: la PIEZA `F` suena con tonica C; la nota F
- * le corresponde a la pieza `T`.
+ * Take care with the name collision: the PIECE `F` sounds with the tonic C, and the note
+ * F belongs to the piece `T`.
  */
 export const BASE_MAP: Record<PieceKey, number> = {
   F:0, I:1, L:2, N:3, P:4, T:5, U:6, V:7, W:8, X:9, Y:10, Z:11,
 };
 
-/** Octava en la que se construye el arpegio de una pieza. */
+/** The octave in which the arpeggio of a piece is built. */
 export const DEFAULT_OCTAVE = 4;
 
 /**
- * Tolerancia de las dos comparaciones de `degreeByCellIndex`.
+ * The tolerance of the two comparisons of `degreeByCellIndex`.
  *
- * Son estas dos: "esta celda cae sobre el centroide" —una distancia contra el
- * epsilon— y "estas dos celdas tienen el mismo angulo" —el tamano de la cubeta
- * a la que se redondea el angulo antes de ordenar—.
+ * The two are "this cell is on the centroid", a distance against the epsilon, and "these
+ * two cells have the same angle", the size of the bucket to which the angle is rounded
+ * before the sort.
  *
- * Va contra un epsilon y no contra `0` porque el centroide es un promedio de
- * quintos: `2/5 + 2/5 + 1/5` no siempre da exactamente `1`, y una celda que
- * geometricamente ESTA en el centro puede quedar a 1e-16 de el.
+ * It is an epsilon and not `0` because the centroid is a mean of fifths: `2/5 + 2/5 +
+ * 1/5` does not always give exactly `1`, and a cell that IS geometrically at the center
+ * can be 1e-16 away from it.
  *
- * Lo usa tambien `transform.test.ts` para afirmar cuales celdas caen sobre el
- * centroide: es la misma pregunta, asi que es el mismo numero y no una copia.
+ * `transform.test.ts` uses it too, to assert which cells are on the centroid: it is the
+ * same question, so it is the same number and not a copy.
  */
 export const DEGREE_EPSILON = 1e-9;
 
-/** Nota MIDI de la clase de altura `pc` en la octava `octave`. C4 = 60. */
+/** The MIDI note of pitch class `pc` in octave `octave`. C4 = 60. */
 export function midiFor(pc: number, octave: number): number { return 12*(octave+1) + pc; }
 
-/** Nombre legible de una nota MIDI, p. ej. `C4`. */
+/** The readable name of a MIDI note, for example `C4`. */
 export function midiName(m: number): string { const pc = m%12; const o = Math.floor(m/12)-1; return `${CHROMATIC[pc]}${o}`; }
 
 /**
- * Una formula de escala convertida en notas MIDI sobre una tonica y una octava.
+ * A scale formula turned into MIDI notes on a tonic and an octave.
  *
- * Sale de adentro de `notesForRotation` porque los dos regimenes la necesitan igual y
- * escribirla dos veces seria dos copias de la regla del `octShift`, que es justo la
- * que nadie sincronizaria.
+ * It is outside `notesForRotation` because the two regimes need it the same, and written
+ * twice it would be two copies of the rule of the `octShift`, which is exactly the rule
+ * that nobody would keep in step.
  */
 function notasDeFormula(basePc: number, octave: number, formula: readonly number[], transpose: number): number[] {
   return formula.map(iv => {
@@ -155,58 +151,59 @@ function notasDeFormula(basePc: number, octave: number, formula: readonly number
 }
 
 /**
- * Las cinco notas de una pieza segun su rotacion Y SU REGIMEN.
+ * The five notes of a piece for its rotation AND ITS REGIME.
  *
- * - `escala`: 0° → pentatonica mayor · 90° → menor · 180° → menor con blue note ·
- *   270° → mayor transpuesta +7. Rotar cambia el material y no el orden.
- * - `orden`: pentatonica mayor SIEMPRE, corrida `rot` posiciones. Rotar cambia por
- *   donde arranca el arpegio y no el material: la pieza tiene UN solo conjunto de
- *   cinco alturas en las cuatro rotaciones, contra los 43 conjuntos que `escala`
- *   produce sobre las 48 combinaciones.
+ * - `escala`: 0° → major pentatonic · 90° → minor · 180° → minor with blue note ·
+ *   270° → major transposed +7. A rotation changes the material and not the order.
+ * - `orden`: ALWAYS the major pentatonic, shifted `rot` positions. A rotation changes
+ *   where the arpeggio starts and not the material: the piece has ONE set of five pitches
+ *   in the four rotations, against the 43 sets that `escala` gives over the 48
+ *   combinations.
  *
- * A rotacion 0 los dos devuelven exactamente lo mismo, y no es casualidad sino D2: la
- * formula fija de `orden` es la de la rotacion 0 de `escala`. Es lo que hace que los
- * dos regimenes se puedan comparar escuchando en vez de ser dos instrumentos.
+ * At rotation 0 the two return exactly the same, and not by chance: the fixed formula of
+ * `orden` is that of rotation 0 of `escala`. That lets the ear compare the two regimes.
+ * Without it they would be two instruments.
  *
- * `regimen` NO lleva default a proposito: un llamador que se lo olvide obtendria el
- * regimen viejo en silencio, y son 36 de las 48 combinaciones las que difieren. Que el
- * typecheck lo atrape es el punto — mismo criterio que `dur` y `rel` en `scheduleVoice`.
+ * `regimen` has NO default on purpose: a caller that forgets it would get one regime in
+ * silence, and the two differ in 36 of the 48 combinations. The point is that the
+ * typecheck catches it. It is the same criterion as `dur` and `rel` in `scheduleVoice`.
  *
- * El corrimiento de octava (`octShift`) es deliberado: cuando la suma pasa de B la
- * nota SUBE de octava en vez de envolverse, y por eso las piezas de tonica alta
- * abren mas registro. Es decision documentada, no un bug a corregir de paso.
+ * The octave shift (`octShift`) is deliberate: when the sum passes B, the note goes UP
+ * one octave and does not wrap, so the pieces with a high tonic open more register. It
+ * keeps the arpeggio ascending: a wrap would break the contour with a jump down.
  *
- * ## Dos consecuencias MEDIDAS de `orden`, escritas porque se escuchan
+ * ## Two MEASURED consequences of `orden`, written because they are audible
  *
- * El arpegio deja de subir siempre: correr ciclicamente mete un descenso, y siempre el
- * mismo —la nota de arriba vuelve abajo, **9 semitonos exactos**, porque el techo de
- * `PENT_MAJOR` esta a 9 de la tonica—, contra un paso maximo de 3 en `escala`. Y el
- * registro se angosta 7 semitonos por arriba (`C4..G#5` contra `C4..D#6`), porque la
- * formula fija no tiene la transposicion +7 de la rotacion 3.
+ * The arpeggio does not always rise: a cyclic shift puts in a descent, and always the
+ * same one. The top note comes back down **exactly 9 semitones**, because the ceiling of
+ * `PENT_MAJOR` is 9 above the tonic, against a largest rise of 3 in `escala`. And the
+ * register is 7 semitones narrower at the top (`C4..G#5` against `C4..D#6`), because the
+ * fixed formula does not have the +7 transposition of rotation 3.
  *
- * Ninguna de las dos es un efecto a corregir: son consecuencias directas del pedido
- * —cambiar el orden sin cambiar las notas— y son justo lo que la escucha tiene que
- * evaluar. La variante que las evitaria —reajustar la octava de las notas que dan
- * la vuelta, `D4 E4 G4 A4 C5` en vez de `D4 E4 G4 A4 C4`, un `+12` condicional en una
- * linea— se descarto porque cambia los MIDI aunque no las clases de altura, y el pedido
- * dice sin cambio de las notas. Queda escrita aca por si la escucha la reclama.
+ * Neither of the two is an effect to correct: they are direct consequences of the
+ * request, to change the order with no change of the notes, and they are exactly what the
+ * ear must judge. The variant that would avoid them is to adjust the octave of the notes
+ * that wrap around: `D4 E4 G4 A4 C5` in place of `D4 E4 G4 A4 C4`, a conditional `+12` in
+ * one line. It is rejected because it changes the MIDI notes although not the pitch
+ * classes, and the request says no change of the notes. It is written here in case the
+ * ear asks for it.
  */
 export function notesForRotation(basePc: number, octave: number, rot: number, regimen: RegimenDeRotacion): number[]{
   if (regimen === REGIMEN.orden) {
     const base = notasDeFormula(basePc, octave, PENT_MAJOR, 0);
-    // El corrimiento va con modulo y no con `base[j + rot]` a secas: el tipo de
-    // `rotation` en esta capa sigue siendo un `number` sin acotar, y sin el un
-    // valor fuera de `0..3` devolveria `undefined`, que `midiName` no rechaza —pinta
-    // `undefinedNaN` en la celda—.
+    // The shift uses a modulo and not a bare `base[j + rot]`: the type of `rotation` in
+    // this module is an unbounded `number`, and without the modulo a value outside `0..3`
+    // would return `undefined`, which `midiName` does not reject: it paints
+    // `undefinedNaN` in the cell.
     //
-    // Y el modulo va DOS VECES porque el `%` de JS conserva el signo del dividendo:
-    // con `rot` negativo `(j + rot) % 5` da negativo y `base[-1]` es `undefined`
-    // otra vez, o sea el mismo agujero que esta linea existe para tapar. El `+ largo`
-    // antes del segundo `%` lo lleva al rango, y recien con eso es cierto que
-    // CUALQUIER `rot` —negativo incluido— da una permutacion ciclica, que es lo que
-    // `checkNotes` verifica. Sigue siendo una red y no el arreglo: el arreglo es que
-    // el tipo no admita el valor, y acotarlo cruza el borde de paquete hacia
-    // `mcp-server/`, asi que es un cambio de firma de las dos partes.
+    // The modulo is there TWICE because the `%` of JS keeps the sign of the dividend:
+    // with a negative `rot`, `(j + rot) % 5` is negative and `base[-1]` is `undefined`
+    // again, the same hole this line exists to close. The `+ largo` before the second `%`
+    // brings it into range. Only then is it true that ANY `rot`, a negative one included,
+    // gives a cyclic permutation, which is what `checkNotes` verifies. This is a net and
+    // not the fix: the fix is a type that does not admit the value, and to bound it
+    // crosses the package edge to `mcp-server/`, so it is a change of signature on the
+    // two sides.
     const largo = base.length;
     return base.map((_n, j) => base[(((j + rot) % largo) + largo) % largo]);
   }
@@ -218,32 +215,32 @@ export function notesForRotation(basePc: number, octave: number, rot: number, re
 }
 
 /**
- * El arpegio de una pieza colocada, EN ORDEN DE REPRODUCCION: las cinco notas MIDI
- * que dispara, con el retrogrado ya aplicado si esta reflejada.
+ * The arpeggio of a placed piece, IN THE ORDER IT SOUNDS: the five MIDI notes it fires,
+ * with the retrograde applied if the piece is reflected.
  *
- * Es la derivacion completa `(pieza, rotacion, reflexion) -> notas`, y es el UNICO lugar
- * donde se compone `BASE_MAP` + `notesForRotation` + el `reverse`: componerla a mano es
- * facil, y llego a estar escrita cuatro veces —`App.tsx`, un panel de piezas colocadas,
- * `resolve()` del `simulate_board` y los helpers de dos tests—.
+ * It is the whole derivation `(piece, rotation, reflection) -> notes`, and the ONLY place
+ * that composes `BASE_MAP` + `notesForRotation` + the `reverse`. To compose it by hand is
+ * easy: four copies of it existed at one time, and nothing kept them equal.
  *
- * **`PlacedPiece` no lleva las notas, y no puede llevarlas**: un campo guardado es un dato
- * que puede contradecir a la pieza —nada impide construir una `PlacedPiece` con
- * `rotation: 1` y las notas de la rotacion 0—, y el tablero, que deriva, y el motor, que
- * leeria el campo, dirian cosas distintas. La derivacion es barata; la contradiccion no.
+ * **`PlacedPiece` does not carry the notes, and cannot carry them.** A stored field is a
+ * datum that can contradict the piece: nothing prevents a `PlacedPiece` with
+ * `rotation: 1` and the notes of rotation 0. The board, which derives, and the engine,
+ * which would read the field, would then say different things. The derivation is cheap.
+ * The contradiction is not.
  *
- * La reflexion invierte el ORDEN EN EL TIEMPO y no que nota le toca a que celda: por eso
- * el `reverse` va sobre el resultado y `notesForRotation` no recibe `mirror`. Quien
- * necesita la nota de UNA celda tiene que indexar el arpegio ASCENDENTE con el grado
- * —`notesForRotation(...)[degreeByCellIndex(...)[k]]`, que es lo que hace `Board.tsx`—
- * y no esta funcion.
+ * The reflection reverses the ORDER IN TIME and not which note belongs to which cell. So
+ * the `reverse` applies to the result, and `notesForRotation` does not take `mirror`. A
+ * caller that needs the note of ONE cell must index the ASCENDING arpeggio with the
+ * degree, `notesForRotation(...)[degreeByCellIndex(...)[k]]`, as `cell-text.ts` does for
+ * the board, and must not use this function.
  *
- * La octava es `DEFAULT_OCTAVE` y no un parametro: la app entera toca en una sola
- * octava. Quien necesite otra —hoy solo `describe_piece`, que la expone como argumento—
- * usa `notesForRotation` directo.
+ * The octave is `DEFAULT_OCTAVE` and not a parameter: the whole app plays in one octave.
+ * A caller that needs another (today only `describe_piece`, which exposes it as an
+ * argument) uses `notesForRotation` directly.
  *
- * El REGIMEN si es parametro y se propaga tal cual: esta funcion no elige
- * ninguno, porque elegirlo aca lo desacoplaria del que eligio el tablero y la misma
- * pieza sonaria distinto segun quien la pregunte.
+ * The REGIME is a parameter and passes through as it is. This function selects none: to
+ * select one here would detach it from the one the board selected, and the same piece
+ * would sound different for each caller.
  */
 export function arpeggioFor(piece: PieceKey, rotation: number, mirror: boolean, regimen: RegimenDeRotacion): number[] {
   const asc = notesForRotation(BASE_MAP[piece], DEFAULT_OCTAVE, rotation, regimen);
@@ -251,103 +248,101 @@ export function arpeggioFor(piece: PieceKey, rotation: number, mirror: boolean, 
 }
 
 /**
- * Que grado del arpegio le toca a cada celda de una forma. DEVUELVE POR INDICE:
- * el elemento `k` es el grado (`0..n-1`) de `cells[k]`, no al reves.
+ * Which degree of the arpeggio each cell of a shape owns. IT RETURNS BY INDEX: element
+ * `k` is the degree (`0..n-1`) of `cells[k]`, not the reverse.
  *
- * **El grado `g` va a la celda que el camino de `pathThroughCells` visita en el paso
- * `g`**: el arpegio RECORRE la pieza, sin pasar nunca por encima de una
- * celda propia. El paso preferido es en cruz; en las cuatro piezas que no admiten
- * recorrido ortogonal —`F`, `T`, `Y` y `X`, cuyo grafo de celdas es un arbol con un
- * nodo de 3 o 4 vecinos— se tolera uno en diagonal, que al menos llega a una celda que
- * se toca con la anterior.
+ * **Degree `g` goes to the cell that the walk of `pathThroughCells` visits at position
+ * `g`**: the arpeggio WALKS the piece and never passes over one of its own cells. The
+ * preferred move is orthogonal. In the four pieces that admit no orthogonal walk (`F`,
+ * `T`, `Y` and `X`, whose graph of cells is a tree with a node of 3 or 4 links) a
+ * diagonal move is tolerated, which at least reaches a cell that touches the one before.
  *
- * El anillo angular alrededor del centroide no sabe nada de adyacencia, y por eso entra
- * como DESEMPATE y no como orden: tomado como orden deja, sobre los 48 pasos de las 12
- * piezas, **cuatro que pasan por encima** de una celda que todavia no sono —en `I`, `T`,
- * `U` e `Y`— y nueve en diagonal. El recorrido de `pathThroughCells` da 0 y 5.
+ * The angular ring around the centroid knows nothing about which cells touch, so it comes
+ * in as a TIE-BREAK and not as the order. Taken as the order it leaves, over the 48 moves
+ * of the 12 pieces, **four that pass over** a cell that has not sounded yet (in `I`, `T`,
+ * `U` and `Y`) and nine diagonals. The walk of `pathThroughCells` gives 0 and 5.
  *
- * La diagonal se tolera SOLO adentro de la pieza: el recorrido entre piezas
- * (`routeBetween`) se sigue moviendo en cruz. Es asimetrico a proposito y esta
- * justificado en D10 del spec — adentro de la pieza la alternativa es pasar por encima
- * de una celda, afuera no existe ese problema porque el recorrido pisa y suena todas
- * las celdas por las que pasa.
+ * The diagonal is tolerated ONLY inside the piece: the circuit between pieces
+ * (`routeBetween`) moves only up, down, left and right. The asymmetry is on purpose.
+ * Inside the piece the alternative is to pass over a cell. Outside, that problem does not
+ * exist, because the circuit steps on and sounds every cell it passes.
  *
- * Recibe la forma y no la `PieceKey` a proposito: es lo que la hace testeable
- * sobre formas arbitrarias y lo que evita que `music.ts` conozca `SHAPES`.
+ * It takes the shape and not the `PieceKey` on purpose: that makes it testable on
+ * arbitrary shapes, and keeps `music.ts` from knowing `SHAPES`.
  *
- * Se le pasa la forma CANONICA, no la transformada. El mapeo se arrastra por
- * indice —rotar es un `map`, asi que la celda `k` sigue siendo la celda `k`—, y
- * es la trampa mas cara de esta capa: correrla sobre `p.cells`, que ya esta rotada
- * y trasladada, compila igual y devuelve otro mapeo. Con el camino no es una
- * necesidad GEOMETRICA —rotar y reflejar preservan la adyacencia, asi que un camino
- * sigue siendo un camino en las 8 orientaciones— pero sigue siendo la regla: el
- * desempate angular SI depende de la orientacion, y el arrastre por indice es lo que
- * sostiene a `ANCHOR_INDEX` y a las puertas del circuito.
+ * It takes the CANONICAL shape, not the transformed one. The mapping travels by index (a
+ * rotation is a `map`, so cell `k` stays cell `k`), and this is the most expensive trap
+ * of this module: on `p.cells`, which is rotated and translated, it compiles the same and
+ * returns another mapping. With the walk this is not a GEOMETRIC necessity: a rotation
+ * and a reflection keep which cells touch, so a walk is a walk in the 8 orientations. But
+ * it stays the rule: the angular tie-break DOES depend on the orientation, and the travel
+ * by index is what holds `ANCHOR_INDEX` and the gates of the circuit.
  *
- * ## El grado 0 es la punta del camino, no el centro de la figura
+ * ## Degree 0 is an end of the walk, not the center of the figure
  *
- * El mapeo anterior sacaba del anillo a la celda parada sobre el centroide y le daba la
- * tonica, con el argumento de que el centro de la figura es su raiz. Eso alcanzaba a
- * `I` y `X`, y en la `I` es incompatible con recorrer la pieza: arrancar por el centro
- * de una linea de cinco obliga a un salto de 4 celdas que la forma no necesita. El
- * grado 0 es **la punta por la que se empieza a caminar la forma**.
+ * Degree 0 is **the end where the walk of the shape starts**. It is not the cell on the
+ * centroid, although the center of a figure looks like its root. In the `I` that choice
+ * is incompatible with a walk of the piece: a start at the center of a line of five
+ * forces a jump of 4 cells that the shape does not need.
  *
- * Se suele decir ademas que el grado 0 es la celda por donde el recorrido ENTRA a la
- * pieza (`gates`). Eso es cierto solo sin reflexion: con `mirror` el retrogrado
- * invierte el orden en el tiempo, asi que la primera nota que suena —y por lo tanto la
- * puerta de entrada— es la del grado `n-1`. Quien quiera la posicion de una celda en
- * el ORDEN EN QUE SUENA tiene que pedir `playOrderByCellIndex`, que es lo unico que
- * conoce la reflexion; el grado se queda contestando que NOTA le toca a la celda, que
- * es una pregunta que la reflexion no mueve.
+ * Degree 0 is also the cell where the circuit ENTERS the piece (`gates`), but only
+ * without reflection. With `mirror` the retrograde reverses the order in time, so the
+ * first note that sounds, and so the entry gate, is that of degree `n-1`. A caller that
+ * wants the position of a cell in the ORDER IN WHICH IT SOUNDS must ask
+ * `playOrderByCellIndex`, the only function that knows the reflection. The degree answers
+ * which NOTE the cell owns, a question that the reflection does not move.
  *
- * ## Que hace el orden angular hoy
+ * ## What the angular order does
  *
- * DESEMPATA, y nada mas — pero se ejerce en las 12 piezas, asi que no es decorativo:
- * un camino y su inverso son igual de buenos, y el rango angular es lo que elige la
- * direccion. `angularRank` es el algoritmo que antes decidia el orden entero.
+ * It BREAKS TIES and nothing more. But it applies in the 12 pieces, so it is not
+ * decoration: a walk and its reverse are equally good, and the angular rank selects the
+ * direction. `angularRank` holds that algorithm.
  *
- * Que la direccion la decida la FORMA y no el tablero es una regla del instrumento y no
- * una comodidad de implementacion. Se midio la alternativa —entrar
- * por la punta mas cercana a la pieza anterior del circuito—: acortaria el ciclo en el
- * 79 % de los tableros, un 10,4 % en promedio. Se descarta igual, porque haria que mover
- * una pieza cambiara el arpegio de sus vecinas: **una pieza tiene que sonar igual este
- * donde este.**
+ * That the SHAPE and not the board decides the direction is a rule of the instrument and
+ * not a convenience of the implementation. The alternative was measured: to enter at the
+ * end nearest to the piece before it in the circuit would shorten the cycle in 79 % of
+ * the boards, by 10.4 % on average. It is rejected all the same, because to move a piece
+ * would then change the arpeggio of its neighbors: **a piece must sound the same wherever
+ * it is.**
  */
 export function degreeByCellIndex(cells: readonly Cell[]): number[] {
   const orden = pathThroughCells(cells, angularRank(cells));
   const grados = new Array<number>(cells.length);
-  // `pathThroughCells` devuelve la celda de cada paso; esto es la tabla inversa, el
-  // grado de cada celda. Las dos son permutaciones de `0..n-1` y confundirlas compila.
+  // `pathThroughCells` returns the cell of each position. This is the inverse table: the
+  // degree of each cell. The two are permutations of `0..n-1`, and to confuse them
+  // compiles.
   orden.forEach((k, degree) => { grados[k] = degree; });
   return grados;
 }
 
 /**
- * En que PASO DEL ORDEN DE REPRODUCCION suena cada celda de una forma.
+ * The STEP of each cell of a shape: its position in the order in which the arpeggio
+ * sounds.
  *
- * DEVUELVE POR INDICE, igual que `degreeByCellIndex`: el elemento `k` es el paso
- * (`0..n-1`) de `cells[k]`.
+ * IT RETURNS BY INDEX, like `degreeByCellIndex`: element `k` is the step (`0..n-1`) of
+ * `cells[k]`.
  *
- * Es el grado con el retrogrado ya aplicado, y por lo tanto **lo unico del mapeo
- * celda-a-nota que la reflexion mueve**: sin `mirror` el paso ES el grado; con
- * `mirror` es `n-1-grado`, porque la reflexion invierte el orden EN EL TIEMPO sin
- * mover que nota le toca a que celda (la misma regla que `arpeggioFor` aplica sobre
- * las notas, aca aplicada sobre las celdas).
+ * It is the degree with the retrograde applied, and so **the only part of the
+ * cell-to-note mapping that the reflection moves**. Without `mirror` the step IS the
+ * degree. With `mirror` it is `n-1-degree`, because the reflection reverses the order IN
+ * TIME and does not move which note belongs to which cell. It is the same rule that
+ * `arpeggioFor` applies to the notes, applied here to the cells.
  *
- * De aca salen las dos cosas que el instrumento muestra y usa en orden de sonido:
+ * The two things that the instrument shows and uses in the order of sound come from
+ * here:
  *
- * - `cellsByPlayOrder` —y con ella las PUERTAS del circuito (`gates`)—, que antes
- *   hacia su propio `reverse` y era la segunda copia de esta regla.
- * - El numero que `Board.tsx` pinta en la esquina de cada celda. **El paso 0 es
- *   siempre la celda por donde el recorrido entra**, y de ahi la numeracion sube
- *   hasta `n-1`, que es siempre la salida — en las 12 piezas y en las dos
- *   reflexiones. Con el grado eso valia solo sin reflejar: la mitad reflejada del
- *   espacio de colocacion se entraba por el `#4` y se contaba hacia atras.
+ * - `cellsByPlayOrder`, and with it the GATES of the circuit (`gates`). A `reverse` of
+ *   its own there would be a second copy of this rule.
+ * - The number that `Board.tsx` paints in the corner of each cell. **Step 0 is always
+ *   the cell where the circuit enters**, and from there the count rises to `n-1`, which
+ *   is always the exit: in the 12 pieces, with and without reflection. With the degree
+ *   that holds only without reflection: the reflected half of the placement space would
+ *   be entered at `#4` and counted backward.
  *
- * La nota de una celda NO se pide con esto: se pide con el grado contra el arpegio
- * ASCENDENTE (`notesForRotation`). Las dos parejas son correctas y cruzarlas compila:
- * `ascendente[grado]` y `arpeggioFor(...)[paso]` dan la MISMA nota, pero
- * `ascendente[paso]` da la nota espejada en toda pieza reflejada.
+ * The note of a cell is NOT asked with this. It is asked with the degree against the
+ * ASCENDING arpeggio (`notesForRotation`). The two pairs are correct, and to cross them
+ * compiles: `ascending[degree]` and `arpeggioFor(...)[step]` give the SAME note, but
+ * `ascending[step]` gives the mirrored note in every reflected piece.
  */
 export function playOrderByCellIndex(cells: readonly Cell[], mirror: boolean): number[] {
   const grados = degreeByCellIndex(cells);
@@ -356,47 +351,45 @@ export function playOrderByCellIndex(cells: readonly Cell[], mirror: boolean): n
 }
 
 /**
- * El rango angular de cada celda alrededor del centroide, POR INDICE: el elemento `k`
- * es la posicion (`0..n-1`) de `cells[k]` en el anillo.
+ * The angular rank of each cell around the centroid, BY INDEX: element `k` is the
+ * position (`0..n-1`) of `cells[k]` in the ring.
  *
- * Es el orden que se usaba como mapeo de grados y que hoy solo
- * DESEMPATA caminos de igual calidad (ver arriba). Se conserva entero —la excepcion
- * del centroide, el sentido horario y el desempate por indice— porque cambiarlo
- * cambiaria la direccion en la que se recorre cada pieza, que es audible.
+ * This order only BREAKS TIES between walks of equal quality (see `degreeByCellIndex`).
+ * It is kept whole (the exception of the centroid, the clockwise direction and the
+ * tie-break by index) because a change to it would change the direction of the walk of
+ * each piece, which is audible.
  *
- * Se exporta aunque `degreeByCellIndex` sea su unico consumidor de `src/`: sin export
- * los tests tendrian que reimplementar esas tres decisiones para poder ejercerlas, que
- * es cobertura sin verificacion.
+ * It is exported although `degreeByCellIndex` is its only consumer in `src/`: with no
+ * export the tests would have to write those three decisions again to exercise them,
+ * which is coverage with no verification.
  *
- * Tres reglas, en este orden:
+ * Three rules, in this order:
  *
- * 1. Las celdas que caen SOBRE el centroide salen del anillo y toman los
- *    primeros lugares. Solo `I`, `X` y —desde el spec 036, que le arreglo la forma— la
- *    `Z` tienen una. La excepcion no es estetica:
- *    `Math.atan2(0, 0)` devuelve `0` EN SILENCIO y las meteria en el anillo como si
- *    estuvieran al este.
- * 2. El resto se ordena por angulo ascendente alrededor del centroide, que con
- *    el eje `y` hacia abajo es sentido horario en pantalla.
- * 3. A igual angulo gana el INDICE ORIGINAL MENOR. El desempate se ejerce en `F`, `I`
- *    y `T`, que tienen celdas colineales con el centroide.
+ * 1. The cells ON the centroid leave the ring and take the first places. Only `I`, `X`
+ *    and `Z` have one. The exception is not for looks: `Math.atan2(0, 0)` returns `0` IN
+ *    SILENCE and would put them in the ring as if they were to the east.
+ * 2. The rest is sorted by ascending angle around the centroid, which with the `y` axis
+ *    down is clockwise on screen.
+ * 3. At equal angle the SMALLER ORIGINAL INDEX wins. The tie-break applies in `F`, `I`
+ *    and `T`, which have cells collinear with the centroid.
  *
- * El tercer criterio va ESCRITO en el comparador en vez de delegado a que el
- * `sort` sea estable: la estabilidad esta garantizada desde ES2019, pero
- * apoyarse en ella dejaria la regla sin decir en ningun lado.
+ * The third criterion is WRITTEN in the comparator and not left to a stable `sort`:
+ * stability is guaranteed since ES2019, but to rely on it would leave the rule said
+ * nowhere.
  *
- * Los angulos se precomputan y no se piden adentro del comparador: `sort` lo
- * llama O(n log n) veces, y ademas comparar siempre el MISMO numero es lo que
- * hace que el epsilon del empate se comporte.
+ * The angles are computed before and not inside the comparator: `sort` calls it
+ * O(n log n) times, and to compare always the SAME number is what makes the epsilon of
+ * the tie behave.
  *
- * ## Por que el empate se compara por cubeta y no con `Math.abs(a - b) < eps`
+ * ## Why the tie is compared by bucket and not with `Math.abs(a - b) < eps`
  *
- * Porque "estan a menos de epsilon" NO es transitivo: con tres angulos escalonados
- * a media tolerancia, `a` empata con `b` y `b` con `c` pero `a` no con `c`, y un
- * comparador asi le da a `sort` un orden que depende del pivote. Con las 12 formas
- * de `SHAPES` no pasa —los empates son exactos, porque salen de restas identicas—
- * pero esta funcion recibe formas arbitrarias a proposito. Redondear el angulo a
- * un entero de cubetas lo vuelve un orden total por construccion: dos angulos o
- * caen en la misma cubeta o no, y eso si es transitivo.
+ * Because "they are less than epsilon apart" is NOT transitive: with three angles
+ * staggered at half the tolerance, `a` ties with `b` and `b` with `c` but `a` does not
+ * tie with `c`, and such a comparator gives `sort` an order that depends on the pivot.
+ * With the 12 shapes of `SHAPES` it does not occur, because the ties are exact: they come
+ * from identical subtractions. But this function takes arbitrary shapes on purpose. To
+ * round the angle to an integer count of buckets makes it a total order by construction:
+ * two angles are in the same bucket or they are not, and that is transitive.
  */
 export function angularRank(cells: readonly Cell[]): number[] {
   const cent = centroid(cells);

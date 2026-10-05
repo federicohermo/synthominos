@@ -5,58 +5,57 @@ import type { Dims } from '../board-editing/placement.ts';
 import { grillaPara } from './grid-fit.ts';
 
 /**
- * Mide el contenedor raíz y contesta **cuánto mide el tablero**, escribiendo de paso el
- * tamaño de celda en la custom property `--cell`.
+ * Measures the root container and answers **the dimensions of the board**. It also writes
+ * the cell size to the custom property `--cell`.
  *
- * Es el tercer hook de entrada de la UI, junto a los dos, y está acá
- * por la misma regla: **el listener global vive en un hook `use-*.ts`, en un efecto
- * propio**, con el `ref` creado en el shell. `App.tsx` no declara un solo `useEffect` desde
- * el 022 y este spec no lo cambia — lo único que agrega al shell es un `ref` y una llamada.
+ * It is the third input hook of the UI, next to the two of `use-input.ts`, and the same
+ * rule puts it here: **a global listener lives in a `use-*.ts` hook, in its own effect**,
+ * with the `ref` created in the shell. `App.tsx` declares no `useEffect`: this hook gives
+ * the shell only a `ref` and a call.
  *
- * ## Por qué la celda va por custom property y las dimensiones por estado
+ * ## Why the cell size goes in a custom property and the dimensions in state
  *
- * Porque son dos frecuencias distintas, y ésa es la única razón por la que este hook
- * escribe en dos lugares:
+ * Because they change at two different frequencies. That is the only reason why this
+ * hook writes in two places:
  *
- * - **El tamaño de celda lo leen todas las celdas, todas las filas, el velo y la cabeza
- *   lectora**, y cambia en cada píxel que se arrastra el borde de la ventana. Con el número
- *   en el estado de React, un arrastre son decenas de re-renders del árbol por segundo. Con
- *   `--cell`, redimensionar reposiciona todo eso sin que React se entere: la custom property
- *   hereda hacia abajo y el navegador resuelve los `calc()` solo.
- * - **Las dimensiones no las puede resolver el CSS**: `cols × rows` decide cuántos nodos
- *   existen, o sea que es estado de React y no hay vuelta. Pero cambia mucho menos —una o
- *   dos veces en todo un arrastre, cuando entra o sale una fila— y el setter funcional de
- *   abajo devuelve **el objeto anterior** cuando los dos números coinciden, así que un
- *   `resize` que no agrega ni saca una celda no re-renderiza nada.
+ * - **Every cell, every row, the veil and the playhead read the cell size**, and it
+ *   changes at each pixel of a drag of the window edge. With the number in React state,
+ *   one drag is tens of re-renders of the tree per second. With `--cell`, a resize moves
+ *   all of that and React does not know: the custom property inherits downward and the
+ *   browser resolves each `calc()`.
+ * - **CSS cannot resolve the dimensions**: `cols × rows` decides how many nodes exist, so
+ *   it must be React state. But it changes much less: one or two times in a full drag,
+ *   when a row enters or leaves. The functional setter below returns **the previous
+ *   object** when the two numbers are equal, so a `resize` that adds or removes no cell
+ *   re-renders nothing.
  *
- * Esa herencia es también lo que decide **sobre qué nodo** se escribe `--cell`: el
- * contenedor raíz y no el del tablero. Los dos flotantes son `fixed` y viven
- * fuera de `Board`, así que sus cajas —medidas en celdas— no resolverían `var(--cell)` si
- * colgara de ahí.
+ * That inheritance also decides **on which node** `--cell` is written: the root container
+ * and not the board container. The two floating panels are `fixed` and live outside
+ * `Board`, so their boxes, measured in cells, would not resolve `var(--cell)` if it hung
+ * from there.
  *
- * ## Por qué se mide la CAJA y no `window.innerWidth`
+ * ## Why it measures the BOX and not `window.innerWidth`
  *
- * Porque tienen que ser el mismo número. El contenedor raíz mide `100dvh` de alto, y
- * `innerHeight` en iOS incluye la barra del navegador: si la fórmula recibe uno y la caja
- * tiene el otro, la grilla se calcula contra un alto que el contenedor no tiene y desborda
- * unos píxeles sin que nada falle — y desbordar no tiene red, porque el
- * `overflow-x-auto` de `Board` se fue. Leyendo `clientWidth`/`clientHeight` del propio
- * nodo, el número que entra a la fórmula **es** el que la caja mide.
+ * Because they must be the same number. The root container is `100dvh` high, and on iOS
+ * `innerHeight` includes the browser bar. If the formula gets one and the box has the
+ * other, the board is calculated against a height that the container does not have, and
+ * it overflows a few pixels with no failure. An overflow has no safety net, because
+ * `Board` has no scroll of its own. Read from `clientWidth`/`clientHeight` of the node
+ * itself, the number that enters the formula **is** the size of the box.
  *
- * ## `useLayoutEffect` y no `useEffect`
+ * ## `useLayoutEffect` and not `useEffect`
  *
- * Por dos cosas, y la segunda es del 031. Con `--cell` sin definir,
- * `repeat(cols, var(--cell))` es una declaración inválida y la grilla colapsa a una
- * columna; y hasta que el efecto no corre, las dimensiones son `GRID_DEFAULT` —10 × 6, el
- * tablero de siempre— que casi nunca es el que va. Un `useEffect` corre DESPUÉS del primer
- * paint, así que las dos cosas se verían durante un cuadro. Con `useLayoutEffect`, el
- * `setDims` de adentro se procesa **antes** de pintar.
+ * For two reasons. With `--cell` not defined, `repeat(cols, var(--cell))` is an invalid
+ * declaration and the grid collapses to one column. And until the effect runs, the
+ * dimensions are `GRID_DEFAULT`, the reference board of 10 × 6, which is almost never
+ * the right one. A `useEffect` runs AFTER the first paint, so both would show for one
+ * frame. With `useLayoutEffect`, the `setDims` inside is processed **before** the paint.
  *
- * ## Sin debounce
+ * ## No debounce
  *
- * El handler hace una lectura de layout y una escritura de custom property, y el navegador
- * ya agrupa los `resize` por cuadro. Un debounce agregaría el único artefacto que este
- * spec no quiere: el tablero quedándose atrás de la ventana mientras se arrastra.
+ * The handler does one layout read and one write of a custom property, and the browser
+ * already groups the `resize` events per frame. A debounce would add the one artifact
+ * that the fit must not have: the board behind the window during a drag.
  */
 export function useGrilla(raizRef: RefObject<HTMLElement | null>): Dims {
   const [dims, setDims] = useState<Dims>(GRID_DEFAULT);
@@ -65,18 +64,18 @@ export function useGrilla(raizRef: RefObject<HTMLElement | null>): Dims {
     const raiz = raizRef.current;
     if (raiz === null) return;
 
-    // `setProperty` sobre el nodo y no `style={{ '--cell': … }}` en el JSX: React tipa
-    // `style` como `CSSProperties`, que no admite propiedades custom, así que la vía del
-    // JSX pide un `as React.CSSProperties` — una aserción para escribir un string.
+    // `setProperty` on the node and not `style={{ '--cell': … }}` in the JSX: React types
+    // `style` as `CSSProperties`, which admits no custom property, so the JSX path needs
+    // an `as React.CSSProperties`, an assertion to write a string.
     //
-    // **Con la unidad.** Un `--cell` que valga `72` a secas deja inválidos a todos los
-    // `calc(var(--cell) * n)` y la grilla colapsa sin un solo error en consola.
+    // **With the unit.** A `--cell` with the bare value `72` makes every
+    // `calc(var(--cell) * n)` invalid, and the grid collapses with no error in the console.
     const escribir = () => {
       const { dims: medido, cell } = grillaPara(raiz.clientWidth, raiz.clientHeight);
       raiz.style.setProperty('--cell', `${cell}px`);
-      // El objeto ANTERIOR cuando los números no cambiaron: React compara por identidad,
-      // así que devolver uno nuevo con los mismos valores re-renderizaría el árbol entero
-      // en cada píxel del arrastre — que es justo lo que `--cell` existe para evitar.
+      // The PREVIOUS object when the numbers did not change: React compares by identity,
+      // so a new object with the same values would re-render the whole tree at each pixel
+      // of the drag. `--cell` exists to prevent exactly that.
       setDims(previo => previo.w === medido.w && previo.h === medido.h ? previo : medido);
     };
 

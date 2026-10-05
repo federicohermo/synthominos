@@ -8,38 +8,38 @@ import { PIECE_KEYS } from '../pieces.ts';
 import type { Cell } from '../../../src/pieces/transform.ts';
 
 describe('renderAscii', () => {
-  test('marca la celda de agarre y deja los huecos del bounding box', () => {
-    // La Z rotada 270° y reflejada: es el caso del AC4.
+  test('marks the grip cell and leaves the gaps of the bounding box', () => {
+    // The Z rotated 270° and reflected.
     const cells = reflect(rotateN(SHAPES.Z, 3));
     assert.equal(renderAscii(cells, ANCHOR_INDEX.Z), '#..\n#@#\n..#');
   });
 
-  test('la fila 0 es la de arriba: `y` crece hacia abajo', () => {
-    // Si el render invirtiera el eje, esta forma saldria al reves y el dibujo no
-    // coincidiria con lo que se ve en pantalla.
+  test('row 0 is the top row: `y` grows down', () => {
+    // If the render inverted the axis, this shape would come out upside down and the
+    // drawing would not agree with the screen.
     assert.equal(renderAscii([[0, 0], [0, 1], [1, 1]], 0), '@.\n##');
   });
 
-  test('el ancla es el INDICE, no la coordenada', () => {
+  test('the grip cell is the INDEX, not the coordinate', () => {
     const cells: Cell[] = [[0, 0], [1, 0], [2, 0]];
     assert.equal(renderAscii(cells, 0), '@##');
     assert.equal(renderAscii(cells, 2), '##@');
   });
 
-  test('traslada por el minimo: sirve con celdas en coordenadas de tablero', () => {
+  test('translates by the minimum: it works with cells in board coordinates', () => {
     assert.equal(renderAscii([[5, 3], [6, 3]], 1), '#@');
   });
 
-  test('un anchorIndex fuera de rango dibuja la forma sin ancla', () => {
+  test('an anchorIndex out of range draws the shape with no grip cell', () => {
     assert.equal(renderAscii([[0, 0], [1, 0]], -1), '##');
   });
 
-  test('sin celdas devuelve el string vacio', () => {
+  test('with no cells it returns the empty string', () => {
     assert.equal(renderAscii([], 0), '');
     assert.deepEqual(sizeOf([]), { width: 0, height: 0 });
   });
 
-  test('las 96 combinaciones dibujan 5 celdas y exactamente un ancla', () => {
+  test('the 96 combinations draw 5 cells and exactly one grip cell', () => {
     for (const p of PIECE_KEYS) {
       for (let rot = 0; rot < 4; rot++) {
         for (const mirror of [false, true]) {
@@ -51,7 +51,7 @@ describe('renderAscii', () => {
 
           assert.equal(marcadas, CELLS_PER_PIECE, `${p} rot${rot}${mirror ? ' mirror' : ''}`);
           assert.equal(anclas, 1, `${p} rot${rot}${mirror ? ' mirror' : ''}`);
-          // El bounding box del dibujo tiene que ser el de la forma.
+          // The bounding box of the drawing must be that of the shape.
           const { width, height } = sizeOf(cells);
           const filas = ascii.split('\n');
           assert.equal(filas.length, height);
@@ -63,15 +63,15 @@ describe('renderAscii', () => {
 });
 
 describe('renderCellNumbers', () => {
-  test('pone el grado de cada celda, en el mismo bounding box que renderAscii', () => {
-    // La X: desde el spec 012 el arpegio la RECORRE, y es la unica pieza que no puede
-    // recorrerse con menos de dos saltos, porque su centro tiene cuatro vecinos. Se entra
-    // por el brazo derecho (grado 0), se salta al de abajo, se salta al izquierdo, y
-    // recien ahi se camina centro → arriba. Es la forma donde el mapeo se lee de un
-    // vistazo, y el dibujo lo muestra sin que haya que cruzar `cellMap` a mano.
+  test('puts the degree of each cell, in the same bounding box as renderAscii', () => {
+    // The X: the arpeggio WALKS the piece, and the X is the only piece that no walk
+    // covers with less than two jumps, because its center has four neighbors. The walk
+    // enters by the right arm (degree 0), jumps to the bottom arm, jumps to the left
+    // arm, and only then goes center → top. It is the shape where the mapping reads at
+    // a glance, and the drawing shows it with no need to match `cellMap` by hand.
     const grados = degreeByCellIndex(SHAPES.X);
     assert.equal(renderCellNumbers(SHAPES.X, grados), '.4.\n230\n.1.');
-    // Mismo dibujo, distinto contenido: las dos vistas tienen que alinear.
+    // Same drawing, different content: the two views must align.
     const conAncla = renderAscii(SHAPES.X, ANCHOR_INDEX.X);
     assert.deepEqual(
       renderCellNumbers(SHAPES.X, grados).split('\n').map(f => f.length),
@@ -79,10 +79,10 @@ describe('renderCellNumbers', () => {
     );
   });
 
-  test('las 96 combinaciones dibujan los cinco grados, sin repetir ninguno', () => {
-    // El grado viaja por INDICE sobre la forma canonica: rotar y reflejar son `map`,
-    // asi que la celda k sigue siendo la celda k. Si alguna vez dejara de serlo, este
-    // test veria un grado repetido o faltante.
+  test('the 96 combinations draw the five degrees, with none repeated', () => {
+    // The degree travels by INDEX on the canonical shape: rotate and reflect are `map`,
+    // so cell k stays cell k. If that stops being true, this test sees a repeated or
+    // missing degree.
     for (const p of PIECE_KEYS) {
       const grados = degreeByCellIndex(SHAPES[p]);
       for (let rot = 0; rot < 4; rot++) {
@@ -97,17 +97,17 @@ describe('renderCellNumbers', () => {
     }
   });
 
-  test('sin celdas devuelve el string vacio', () => {
+  test('with no cells it returns the empty string', () => {
     assert.equal(renderCellNumbers([], []), '');
   });
 
-  test('lo que no es un digito solo cae a `#` y la grilla no se desalinea', () => {
-    // La regla que el docblock declara —un numero de dos digitos desalinearia la
-    // grilla— tiene tres formas de incumplirse, y las tres caen al mismo lado. El
-    // ancho de la fila es lo que se afirma: es lo que la regla existe para sostener.
+  test('what is not a single digit falls back to `#` and the grid does not misalign', () => {
+    // The rule that the docblock declares, that a number of two digits would misalign
+    // the grid, can be broken in three ways, and the three fall to the same side. The
+    // assertion is on the width of the row: that is what the rule exists to hold.
     const fila: Cell[] = [[0, 0], [1, 0], [2, 0], [3, 0]];
     assert.equal(renderCellNumbers(fila, [10, -1, 2.5, 7]), '###7');
-    // Y una celda sin valor tampoco inventa nada.
+    // And a cell with no value invents nothing.
     assert.equal(renderCellNumbers(fila, [0]), '0###');
   });
 });

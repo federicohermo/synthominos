@@ -13,61 +13,59 @@ import { SHAPES, ANCHOR_INDEX, CELLS_PER_PIECE } from './pieces.ts';
 import type { RegimenDeRotacion } from '../musical-model/music.ts';
 
 /**
- * Los siete chequeos del modelo.
+ * The seven checks of the model.
  *
- * El espacio son las 96 combinaciones de pieza x rotacion x reflexion, pero cada
- * chequeo recorre lo que le corresponde y no las 96 por inercia: `checkArrayOrder`
- * y `checkAnchors` si —son los geometricos, y la orientacion es justo lo que
- * pueden romper—, `checkNotes` las 96 (12 piezas x 4 rotaciones x 2
- * REGIMENES; el espejo sigue afuera porque solo invierte el orden),
- * `checkShapes` las 12 formas canonicas porque rotar no cambia ni la cantidad de
- * celdas ni la conexidad, `checkDistinct` y `checkLetters` tambien las 96 —necesitan
- * las 8 orientaciones de cada forma para reducirla a su clave canonica— y `checkBaseMap`
- * el conjunto una sola vez.
+ * The space is the 96 combinations of piece x rotation x reflection, but each check
+ * covers what belongs to it and not the 96 by habit. `checkArrayOrder` and `checkAnchors`
+ * do cover the 96: they are the geometric ones, and the orientation is exactly what can
+ * break them. `checkNotes` covers 96 too (12 pieces x 4 rotations x 2 REGIMES; the
+ * reflection stays out because it only reverses the order). `checkShapes` covers the 12
+ * canonical shapes, because a rotation changes neither the count of cells nor the
+ * connection. `checkDistinct` and `checkLetters` cover the 96: they need the 8
+ * orientations of each shape to reduce it to its canonical key. `checkBaseMap` covers
+ * the set once.
  *
- * Cinco de los siete miran la FORMA de cada pieza por separado —`checkBaseMap` si cruza
- * piezas, pero por su TONICA—. Los otros dos son los unicos que salen de la pieza:
- * `checkDistinct` compara dos FORMAS a la vez, y por eso fue el unico capaz de ver que la
- * `Z` era la `N` reflejada; `checkLetters` compara cada forma contra una tabla EXTERNA,
- * y es el unico que puede ver un intercambio de dos letras entre si —que deja el conjunto
- * de las 12 claves intacto y por lo tanto pasa `checkDistinct`—.
+ * Five of the seven look at each piece alone, by its SHAPE. `checkBaseMap` does compare
+ * pieces, but by their TONIC. The other two are the only ones that go outside one piece.
+ * `checkDistinct` compares two SHAPES at a time, so it is the only one that can see a `Z`
+ * that is the reflected `N`. `checkLetters` compares each shape with an EXTERNAL table,
+ * and is the only one that can see two letters swapped: a swap leaves the set of the 12
+ * keys intact, so it passes `checkDistinct`.
  *
- * DEVUELVEN el resultado en vez de lanzar o asertar: asi los usa igual el test de
- * este modulo y la tool `check_invariants` del MCP server, que necesita responder
- * con el detalle y no morirse.
+ * They RETURN the result and do not throw or assert. So the test of this module and the
+ * tool `check_invariants` of the MCP server use them the same way: the tool must answer
+ * with the detail and not die.
  *
- * Lo que cubren no es cosmetico. El primero —el orden del array— es el invariante
- * que CLAUDE.md marca como el mas peligroso del repo: romperlo descoloca las
- * piezas y desfasa los loops **sin producir ningun error visible**.
+ * What they cover is not cosmetic. The first one, the order of the array, is the most
+ * dangerous rule of the repo: to break it misplaces the pieces and puts the loops out of
+ * phase **with no visible error**.
  */
 
 /**
- * Las cuatro rotaciones que recorre `checkNotes` y `checkArrayOrder`.
+ * The four rotations that `checkNotes` and `checkArrayOrder` cover.
  *
- * Se escriben y no se derivan de un `ROTATION_COUNT`: no hay tal constante en el repo, y
- * el numero 4 no es un parametro sino la aritmetica del cuarto de vuelta —`rotate90`
- * aplicada cuatro veces es la identidad—. Lo que si es un parametro son los REGIMENES, y
- * por eso esos salen de `Object.values(REGIMEN)` en el modulo: agregar un tercero tiene
- * que meterlo solo en el invariante, y agregar una quinta rotacion no existe.
+ * They are written and not derived from a `ROTATION_COUNT`: the repo has no such
+ * constant, and the number 4 is not a parameter. It is the arithmetic of the quarter
+ * turn: `rotate90` applied four times is the identity. The REGIMES are a parameter, so
+ * they come from `Object.values(REGIMEN)` in this module: a third regime must enter the
+ * check with no edit here, and a fifth rotation does not exist.
  *
- * Los indices, y no los grados: es lo que reciben `rotateN` y `notesForRotation`.
+ * They are indices and not angles: `rotateN` and `notesForRotation` take indices.
  */
 export const ROTATIONS = [0, 1, 2, 3];
 
 /**
- * Los 12 pentominos por su letra, escritos DESDE LA DEFINICION ESTANDAR y no derivados
- * de `SHAPES`.
+ * The 12 pentominoes by their letter, written FROM THE STANDARD DEFINITION and not
+ * derived from `SHAPES`.
  *
- * Que sea una referencia EXTERNA es la unica razon por la que sirve: `checkLetters` la
- * compara contra `SHAPES`, y una tabla derivada de `SHAPES` se verificaria contra si
- * misma. Es la diferencia entre atrapar el bug de la `Z` —que era la `N` reflejada y
- * vivio desde el primer commit— y no verlo, que es lo que les paso a los cinco chequeos
- * anteriores a `checkDistinct`.
+ * It is useful only because it is an EXTERNAL reference: `checkLetters` compares it with
+ * `SHAPES`, and a table derived from `SHAPES` would check itself. That is the difference
+ * between a check that catches a `Z` that is the reflected `N` and one that cannot see
+ * it, like every check that looks at one shape at a time.
  *
- * Salen del nomenclador de Golomb/Conway, el que nombra cada pentomino por la letra a la
- * que se parece. Se copian **dibujadas** para que auditarlas no exija correr nada: cada
- * celda es `[x, y]` con `y` creciendo hacia ABAJO, o sea leyendo el dibujo de arriba
- * hacia abajo.
+ * They come from the naming of Golomb and Conway, which names each pentomino by the
+ * letter it looks like. They are copied **as drawings**, so that an audit runs nothing:
+ * each cell is `[x, y]` with `y` growing DOWN, so the drawing reads from top to bottom.
  *
  * ```text
  *   F      I      L      N      P      T      U      V      W      X      Y      Z
@@ -78,12 +76,12 @@ export const ROTATIONS = [0, 1, 2, 3];
  *          I
  * ```
  *
- * La QUIRALIDAD no hace falta fijarla, y por eso no se documenta cual de los dos
- * enantiomeros es cada uno: la comparacion es por clave canonica, que colapsa las 8
- * orientaciones, asi que la `L` y la `J` —o la `N` y la `S`, o la `F` y su espejo—
- * tienen la misma clave. Es lo correcto y no una concesion: la app genera en vivo las
- * otras 7 orientaciones de cada pieza, asi que `SHAPES` guarda un representante y no una
- * forma privilegiada.
+ * The CHIRALITY does not have to be fixed, so no note says which of the two enantiomers
+ * each one is. The comparison is by canonical key, which collapses the 8 orientations, so
+ * the `L` and the `J` have the same key, and so do the `N` and the `S`, and the `F` and
+ * its mirror image. That is correct and not a concession: the app generates the other 7
+ * orientations of each piece live, so `SHAPES` holds one representative and not a
+ * privileged shape.
  */
 export const PENTOMINOS_CANONICOS: Record<PieceKey, Cell[]> = {
   F: [[1,0],[2,0],[0,1],[1,1],[1,2]],
@@ -107,40 +105,39 @@ export interface CheckResult {
 }
 
 const PIECES = Object.keys(SHAPES) as PieceKey[];
-// Los dos regimenes salen de `REGIMEN` y no se listan a mano: agregar un tercero lo
-// mete solo en `checkNotes` en vez de dejarlo sin invariante que lo mire.
+// The two regimes come from `REGIMEN` and are not listed by hand: a third one enters
+// `checkNotes` with no edit, and is not left with no check that looks at it.
 const REGIMENES: RegimenDeRotacion[] = Object.values(REGIMEN);
 
 /**
- * Comparacion de celdas que no distingue `-0` de `0`.
+ * A comparison of cells that does not tell `-0` from `0`.
  *
- * `rotate90` cruda niega la coordenada, asi que produce `-0` cuando vale 0, y
- * tanto `toEqual` como `deepStrictEqual` distinguen `-0` de `0`. Sumar 0 los
- * colapsa: `-0 + 0` es `+0`.
+ * The raw `rotate90` negates the coordinate, so it gives `-0` when the coordinate is 0,
+ * and both `toEqual` and `deepStrictEqual` tell `-0` from `0`. To add 0 collapses them:
+ * `-0 + 0` is `+0`.
  */
 const sameCell = (a: Cell, b: Cell): boolean => a[0] + 0 === b[0] + 0 && a[1] + 0 === b[1] + 0;
 
 const result = (name: string, failures: string[]): CheckResult =>
   ({ name, ok: failures.length === 0, failures });
 
-/** Aplica a una forma la misma cadena que la UI: `rotateN`, y despues el espejo. */
+/** Applies to a shape the same chain as the UI: `rotateN`, and then the reflection. */
 function transformShape(cells: Cell[], rotation: number, mirror: boolean): Cell[] {
   const r = rotateN(cells, rotation);
   return mirror ? reflect(r) : r;
 }
 
 /**
- * Donde deberia caer cada celda, reconstruido **celda por celda**.
+ * Where each cell must be, rebuilt **cell by cell**.
  *
- * Aplica las primitivas crudas —`rotate90` k veces, la negacion del espejo— y
- * normaliza UNA sola vez al final, en vez de pasar por `rotateN`/`reflect`. Es lo
- * que le da valor al chequeo: si la funcion compuesta filtrara, ordenara o
- * reagrupara celdas, esta reconstruccion no lo haria y los indices dejarian de
- * coincidir.
+ * It applies the raw primitives (`rotate90` k times, the negation of the reflection) and
+ * normalizes ONCE at the end. It does not go through `rotateN` or `reflect`. That gives
+ * the check its value: if the composed function filtered, sorted or regrouped cells, this
+ * rebuild would not, and the indices would stop matching.
  *
- * Que normalizar en cada paso o solo al final de lo mismo no es casualidad: la
- * normalizacion es una traslacion, y las traslaciones conmutan con la rotacion
- * salvo por otra traslacion, que la normalizacion final absorbe.
+ * It is no accident that a normalization at each step and one at the end give the same
+ * result: the normalization is a translation, and a translation commutes with the
+ * rotation up to another translation, which the last normalization absorbs.
  */
 function expectedShape(cells: Cell[], rotation: number, mirror: boolean): Cell[] {
   let raw: Cell[] = cells.map(([x, y]): Cell => [x, y]);
@@ -150,14 +147,13 @@ function expectedShape(cells: Cell[], rotation: number, mirror: boolean): Cell[]
 }
 
 /**
- * 1. Orden del array — la celda del indice `k` despues de transformar es la imagen
- *    de la celda `k` original.
+ * 1. Array order: the cell at index `k` after a transformation is the image of the
+ *    original cell `k`.
  *
- * Se verifica reconstruyendo la transformacion **celda por celda** con la misma
- * traslacion que aplico la funcion completa: si `rotateN` filtrara, ordenara o
- * reagrupara, la celda `k` dejaria de coincidir con su imagen y el chequeo daria
- * rojo. Es la unica forma de afirmar la propiedad, porque el conjunto de celdas
- * sigue siendo el mismo aunque el orden cambie.
+ * The check rebuilds the transformation **cell by cell**, with the same translation that
+ * the whole function applied. If `rotateN` filtered, sorted or regrouped, cell `k` would
+ * stop matching its image and the check would fail. It is the only way to assert the
+ * property, because the set of cells is the same when the order changes.
  */
 export function checkArrayOrder(): CheckResult {
   const failures: string[] = [];
@@ -182,12 +178,12 @@ export function checkArrayOrder(): CheckResult {
 }
 
 /**
- * 2. Ancla — `ANCHOR_INDEX[p]` esta en rango y su celda transformada es la imagen
- *    del ancla original.
+ * 2. Grip cell: `ANCHOR_INDEX[p]` is in range, and its transformed cell is the image of
+ *    the original grip cell.
  *
- * Es corolario del chequeo 1, y se verifica aparte a proposito: es la propiedad de
- * la que depende que el click caiga donde el usuario apunto, porque el ancla viaja
- * como INDICE y se resuelve contra `PlacedPiece.cells`.
+ * It is a corollary of check 1, and is checked apart on purpose. The click falls where
+ * the user pointed because of this property: the grip cell travels as an INDEX and is
+ * resolved against `PlacedPiece.cells`.
  */
 export function checkAnchors(): CheckResult {
   const failures: string[] = [];
@@ -214,7 +210,7 @@ export function checkAnchors(): CheckResult {
   return result('ancla', failures);
 }
 
-/** 3. Formas — 5 celdas, sin repetidas, conexas por lados. */
+/** 3. Shapes: 5 cells, none repeated, connected by sides. */
 export function checkShapes(): CheckResult {
   const failures: string[] = [];
   for (const p of PIECES) {
@@ -231,7 +227,7 @@ export function checkShapes(): CheckResult {
   return result('formas', failures);
 }
 
-/** Recorrido en anchura por vecindad de 4: las diagonales no conectan un pentomino. */
+/** A breadth-first search over the 4 cells that share a side: a diagonal does not connect a pentomino. */
 function isConnected(cells: Cell[]): boolean {
   if (cells.length === 0) return true;
   const keys = new Set(cells.map(([x, y]) => `${x},${y}`));
@@ -239,11 +235,10 @@ function isConnected(cells: Cell[]): boolean {
   const queue: Cell[] = [cells[0]];
 
   while (queue.length > 0) {
-    // El `!` va con su motivo, que es la regla del repo: la condicion
-    // del `while` de arriba ya garantiza la cola no vacia y TypeScript no puede
-    // relacionar `length` con lo que devuelve `shift()`. La otra salida —un `if (!c)
-    // continue`— seria una rama inalcanzable, o sea una linea sin cubrir contra el
-    // umbral 100.
+    // The `!` comes with its reason, which is the rule of the repo: the condition of the
+    // `while` above guarantees a queue that is not empty, and TypeScript cannot relate
+    // `length` to what `shift()` returns. The other way out, an `if (!c) continue`, would
+    // be an unreachable branch: a line not covered, against the threshold of 100.
     const [x, y] = queue.shift()!;
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const k = `${x + dx},${y + dy}`;
@@ -256,7 +251,7 @@ function isConnected(cells: Cell[]): boolean {
   return seen.size === keys.size;
 }
 
-/** 4. `BASE_MAP` — biyectiva sobre las 12 clases de altura. */
+/** 4. `BASE_MAP`: a bijection onto the 12 pitch classes. */
 export function checkBaseMap(): CheckResult {
   const failures: string[] = [];
   const pcs = PIECES.map(p => BASE_MAP[p]);
@@ -275,44 +270,39 @@ export function checkBaseMap(): CheckResult {
 }
 
 /**
- * 5. Notas — 5 distintas ANTES del retrogrado, tantas como celdas tiene una pieza, y
- *    en el orden que su REGIMEN garantiza.
+ * 5. Notes: 5 distinct ones BEFORE the retrograde, as many as the cells of a piece, and
+ *    in the order that the REGIME guarantees.
  *
- * Lo del medio vivio un tiempo solo en un comentario: desde que
- * `degreeByCellIndex` empareja las dos listas por indice, `NOTES_PER_PIECE` y
- * `CELLS_PER_PIECE` pasaron de coincidir a TENER que coincidir. Sin este chequeo
- * una formula de 4 notas con `NOTES_PER_PIECE = 4` pasaba los cinco invariantes
- * que habia entonces —hoy son siete— y todos los tests, y la celda de grado 4
- * renderizaba `undefinedNaN` —
- * `midiName(undefined)` no explota, devuelve basura.
+ * The middle part: `degreeByCellIndex` pairs the two lists by index, so `NOTES_PER_PIECE`
+ * and `CELLS_PER_PIECE` MUST be equal. Without this check, a formula of 4 notes with
+ * `NOTES_PER_PIECE = 4` passes every other check and every test, and the cell of degree 4
+ * renders `undefinedNaN`: `midiName(undefined)` does not throw, it returns garbage.
  *
- * ## Por que el chequeo de orden esta PARTIDO por regimen
+ * ## Why the order check is SPLIT by regime
  *
- * Con un solo regimen este chequeo exigia ascendente estricto sobre las 48 combinaciones, y
- * eso resulto ser una propiedad de `escala` y no del modelo: las cuatro formulas son
- * crecientes, pero correr el arpegio ciclicamente mete un descenso por diseno. Medido,
- * el ascendente estricto falla en **36 de las 48** combinaciones de `orden`, asi que
- * extenderlo entero a las 96 dejaria `check_invariants` en rojo POR DISENO — y un
- * invariante que falla por diseno se termina apagando entero, que es peor que no
- * tenerlo.
+ * Strictly ascending is a property of the scale regime and not of the model. The four
+ * formulas rise, but a cyclic shift of the arpeggio puts in a descent by design.
+ * Measured: strictly ascending fails in **36 of the 48** combinations of the order
+ * regime. Applied to the 96, it would leave `check_invariants` failing BY DESIGN, and a
+ * check that fails by design gets turned off whole, which is worse than no check.
  *
- * En `orden` el chequeo equivalente y mas fuerte es que el arpegio SEA una permutacion
- * ciclica del de rotacion 0: implica lo mismo que implicaba el ascendente —las cinco
- * notas, ninguna repetida— y ata ademas el corrimiento, que es lo que este regimen
- * introduce. Sigue atrapando el caso que el invariante existe para atrapar: un
- * corrimiento mal escrito que deja un hueco y lo pinta como `undefinedNaN`.
+ * In the order regime the equivalent and stronger check is that the arpeggio IS a cyclic
+ * permutation of the one at rotation 0. It implies what ascending implies (the five
+ * notes, none repeated) and it also ties the shift, which is what this regime adds. It
+ * still catches the case this check exists for: a wrong shift that leaves a gap and
+ * paints it as `undefinedNaN`.
  *
- * Lo que vale en los dos —`length` y "sin repetidas"— se queda compartido.
+ * What holds in the two regimes, `length` and "none repeated", stays shared.
  */
 export function checkNotes(): CheckResult {
   const failures: string[] = [];
-  // Los dos son literales (`5`), asi que TypeScript sabe que la comparacion es falsa y
-  // adentro del `if` los estrecha a `never`. El chequeo NO sobra —existe para el dia en
-  // que alguien cambie uno de los dos, que es cuando el modelo se rompe sin ruido— pero
-  // interpolar un `never` es lo unico que `restrict-template-expressions` no perdona, con
-  // razon: dice que ese texto no se puede producir nunca. Leerlos por una variable
-  // `number` devuelve el `if` a ser una comparacion de numeros y el mensaje a ser
-  // alcanzable.
+  // The two are literals (`5`), so TypeScript knows that the comparison is false and
+  // narrows them to `never` inside the `if`. The check is NOT spare: it exists for the
+  // day that one of the two changes, which is when the model breaks with no noise. But to
+  // interpolate a `never` is the one thing `restrict-template-expressions` does not
+  // forgive, and rightly: it says that text can never be produced. Read through a
+  // `number` variable, the `if` is a comparison of numbers again and the message is
+  // reachable.
   const notas: number = NOTES_PER_PIECE;
   const celdas: number = CELLS_PER_PIECE;
   if (notas !== celdas) {
@@ -323,16 +313,18 @@ export function checkNotes(): CheckResult {
   }
   for (const p of PIECES) {
     for (const regimen of REGIMENES) {
-      // El arpegio de rotacion 0, que en `orden` es la referencia del corrimiento. Se
-      // pide una vez por pieza y no una por rotacion: es el mismo en las cuatro.
+      // The arpeggio at rotation 0, which in the order regime is the reference of the
+      // shift. It is asked once for each piece and not once for each rotation: it is the
+      // same in the four.
       const referencia = notesForRotation(BASE_MAP[p], DEFAULT_OCTAVE, 0, regimen);
 
-      // D2, y NO es redundante con el corrimiento de abajo: ese chequeo es RELATIVO a la
-      // rotacion 0, asi que un corrimiento uniforme —`rot + 1` en vez de `rot`— mueve la
-      // referencia junto con el resto y pasa invisible. Medido: la mutacion `(j + rot + 1)`
-      // en `notesForRotation` deja `checkNotes` en verde sin este ancla. Lo que lo fija es
-      // que la rotacion 0 de `orden` sea la pentatonica mayor de la tonica, o sea la de
-      // `escala` — que es ademas la propiedad que hace auditable comparar los dos.
+      // This is NOT redundant with the shift check below. That check is RELATIVE to
+      // rotation 0, so a uniform shift (`rot + 1` in place of `rot`) moves the reference
+      // with the rest and passes unseen. Measured: the mutation `(j + rot + 1)` in
+      // `notesForRotation` leaves `checkNotes` passing without this check. What fixes it
+      // is that rotation 0 of the order regime is the major pentatonic of the tonic, the
+      // same as in the scale regime. That is also the property that makes the comparison
+      // of the two auditable.
       if (regimen === REGIMEN.orden) {
         const enEscala = notesForRotation(BASE_MAP[p], DEFAULT_OCTAVE, 0, REGIMEN.escala);
         if (referencia.join() !== enEscala.join()) {
@@ -357,11 +349,10 @@ export function checkNotes(): CheckResult {
             }
           }
         } else {
-          // Se BUSCA el desplazamiento en vez de darlo por sabido, y despues se lo
-          // compara contra `rot`: asi el chequeo verifica las dos cosas por separado
-          // —que sea una permutacion ciclica, y que el corrimiento sea el pedido— en
-          // vez de recalcular el arpegio y compararlo consigo mismo, que no verifica
-          // nada.
+          // The shift is SEARCHED and not assumed, and then compared with `rot`. So the
+          // check verifies two things apart: that it is a cyclic permutation, and that
+          // the shift is the one asked for. To compute the arpeggio again and compare it
+          // with itself would verify nothing.
           const desplazamiento = referencia.indexOf(ns[0]);
           if (desplazamiento < 0) {
             failures.push(`${p} rot${rot} [${regimen}]: arranca en ${ns[0]}, que no esta en el arpegio de rotacion 0`);
@@ -385,15 +376,15 @@ export function checkNotes(): CheckResult {
 }
 
 /**
- * Clave canonica de una forma: la menor de sus 8 orientaciones, serializada.
+ * The canonical key of a shape: the smallest of its 8 orientations, serialized.
  *
- * Ordena las celdas antes de unirlas porque sus dos consumidores —`checkDistinct` y
- * `checkLetters`— miran el CONJUNTO y no el orden —de ese se ocupa `checkArrayOrder`—,
- * y suma 0 a cada coordenada por lo mismo que `sameCell`: `rotate90` produce `-0`, y
- * `-0` no serializa igual que `0`.
+ * It sorts the cells before it joins them because its two consumers, `checkDistinct` and
+ * `checkLetters`, look at the SET and not at the order. `checkArrayOrder` covers the
+ * order. It adds 0 to each coordinate for the same reason as `sameCell`: `rotate90` gives
+ * `-0`, and `-0` does not serialize like `0`.
  *
- * Sigue sin exportarse a proposito: los dos chequeos que la usan viven en este modulo,
- * y una segunda copia de esta logica afuera se desincronizaria.
+ * It is not exported, on purpose: the two checks that use it are in this module, and a
+ * second copy of this logic outside would go out of step.
  */
 function canonicalKey(cells: Cell[]): string {
   const variantes: string[] = [];
@@ -407,19 +398,19 @@ function canonicalKey(cells: Cell[]): string {
 }
 
 /**
- * 6. Piezas distintas — las 12 formas son 12 pentominos DISTINTOS, hasta rotacion y
- *    reflexion.
+ * 6. Distinct pieces: the 12 shapes are 12 DISTINCT pentominoes, up to rotation and
+ *    reflection.
  *
- * Existe porque su ausencia costo un bug que vivio desde el primer commit: la `Z`
- * era `[[0,1],[1,1],[1,0],[2,0],[3,0]]`, o sea la `N` reflejada. Pasaba `checkShapes`
- * —cinco celdas, sin repetir, conexa— y pasaba los otros cuatro, porque ninguno compara
- * dos FORMAS: el unico que cruza piezas es `checkBaseMap`, y las cruza por su tonica,
- * que la `Z` y la `N` tienen distinta. El tablero tenia once pentominos y uno repetido,
- * y lo unico que lo delataba era mirar el dibujo.
+ * Without it, a `Z` written as `[[0,1],[1,1],[1,0],[2,0],[3,0]]`, which is the reflected
+ * `N`, is accepted. It passes `checkShapes` (five cells, none repeated, connected), and
+ * `checkArrayOrder`, `checkAnchors`, `checkBaseMap` and `checkNotes` too, because none of
+ * them compares two SHAPES: the only one that compares pieces is `checkBaseMap`, by their
+ * tonic, and the `Z` and the `N` have different tonics. The board then has eleven
+ * pentominoes and one repeated, and only the drawing shows it. This occurred: the bug
+ * lived from the first commit.
  *
- * Se compara por clave canonica y no por pares: son 12 claves contra 66 pares, y sobre
- * todo el mensaje sale nombrando a la OTRA pieza, que es el dato que hace falta para
- * arreglarlo.
+ * The comparison is by canonical key and not by pairs: 12 keys against 66 pairs, and
+ * above all the message names the OTHER piece, which is the datum that the fix needs.
  */
 export function checkDistinct(): CheckResult {
   const failures: string[] = [];
@@ -435,26 +426,24 @@ export function checkDistinct(): CheckResult {
 }
 
 /**
- * 7. Letras — cada forma es el pentomino QUE SU LETRA DICE, y no solo una distinta de
- *    las otras once.
+ * 7. Letters: each shape is the pentomino THAT ITS LETTER NAMES, and not only one that
+ *    differs from the other eleven.
  *
- * Es el agujero que el seguimiento del 036 dejo anotado al cerrar `checkDistinct`: una
- * `L` que fuera una `J` pasa, y un INTERCAMBIO de dos letras entre si tambien —el
- * conjunto de las 12 claves no cambia, asi que `checkDistinct` no tiene de que
- * quejarse—. Medido intercambiando `L` con `Y` en `SHAPES`: `checkDistinct` queda en
- * verde con 0 fallos y este chequeo reporta 2.
+ * `checkDistinct` leaves this gap open: a SWAP of two letters passes it, because the set
+ * of the 12 keys does not change and `checkDistinct` has nothing to complain about.
+ * Measured with `L` and `Y` swapped in `SHAPES`: `checkDistinct` passes with 0 failures
+ * and this check reports 2.
  *
- * No lo tapa la vista tampoco: la letra es lo que le da a la pieza su tonica via
- * `BASE_MAP`, asi que dos letras cruzadas suenan cruzadas, y el unico sintoma es que la
- * pieza que se ve como `L` toca la nota de la `Y`.
+ * The eye does not catch it either. The letter gives the piece its tonic through
+ * `BASE_MAP`, so two swapped letters sound swapped, and the only symptom is that the
+ * piece that looks like an `L` plays the note of the `Y`.
  *
- * Se compara contra `PENTOMINOS_CANONICOS`, que esta escrita desde el nomenclador
- * estandar: si la tabla saliera de `SHAPES`, el chequeo se verificaria contra si mismo.
- * Y se compara con `canonicalKey` en vez de con una segunda copia de esa logica, que se
- * desincronizaria — que es exactamente la familia de bug que este archivo persigue. La
- * degeneracion de `canonicalKey` no es un punto ciego compartido: una clave que
- * colapsara formas distintas deja este chequeo en verde pero pone a `checkDistinct` en
- * rojo, porque las 12 pasarian a compartir clave.
+ * The comparison is with `PENTOMINOS_CANONICOS`, written from the standard naming: if the
+ * table came from `SHAPES`, the check would check itself. And it uses `canonicalKey` and
+ * not a second copy of that logic, which would go out of step: that is exactly the family
+ * of bug this file hunts. A degenerate `canonicalKey` is not a shared blind spot: a key
+ * that collapsed different shapes would leave this check passing but would make
+ * `checkDistinct` fail, because the 12 would share one key.
  */
 export function checkLetters(): CheckResult {
   const failures: string[] = [];
@@ -462,8 +451,9 @@ export function checkLetters(): CheckResult {
     const esperada = canonicalKey(PENTOMINOS_CANONICOS[p]);
     const tiene = canonicalKey(SHAPES[p]);
     if (tiene !== esperada) {
-      // El mensaje nombra la letra que la forma SI es cuando esa letra existe: es el
-      // dato que convierte «la Z esta mal» en «la Z es la N», que fue el bug real.
+      // The message names the letter that the shape IS, when that letter exists: it is
+      // the datum that turns "the Z is wrong" into "the Z is the N", which was the real
+      // bug.
       const enRealidad = PIECES.find(otra => canonicalKey(PENTOMINOS_CANONICOS[otra]) === tiene);
       failures.push(
         `${p}: no es el pentomino ${p}, ` +
@@ -474,7 +464,7 @@ export function checkLetters(): CheckResult {
   return result('letras', failures);
 }
 
-/** Los siete de una. Es lo que consume la tool `check_invariants`. */
+/** The seven at once. The tool `check_invariants` consumes this. */
 export function checkAll(): CheckResult[] {
   return [
     checkArrayOrder(), checkAnchors(), checkShapes(), checkBaseMap(), checkNotes(),

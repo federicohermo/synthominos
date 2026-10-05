@@ -2,21 +2,20 @@ import { describe, it, expect } from 'vitest';
 import { binsToBars } from '../spectrum-bars.ts';
 
 /**
- * Ningun test de este archivo toca AudioContext, y no es una comodidad: es el
- * objetivo del diseno.
+ * No test of this file touches an AudioContext, and that is the goal of the design.
  *
- * AnalyserNode no rinde nada util en un OfflineAudioContext, asi que la unica forma
- * de verificar el mapeo es tenerlo separado del nodo.
+ * An AnalyserNode gives nothing useful in an OfflineAudioContext, so the only way to verify
+ * the mapping is to keep it apart from the node.
  */
 
-/** Un espectro con un solo bin encendido. Sonda para ver a que barra cae. */
+/** A spectrum with one bin lit. A probe to see which bar it falls in. */
 function oneHot(binCount: number, i: number): Uint8Array {
   const bins = new Uint8Array(binCount);
   bins[i] = 255;
   return bins;
 }
 
-/** Cuantos bins caen en la barra `bar`, medido barriendo bin por bin. */
+/** How many bins fall in the bar `bar`, measured bin by bin. */
 function spanOf(binCount: number, barCount: number, bar: number): number {
   let n = 0;
   for (let i = 0; i < binCount; i++) {
@@ -26,66 +25,66 @@ function spanOf(binCount: number, barCount: number, bar: number): number {
 }
 
 describe('binsToBars', () => {
-  it('AC-SPC-005 — determinista y normalizado 0-1', () => {
+  it('AC-SPC-005 — deterministic and normalized from 0 to 1', () => {
     const bins = new Uint8Array(128).fill(255);
     expect(Array.from(binsToBars(bins, 8))).toEqual(new Array(8).fill(1));
 
-    // Determinismo: la misma entrada dos veces da exactamente lo mismo.
+    // Determinism: the same input twice gives exactly the same output.
     const half = new Uint8Array(128).fill(128);
     expect(Array.from(binsToBars(half, 16))).toEqual(Array.from(binsToBars(half, 16)));
 
-    // Normalizacion: 255 es el maximo que devuelve getByteFrequencyData.
-    // La tolerancia es de 6 digitos y no mas porque la salida es Float32Array:
-    // 128/255 se redondea al float de 32 bits mas cercano al guardarse.
+    // Normalization: 255 is the maximum that getByteFrequencyData returns.
+    // The tolerance is 6 digits and no more because the output is a Float32Array:
+    // 128/255 is rounded to the nearest 32-bit float when it is stored.
     for (const v of binsToBars(half, 16)) expect(v).toBeCloseTo(128 / 255, 6);
   });
 
-  it('AC-SPC-006 — es el pico de la banda, no el promedio', () => {
-    // Un unico bin fuerte dentro de una banda ancha tiene que llegar entero a la
-    // barra: es el transitorio que el promedio se comeria.
+  it('AC-SPC-006 — it is the peak of the band, not the mean', () => {
+    // One strong bin inside a wide band must reach the bar whole: it is the transient
+    // that the mean would flatten.
     const bins = new Uint8Array(128);
     bins[100] = 255;
     const bars = binsToBars(bins, 8);
     expect(Math.max(...bars)).toBe(1);
   });
 
-  it('AC-SPC-007 — la banda grave abarca menos bins que la aguda', () => {
+  it('AC-SPC-007 — the low band covers fewer bins than the high band', () => {
     const grave = spanOf(128, 8, 0);
     const aguda = spanOf(128, 8, 7);
     expect(grave).toBeLessThan(aguda);
-    expect(grave).toBeGreaterThan(0);   // ninguna banda queda ciega
+    expect(grave).toBeGreaterThan(0);   // no band is blind
   });
 
-  it('AC-SPC-007 — el reparto es monotono: cada banda cubre al menos lo que la anterior', () => {
+  it('AC-SPC-007 — the split is monotonic: each band covers at least as many bins as the band below it', () => {
     const spans = Array.from({ length: 8 }, (_, b) => spanOf(128, 8, b));
     for (let b = 1; b < spans.length; b++) expect(spans[b]).toBeGreaterThanOrEqual(spans[b - 1]);
   });
 
-  it('AC-SPC-008 — todos los bins llegan a alguna barra, incluido el mas agudo', () => {
+  it('AC-SPC-008 — every bin reaches some bar, the highest included', () => {
     for (let i = 0; i < 128; i++) {
       expect(Math.max(...binsToBars(oneHot(128, i), 8))).toBe(1);
     }
   });
 
-  it('AC-SPC-009 — bins en cero da todas las barras en cero', () => {
+  it('AC-SPC-009 — bins at zero give every bar at zero', () => {
     expect(binsToBars(new Uint8Array(128), 8).every(v => v === 0)).toBe(true);
   });
 
-  it('AC-SPC-010 — barCount mayor que la cantidad de bins: ninguna barra queda vacia', () => {
+  it('AC-SPC-010 — a barCount larger than the number of bins: no bar is empty', () => {
     const bars = binsToBars(new Uint8Array(4).fill(255), 32);
     expect(bars.length).toBe(32);
     expect(Array.from(bars)).toEqual(new Array(32).fill(1));
   });
 
-  it('AC-SPC-011 — barCount de 1 devuelve el pico de todo el espectro', () => {
+  it('AC-SPC-011 — a barCount of 1 returns the peak of the whole spectrum', () => {
     expect(binsToBars(new Uint8Array(128).fill(255), 1)[0]).toBe(1);
 
     const bins = new Uint8Array(128);
-    bins[127] = 51;                                  // el bin mas agudo, a 0.2
+    bins[127] = 51;                                  // the highest bin, at 0.2
     expect(binsToBars(bins, 1)[0]).toBeCloseTo(0.2, 6);
   });
 
-  it('AC-SPC-012 — entradas degeneradas devuelven un array vacio en vez de romper', () => {
+  it('AC-SPC-012 — degenerate inputs return an empty array and do not throw', () => {
     expect(binsToBars(new Uint8Array(128), 0).length).toBe(0);
     expect(binsToBars(new Uint8Array(128), -4).length).toBe(0);
     expect(binsToBars(new Uint8Array(0), 8).every(v => v === 0)).toBe(true);

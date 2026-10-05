@@ -22,20 +22,20 @@
     "noUncheckedSideEffectImports": true,
 
     /*
-     * El unico tsconfig del repo con `allowJs`, y hace falta por dos cosas distintas que
-     * salen del mismo hecho: las reglas son `.mjs` y sus tests son `.ts`.
+     * The only tsconfig of the repo with `allowJs`. It is needed for two things that come
+     * from one fact: the rules are `.mjs` and their tests are `.ts`.
      *
-     * 1. Con `allowJs` apagado un `.ts` NO PUEDE importar un `.mjs`. Es por lo que los
-     *    `.mjs` de `.claude/scripts/` se ejercen por subproceso en vez de importarse
-     *    (esta explicado en `gate-de-spec.test.ts`). Aca el `RuleTester` necesita el
-     *    objeto de la regla en el mismo proceso, asi que esa salida no sirve.
-     * 2. Sin un tsconfig que incluya `eslint-rules`, `pnpm lint` FALLA POR PARSEO sobre
-     *    el `__tests__/`: `projectService` rechaza todo archivo que ningun tsconfig
-     *    levante. Es el mismo motivo por el que `tsconfig.app.json` nombra sus cinco
-     *    directorios enteros y no solo `src`.
+     * 1. With `allowJs` off a `.ts` CANNOT import a `.mjs`. That is why the `.mjs` of
+     *    `.claude/scripts/` is exercised through a subprocess and not imported. Here the
+     *    `RuleTester` needs the rule object in the same process, so that way out does not
+     *    work.
+     * 2. Without a tsconfig that includes `eslint-rules`, `pnpm lint` FAILS ON PARSE on
+     *    the `__tests__/`: `projectService` rejects every file that no tsconfig takes. It
+     *    is the same reason `tsconfig.app.json` names whole directories and not only `src`.
      *
-     * `checkJs` queda apagado: los `.mjs` entran al programa para poder importarse y
-     * para que el `@type` de su JSDoc los tipe, no para typecheckearse como TypeScript.
+     * `checkJs` stays off: the `.mjs` files enter the program so that they can be imported
+     * and so that the `@type` of their JSDoc types them, not to be typechecked as
+     * TypeScript.
      */
     "allowJs": true
   },

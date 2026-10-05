@@ -1,43 +1,44 @@
 /**
- * Aritmetica de la cabeza lectora: en que intervalo del ciclo esta parada.
+ * The arithmetic of the playhead: the interval of the cycle where it is.
  *
- * Vive aparte de `engine.ts` por el mismo motivo por el que `spectrum-bars.ts` vive aparte
- * del AnalyserNode: leer el reloj exige el singleton del AudioContext, que en los
- * tests no existe, asi que lo unico afirmable —la cuenta— se separa del nodo que no
- * se puede correr. Aca la entrada son cuatro numeros y la salida es determinista.
+ * It lives apart from `engine.ts` for the same reason that `spectrum-bars.ts` lives
+ * apart from the AnalyserNode: to read the clock needs the singleton of the
+ * AudioContext, which a node test does not have. So the only thing that can be
+ * asserted, the count, is separated from the node that cannot run. Here the input is
+ * four numbers and the output is deterministic.
  *
- * Modulo puro: sin Web Audio, sin DOM, sin React.
+ * A pure module: no Web Audio, no DOM, no React.
  */
 
 /**
- * Indice ENTERO del intervalo que la cabeza pisa, dentro de `[0, cycleIntervals)`.
+ * The WHOLE index of the interval where the playhead is, inside `[0, cycleIntervals)`.
  *
- * Entero y no flotante (D6): la cabeza salta de celda en celda porque el recorrido
- * esta cuantizado a la grilla de intervalos y el sonido tambien. Interpolar dibujaria
- * una posicion que el modelo no tiene.
+ * Whole and not a float: the playhead jumps from cell to cell because the circuit is
+ * quantized to the grid of intervals, and the sound too. An interpolation would draw a
+ * position that the model does not have.
  *
- * `now` se espera YA compensado por la latencia de salida: lo que se agenda en
- * `ctx.currentTime` se escucha mas tarde, y esa resta es del llamador porque depende
- * del contexto —que este modulo no puede ver— y no de la aritmetica.
+ * `now` must ALREADY be compensated for the output latency: what is scheduled at
+ * `ctx.currentTime` is heard later, and that subtraction belongs to the caller because
+ * it depends on the context, which this module cannot see, and not on the arithmetic.
  *
- * Devuelve `null` y nunca `NaN` en los tres degradados alcanzables:
+ * It returns `null` and never `NaN` in the three degraded cases that can be reached:
  *
- * - `cycleIntervals <= 0` es el tablero vacio, y se llega apretando play. `x % 0` en
- *   JS es `NaN`, que aguas abajo se dibuja como una celda fantasma en vez de fallar.
- * - `intervalSeconds <= 0` no pasa hoy —sale de `intervalDuration(bpm)`— pero dividir
- *   por el tiene el mismo final.
- * - un argumento no finito envenena la cuenta entera; se corta antes.
+ * - `cycleIntervals <= 0` is the empty board, and play reaches it. `x % 0` in JS is
+ *   `NaN`, which downstream is drawn as a cell that does not exist and does not fail.
+ * - `intervalSeconds <= 0` does not happen today, because it comes from
+ *   `intervalDuration(bpm)`, but a division by it ends the same way.
+ * - a non-finite argument poisons the whole count; it is cut before.
  *
- * `now < origin` NO es un degradado: la progresion esta definida para todo `k`, asi que
- * la respuesta es la cola del ciclo. Por eso el modulo es euclideo: el `%` de JS
- * conserva el signo del dividendo y devolveria -1.
+ * `now < origin` is NOT a degraded case: the progression is defined for every `k`, so
+ * the answer is the tail of the cycle. That is why the modulo is Euclidean: the `%` of
+ * JS keeps the sign of the dividend and would return -1.
  *
- * Que sea la respuesta CORRECTA no la vuelve la respuesta UTIL, y esa distincion costo
- * un bug: `playheadOffset()` corta antes de llegar aca cuando `now < origin`, porque en
- * esa ventana —los 50 ms de `CLOCK_START_DELAY`, o los hasta 82 ms entre un swap de
- * ciclo y el borde— la secuencia activa todavia no empezo a sonar y la cola del ciclo
- * nuevo es una celda que nadie esta escuchando. El detalle vive en el docblock de
- * `playheadOffset`; aca la funcion se queda total, que es lo que la hace afirmable.
+ * That it is the CORRECT answer does not make it the USEFUL answer: `playheadOffset()`
+ * cuts before it gets here when `now < origin`. In that window, the 50 ms of
+ * `CLOCK_START_DELAY` or the up to 82 ms between a swap and the boundary, the sounding
+ * sequence has not started to sound, and the tail of the new cycle is a cell that
+ * nobody hears. The detail is in the docblock of `playheadOffset`; here the function
+ * stays total, which is what makes it assertable.
  */
 export function offsetAt(
   now: number,
@@ -49,9 +50,9 @@ export function offsetAt(
   if (!Number.isFinite(intervalSeconds) || !Number.isFinite(cycleIntervals)) return null;
   if (intervalSeconds <= 0) return null;
 
-  // El ciclo se trunca a entero antes de usarlo como modulo: `Sequence.length` ya
-  // viene en intervalos enteros, pero un fraccionario devolveria un offset fuera de
-  // la grilla de celdas y la cabeza quedaria entre dos.
+  // The cycle is truncated to a whole number before it is used as the modulus:
+  // `Sequence.length` already comes in whole intervals, but a fraction would return an
+  // offset outside the grid of cells, and the playhead would be between two.
   const ciclo = Math.floor(cycleIntervals);
   if (ciclo <= 0) return null;
 

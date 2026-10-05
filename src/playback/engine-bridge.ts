@@ -2,51 +2,52 @@ import type { Sequence as SchedulerSequence } from './scheduler.ts';
 import type { Sequence } from '../circuit/sequence.ts';
 
 /**
- * Las dos puras del puente con el motor: proyectar la secuencia, y alternar el
- * transporte preguntándole qué pasó.
+ * The two pure functions of the bridge to the engine: to project the sequence, and to
+ * toggle the transport and ask it what happened.
  *
- * Es el único módulo que conoce los dos `Sequence`: el del circuito, con celdas, y el
- * del motor, que habla MIDI. `route-source.ts` hace el mismo cruce para la cabeza
- * lectora.
+ * It is the only module that knows the two `Sequence` types: that of the circuit, with
+ * cells, and that of the engine, which speaks MIDI. `route-source.ts` steps across the
+ * same border for the playhead.
  *
- * Sin React y sin importar el motor: por eso su test corre en
- * `environment: 'node'` como los otros módulos puros de la UI. El cableado con React y
- * con `playback/engine.ts` es de `use-engine.ts`, que no toma ninguna decisión.
+ * No React and no import of the engine: so its test runs in the `node` project, like
+ * those of the other pure modules of the UI. The wiring to React and to
+ * `playback/engine.ts` belongs to `use-engine.ts`, which makes no decision.
  *
- * Los dos `Sequence` chocan de nombre, así que uno viaja con alias, y el alias va
- * del lado del motor. Medido en esta capa: el del dominio ya lo importa
- * `route-source.ts` y el del motor no lo importa nadie —1 contra 0—, y encima
- * `SequenceDelMotor` nombra el destino en vez del origen.
+ * The two `Sequence` names collide, so one travels with an alias, and the alias is on
+ * the side of the engine. Measured in this folder: `route-source.ts` already imports
+ * that of the circuit and nobody imports that of the engine, 1 against 0. Also,
+ * `SequenceDelMotor` names the destination and not the origin.
  */
 
 /**
- * El puente con el motor, visto desde el lado de la UI: la forma que espera
- * `setSequence` y el ROL que el transporte cumple para la pura que lo alterna.
+ * The bridge to the engine, seen from the side of the UI: the shape that `setSequence`
+ * expects and the ROLE that the transport has for the pure function that toggles it.
  *
- * Los dos nombres son del rol y no de la API de `playback/engine.ts`, y eso es
- * deliberado: `MotorDeTransporte` no dice `startClock`/`stopClock`/`clockRunning`
- * porque el tipo describe lo que la pura NECESITA —arrancar, frenar, y preguntar
- * qué pasó de verdad—, no lo que el motor exporta. La diferencia se cobra en el
- * test: un motor falso se escribe en una línea porque el tipo tiene tres
- * funciones y ninguna dependencia, y renombrarlo a la API del motor ataría la
- * firma de la pura al singleton del `AudioContext` sin necesidad.
+ * The two names are those of the role and not of the API of `playback/engine.ts`, on
+ * purpose: `MotorDeTransporte` does not say `startClock`/`stopClock`/`clockRunning`
+ * because the type describes what the pure function NEEDS (to start, to stop, and to
+ * ask what really happened), not what the engine exports. The test shows the
+ * difference: a fake engine is one line, because the type has three functions and no
+ * dependency. With the names of the engine API, the signature of the pure function
+ * would be tied to the singleton of the `AudioContext` for no reason.
  *
- * El mapeo a las tres funciones reales se hace en un solo lugar, que es
- * `playback/use-engine.ts` — el único módulo de la capa que importa la **API de transporte** del
- * motor. `Playhead.tsx`, `Spectrum.tsx` y `route-source.ts` también importan `playback/engine.ts`, pero
- * los tres piden lecturas y ninguno arranca, frena ni agenda nada.
+ * The mapping to the three real functions is in one place, `playback/use-engine.ts`,
+ * the only module that imports the **transport API** of the engine.
+ * `playhead-loop.ts`, `spectrum-loop.ts` and `route-source.ts` import
+ * `playback/engine.ts` too, but the three ask for reads and none starts, stops or
+ * schedules anything.
  */
 
-/** La `Sequence` que el motor espera: la del dominio MENOS `pieceId` y MENOS `cell`. */
+/** The `Sequence` that the engine expects: that of the circuit LESS `pieceId` and `cell`. */
 export type SequenceDelMotor = SchedulerSequence;
 
 /**
- * El transporte, como tres funciones sin estado propio.
+ * The transport, as three functions with no state of their own.
  *
- * `corriendo` no es redundante con lo que se le pidió: `arrancar` es un no-op
- * silencioso cuando el motor no tiene `AudioContext`, y
- * `.claude/rules/audio.md` obliga a todo llamador a chequearlo. Por eso el rol
- * lleva la consulta adentro en vez de dejarla afuera como cortesía.
+ * `corriendo` is not redundant with what was asked: `arrancar` is a silent no-op when
+ * the engine has no `AudioContext`, and `.agents/rules/audio.md` makes every caller
+ * check it. So the role carries the query inside and does not leave it outside as a
+ * courtesy.
  */
 export interface MotorDeTransporte {
   arrancar: () => void;
@@ -55,52 +56,51 @@ export interface MotorDeTransporte {
 }
 
 /**
- * La `Sequence` del dominio, como la espera el motor.
+ * The `Sequence` of the circuit, as the engine expects it.
  *
- * Acá se PROYECTA, no se traduce (D7, D8, AC12). `offset`, `notes` y la
- * `note` MIDI del cruce viajan tal cual; lo que se cae es `pieceId` —el motor no
- * tiene a quién devolvérselo— y `cell` en los clicks: el motor habla MIDI y no
- * conoce `Cell`. La `note` sí cruza, porque es un número MIDI y el motor
- * habla MIDI: el recorrido puede pisar una celda ocupada y ese
- * cruce suena su altura, así que no alcanza con contar los clicks.
- * Convertirla a Hz es del motor —lo hace `collectHits`, igual que con `steps.notes`—:
- * acá se proyecta, y traducir sería justo lo que esta función no hace.
+ * This is a PROJECTION, not a translation. `offset`, `notes` and the MIDI `note` of the
+ * crossing travel as they are. What is dropped is `pieceId`, because the engine has
+ * nobody to give it back to, and `cell` in the clicks: the engine speaks MIDI and does
+ * not know `Cell`. The `note` does cross, because it is a MIDI number and the engine
+ * speaks MIDI: the circuit can enter an occupied cell and that crossing sounds its
+ * pitch, so a count of the clicks is not enough. The conversion to Hz belongs to the
+ * engine (`collectHits` does it, as with `steps.notes`): a translation here would be
+ * just what this function does not do.
  *
- * Escrita una sola vez y no dos, que es lo que este spec vino a arreglar: hasta acá
- * el bloque estaba en el efecto de reconciliación Y en el de desmontaje, con un
- * comentario que ya admitía que escribirla distinto invitaría a divergir. Con una
- * pura, «no divergir» deja de ser una promesa y pasa a ser imposible de escribir.
+ * Written once: the reconciliation effect and the unmount effect of `use-engine.ts`
+ * both call it. With one pure function, "do not diverge" is not a promise: the other
+ * way is impossible to write.
  */
 export function proyectarAlMotor(s: Sequence): SequenceDelMotor {
   return {
     steps: s.steps.map(({ offset, notes }) => ({ offset, notes })),
-    // El ternario y no `({ offset, note })`: con la forma corta el click mudo sale con
-    // la clave `note` PRESENTE y en `undefined`, y la ausencia del campo es justo lo
-    // que dice "celda vacía" (ver el docblock de `Click`). Hoy nadie lo notaría
-    // —`collectHits` compara `=== undefined`— pero es el tercer estado que el tipo
-    // existe para no tener.
+    // The ternary and not `({ offset, note })`: with the short form the click comes out
+    // with the key `note` PRESENT and `undefined`, and the absence of the field is just
+    // what says "empty cell" (see the docblock of `Click`). Nobody would notice today,
+    // because `collectHits` compares `=== undefined`, but it is the third state that
+    // the type exists to exclude.
     clicks: s.clicks.map((c) => c.note === undefined ? { offset: c.offset } : { offset: c.offset, note: c.note }),
     length: s.length,
   };
 }
 
 /**
- * Alterna el transporte y devuelve si quedó corriendo — lo que el MOTOR dice, no lo
- * que se le pidió.
+ * Toggles the transport and returns whether it runs: what the ENGINE says, not what
+ * was asked.
  *
- * El `return motor.corriendo()` y no `return !playing` es la función entera: el motor
- * es quien sabe si arrancó, porque `arrancar` es un no-op silencioso cuando el
- * `AudioContext` no existe, y sin este chequeo el botón diría "Pausa" con el reloj
- * parado. Es la falla suave que `.claude/rules/audio.md` obliga a chequear en todo
- * llamador.
+ * The `return motor.corriendo()` and not `return !playing` is the whole function: the
+ * engine knows if it started, because `arrancar` is a silent no-op when the
+ * `AudioContext` does not exist. Without this check the play button would offer pause
+ * with the clock stopped. It is the soft failure that `.agents/rules/audio.md` makes
+ * every caller check.
  *
- * El motor entra por PARÁMETRO y no por import, que es lo contrario de lo que hace
- * `route-source.ts` —importa `engine.ts` y su test lo mockea—. Las dos vías
- * funcionan; ésta se elige porque el valor que hay que testear es la DISCREPANCIA
- * entre lo que se pidió y lo que pasó, y con un motor falso esa discrepancia se
- * escribe en una línea (`corriendo: () => false`) en vez de armarse desde un mock.
- * Además evita que este archivo importe el singleton del `AudioContext` para leer un
- * booleano, que es el mismo motivo que el docblock de `route-source.test.ts` escribe.
+ * The engine comes as a PARAMETER and not as an import, the opposite of
+ * `route-source.ts`, which imports `engine.ts` and whose test mocks it. The two ways
+ * work. This one is chosen because the value to test is the DISCREPANCY between what
+ * was asked and what happened, and with a fake engine that discrepancy is one line
+ * (`corriendo: () => false`) and not a mock to build. It also keeps this file from
+ * importing the singleton of the `AudioContext` to read a boolean, the same reason
+ * that the docblock of `route-source.test.ts` gives.
  */
 export function alternarTransporte(playing: boolean, motor: MotorDeTransporte): boolean {
   if (playing) motor.frenar(); else motor.arrancar();

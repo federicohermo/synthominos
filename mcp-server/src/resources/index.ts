@@ -2,15 +2,14 @@ import type { ResourceDef } from './types.ts';
 import { constantes } from './constantes.ts';
 
 /**
- * El registro de resources, con la misma forma que `tools/index.ts`: agregar uno es un
- * archivo mas una linea aca, y el entrypoint no se toca.
+ * The registry of resources, with the same shape as `tools/index.ts`: a new resource is
+ * one file plus one line here, and the entry point does not change.
  *
- * **Es un array desde el primero y no un `registerResource` suelto en `index.ts`**, y eso
- * no es simetria: el segundo ya esta previsto. Los templates —`spec://{n}` y
- * `piece://{letra}`— son resources con URI parametrica, o sea que llegan con
- * `ResourceTemplate` y una firma distinta. Escribir hoy la version de un solo elemento
- * significa que ese dia hay que abrir el entrypoint, mover el registro y revisar el
- * capabilities; escribirlo asi significa que hay que agregar una linea.
+ * **It is an array from the first resource, not a lone `registerResource` in
+ * `index.ts`**, and the reason is not symmetry. A resource with a parametric URI, such
+ * as `piece://{letter}`, comes with `ResourceTemplate` and a different signature. With a
+ * version for one element, that day someone must open the entry point, move the
+ * registration and check the capabilities. With the array, that day needs one more line.
  */
 export const resources: readonly ResourceDef[] = [
   constantes,

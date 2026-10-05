@@ -29,28 +29,28 @@ import { midiToHz } from '../../../src/playback/voice.ts';
 import type { Sequence, ClockState, Hit } from '../../../src/playback/scheduler.ts';
 
 /**
- * Que suena un tablero, sin escucharlo.
+ * What a board sounds like, without hearing it.
  *
- * Recorre las mismas tres etapas que la app y **con las mismas funciones**:
- * colocar (`cellsAt`/`isValid`), armar la secuencia del recorrido (`buildSequence`)
- * y correr el scheduler real. Nada de eso esta reescrito aca: el circuito, los
- * saltos y los offsets salen del dominio, y el server solo compone y formatea.
+ * It goes through the same three stages as the app, **with the same functions**: place
+ * (`cellsAt`/`isValid`), build the sequence of the circuit (`buildSequence`) and run the
+ * real scheduler. None of that is written again here: the circuit, the legs and the
+ * offsets come from the domain, and the server only composes and formats.
  *
- * El bucle de ventanas es deliberado: una formula idealizada responderia lo que el
- * scheduler *deberia* hacer, y este bucle responde lo que **hace**, incluido el
- * corte de `scheduledUntil`.
+ * The loop of windows is deliberate. An idealized formula would answer what the
+ * scheduler *should* do. This loop answers what it **does**, the cut of
+ * `scheduledUntil` included.
  */
 
-/** Redondeo para agrupar y para reportar: los onsets salen de aritmetica de punto flotante. */
+/** Rounding to group and to report: the event times come from floating point arithmetic. */
 const round4 = (t: number): number => Math.round(t * 1e4) / 1e4;
 
-/** Por donde entra y por donde sale el recorrido de una pieza. */
+/** Where the circuit enters a piece and where it leaves. */
 interface Gates {
   entry: Cell;
   exit: Cell;
 }
 
-/** Una celda del camino que esta ocupada, con la nota que suena si se la pisa. */
+/** A cell of the route that is occupied, with the note that sounds when the route enters it. */
 interface Cruce {
   cell: Cell;
   note: string;
@@ -60,84 +60,83 @@ const placementSchema = z.object({
   piece: z.enum(PIECE_KEYS),
   rotation: z.number().int().min(0).max(3).default(0),
   mirror: z.boolean().default(false),
-  // Una pieza muteada ocupa su lugar y su tiempo en el circuito pero no suena sus
-  // notas: donde iba su arpegio van cinco clicks (spec 014). Se acepta aca para que la
-  // tool pueda contestar "que cambia si muteo esta" sin que nadie lo derive a mano, y
-  // el default es `false` porque es el tablero de siempre.
+  // A muted piece keeps its place and its time in the circuit but does not sound its
+  // notes: five clicks go where its arpeggio was. The tool accepts it so that it can
+  // answer "what changes if I mute this one" with no derivation by hand. The default is
+  // `false` because that is the usual board.
   muted: z.boolean().default(false),
   at: z.tuple([z.number().int(), z.number().int()])
-    .describe(`Celda [x, y] donde cae la CELDA DE AGARRE, no la esquina. El tablero mide ${GRID_DEFAULT.w}x${GRID_DEFAULT.h} salvo que se pase \`dims\`, y la y crece hacia abajo.`),
+    .describe(`Cell [x, y] where the GRIP CELL lands, not the corner. The board is ${GRID_DEFAULT.w}x${GRID_DEFAULT.h} unless \`dims\` is given, and y grows down.`),
 });
 
 const inputSchema = z.object({
   pieces: z.array(placementSchema).min(1).max(MAX_PIEZAS)
-    .describe('Las piezas, en el orden en que se colocarían: cada una choca con las anteriores válidas.'),
-  // El tablero no es 10x6 fijo desde el spec 031: en la app lo decide el viewport, y acá
-  // hay que poder preguntar por el mismo tablero que se está mirando. El default es el de
-  // siempre, así que una consulta que no pase `dims` contesta exactamente lo mismo.
+    .describe('The pieces, in the order of placement: each one collides with the valid ones before it.'),
+  // The board is not a fixed 10x6: in the app the viewport decides it, and a caller must
+  // be able to ask about the same board that is on the screen. The default is the
+  // reference board, so a query with no `dims` answers for that board.
   //
-  // El tope de piezas NO sale del área, y por eso `pieces` usa `MAX_PIEZAS` en vez de
-  // `GRID_W * GRID_H / CELLS_PER_PIECE`: sobre el tablero de 10x6 los dos números
-  // coinciden —60 ÷ 5— y sobre cualquier otro no, porque el que manda es el del circuito,
-  // que es exponencial en la cantidad de piezas.
+  // The piece limit does NOT come from the area, so `pieces` uses `MAX_PIEZAS` and not
+  // `GRID_W * GRID_H / CELLS_PER_PIECE`. On the 10x6 board the two numbers agree, 60 ÷ 5,
+  // and on any other board they do not: the limit that rules is that of the circuit,
+  // which is exponential in the piece count.
   dims: z.object({
     w: z.number().int().min(GRID_MIN.w).max(64),
     h: z.number().int().min(GRID_MIN.h).max(64),
   }).default(GRID_DEFAULT)
-    .describe(`Cuánto mide el tablero, en celdas. Por defecto ${GRID_DEFAULT.w}x${GRID_DEFAULT.h}, que es el de siempre.`),
+    .describe(`The size of the board, in cells. The default is ${GRID_DEFAULT.w}x${GRID_DEFAULT.h}, the reference board.`),
   bpm: z.number().min(40).max(240).default(DEFAULT_BPM),
-  // El tope no es el de `bars` dividido a ojo. Con compases el costo del bucle de
-  // ventanas dependia del tempo y del tablero a la vez; con ciclos el peor caso
-  // esta acotado por el tablero: 10 piezas dan 8,98 s de ciclo a 110 bpm, o sea
-  // ~36 s de simulacion con 4.
+  // The limit counts cycles, not bars. A limit in bars would make the cost of the loop of
+  // windows depend on the tempo and on the board at the same time. With cycles, the board
+  // bounds the worst case: 10 pieces give a cycle of 8.98 s at 110 bpm, so ~36 s of
+  // simulation with 4.
   cycles: z.number().int().min(1).max(4).default(2)
-    .describe('Cuántas vueltas del circuito simular. El ciclo lo fija el tablero, no el tempo.'),
+    .describe('How many laps of the circuit to simulate. The board sets the cycle, not the tempo.'),
   regimen: z.enum([REGIMEN.escala, REGIMEN.orden]).default(DEFAULT_REGIMEN)
     .describe(
-      'Qué cambia la rotación (spec 017). `escala`: la rotación elige entre cuatro fórmulas, o sea ' +
-      'QUÉ NOTAS suena cada pieza. `orden`: pentatónica mayor siempre, corrida `rotation` posiciones, ' +
-      'o sea POR DÓNDE ARRANCA su arpegio. Gobierna las notas de cada paso y la altura de los cruces, ' +
-      'y no toca el circuito ni las puertas ni los offsets: cambiarlo no reordena el tablero (D1).',
+      'What the rotation changes. `escala` (the scale regime): the rotation selects one of four formulas, so ' +
+      'WHICH NOTES each piece sounds. `orden` (the order regime): always the major pentatonic, shifted `rotation` positions, ' +
+      'so WHERE its arpeggio STARTS. It governs the notes of each piece and the pitch of the crossings, ' +
+      'and it does not touch the circuit, the gates or the offsets: a change of regime does not reorder the board.',
     ),
 });
 
 /**
- * Nombre de nota de una frecuencia, o la frecuencia redondeada si no se la conoce.
+ * The note name of a frequency, or the rounded frequency if the map does not know it.
  *
- * El mapa se arma con las notas de los `Step`, y hoy TODO `Hit` con altura sale de
- * ahi —incluido el cruce del spec 011, cuya altura es la de una celda de una pieza
- * que si tiene su paso—, asi que la segunda mitad no se alcanza desde la tool. Vive
- * como funcion propia y no como un `??` colgado del `map` por eso mismo: la regla de
- * que hacer con un `hz` desconocido es una decision —decirlo en Hz antes que mostrar
- * `undefined`— y una decision que nadie puede ejercer es una que nadie puede revisar.
- * Aca se la nombra, se la documenta y su test la ejerce.
+ * The map is built from the notes of each `Step`, and today EVERY `Hit` with a pitch
+ * comes from there. That includes the crossing, whose pitch is that of a cell of a piece
+ * that does have its `Step`. So the tool cannot reach the second half. It is a function
+ * of its own and not a `??` inside the `map` for that reason: what to do with an unknown
+ * `hz` is a decision, to say it in Hz and not show `undefined`. A decision that nobody
+ * can exercise is one that nobody can review. Here it has a name, a doc and a test that
+ * exercises it.
  *
- * Que la busqueda acierte depende de la igualdad EXACTA de floats, y eso vale porque
- * la clave se calcula con la misma `midiToHz` sobre la misma entrada que uso el
- * scheduler. Si algun dia deja de valer, el sintoma es este fallback y no un `NaN`.
+ * The lookup hits only with EXACT float equality. That holds because the key is computed
+ * with the same `midiToHz` on the same input that the scheduler used. If it ever stops
+ * holding, the symptom is this fallback and not a `NaN`.
  */
 export function nombreDeHz(nameByHz: ReadonlyMap<number, string>, hz: number): string {
   return nameByHz.get(hz) ?? `${Math.round(hz)}Hz`;
 }
 
-/** Una colocacion ya resuelta: lo que la respuesta reporta de cada jugada. */
+/** One resolved placement: what the answer reports for each entry of `pieces`. */
 interface Resolved {
   id: string;
   cells: Cell[];
   valid: boolean;
-  /** No-null exactamente cuando la jugada entro: una pieza que no esta no tiene puertas. */
+  /** Non-null exactly when the placement is valid: a piece that is not on the board has no gates. */
   gates: Gates | null;
   reason: string | null;
 }
 
 /**
- * Las dos puertas de una pieza, con los nombres de la respuesta.
+ * The two gates of a piece, with the names of the answer.
  *
- * Solo renombra: quien decide cual celda es cual es `gates` del dominio, **la misma**
- * que usa `buildSequence` para armar el circuito. La primera version de esta tool la
- * reimplementaba porque no estaba exportada, y eran tres lineas que podian discrepar
- * del recorrido que la tool dice explicar; exportarla fue el cambio de `src/` que
- * la regla del repo pide en vez de la copia.
+ * It only renames. `gates` of the domain decides which cell is which, **the same**
+ * function that `buildSequence` uses to build the circuit. A local copy would be three
+ * lines that could disagree with the circuit that the tool says it explains. The repo
+ * rule asks for an export in `src/`, not for the copy.
  */
 function gatesOf(p: PlacedPiece): Gates {
   const { entrada, salida } = gates(p);
@@ -145,33 +144,33 @@ function gatesOf(p: PlacedPiece): Gates {
 }
 
 /**
- * Los cruces de un tramo: las celdas que el camino pisa y que estan ocupadas, con la
- * nota que suena al pisarlas (T046).
+ * The crossings of a leg: the cells that the route enters and that are occupied, with
+ * the note that sounds there.
  *
- * **Lee `Click.note` y NO vuelve a derivar la nota desde la celda**, aunque el dominio
- * exponga las dos puras que harian falta (`occupantAt` y `noteAtCell`). Es D3 del spec
- * 011 aplicado a esta capa: el `Click` ya trae la altura que `buildSequence` le puso, y
- * derivarla de nuevo aca serian dos lugares calculando lo mismo sin nada que los obligue
- * a coincidir — justo lo que la tool existe para descartar, porque su unico valor es
- * reportar lo que la app va a sonar y no una segunda opinion sobre eso.
+ * **It reads `Click.note` and does NOT derive the note from the cell again**, although
+ * the domain exports the two pure functions for it (`occupantAt` and `noteAtCell`). The
+ * `Click` already has the pitch that `buildSequence` gave it. To derive it again here
+ * would be two places that compute the same thing with nothing that makes them agree.
+ * That is exactly what the tool exists to rule out: its only value is to report what
+ * the app will sound, not a second opinion about it.
  *
- * Vacio cuando el tramo no pisa ninguna pieza, nunca ausente: la respuesta siempre trae
- * el campo para que un tablero sin cruces no se distinga de uno sin reportar.
+ * Empty when the leg enters no piece, never absent: the answer always has the field, so
+ * that a reader does not confuse a board with no crossings with a board with no report.
  */
 function crucesDe(tramo: readonly { cell: Cell; note?: number }[]): Cruce[] {
   return tramo.flatMap((c): Cruce[] => c.note === undefined ? [] : [{ cell: c.cell, note: midiName(c.note) }]);
 }
 
 /**
- * Etapa 1 — colocacion, con las reglas del tablero de `board-editing/placement.ts`.
+ * Stage 1: placement, with the board rules of `board-editing/placement.ts`.
  *
- * El motivo del rechazo sale de las mismas funciones y no de una copia de sus
- * condiciones: `isValid(cells, [])` responde solo por los bordes —el tablero
- * vacio no puede chocar con nada— y `occupantAt` dice contra QUE pieza se choco.
+ * The reason for a rejection comes from the same functions and not from a copy of their
+ * conditions. `isValid(cells, [])` answers only for the edges, because the empty board
+ * cannot collide with anything. `occupantAt` says WHICH piece the collision was with.
  *
- * Devuelve tambien las `PlacedPiece` validas porque son la entrada exacta de
- * `buildSequence`: rearmarlas afuera a partir de `Resolved` seria construir dos
- * veces lo mismo.
+ * It also returns each valid `PlacedPiece` because they are the exact input of
+ * `buildSequence`: to rebuild them outside from `Resolved` would build the same thing
+ * twice.
  */
 function resolve(entries: z.output<typeof inputSchema>['pieces'], dims: Dims): { resolved: Resolved[]; placed: PlacedPiece[] } {
   const placed: PlacedPiece[] = [];
@@ -187,20 +186,20 @@ function resolve(entries: z.output<typeof inputSchema>['pieces'], dims: Dims): {
     let reason: string | null = null;
     if (!valid) {
       if (!isValid(cells, [], dims)) {
-        reason = 'fuera-del-tablero';
+        reason = 'off-the-board';
       } else {
         const choque = cells.map(([x, y]) => occupantAt(placed, x, y)).find(p => p !== null);
-        reason = `choque-con-${choque?.id}`;
+        reason = `collides-with-${choque?.id}`;
       }
     }
 
-    // Solo lo valido pasa a ser obstaculo, igual que en la app: una jugada
-    // rechazada no deja nada en el tablero.
+    // Only a valid piece becomes an obstacle, as in the app: a rejected placement
+    // leaves nothing on the board.
     let gates: Gates | null = null;
     if (valid) {
-      // Sin `notes`: el arpegio no se guarda en la pieza, lo deriva `buildSequence` con
-      // la misma `arpeggioFor` que usa la app. Componerlo aca a mano seria otra copia de
-      // esa derivacion, y la derivacion tiene un solo dueño.
+      // No `notes`: the piece does not store its arpeggio. `buildSequence` derives it
+      // with the same `arpeggioFor` that the app uses. To compose it here by hand would
+      // be one more copy of that derivation, and the derivation has one owner.
       const p: PlacedPiece = { id, piece: e.piece, rotation: e.rotation, mirror: e.mirror, cells, muted: e.muted };
       placed.push(p);
       gates = gatesOf(p);
@@ -212,26 +211,23 @@ function resolve(entries: z.output<typeof inputSchema>['pieces'], dims: Dims): {
 }
 
 /**
- * Etapa 3 — la linea de tiempo, corriendo el scheduler en ventanas de `TICK_MS`.
+ * Stage 3: the timeline, from the scheduler run in windows of `TICK_MS`.
  *
- * Arranca el reloj como `startClock`: el origen queda `CLOCK_START_DELAY`
- * adelante y `scheduledUntil` estrictamente antes, que es lo que evita perder el
- * onset del offset 0. Los tiempos se reportan en la misma escala, con el instante
- * 0 en el arranque del reloj.
+ * It starts the clock as `startClock` does: the origin is `CLOCK_START_DELAY` ahead and
+ * `scheduledUntil` is strictly before it, which prevents the loss of the event at
+ * offset 0. The times are reported on the same scale, with instant 0 at the start of
+ * the clock.
  *
- * **Una sola secuencia y un solo origen**, asi que el corte es uno solo y no hay
- * que agrupar por onset como cuando cada job traia su propia fase dentro del
- * compas: el limite es el fin del ultimo ciclo pedido.
+ * **One sequence and one origin**, so there is one cut and no grouping by event time:
+ * the limit is the end of the last requested cycle.
  *
- * El corte `at < end` no necesita tolerancia. Nada cruza el borde del ciclo: los
- * pasos ocupan `o..o+4`, sus clicks siguen hasta `o+4+(d-1)` y el paso siguiente
- * arranca en `o+4+d`, asi que el ultimo evento de un ciclo cae en el intervalo
- * `length - 1` y sobra un intervalo entero de margen contra el error de punto
- * flotante.
+ * The cut `at < end` needs no tolerance. Nothing crosses the edge of the cycle: the
+ * notes of a piece take `o..o+4`, its clicks go on to `o+4+(d-1)` and the next piece
+ * starts at `o+4+d`. So the last event of a cycle falls on interval `length - 1`, and a
+ * whole interval of margin is left against the floating point error.
  *
- * El `sort` no es cosmetico: `collectHits` emite primero todos los pasos y despues
- * todos los clicks, cada uno recorriendo la ventana entera, asi que sale ordenado
- * por paso y no por tiempo.
+ * The `sort` is not cosmetic: `collectHits` emits all the steps first and then all the
+ * clicks, each over the whole window, so the output is ordered by step and not by time.
  */
 function timeline(sequence: Sequence, bpm: number, cycles: number): Hit[] {
   const origin = CLOCK_START_DELAY;
@@ -250,92 +246,90 @@ function timeline(sequence: Sequence, bpm: number, cycles: number): Hit[] {
 
 export const simulateBoard = defineTool({
   name: 'simulate_board',
-  title: 'Simular el tablero',
+  title: 'Simulate the board',
   annotations: { readOnlyHint: true, openWorldHint: false },
   description:
-    'Qué suena un tablero dado, sin escucharlo. Usar en lugar de leer el scheduler y recorrer el ' +
-    'lookahead a mano: valida cada colocación con las mismas funciones que la app, arma la secuencia ' +
-    'con `buildSequence` y corre el scheduler real en ventanas de 25 ms.\n' +
-    'El tablero es un RECORRIDO y no un compás: un circuito cerrado visita las piezas —en el orden ' +
-    'del camino más BARATO entre sus puertas, NO en el de colocación— y cada celda que cruza al ir de ' +
-    'una a la siguiente suena como un click. La respuesta trae ese orden, cada salto con las celdas ' +
-    'que atraviesa, el ciclo en intervalos y en segundos, y la línea de tiempo con notas y clicks ' +
-    'distinguidos: el camino en la respuesta es lo que permite verificar el recorrido sin oírlo.\n' +
-    'Dos trampas medidas: mover una pieza puede reordenar la música entera, porque cambia el ' +
-    'circuito; y el camino PREFIERE rodear lo que haya en el medio pero no siempre puede — cruzar una ' +
-    'celda ocupada cuesta más (pisar la pieza), y cuando ese cruce es inevitable el click cae sobre esa ' +
-    'celda con la MISMA nota que suena al pisarla. Cada salto trae esos cruces aparte, con su celda y ' +
-    'su nota, para comparar el costo de pisar sin escucharlo. En el teselado de 12 piezas —sin ninguna ' +
-    'celda vacía, el peso no puede evitar nada— los 14 clicks caen todos sobre celdas con pieza.\n' +
-    'Desde el spec 017 la respuesta trae también el `regimen`: la rotación cambia las notas ' +
-    '(`escala`) o el arranque del arpegio (`orden`), y sin decirlo la línea de tiempo es ambigua en ' +
-    '36 de las 48 combinaciones. El circuito no cambia con el régimen — solo las alturas.',
+    'What a given board sounds like, without hearing it. Use it in place of a read of the scheduler and a walk of the ' +
+    'lookahead by hand: it validates each placement with the same functions as the app, builds the sequence ' +
+    'with `buildSequence` and runs the real scheduler in windows of 25 ms.\n' +
+    'The board is a CIRCUIT and not a bar: a closed circuit visits the pieces, in the order ' +
+    'of the CHEAPEST route between their gates, NOT in the order of placement, and each cell it goes through from ' +
+    'one piece to the next sounds as a click. The answer has that order, each leg (`hops`) with the cells ' +
+    'it goes through, the cycle in intervals and in seconds, and the timeline with notes and clicks ' +
+    'told apart: the route in the answer is what lets you check the circuit without hearing it.\n' +
+    'Two measured traps: a move of one piece can reorder the whole music, because it changes the ' +
+    'circuit; and the route PREFERS to go around what is in the way but cannot always do it. To cross an ' +
+    'occupied cell costs more, and when the route crosses anyway the click falls on that ' +
+    'cell with the SAME note that the cell shows. Each leg has those crossings apart (`crossed`), with cell and ' +
+    'note, so that you can compare the cost of a crossing without hearing it. In the tiling of 12 pieces, with no ' +
+    'empty cell, the cost can avoid nothing, and the 13 clicks all fall on cells with a piece.\n' +
+    'The answer also has the `regimen`: the rotation changes the notes ' +
+    '(`escala`) or the start of the arpeggio (`orden`), and without it the timeline is ambiguous in ' +
+    '36 of the 48 combinations. The circuit does not change with the regime, only the pitches.',
   inputSchema,
   run: ({ pieces, bpm, cycles, regimen, dims }) => {
     const { resolved, placed } = resolve(pieces, dims);
 
-    // Etapa 2 — la secuencia del recorrido, la misma que arma la app. Una pieza
-    // invalida no esta en `placed` y por lo tanto no entra al circuito.
+    // Stage 2: the sequence of the circuit, the same one the app builds. An invalid
+    // piece is not in `placed`, so it does not enter the circuit.
     const seq = buildSequence(placed, regimen, dims);
-    // El circuito y no los pasos: desde el spec 014 una pieza MUTEADA visita su lugar
-    // sin emitir `Step`, asi que contar pasos reportaria un recorrido al que le faltan
-    // nodos y fusionaria dos tramos en uno.
+    // The circuit and not the steps: a MUTED piece visits its place and emits no `Step`.
+    // A count of steps would report a circuit with nodes missing and would merge two
+    // legs into one.
     const n = seq.order.length;
 
-    // La proyeccion a la `Sequence` del MOTOR, que no lleva `pieceId` ni `cell`:
-    // el motor habla MIDI y no conoce `Cell`, asi que las dos formas
-    // son distintas a proposito. `App.tsx` hace esta misma proyeccion por su cuenta
-    // y la duplicacion es aceptada: esta tool existe para reproducir lo que hace la
-    // app CON LAS MISMAS funciones, y sacarla a un helper compartido romperia
-    // justamente esa propiedad.
+    // The projection to the `Sequence` of the ENGINE, which has no `pieceId` and no
+    // `cell`: the engine speaks MIDI and does not know `Cell`, so the two shapes are
+    // different on purpose. `App.tsx` makes this same projection by itself, and the
+    // duplication is accepted: this tool exists to reproduce what the app does WITH THE
+    // SAME functions, and a shared helper would break exactly that property.
     const engine: Sequence = {
       steps: seq.steps.map(({ offset, notes }) => ({ offset, notes })),
-      // `note` viaja y `cell` no: es la misma proyeccion que hace `App.tsx`. Dejarla
-      // caer typechequea igual —`note` es opcional— y la tool reportaria los cruces
-      // como clicks mudos, o sea distinto de lo que suena la app. Es justo la
-      // propiedad que esta tool existe para sostener.
+      // `note` travels and `cell` does not: it is the same projection that `App.tsx`
+      // makes. To drop `note` still typechecks, because `note` is optional, and the tool
+      // would report the crossings as silent clicks, different from what the app sounds.
+      // That is exactly the property this tool exists to hold.
       //
-      // El ternario y no `({ offset, note })`: con la forma corta el click mudo sale
-      // con la clave `note` PRESENTE y en `undefined`, que es el estado intermedio que
-      // el docblock de `Click` rechaza — ausencia significa "celda vacia", y un campo
-      // presente valiendo undefined es un tercer estado esperando a que alguien lo lea
-      // con `in` o con `Object.keys`.
+      // The ternary and not `({ offset, note })`: with the short form the silent click
+      // has the key `note` PRESENT and `undefined`, the intermediate state that the
+      // docblock of `Click` rejects. Absence means "empty cell", and a present field with
+      // the value undefined is a third state that waits for someone to read it with `in`
+      // or with `Object.keys`.
       clicks: seq.clicks.map((c) => c.note === undefined ? { offset: c.offset } : { offset: c.offset, note: c.note }),
       length: seq.length,
     };
 
-    // Nombre de nota por frecuencia, construido con la MISMA `midiToHz` que uso
-    // el scheduler: la igualdad exacta de floats vale porque es la misma funcion
-    // sobre la misma entrada. Es lo que evita invertir la formula a mano.
+    // Note name by frequency, built with the SAME `midiToHz` that the scheduler used: the
+    // exact float equality holds because it is the same function on the same input. It
+    // avoids an inversion of the formula by hand.
     const nameByHz = new Map<number, string>();
     for (const s of seq.steps) for (const m of s.notes) nameByHz.set(midiToHz(m), midiName(m));
 
-    // Objeto y no `Map`: `Map.get` devuelve `| undefined` aunque la clave este
-    // siempre, y taparlo pediria un `!` o un `??` que mentiria sobre el caso.
+    // An object and not a `Map`: `Map.get` returns `| undefined` although the key is
+    // always there, and to cover that would need a `!` or a `??` that lies about the case.
     const puertas: Record<string, Gates> = {};
     for (const r of resolved) if (r.gates !== null) puertas[r.id] = r.gates;
 
-    // Los saltos, leidos de la MISMA secuencia que va a sonar. `distance` sale de
-    // contar los clicks del tramo y no de volver a medir la distancia: es lo que
-    // hace imposible que el camino reportado y el instante de la nota siguiente
-    // discrepen (D8). El tramo de la ultima pieza a la primera se calcula con la
-    // misma regla que los demas —su borde es `seq.length`, que es el offset 0 del
-    // ciclo siguiente—, y de eso depende que el empalme no tenga marca (AC4).
-    // Con UNA pieza no hay saltos, y por eso la guarda es explicita: el recorrido
-    // existe ENTRE piezas y el dominio ya lo dice devolviendo `clicks: []`. Sin ella
-    // el `map` sintetiza un tramo de la pieza a si misma y le reporta
-    // `distance: path.length + 1`, que sin clicks da 1 SIEMPRE — y ese 1 contradice a
-    // las dos celdas que la respuesta imprime al lado: medido, con la `Z` sola
-    // `routeBetween(exit, entry, []).steps` es 3 y con la `F` es 2 (tablero vacio,
-    // que es lo que `cellDistance` media antes de que el spec 011 la reemplazara:
-    // `.steps` es el equivalente de hoy, no `.cost`). Que el ciclo igual dure lo
-    // dice `cycle`, que son los 5 intervalos del arpegio y no un salto.
+    // The legs, read from the SAME sequence that will sound. `distance` comes from a
+    // count of the clicks of the leg and not from a second measure of the distance: so
+    // the reported route and the instant of the next note cannot disagree. The leg from
+    // the last piece to the first uses the same rule as the others. Its edge is
+    // `seq.length`, which is offset 0 of the next cycle, and that is why the join has no
+    // mark.
+    // With ONE piece there are no legs, so the guard is explicit: a leg exists BETWEEN
+    // pieces, and the domain already says so with `clicks: []`. Without the guard the
+    // `map` makes a leg from the piece to itself and reports
+    // `distance: path.length + 1`, which with no clicks is ALWAYS 1. That 1 contradicts
+    // the two cells that the answer prints next to it. Measured on the empty board:
+    // with the `Z` alone `routeBetween(exit, entry, []).steps` is 3, and with the `F` it
+    // is 2. The measure is `.steps`, not `.cost`. `cycle` says that the cycle still
+    // lasts: the 5 intervals of the arpeggio, not a leg.
     const hops = n === 1 ? [] : seq.order.map((step, t) => {
       const ultima = step.offset + CELLS_PER_PIECE - 1;
       const siguiente = t + 1 < n ? seq.order[t + 1].offset : seq.length;
       const to = seq.order[(t + 1) % n].pieceId;
-      // Los clicks del tramo enteros y no solo sus celdas: `path` y `crossed` son dos
-      // lecturas de ESTA lista, asi que no pueden discrepar (D3).
+      // The whole clicks of the leg and not only their cells: `path` and `crossed` are
+      // two reads of THIS list, so they cannot disagree.
       const tramo = seq.clicks.filter(c => c.offset > ultima && c.offset < siguiente);
       return {
         from: step.pieceId,
@@ -344,8 +338,8 @@ export const simulateBoard = defineTool({
         entry: puertas[to].entry,
         distance: tramo.length + 1,
         path: tramo.map(c => c.cell),
-        // Los cruces de ESTE tramo: subconjunto de `path` que cae sobre una pieza,
-        // cada uno con la nota que suena si se lo pisa (T046).
+        // The crossings of THIS leg: the subset of `path` that falls on a piece, each
+        // with the note that sounds there.
         crossed: crucesDe(tramo),
       };
     });
@@ -355,21 +349,20 @@ export const simulateBoard = defineTool({
 
     return json({
       bpm,
-      // El regimen viaja EN LA RESPUESTA y no solo en la entrada: en 36 de las 48
-      // combinaciones de pieza x rotacion la misma pieza tiene dos arpegios, asi que
-      // una `timeline` con notas y sin regimen es ambigua. El circuito NO depende de
-      // el —los saltos, las puertas y los offsets salen iguales en los dos—: lo unico
-      // que mueve son las alturas.
+      // The regime travels IN THE ANSWER, not only in the input: in 36 of the 48
+      // combinations of piece x rotation the same piece has two arpeggios, so a
+      // `timeline` with notes and no regime is ambiguous. The circuit does NOT depend on
+      // it: the legs, the gates and the offsets are equal in the two. It moves only the
+      // pitches.
       regimen,
       barSeconds: round4(barDuration(bpm)),
-      // La separacion entre eventos consecutivos del recorrido, que desde el spec
-      // 008 sale del compas: sin este numero la `timeline` no se puede leer sin
-      // recalcular `bar / 16` a mano.
+      // The gap between consecutive events of the circuit, which comes from the bar:
+      // without this number a reader must compute `bar / 16` by hand to read the
+      // `timeline`.
       intervalSeconds: round4(intervalDuration(bpm)),
       cycles,
-      // El ciclo en las dos unidades: el tablero lo fija en INTERVALOS y el tempo
-      // solo lo estira. Dos tableros distintos dan ciclos distintos al mismo bpm,
-      // que es la diferencia con el compas fijo del modelo anterior.
+      // The cycle in the two units: the board sets it in INTERVALS and the tempo only
+      // stretches it. Two different boards give different cycles at the same bpm.
       cycle: { intervals: seq.length, seconds: round4(seq.length * intervalDuration(bpm)) },
       placements: resolved.map((r, i) => ({
         id: r.id,
@@ -380,27 +373,24 @@ export const simulateBoard = defineTool({
         muted: pieces[i].muted,
         cells: r.cells,
         valid: r.valid,
-        // Las puertas reemplazan a la `phase` del spec 004: la columna del ancla
-        // dejo de decir nada sobre cuando suena la pieza, y lo que hoy determina
-        // como entra al recorrido es por que celda lo recibe y por cual lo deja.
+        // The gates say how the piece enters the circuit: the cell that receives the
+        // circuit and the cell that it leaves from. The column of the grip cell says
+        // nothing about when the piece sounds.
         ...(r.gates !== null ? { gates: r.gates } : { reason: r.reason }),
       })),
-      // El orden del CIRCUITO, que incluye a las piezas muteadas: siguen siendo nodos
-      // del recorrido aunque no suenen (spec 014).
+      // The order of the CIRCUIT, which includes the muted pieces: they are still nodes
+      // of the circuit although they do not sound.
       route: { order: seq.order.map(o => o.pieceId), hops },
-      // `coincident` se fue. Media cuantos onsets caian juntos, que era la pregunta
-      // del modelo viejo: dos piezas en la misma columna se apilaban. En el
-      // recorrido dos onsets no pueden coincidir POR CONSTRUCCION —las notas de una
-      // pieza ocupan `o..o+4`, sus clicks `o+5..o+4+(d-1)` y la nota siguiente
-      // `o+4+d`, verificado sobre 3.000 tableros aleatorios sin una sola falla—,
-      // asi que `maxPerInstant` daba 1 siempre y un campo que devuelve siempre el
-      // mismo numero no informa nada.
+      // Two events of the circuit cannot coincide BY CONSTRUCTION: the notes of a piece
+      // take `o..o+4`, its clicks `o+5..o+4+(d-1)` and the next note `o+4+d`. Verified
+      // on 3000 random boards with no failure. So a count of the events at one instant
+      // is always 1, and a field that always returns the same number gives no
+      // information.
       //
-      // Lo que queda de el es `distinctInstants`, que ahora es una ASERCION y no un
-      // descriptor: tiene que ser igual a `total`, y de hecho las dos tienen que dar
-      // `cycles * cycle.intervals`, porque el recorrido ocupa todos sus intervalos
-      // sin huecos. Si alguna vez difieren, o se duplico un onset o dos eventos
-      // colisionaron.
+      // `distinctInstants` is an ASSERTION and not a descriptor: it must equal `total`,
+      // and the two must equal `cycles * cycle.intervals`, because the circuit takes all
+      // its intervals with no gap. If they differ, an event was emitted twice or two
+      // events collided.
       onsets: {
         notes: hits.filter(h => h.kind === HIT.note).length,
         clicks: hits.filter(h => h.kind === HIT.click).length,
@@ -408,14 +398,14 @@ export const simulateBoard = defineTool({
         total: hits.length,
         distinctInstants: instantes.size,
       },
-      // Plana y no agrupada por instante: al no haber coincidencias, agrupar
-      // envolvia cada evento en un array de uno. `kind` es el discriminante del
-      // `Hit` del motor tal cual sale, no una etiqueta traducida aca.
+      // Flat and not grouped by instant: with no coincidences, a group would wrap each
+      // event in an array of one. `kind` is the discriminant of the `Hit` of the engine
+      // as it comes, not a label translated here.
       //
-      // Las DOS ramas con altura llevan nota, y el discriminante se lee del `Hit` y no
-      // de si `hz` esta presente: el cruce del spec 011 tiene altura igual que la nota
-      // —lo que lo distingue es que dura y pega menos, no que suene distinto— y el
-      // unico mudo es `HIT.click`. Sus celdas estan en `route.hops`.
+      // The TWO branches with a pitch have a note, and the discriminant is read from the
+      // `Hit`, not from the presence of `hz`. The crossing has a pitch like the note: it
+      // differs because it is shorter and softer, not because it sounds different. The
+      // only silent one is `HIT.click`. Its cells are in `route.hops`.
       timeline: hits.map(h => h.kind === HIT.click
         ? { at: round4(h.at), kind: h.kind }
         : { at: round4(h.at), kind: h.kind, note: nombreDeHz(nameByHz, h.hz) }),

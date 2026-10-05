@@ -8,21 +8,21 @@ import type { PieceKey } from '../../pieces/pieces.ts';
 import type { PlacedPiece } from '../../board-editing/placement.ts';
 
 /**
- * Todo este archivo mide el tablero de REFERENCIA, que es el de 10 x 6 de siempre.
+ * This whole file measures the REFERENCE board, the one of 10 x 6.
  *
- * El tablero sale del viewport, asi que las funciones lo reciben por
- * parametro y un test tiene que elegir uno. Se elige `GRID_DEFAULT` y no un tamano nuevo
- * porque los numeros que este archivo verifica —los 496 pares que acorta la costura, la
- * distancia maxima de 12, la tabla de PASOS— estan medidos sobre ese tablero: cambiarlo
- * invalidaria las mediciones sin agregar cobertura. Lo que SI tiene test propio con otras
- * dimensiones es lo que depende de ellas, y es `costuraDe`.
+ * The board comes from the viewport, so the functions receive it as a parameter and a test
+ * must choose one. It is `GRID_DEFAULT` and not a new size because the numbers that this
+ * file verifies are measured on that board: the 496 pairs that the seam shortens, the
+ * longest distance of 12, the table `PASOS`. Another board would invalidate the
+ * measurements and add no coverage. What DOES have its own test with other dimensions is
+ * what depends on them, and that is `costuraDe`.
  */
 const { w: GRID_W, h: GRID_H } = GRID_DEFAULT;
 const SEAM = costuraDe(GRID_DEFAULT);
 
 const PIECES = Object.keys(SHAPES) as PieceKey[];
 
-/** Las 60 celdas del tablero. Recorrerlas de a pares da las 3.600 combinaciones. */
+/** The 60 cells of the board. Taken in pairs they give the 3600 combinations. */
 const TODAS: Cell[] = [];
 for (let x = 0; x < GRID_W; x++) for (let y = 0; y < GRID_H; y++) TODAS.push([x, y]);
 
@@ -30,34 +30,32 @@ const [COSTURA_INICIO, COSTURA_FIN] = SEAM;
 const misma = (p: Cell, q: Cell): boolean => p[0] === q[0] && p[1] === q[1];
 const manhattan = (p: Cell, q: Cell): number => Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]);
 
-/** Vecinas en el grafo real: pegadas en la grilla, o las dos puntas de la costura. */
+/** Neighbours in the real graph: side by side on the grid, or the two ends of the seam. */
 const adyacentes = (p: Cell, q: Cell): boolean =>
   manhattan(p, q) === 1
   || (misma(p, COSTURA_INICIO) && misma(q, COSTURA_FIN))
   || (misma(p, COSTURA_FIN) && misma(q, COSTURA_INICIO));
 
-/** Las vecinas de cada celda, una sola vez: la referencia de mas abajo las recorre miles de veces. */
+/** The neighbours of each cell, computed once: the reference below walks them thousands of times. */
 const VECINAS = new Map<string, Cell[]>(
   TODAS.map((c) => [c.join(','), TODAS.filter((v) => adyacentes(c, v))]),
 );
 
 /**
- * Los pasos entre cada par de celdas SOBRE EL TABLERO VACIO, medidos una sola vez.
+ * The moves between each pair of cells ON THE EMPTY BOARD, measured once.
  *
- * Se cachea porque el modelo nuevo no tiene formula cerrada: donde el 009 hacia tres
- * restas, `routeBetween` corre un Dijkstra. La desigualdad triangular mira 216.000
- * ternas, y a llamada por terna el test tardaba segundos.
+ * It is cached because the route has no closed formula: `routeBetween` runs a Dijkstra.
+ * The triangle inequality looks at 216,000 triples, and with one call for each triple the
+ * test takes seconds.
  */
 const PASOS: number[][] = TODAS.map((a) => TODAS.map((b) => routeBetween(a, b, [], GRID_DEFAULT).steps));
 
 /**
- * La distancia en forma cerrada: Manhattan, o el mejor de los dos cruces
- * de la costura.
+ * The distance in closed form: Manhattan, or the better of the two ways through the seam.
  *
- * Es el oraculo de lo que `routeBetween` tiene que seguir dando sobre el tablero vacio.
- * Con todas las celdas pesando 1 el modelo nuevo no puede mover ni un paso respecto del
- * viejo, y eso es lo que hace falsable "el peso cambia POR DONDE se pasa, no cuanto se
- * tarda".
+ * It is the oracle of what `routeBetween` must give on the empty board. With every cell at
+ * cost 1 the route cannot differ from this formula by one move, and that makes falsifiable
+ * "the crossing cost changes WHERE the route goes, not how long it takes".
  */
 const distancia009 = (a: Cell, b: Cell): number => Math.min(
   manhattan(a, b),
@@ -65,7 +63,7 @@ const distancia009 = (a: Cell, b: Cell): number => Math.min(
   manhattan(a, COSTURA_INICIO) + 1 + manhattan(COSTURA_FIN, b),
 );
 
-/** La cadena de colocacion completa, igual a la de la app: rotar, reflejar, bajar el ancla. */
+/** The full placement chain, the same as the app: rotate, reflect, bring the grip cell to `(x, y)`. */
 const colocar = (id: string, piece: PieceKey, rot: number, mirror: boolean, x: number, y: number): PlacedPiece => {
   const base = rotateN(SHAPES[piece], rot);
   const shape = mirror ? reflect(base) : base;
@@ -73,20 +71,12 @@ const colocar = (id: string, piece: PieceKey, rot: number, mirror: boolean, x: n
 };
 
 /**
- * El costo de una ruta, derivado de sus dos largos: las intermedias vacias pagan 1 y las
- * ocupadas `CROSS_COST`.
+ * All the routes of exactly `largo` moves between `a` and `b`, returned as their
+ * INTERMEDIATE cells. Brute force over the real adjacency, the seam included.
  *
- * `routeBetween` no lo devuelve a proposito —D3 pide camino, pasos y cruces—, y esta es
- * la misma cuenta que hace `buildSequence` para armar su matriz. Escrita aca a mano para
- * no tomarla prestada del codigo que se esta midiendo.
- */
-/**
- * Todos los caminos de exactamente `largo` pasos entre `a` y `b`, devueltos como sus
- * celdas INTERMEDIAS. Fuerza bruta sobre la adyacencia real, costura incluida.
- *
- * Escrito aparte de `routeBetween` a proposito: sirve para afirmar propiedades sobre el
- * CONJUNTO de caminos —"ninguno de los minimos esta libre"— que una funcion que devuelve
- * uno solo no puede contestar.
+ * It is written apart from `routeBetween` on purpose: it lets a test state a property of
+ * the SET of routes, "none of the shortest is free", which a function that returns one
+ * route cannot answer.
  */
 function caminosDeLargo(a: Cell, b: Cell, largo: number): Cell[][] {
   const out: Cell[][] = [];
@@ -98,13 +88,20 @@ function caminosDeLargo(a: Cell, b: Cell, largo: number): Cell[][] {
   return out;
 }
 
+/**
+ * The cost of a route, derived from its two lengths: an empty intermediate cell pays 1 and
+ * an occupied one pays `CROSS_COST`.
+ *
+ * It is the number that `routeBetween` gives as `cost`. It is written here by hand so that
+ * the tests do not borrow it from the code they measure.
+ */
 const costoDe = (r: { path: Cell[]; crossed: Cell[] }): number =>
   r.path.length + r.crossed.length * (CROSS_COST - 1);
 
 const ocupadasDe = (board: readonly PlacedPiece[]): Set<string> =>
   new Set(board.flatMap((p) => p.cells.map((c) => c.join(','))));
 
-/** Compara dos secuencias de celdas posicion por posicion, cada celda como el par `(x, y)` (D7). */
+/** Compares two sequences of cells position by position, each cell as the pair `(x, y)`. */
 const menorLex = (p: readonly Cell[], q: readonly Cell[]): boolean => {
   for (let i = 0; i < Math.min(p.length, q.length); i++) {
     if (p[i][0] !== q[i][0]) return p[i][0] < q[i][0];
@@ -114,19 +111,19 @@ const menorLex = (p: readonly Cell[], q: readonly Cell[]): boolean => {
 };
 
 /**
- * La implementacion de REFERENCIA, escrita distinto a proposito.
+ * The REFERENCE implementation, written differently on purpose.
  *
- * Relaja hasta que nada cambie guardando el CAMINO ENTERO en cada nodo, y desempata
- * comparando esos caminos posicion por posicion.
+ * It relaxes until nothing changes, keeps the WHOLE ROUTE in each node, and breaks a tie
+ * by a comparison of those routes position by position.
  *
- * `routeBetween` hace lo contrario —Dijkstra por costo desde el destino y reconstruccion
- * hacia adelante leyendo `dist[]`—, asi que si las dos coinciden sobre miles de pares no
- * puede ser una casualidad de como esta escrita ninguna. Esta es cuadratica y por eso
- * vive en el test y no en el dominio.
+ * `routeBetween` does the opposite: Dijkstra by cost from the destination, and a forward
+ * rebuild that reads `dist[]`. So if the two agree over thousands of pairs, it cannot be
+ * an accident of how either is written. This one is quadratic, so it lives in the test and
+ * not in the domain.
  *
- * Corre HACIA ADELANTE desde `a`, asi que el camino que guarda incluye a `b` y su costo
- * incluye el peso de `b`. Las dos cosas se corrigen al leerla, y el peso de `b` no cambia
- * cual camino gana porque lo pagan todos los que llegan a `b`.
+ * It runs FORWARD from `a`, so the route it keeps includes `b` and its cost includes the
+ * cost of `b`. The reader corrects both. The cost of `b` does not change which route wins,
+ * because every route that reaches `b` pays it.
  */
 const referenciaDesde = (a: Cell, board: readonly PlacedPiece[]): Map<string, { costo: number; camino: Cell[] }> => {
   const ocupadas = ocupadasDe(board);
@@ -151,7 +148,7 @@ const referenciaDesde = (a: Cell, board: readonly PlacedPiece[]): Map<string, { 
   return mejor;
 };
 
-/** LCG minimo: tableros al azar REPRODUCIBLES, sin dependencias y sin `Math.random`. */
+/** A minimal LCG: random boards that are REPRODUCIBLE, with no dependency and no `Math.random`. */
 const azar = (semilla: number): (() => number) => {
   let s = semilla >>> 0;
   return () => {
@@ -160,7 +157,7 @@ const azar = (semilla: number): (() => number) => {
   };
 };
 
-/** Un tablero valido de hasta `cuantas` piezas, tirando colocaciones y descartando las que no entran. */
+/** A valid board of up to `cuantas` pieces: it throws placements and drops the ones that do not fit. */
 const tableroAlAzar = (rng: () => number, cuantas: number): PlacedPiece[] => {
   const board: PlacedPiece[] = [];
   for (let intento = 0; intento < 500 && board.length < cuantas; intento++) {
@@ -176,12 +173,12 @@ const tableroAlAzar = (rng: () => number, cuantas: number): PlacedPiece[] => {
 };
 
 /**
- * TODOS los caminos de costo minimo entre dos celdas, por fuerza bruta.
+ * ALL the routes of least cost between two cells, by brute force.
  *
- * Enumera en vez de contar: es lo que permite preguntar si el que `routeBetween` eligio
- * es el menor de TODOS, y no solo si empata con alguno. La poda sale de la referencia
- * —solo se baja por una vecina desde la que todavia queda un camino optimo—, asi que no
- * recorre el tablero entero.
+ * It enumerates and does not count: that lets a test ask if the route that `routeBetween`
+ * chose is the smallest of ALL, and not only if it ties with one. The pruning comes from
+ * the reference: it goes down only through a neighbour from which an optimal route still
+ * exists, so it does not walk the whole board.
  */
 const todosLosMinimos = (a: Cell, b: Cell, board: readonly PlacedPiece[]): Cell[][] => {
   const ocupadas = ocupadasDe(board);
@@ -201,33 +198,32 @@ const todosLosMinimos = (a: Cell, b: Cell, board: readonly PlacedPiece[]): Cell[
   return salida;
 };
 
-describe('routeBetween — el tablero vacio', () => {
-  it('AC-CIR-001 — las dos esquinas de la costura estan a un paso', () => {
-    // Es la definicion del repliegue: (0,0) y (9,5) son las mas lejanas de la grilla y
-    // la costura las vuelve vecinas. Un paso son cero celdas en el medio.
+describe('routeBetween: the empty board', () => {
+  it('AC-CIR-001 — the two corners of the seam are one move apart', () => {
+    // It is the definition of the fold: (0,0) and (9,5) are the farthest cells of the grid
+    // and the seam makes them neighbours. One move is zero cells in between.
     expect(routeBetween([0, 0], [GRID_W - 1, GRID_H - 1], [], GRID_DEFAULT)).toEqual({ path: [], steps: 1, cost: 0, crossed: [] });
     expect(routeBetween([GRID_W - 1, GRID_H - 1], [0, 0], [], GRID_DEFAULT)).toEqual({ path: [], steps: 1, cost: 0, crossed: [] });
   });
 
-  it('AC-CIR-001 — la distancia maxima del tablero es 12, no 14', () => {
-    // 14 es el diametro Manhattan de una grilla 10x6 sin costura. Con la arista extra
-    // ningun par supera 12: el que era el par mas lejano ahora mide 1.
+  it('AC-CIR-001 — the longest distance of the board is 12, not 14', () => {
+    // 14 is the Manhattan diameter of a grid of 10x6 with no seam. With the extra edge no
+    // pair goes over 12: the pair that was the farthest has 1 move.
     //
-    // Migrado con el tablero vacio ESCRITO: con piezas colocadas el maximo es otro,
-    // porque el recorrido rodea. Lo que mide este test es la geometria del tablero, no
-    // la de un tablero en particular.
+    // The empty board is WRITTEN in the test: with placed pieces the maximum is another,
+    // because the routes go around. What this test measures is the geometry of the board,
+    // not that of one board in particular.
     expect(Math.max(...PASOS.flat())).toBe(12);
   });
 
-  it('sin piezas los pasos son EXACTAMENTE la distancia del 009, en los 3.540 pares', () => {
-    // El test del 009 comparaba tres casos sueltos contra Manhattan; este compara los
-    // 3.540 pares contra la formula cerrada entera, que es la que el 009 tenia adentro.
-    // Con todas las celdas pesando 1 el modelo nuevo no puede dar otra cosa.
+  it('with no pieces the moves are EXACTLY the distance in closed form, on the 3540 pairs', () => {
+    // It compares the 3540 pairs against the whole closed formula. With every cell at
+    // cost 1 the route cannot give another number.
     //
-    // Los 60 pares de una celda consigo misma quedan afuera: `a === b` esta fuera del
-    // dominio de `routeBetween` —devuelve `steps: 1`, que cumple el invariante del largo
-    // pero no es una distancia— por la misma razon que en el 009, que es que el tramo va
-    // de la salida de una pieza a la entrada de OTRA.
+    // The 60 pairs of a cell with itself stay out: `a === b` is outside the domain of
+    // `routeBetween`. It returns `steps: 1`, which meets the length invariant but is not a
+    // distance, because a leg goes from the exit gate of one piece to the entry gate of
+    // ANOTHER.
     const fallas: string[] = [];
     let aseverados = 0;
     for (let i = 0; i < TODAS.length; i++) for (let j = 0; j < TODAS.length; j++) {
@@ -239,11 +235,11 @@ describe('routeBetween — el tablero vacio', () => {
     expect(aseverados).toBe(3540);
   });
 
-  it('es simetrica en las 3.600 combinaciones', () => {
-    // Migrado al tablero vacio: con piezas la que sigue siendo simetrica es el COSTO
-    // —el conjunto de intermedias es el mismo al reves—, pero no los pasos, porque entre
-    // dos caminos del mismo costo el desempate puede quedarse con uno de otro largo. La
-    // simetria del costo se mide abajo, con piezas.
+  it('it is symmetric on the 3600 combinations', () => {
+    // On the empty board only: with pieces, what stays symmetric is the COST, because the
+    // set of intermediate cells is the same in reverse. The moves do not, because between
+    // two routes of the same cost the tie-break can keep one of another length. The
+    // symmetry of the cost is measured below, with pieces.
     const fallas: string[] = [];
     for (let i = 0; i < TODAS.length; i++) for (let j = 0; j < TODAS.length; j++) {
       if (PASOS[i][j] !== PASOS[j][i]) fallas.push(`${TODAS[i]} / ${TODAS[j]}`);
@@ -251,16 +247,15 @@ describe('routeBetween — el tablero vacio', () => {
     expect(fallas).toEqual([]);
   });
 
-  it('cumple la desigualdad triangular en las 3.600 combinaciones', () => {
-    // Es lo que distingue una distancia de grafo de una formula que se parece a una: si
-    // un atajo por la costura estuviera mal contado, existiria un rodeo mas barato que
-    // el camino directo. Cada par se mide contra las 60 celdas como escala intermedia.
+  it('it meets the triangle inequality on the 3600 combinations', () => {
+    // It is what tells a graph distance from a formula that looks like one: if a shortcut
+    // through the seam were counted wrong, a detour cheaper than the direct route would
+    // exist. Each pair is measured against the 60 cells as the stop in between.
     //
-    // Acotado al tablero vacio, y no por prudencia: con pesos la desigualdad se cae a
-    // proposito. Pasar POR `c` obliga a pagar el peso de `c`, que como punta de un tramo
-    // no se cobra (D3), asi que `d(a,b)` puede superar a `d(a,c) + d(c,b)` justo por lo
-    // que vale pisar `c`. Es la consecuencia de cobrarle solo a las intermedias, no un
-    // error de cuenta.
+    // Bound to the empty board, and not out of caution: with costs the inequality fails on
+    // purpose. To go THROUGH `c` pays the cost of `c`, which as the end of a leg is not
+    // charged, so `d(a,b)` can exceed `d(a,c) + d(c,b)` by what it costs to enter `c`. It
+    // is the consequence of charging only the intermediate cells, not a counting error.
     const fallas: string[] = [];
     for (let i = 0; i < TODAS.length; i++) for (let j = 0; j < TODAS.length; j++) {
       for (let k = 0; k < TODAS.length; k++) {
@@ -270,9 +265,9 @@ describe('routeBetween — el tablero vacio', () => {
     expect(fallas).toEqual([]);
   });
 
-  it('AC-CIR-003 — el camino tiene exactamente una celda menos que los pasos', () => {
-    // El invariante del largo del 009, ahora sobre la respuesta unica de D3: los tres
-    // valores salen de la misma llamada, asi que no hay dos cuentas que atar.
+  it('AC-CIR-003 — the route has exactly one intermediate cell fewer than its moves', () => {
+    // The length invariant, on the single answer of one call: the three values come from
+    // the same call, so there are no two counts to tie together.
     let aseverados = 0;
     for (const a of TODAS) for (const b of TODAS) {
       if (misma(a, b)) continue;
@@ -283,65 +278,64 @@ describe('routeBetween — el tablero vacio', () => {
     expect(aseverados).toBe(3540);
   });
 
-  it('AC-CIR-003 — es un camino de verdad: celdas adyacentes de a pares y ninguna repetida', () => {
-    // El largo solo no alcanza: un array del tamano correcto con celdas salteadas lo
-    // cumpliria igual. Se mide sobre el recorrido COMPLETO —con a y b en las puntas—
-    // porque la costura puede caer entre dos celdas intermedias.
+  it('AC-CIR-003 — it is a real path: consecutive cells are neighbours and none repeats', () => {
+    // The length alone is not enough: an array of the right size with skipped cells would
+    // meet it too. It is measured on the COMPLETE route, with a and b at the ends, because
+    // the seam can fall between two intermediate cells.
     const fallas: string[] = [];
     for (const a of TODAS) for (const b of TODAS) {
       if (misma(a, b)) continue;
       const completo = [a, ...routeBetween(a, b, [], GRID_DEFAULT).path, b];
       for (let i = 1; i < completo.length; i++) {
-        if (!adyacentes(completo[i - 1], completo[i])) fallas.push(`salto ${a} -> ${b} en ${i}`);
+        if (!adyacentes(completo[i - 1], completo[i])) fallas.push(`gap ${a} -> ${b} at ${i}`);
       }
       const vistas = new Set(completo.map(([x, y]) => `${x},${y}`));
-      if (vistas.size !== completo.length) fallas.push(`repetida ${a} -> ${b}`);
+      if (vistas.size !== completo.length) fallas.push(`repeated ${a} -> ${b}`);
     }
     expect(fallas).toEqual([]);
   });
 
-  it('AC-CIR-003 — no incluye ni el origen ni el destino', () => {
+  it('AC-CIR-003 — it includes neither the origin nor the destination', () => {
     expect(routeBetween([0, 0], [3, 0], [], GRID_DEFAULT).path).toEqual([[1, 0], [2, 0]]);
   });
 
-  it('el trazo cambio: gana el lexicograficamente menor y no "primero en X"', () => {
-    // Aca el 009 cambia, y va con el numero puesto. Antes el camino se trazaba primero
-    // en X y despues en Y, y entre (0,0) y (3,2) daba [[1,0],[2,0],[3,0],[3,1]]. El
-    // desempate de D7 compara las celdas como pares `(x, y)`, asi que prefiere la de X
-    // mas chica: baja en Y primero y recien despues avanza. Los 10 caminos minimos
-    // siguen siendo 10 y todos miden lo mismo — lo que cambio es cual se elige.
+  it('the lexicographically smallest route wins, and not "X first"', () => {
+    // A route traced first in X and then in Y gives [[1,0],[2,0],[3,0],[3,1]] between
+    // (0,0) and (3,2). The tie-break compares the cells as pairs `(x, y)`, so it prefers
+    // the smallest X: it goes down in Y first and only then moves forward. The 10 shortest
+    // routes all have the same moves. The tie-break decides which one is chosen.
     expect(routeBetween([0, 0], [3, 2], [], GRID_DEFAULT).path).toEqual([[0, 1], [0, 2], [1, 2], [2, 2]]);
   });
 
-  it('el borde de la costura: el origen ya ES la esquina', () => {
-    // Es donde fallaba la version del 009 que excluia los extremos tramo por tramo: el
-    // primer tramo se queda sin celdas propias y la esquina de llegada, que en el camino
-    // completo es intermedia, se perdia.
+  it('the edge of the seam: the origin IS the corner', () => {
+    // A version that excludes the ends leg by leg fails here: the first leg has no cells
+    // of its own, and the arrival corner, which is intermediate in the complete route,
+    // gets lost.
     const r = routeBetween([0, 0], [GRID_W - 1, GRID_H - 2], [], GRID_DEFAULT);
     expect(r.steps).toBe(2);
     expect(r.path).toEqual([[GRID_W - 1, GRID_H - 1]]);
   });
 
-  it('el borde de la costura: el destino ya ES la esquina', () => {
+  it('the edge of the seam: the destination IS the corner', () => {
     const r = routeBetween([GRID_W - 1, GRID_H - 2], [0, 0], [], GRID_DEFAULT);
     expect(r.steps).toBe(2);
     expect(r.path).toEqual([[GRID_W - 1, GRID_H - 1]]);
   });
 
-  it('el borde de la costura: origen y destino son las dos esquinas', () => {
+  it('the edge of the seam: origin and destination are the two corners', () => {
     expect(routeBetween([0, 0], [GRID_W - 1, GRID_H - 1], [], GRID_DEFAULT).path).toEqual([]);
     expect(routeBetween([GRID_W - 1, GRID_H - 1], [0, 0], [], GRID_DEFAULT).path).toEqual([]);
   });
 
-  it('cruza la costura solo cuando acorta', () => {
-    // (8,5) -> (1,0): 12 derecho contra 1+1+1=3 por la costura, asi que la usa y el
-    // camino pasa por sus dos puntas.
+  it('it goes through the seam only when that is shorter', () => {
+    // (8,5) -> (1,0): 12 straight against 1+1+1=3 through the seam, so it uses the seam
+    // and the route goes through its two ends.
     const porLaCostura = routeBetween([8, 5], [1, 0], [], GRID_DEFAULT);
     expect(porLaCostura.steps).toBe(3);
     expect(porLaCostura.path).toEqual([[GRID_W - 1, GRID_H - 1], [0, 0]]);
-    // (9,0) -> (0,4): 13 derecho contra 5+1+4=10 por la costura. Tambien acorta.
+    // (9,0) -> (0,4): 13 straight against 5+1+4=10 through the seam. It is shorter too.
     expect(routeBetween([GRID_W - 1, 0], [0, 4], [], GRID_DEFAULT).steps).toBe(10);
-    // En el centro no acorta nada y la costura queda afuera del camino.
+    // In the centre the seam shortens nothing and stays out of the route.
     const central = routeBetween([4, 2], [6, 3], [], GRID_DEFAULT);
     expect(central.steps).toBe(3);
     expect(central.path.some((c) => misma(c, COSTURA_FIN) || misma(c, COSTURA_INICIO))).toBe(false);
@@ -349,32 +343,32 @@ describe('routeBetween — el tablero vacio', () => {
 });
 
 /**
- * El caso testigo: la `P` rotada 1 en (3,2) y la `Y` rotada 1 en (7,2).
+ * The witness case: the `P` at rotation 1 on (3,2) and the `Y` at rotation 1 on (7,2).
  *
- * Es el tablero con el que el spec mostro el problema del 009: el tramo entre las dos
- * pisaba [7,1], que es la puerta por la que la `Y` estaba a punto de ENTRAR, o sea que
- * el click sonaba encima de la celda de la nota que venia enseguida.
+ * On this board a route that ignores the pieces goes through [7,1], a cell of the `Y`, on
+ * the leg between the two. So a click sounds on top of a cell of the piece that sounds
+ * next.
  */
 const TESTIGO_P = colocar('P', 'P', 1, false, 3, 2);
 const TESTIGO_Y = colocar('Y', 'Y', 1, false, 7, 2);
 const TESTIGO = [TESTIGO_P, TESTIGO_Y];
 
-describe('el caso testigo: el recorrido deja de pisar la puerta de la pieza que sigue', () => {
-  it('las dos piezas caen donde el spec las midio', () => {
-    // Si esto se mueve, todo lo de abajo mide otro tablero.
+describe('the witness case: the leg goes around the piece that sounds next', () => {
+  it('the two pieces fall on the cells that the contract gives', () => {
+    // If this moves, everything below measures another board.
     expect(TESTIGO_P.cells).toEqual([[3, 3], [4, 3], [3, 2], [4, 2], [3, 1]]);
     expect(TESTIGO_Y.cells).toEqual([[7, 4], [7, 3], [7, 2], [7, 1], [8, 2]]);
     expect(isValid(TESTIGO_Y.cells, [TESTIGO_P], GRID_DEFAULT)).toBe(true);
   });
 
-  it('AC-CIR-004 — el tramo de la P a la Y no pisa [7,1]', () => {
-    // Las puertas van escritas a mano y no derivadas con `gates`: la salida de la `P` es
-    // [3,1] y la entrada de la `Y` es [8,2] (medido con `simulate_board`). Derivarlas aca
-    // ataria este test al modulo de la secuencia, que es el que las usa.
+  it('AC-CIR-004 — the leg from the P to the Y does not enter [7,1]', () => {
+    // The gates are written by hand and not derived with `gates`: the exit gate of the `P`
+    // is [3,1] and the entry gate of the `Y` is [8,2] (measured with `simulate_board`). To
+    // derive them here would tie this test to the module of the sequence, which is the
+    // one that uses them.
     const r = routeBetween([3, 1], [8, 2], TESTIGO, GRID_DEFAULT);
-    // El rodeo por la fila 0, que es exactamente el que `research.md` §1 describio como
-    // la unica forma de llegar sin pisar: "cualquier camino libre tiene que subir a la
-    // fila 0 y rodear: mide 8".
+    // The detour along row 0 is the only way to arrive with no crossing: any free route
+    // must go up to row 0 and around, and it has 8 moves.
     expect(r.path).toEqual([[3, 0], [4, 0], [5, 0], [6, 0], [7, 0], [8, 0], [8, 1]]);
     expect(r.steps).toBe(8);
     expect(r.cost).toBe(7);
@@ -382,31 +376,32 @@ describe('el caso testigo: el recorrido deja de pisar la puerta de la pieza que 
     expect(r.path.some((c) => misma(c, [7, 1]))).toBe(false);
   });
 
-  it('AC-CIR-004 — ...y esquivarla CUESTA dos intervalos, que es el precio que fija CROSS_COST', () => {
-    // Sin obstaculos el tramo mide 6; esquivando mide 8. Los dos intervalos de mas son
-    // dos silencios agregados al ciclo para no pisar una celda que suena.
+  it('AC-CIR-004 — ...and to avoid it COSTS two intervals, the price that CROSS_COST sets', () => {
+    // With no obstacle the leg has 6 moves; around the piece it has 8. The two extra
+    // intervals are two silences added to the cycle so that no click falls on a cell that
+    // sounds.
     expect(routeBetween([3, 1], [8, 2], [], GRID_DEFAULT).steps).toBe(6);
     expect(routeBetween([3, 1], [8, 2], TESTIGO, GRID_DEFAULT).steps).toBe(8);
 
-    // Y aca esta el numero que decide, que es lo que hace revisable el valor de la
-    // constante. NINGUN camino de 6 pasos esta libre: `research.md` §1 lo probo a mano
-    // —para bajar de la fila 1 a la 2 hay que pasar por la columna 7 u 8, y (7,1) y (7,2)
-    // estan ocupadas las dos— y aca se verifica enumerando los 6-pasos de verdad.
+    // And here is the number that decides, which makes the value of the constant
+    // reviewable. NO route of 6 moves is free. The proof by hand: to go down from row 1 to
+    // row 2 the route must go through column 7 or 8, and (7,1) and (7,2) are both
+    // occupied. Here it is verified by enumeration of the real routes of 6 moves.
     const minimos = caminosDeLargo([3, 1], [8, 2], 6);
     expect(minimos.length).toBeGreaterThan(0);
     const librePorCamino = minimos.map((c) => c.filter((k) => occupantAt(TESTIGO, k[0], k[1]) !== null).length);
     expect(Math.min(...librePorCamino)).toBeGreaterThan(0);
 
-    // El mas barato de los cortos paga 5 vacias + una ocupada = 4 + CROSS_COST = 9; el
-    // rodeo paga sus 7 vacias = 7. Con CROSS_COST = 5 gana rodear. Con 2 el corto valdria
-    // 6 y ganaria PISAR — que es lo que este tablero hacia antes de subir el peso, y lo
-    // que se veia con la cabeza lectora del 010.
+    // The cheapest of the short routes pays 4 empty cells + one occupied = 4 + CROSS_COST
+    // = 9; the detour pays its 7 empty cells = 7. With CROSS_COST = 5 the detour wins.
+    // With 2 the short route would cost 6 and the CROSSING would win, and the playhead
+    // would show it.
     const barato = Math.min(...minimos.map((c, i) => (c.length - librePorCamino[i]) + librePorCamino[i] * CROSS_COST));
     expect(barato).toBe(4 + CROSS_COST);
     expect(routeBetween([3, 1], [8, 2], TESTIGO, GRID_DEFAULT).cost).toBeLessThan(barato);
   });
 
-  it('la vuelta de la Y a la P no pisa nada', () => {
+  it('the route from the Y back to the P enters no piece', () => {
     const r = routeBetween([7, 1], [4, 2], TESTIGO, GRID_DEFAULT);
     expect(r.path).toEqual([[6, 1], [5, 1], [4, 1]]);
     expect(r.steps).toBe(4);
@@ -415,28 +410,29 @@ describe('el caso testigo: el recorrido deja de pisar la puerta de la pieza que 
   });
 });
 
-/** Los tableros de la muestra: el vacio, el testigo y seis al azar con semilla. */
+/** The sample boards: the empty one, the witness and six random ones from a seed. */
 const TABLEROS: { nombre: string; board: PlacedPiece[] }[] = [
-  { nombre: 'vacio', board: [] },
-  { nombre: 'testigo', board: TESTIGO },
-  ...[1, 2, 3, 4, 5, 6].map((s) => ({ nombre: `azar-${s}`, board: tableroAlAzar(azar(s), 8) })),
+  { nombre: 'empty', board: [] },
+  { nombre: 'witness', board: TESTIGO },
+  ...[1, 2, 3, 4, 5, 6].map((s) => ({ nombre: `random-${s}`, board: tableroAlAzar(azar(s), 8) })),
 ];
 
-describe('ningun cruce evitable, contrastado contra una implementacion de referencia', () => {
-  it('los tableros de la muestra tienen piezas de verdad', () => {
-    // El contraste de abajo seria vacuo sobre tableros vacios: sin celdas ocupadas los
-    // pesos no existen y la referencia estaria midiendo la grilla pelada.
+describe('no avoidable crossing, checked against a reference implementation', () => {
+  it('the sample boards have real pieces', () => {
+    // The check below would be vacuous on empty boards: with no occupied cell the crossing
+    // cost does not exist and the reference would measure the bare grid.
     for (const { nombre, board } of TABLEROS.slice(1)) {
       expect(board.length, nombre).toBeGreaterThanOrEqual(2);
       expect(board.every((p, i) => isValid(p.cells, board.slice(0, i), GRID_DEFAULT)), nombre).toBe(true);
     }
   });
 
-  it('AC-CIR-005 — el costo, los pasos y el camino coinciden con la referencia', () => {
-    // AC2 en su forma falsable: si existiera un camino mas barato —o uno del mismo costo
-    // que pisara menos y ganara el desempate— la referencia lo encontraria. El corolario
-    // es que la desigualdad de AC2 es ESTRICTA: con exactamente `CROSS_COST - 1` pasos de
-    // mas los dos caminos EMPATAN, y ahi decide el desempate lexicografico, no este AC.
+  it('AC-CIR-005 — the cost, the moves and the route equal those of the reference', () => {
+    // The least cost in its falsifiable form: if a cheaper route existed, or one of the
+    // same cost that entered fewer cells and won the tie-break, the reference would find
+    // it. The corollary is that the inequality is STRICT: with exactly `CROSS_COST - 1`
+    // extra moves the two routes TIE, and there the lexicographic tie-break decides, not
+    // this criterion.
     const fallas: string[] = [];
     for (const { nombre, board } of TABLEROS) {
       const ocupadas = ocupadasDe(board);
@@ -452,19 +448,19 @@ describe('ningun cruce evitable, contrastado contra una implementacion de refere
           };
           const real = routeBetween(a, b, board, GRID_DEFAULT);
           const donde = `${nombre} ${a} -> ${b}`;
-          if (costoDe(real) !== esperado.costo) fallas.push(`costo ${donde}: ${costoDe(real)} vs ${esperado.costo}`);
-          if (real.steps !== esperado.pasos) fallas.push(`pasos ${donde}: ${real.steps} vs ${esperado.pasos}`);
-          if (JSON.stringify(real.path) !== JSON.stringify(esperado.camino)) fallas.push(`camino ${donde}`);
+          if (costoDe(real) !== esperado.costo) fallas.push(`cost ${donde}: ${costoDe(real)} vs ${esperado.costo}`);
+          if (real.steps !== esperado.pasos) fallas.push(`moves ${donde}: ${real.steps} vs ${esperado.pasos}`);
+          if (JSON.stringify(real.path) !== JSON.stringify(esperado.camino)) fallas.push(`route ${donde}`);
         }
       }
     }
     expect(fallas).toEqual([]);
   });
 
-  it('`crossed` es exactamente el subconjunto ocupado de `path`, en el orden del camino', () => {
-    // No es una lista aparte que haya que mantener sincronizada: el peso lo pagan las
-    // intermedias, y las dos puntas —que son puertas, o sea celdas SIEMPRE ocupadas—
-    // quedan afuera de las dos listas.
+  it('`crossed` is exactly the occupied subset of `path`, in route order', () => {
+    // It is not a separate list to keep in sync: the intermediate cells pay the cost, and
+    // the two ends, which are gates and so cells that are ALWAYS occupied, stay out of
+    // both lists.
     const fallas: string[] = [];
     for (const { nombre, board } of TABLEROS) {
       const ocupadas = ocupadasDe(board);
@@ -478,11 +474,11 @@ describe('ningun cruce evitable, contrastado contra una implementacion de refere
     expect(fallas).toEqual([]);
   });
 
-  it('AC-CIR-006 — el COSTO es simetrico aunque el camino no tenga por que serlo', () => {
-    // Lo que sostiene la simetria es que el peso lo paguen solo las intermedias: `a -> b`
-    // y `b -> a` suman sobre el MISMO conjunto de celdas. Los pasos si pueden diferir,
-    // porque entre dos caminos del mismo costo el desempate puede quedarse con uno de
-    // otro largo, y eso es correcto y no una asimetria del modelo.
+  it('AC-CIR-006 — the COST is symmetric, although the route need not be', () => {
+    // What holds the symmetry is that only the intermediate cells pay the cost: `a -> b`
+    // and `b -> a` add over the SAME set of cells. The moves can differ, because between
+    // two routes of the same cost the tie-break can keep one of another length. That is
+    // correct, and not an asymmetry of the model.
     const fallas: string[] = [];
     for (const { nombre, board } of TABLEROS) {
       for (const a of TODAS) for (const b of TODAS) {
@@ -494,11 +490,11 @@ describe('ningun cruce evitable, contrastado contra una implementacion de refere
   });
 });
 
-describe('determinismo y desempate', () => {
-  it('AC-CIR-022 — el mismo tablero y el mismo par dan siempre la misma ruta', () => {
-    // No hay `Math.random` ni fechas: la igualdad `peso + resto === restante` del
-    // desempate es exacta, y el orden de las piezas en `placed` no puede cambiarla porque
-    // lo unico que se lee de ellas es que celdas ocupan.
+describe('determinism and tie-break', () => {
+  it('AC-CIR-022 — the same board and the same pair always give the same route', () => {
+    // There is no `Math.random` and no date: the equality `cost + rest === remaining` of
+    // the tie-break is exact, and the order of the pieces in `placed` cannot change it,
+    // because the only thing read from them is which cells they occupy.
     for (const { board } of TABLEROS) {
       for (const [a, b] of [[[0, 0], [7, 4]], [[3, 1], [8, 2]], [[9, 5], [2, 2]]] as [Cell, Cell][]) {
         expect(routeBetween(a, b, board, GRID_DEFAULT)).toEqual(routeBetween(a, b, board, GRID_DEFAULT));
@@ -507,10 +503,10 @@ describe('determinismo y desempate', () => {
     }
   });
 
-  it('AC-CIR-007 — con el empate EJERCIDO gana el lexicograficamente menor de todos, no de los que se probaron', () => {
-    // Los pares van elegidos para que el empate exista de verdad: se enumeran TODOS los
-    // caminos de costo minimo y el test se cae si hay uno solo, que es la forma en que un
-    // test de desempate pasa por verde sin desempatar nada.
+  it('AC-CIR-007 — with the tie EXERCISED, the lexicographically smallest of all routes wins, not of the ones tried', () => {
+    // The pairs are chosen so that the tie really exists: ALL the routes of least cost are
+    // enumerated and the test fails if there is only one. With one route, a test of the
+    // tie-break goes green and breaks no tie.
     const pares: [Cell, Cell, PlacedPiece[]][] = [
       [[0, 0], [3, 2], []],
       [[4, 2], [7, 4], []],
@@ -520,17 +516,17 @@ describe('determinismo y desempate', () => {
     for (const [a, b, board] of pares) {
       const todos = todosLosMinimos(a, b, board);
       const donde = `${a} -> ${b}`;
-      expect(todos.length, `${donde} tiene que empatar`).toBeGreaterThan(1);
+      expect(todos.length, `${donde} must tie`).toBeGreaterThan(1);
       const menor = todos.reduce((mejor, c) => menorLex(c, mejor) ? c : mejor);
       expect(routeBetween(a, b, board, GRID_DEFAULT).path, donde).toEqual(menor);
     }
   });
 
-  it('AC-CIR-007 — el desempate compara el PREFIJO entero y no solo la primera celda', () => {
-    // La trampa que el spec deja escrita: fijar el orden de exploracion, o desempatar
-    // mirando la vecina que relaja, alcanza para la PRIMERA celda y no para el resto.
-    // Estos pares tienen mas de un camino minimo que arranca por la misma celda, asi que
-    // el desempate tiene que seguir decidiendo despues del primer paso.
+  it('AC-CIR-007 — the tie-break compares the whole PREFIX and not only the first cell', () => {
+    // The trap: to fix the exploration order, or to break the tie on the neighbour that
+    // relaxes, is enough for the FIRST cell and not for the rest. These pairs have more
+    // than one route of least cost that starts with the same cell, so the tie-break must
+    // still decide after the first move.
     for (const [a, b] of [[[0, 0], [3, 2]], [[4, 2], [7, 4]]] as [Cell, Cell][]) {
       const elegido = routeBetween(a, b, [], GRID_DEFAULT).path;
       const mismoArranque = todosLosMinimos(a, b, []).filter((c) => misma(c[0], elegido[0]));
@@ -541,20 +537,19 @@ describe('determinismo y desempate', () => {
   });
 });
 
-describe('031 — la costura sale de las dimensiones', () => {
-  it('AC-CIR-002 — son siempre las dos esquinas opuestas del tablero que haya', () => {
-    // AC11. El tablero de 10 x 6 dejo de ser el unico, asi que `(0,0)`-`(9,5)` dejo de
-    // poder ser una constante: la costura es «las dos esquinas», y eso se lee en cualquier
-    // tamano.
+describe('the seam comes from the dimensions', () => {
+  it('AC-CIR-002 — it is always the two opposite corners of the board that exists', () => {
+    // The board of 10 x 6 is not the only one, so `(0,0)`-`(9,5)` cannot be a constant:
+    // the seam is "the two corners", and that reads on any size.
     for (const dims of [GRID_DEFAULT, { w: 5, h: 5 }, { w: 26, h: 15 }, { w: 64, h: 7 }]) {
       expect(costuraDe(dims), `${dims.w}x${dims.h}`).toEqual([[0, 0], [dims.w - 1, dims.h - 1]]);
     }
   });
 
-  it('AC-CIR-002 — la celda de la costura es vecina de la otra punta, y solo ella', () => {
-    // La costura como propiedad OBSERVABLE y no como par de coordenadas: en un tablero de
-    // 26 x 15 la esquina `(25,14)` esta a 39 pasos de `(0,0)` por la grilla y a UNO por la
-    // costura. Y su vecina de al lado no: la costura es una arista, no un toroide.
+  it('AC-CIR-002 — the cell of the seam is a neighbour of the other end, and only that cell', () => {
+    // The seam as an OBSERVABLE property and not as a pair of coordinates: on a board of
+    // 26 x 15 the corner `(25,14)` is 39 moves from `(0,0)` on the grid and ONE through
+    // the seam. The cell next to it is not: the seam is an edge, not a torus.
     const dims = { w: 26, h: 15 };
     const [inicio, fin] = costuraDe(dims);
     expect(routeBetween(inicio, fin, [], dims).steps).toBe(1);
@@ -562,15 +557,16 @@ describe('031 — la costura sale de las dimensiones', () => {
   });
 });
 
-describe('la cache de distancias no cambia una sola ruta', () => {
-  it('un rutador compartido contesta lo mismo que uno nuevo por consulta', () => {
-    // El unico riesgo de la cache es que una `dist[]` guardada para un destino se lea desde
-    // un origen para el que no valia. Se contrasta contra la version sin cache, que es
-    // exactamente `routeBetween`: cada llamada arma su propio rutador y lo tira.
+describe('the cache of distances changes no route', () => {
+  it('a shared route finder answers the same as a new one for each query', () => {
+    // The only risk of the cache is that a `dist[]` kept for one destination is read from
+    // an origin for which it does not hold. It is checked against the version with no
+    // cache, which is exactly `routeBetween`: each call builds its own route finder and
+    // drops it.
     //
-    // Doce tableros con semilla —reproducibles, sin `Math.random`— por las 3.600 rutas del
-    // tablero de referencia serian 43.200 comparaciones; se toma una muestra de pares
-    // repartida por el tablero, que es lo que hace que el test corra en milisegundos.
+    // Six boards from a seed, reproducible and with no `Math.random`, times the 3600
+    // routes of the reference board would be 21,600 comparisons. The test takes a sample
+    // of pairs spread over the board, so it runs in milliseconds.
     const pares: [Cell, Cell][] = [];
     for (let i = 0; i < TODAS.length; i += 7) for (let j = 3; j < TODAS.length; j += 11) {
       pares.push([TODAS[i], TODAS[j]]);
@@ -584,9 +580,9 @@ describe('la cache de distancias no cambia una sola ruta', () => {
     }
   });
 
-  it('y tampoco en un tablero grande, que es donde la cache existe', () => {
-    // El mismo contraste sobre 26 x 15: es el tamano donde las 144 corridas pasan a ser 12,
-    // o sea donde la cache hace la diferencia que el spec mide (10,9 ms -> 3,1 ms).
+  it('and none on a large board either, which is where the cache matters', () => {
+    // The same check on 26 x 15: it is the size where the 144 runs become 12, so where the
+    // cache makes the measured difference (10.9 ms -> 3.1 ms).
     const dims = { w: 26, h: 15 };
     const board = [
       colocar('a', 'F', 0, false, 3, 2),

@@ -1,68 +1,67 @@
 /**
- * El hook del spec 048: el lint no espera a que alguien lo corra.
+ * The stop hook: lint does not wait for someone to run it.
  *
- * Corre como hook `Stop` y `SubagentStop` —los dos, ver abajo—, lintea lo que cambio en el
- * arbol y, si hay rojo, lo devuelve como texto para que el agente lo arregle antes de dar el
- * turno por terminado.
+ * It runs as the `Stop` and the `SubagentStop` hook (both, see below) and lints what changed in
+ * the tree. On a finding, it returns the finding as text, so that the agent fixes it before it
+ * ends the turn.
  *
- * **Lo que compra, dicho con precision: NO reemplaza a `pnpm verify` ni a la CI.** Adelanta el
- * momento en que el agente se entera, de «cuando abre el PR» a «cuando cree que termino». Eso
- * es todo, y alcanza: el error se descubre con el contexto cargado y con dos archivos escritos,
- * no con veinte.
+ * **What it buys, exactly: it does NOT replace `pnpm verify` or CI.** It moves the moment the
+ * agent learns about the error, from "when it opens the PR" to "when it thinks it is done".
+ * That is all, and it is enough: the error is found with the context loaded and with two files
+ * written, not with twenty.
  *
- * ## Por turno y no por edicion, con los cuatro numeros que lo deciden
+ * ## Per turn and not per edit, with the four numbers that decide it
  *
- * El reflejo es un `PostToolUse` que lintee el archivo recien editado. Esta falsificado
- * (`specs/048`, M1, medido sobre `63e569a`):
+ * The reflex is a `PostToolUse` that lints the file just edited. The measurement rejects it
+ * (measured on `63e569a`):
  *
- *     pnpm lint entero .......................... 21,78 s
- *     1 archivo, CON informacion de tipos ....... 4,42 s
- *     1 archivo, SIN informacion de tipos ....... 2,44 s
- *     los 38 de src/, SIN informacion de tipos .. 3,47 s
+ *     the whole pnpm lint ....................... 21.78 s
+ *     1 file, WITH type information ............. 4.42 s
+ *     1 file, WITHOUT type information .......... 2.44 s
+ *     the 38 files of src/, WITHOUT types ....... 3.47 s
  *
- * Dos conclusiones. **~2,4 s son arranque fijo**, asi que un `PostToolUse` le suma entre 2,4 y
- * 4,4 s a CADA `Edit`: veinte ediciones son un minuto y medio repartido en veinte pausas, que
- * es la clase de friccion que termina con alguien apagando el hook. Y **ir de 1 archivo a 38
- * cuesta 1 segundo**, o sea que la granularidad fina no compra nada. Las dos juntas dicen lo
- * mismo: el momento correcto es por turno.
+ * Two conclusions. **~2.4 s are fixed startup**, so a `PostToolUse` adds between 2.4 s and
+ * 4.4 s to EACH `Edit`: twenty edits are a minute and a half in twenty pauses, the kind of
+ * friction that ends with someone turning the hook off. And **going from 1 file to 38 costs
+ * 1 second**, so a finer grain buys nothing. Both say the same: the correct moment is per turn.
  *
- * ## `Stop` Y `SubagentStop`, y lo que eso cuesta
+ * ## `Stop` AND `SubagentStop`, and what that costs
  *
- * Son **dos eventos distintos** y `Stop` no cubre subagentes (confirmado contra la doc de
- * hooks al implementar). Este repo hace la mayor parte de su trabajo adentro de subagentes
- * —`spec-implement`, los tres `-batch`, `pr-review`— y ahi es donde se escriben los archivos:
- * un hook declarado solo en `Stop` **no ve el turno donde se escribio el codigo**, o sea que
- * nace sin cubrir el caso de uso principal.
+ * They are **two distinct events**, and `Stop` does not cover subagents (confirmed against the
+ * hooks documentation). This repo does most of its work inside subagents (`implement-feature`,
+ * the `-batch` skills, `pr-review`), and that is where the files are written: a hook declared
+ * on `Stop` alone **does not see the turn where the code was written**, so it misses the main
+ * use case.
  *
- * El costo de declararlo en los dos esta escrito porque es real: **N carriles en paralelo
- * pagan N veces el presupuesto**, sobre la misma cache de ESLint. Es el modo de falla que el
- * harness ya conoce —tres agentes sobre el mismo `node_modules` se cuelgan entre si— y por eso
- * el hook se serializa con un lock que NO espera (ver `tomarLock`).
+ * The cost of declaring it on both is written because it is real: **N parallel lanes pay the
+ * budget N times**, on the same ESLint cache. It is a failure mode the harness knows: three
+ * agents on the same `node_modules` hang each other. So the hook serializes with a lock that
+ * does NOT wait (see `tomarLock`).
  *
- * ## Las tres decisiones que no son obvias
+ * ## The three decisions that are not obvious
  *
- * 1. **El veredicto sale del EXIT CODE, nunca de un grep de la salida.** Es la trampa que este
- *    repo ya piso: declaro un `verify` verde con el lint roto porque un `| grep` que no
- *    matchea devuelve 1. Un hook que la repita bloquea turnos limpios y deja pasar los sucios.
+ * 1. **The verdict comes from the EXIT CODE, never from a grep of the output.** This repo hit
+ *    that trap: it declared a green `verify` with lint broken, because a `| grep` that does
+ *    not match returns 1. A hook that repeats it blocks clean turns and lets dirty ones
+ *    through.
  *
- * 2. **Si algo falla, DEJA PASAR y lo dice** (`pasar(motivo)`). Es literal del gate del 037, y
- *    el motivo es el mismo: un hook que bloquea cuando no pudo decidir se desactiva el primer
- *    dia que su dependencia falla. Falla abierto a proposito — lo que protege es una
- *    convencion, no un secreto.
+ * 2. **If something fails, it LETS THE TURN THROUGH and says so** (`pasar(motivo)`). A hook
+ *    that blocks when it could not decide is turned off the first day its dependency fails.
+ *    It fails open on purpose: what it protects is a convention, not a secret.
  *
- * 3. **El mensaje dice como salir.** Bloquear sin decir que hacer produce el reflejo de buscar
- *    como saltear el bloqueo, que es el fracaso completo del hook.
+ * 3. **The message says how to get out.** A block that does not say what to do gives the
+ *    reflex to look for a way around the block, which is the complete failure of the hook.
  *
- * ## El anti-bucle, y la unica cosa que la doc no declara
+ * ## The anti-loop, and the one thing the documentation does not declare
  *
- * `stop_hook_active` llega en `true` cuando el bloqueo anterior fue de este mismo hook, y
- * viendolo hay que salir con 0 o el hook bloquea sobre su propio bloqueo. **Ojo con la fuente:**
- * la guia de hooks dice textualmente que hay que parsear ese campo, pero la referencia de
- * schemas de `Stop`/`SubagentStop` **no lo declara**. Es una inconsistencia de la
- * documentacion, verificada al implementar. Por eso aca se lee con `=== true` y su ausencia se
- * trata como `false`: si el campo dejara de venir, el hook sigue linteando —que es su trabajo—
- * en vez de callarse para siempre. La plataforma tiene ademas su propio tope: corta un hook
- * `Stop` que bloquea ocho veces seguidas sin progreso.
+ * `stop_hook_active` comes as `true` when the block before was from this same hook. On that
+ * value the hook must exit with 0, or it blocks on its own block. **Mind the source:** the
+ * hooks guide says in so many words to parse that field, but the schema reference of
+ * `Stop`/`SubagentStop` **does not declare it**. It is an inconsistency of the documentation.
+ * So here it is read with `=== true`, and its absence is treated as `false`: if the field
+ * stops coming, the hook goes on linting, which is its job, and does not go quiet forever.
+ * The platform also has its own limit: it stops a `Stop` hook that blocks eight times in a
+ * row with no progress.
  */
 import { readFileSync, writeFileSync, unlinkSync, statSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -73,18 +72,18 @@ import { fileURLToPath } from 'node:url';
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 /**
- * ESLint se invoca por su archivo y no por `pnpm exec`: el gestor le suma su propio arranque
- * a un presupuesto que se mide en segundos, y aca no hace falta resolver nada.
+ * ESLint is invoked by its file and not through `pnpm exec`: the package manager adds its own
+ * startup to a budget measured in seconds, and nothing needs resolving here.
  */
 const ESLINT = path.join(RAIZ, 'node_modules/eslint/bin/eslint.js');
 
 /**
- * Las extensiones que la config de ESLint cubre, leidas y no supuestas: los bloques con
- * `files` de `eslint.config.js` son `**\/*.js`, `**\/*.{ts,tsx}` y `**\/*.md`.
+ * The extensions the ESLint config covers, read and not assumed: the blocks with `files` in
+ * `eslint.config.js` are `**\/*.js`, `**\/*.{ts,tsx}` and `**\/*.md`.
  *
- * El filtro no es prolijidad: `eslint` sobre un archivo que su config no cubre avisa «File
- * ignored because no matching configuration was supplied», y con el `--max-warnings 0` que usa
- * este hook eso es un exit 1 — o sea un bloqueo por un `.png` cambiado.
+ * The filter is not tidiness: `eslint` on a file its config does not cover warns "File ignored
+ * because no matching configuration was supplied", and with the `--max-warnings 0` of this
+ * hook that is an exit 1. So a changed `.png` would block the turn.
  *
  * **`.mjs` is NOT in the list, and that is a known hole.** The `**\/*.js` glob that carries
  * `js.configs.recommended` does not match `.mjs` in flat config, so this file is linted with ZERO
@@ -94,62 +93,62 @@ const ESLINT = path.join(RAIZ, 'node_modules/eslint/bin/eslint.js');
 const EXTENSIONES = ['.ts', '.tsx', '.js', '.md'];
 
 /**
- * Los dos topes de la salida de ESLint, y los dos existen por un fallo en verde medido.
+ * The two limits on the ESLint output. Each exists for a measured failure in green.
  *
- * El `maxBuffer` por default de `execFileSync` es **1 MiB**, y pasarse NO se parece a un
- * hallazgo: la llamada tira con `code: 'ENOBUFS'` y **`status: null`**, que el discriminante de
- * abajo lee como «no pude decidir» y manda a `pasar`. O sea que sin este numero el hook falla
- * abierto **justo cuando mas hallazgos hay**. Verificado: 2 MiB por stdout dan
- * `status=null, code=ENOBUFS`.
+ * The default `maxBuffer` of `execFileSync` is **1 MiB**, and going over it does NOT look like
+ * a finding: the call throws with `code: 'ENOBUFS'` and **`status: null`**, which the
+ * discriminant below reads as "could not decide" and sends to `pasar`. So without this number
+ * the hook fails open **exactly when there are the most findings**. Verified: 2 MiB on stdout
+ * give `status=null, code=ENOBUFS`.
  *
- * Y una vez que esa salida entra, devolverla entera seria volcar megabytes en el contexto del
- * agente, que es lo contrario de «el mensaje dice como salir». Se recorta y se dice que se
- * recorto: para empezar a arreglar alcanzan los primeros, y el resto lo muestra `pnpm lint`.
+ * Once that output fits, to return it whole would dump megabytes into the context of the
+ * agent, the opposite of "the message says how to get out". It is truncated, and the message
+ * says so: the first findings are enough to start the fix, and `pnpm lint` shows the rest.
  */
 const TOPE_DEL_BUFFER = 32 * 1024 * 1024;
 const TOPE_DEL_MENSAJE = 16 * 1024;
 
 /**
- * El lock, y por que NO espera.
+ * The lock, and why it does NOT wait.
  *
- * Con `SubagentStop` declarado, N carriles terminan casi a la vez y arrancarian N ESLint sobre
- * la misma cache. Esperar el turno seria gastar el `timeout` del hook para llegar tarde a
- * decir lo mismo, asi que el que no puede tomarlo **deja pasar diciendolo**: es la misma
- * politica de `pasar(motivo)`, ante la duda pasar contando.
+ * With `SubagentStop` declared, N lanes end almost at once and would start N ESLint on the
+ * same cache. To wait for a turn would spend the `timeout` of the hook to arrive late and say
+ * the same, so the one that cannot take the lock **lets the turn through and says so**: the
+ * same policy as `pasar(motivo)`, in doubt let through and tell.
  *
- * La vida corta existe por el caso feo: un hook que muere sin liberar dejaria el lock puesto
- * para siempre y el gate mudo para siempre, que es fallar en verde. Es holgado contra el techo
- * del presupuesto (6 s) para no pisar una corrida legitima.
+ * The short life exists for the ugly case: a hook that dies without releasing would leave the
+ * lock set forever and the gate mute forever, which is failing green. It is loose against the
+ * ceiling of the budget (6 s) so that it does not step on a legitimate run.
  */
 const LOCK = path.join(tmpdir(), 'pentomino-lint-al-cerrar.lock');
 const VIDA_DEL_LOCK_MS = 60_000;
 
 /**
- * Escribe y termina, en ese orden y sin ventana entre las dos.
+ * Writes and exits, in that order and with no window between the two.
  *
- * `writeFileSync` sobre el descriptor y no `console.log`: cuando la salida es un pipe —que es
- * como la lee la sesion— `process.stdout.write` puede ser ASINCRONICO, y `process.exit()`
- * inmediatamente despues corta el proceso antes de que el buffer se vacie. O sea que el hook
- * bloquearia sin decir por que, que es el fracaso completo del punto 3 del encabezado.
+ * `writeFileSync` on the descriptor and not `console.log`: when the output is a pipe, which is
+ * how the session reads it, `process.stdout.write` can be ASYNCHRONOUS, and a `process.exit()`
+ * right after it cuts the process before the buffer drains. So the hook would block without
+ * saying why, which is the complete failure of point 3 of the header.
  */
 const salir = (codigo, descriptor, texto) => {
   if (texto) writeFileSync(descriptor, `${texto}\n`);
   process.exit(codigo);
 };
 
-/** Deja pasar, y opcionalmente cuenta por que. Es la salida por defecto de todo fallo. */
+/** Lets the turn through, and optionally tells why. It is the default exit of every failure. */
 const pasar = (motivo) => salir(0, 1, motivo && `lint-al-cerrar: ${motivo}`);
 
 /**
- * Bloquea el cierre del turno.
+ * Blocks the end of the turn.
  *
- * **Exit 2 con el texto por stderr** es la unica forma de que el turno no cierre: confirmado
- * contra la doc al implementar, un JSON en stdout sin exit 2 no bloquea nada. El modelo lee
- * ese stderr y sigue trabajando.
+ * **Exit 2 with the text on stderr** is the only way to keep the turn open: confirmed against
+ * the documentation, a JSON on stdout without exit 2 blocks nothing. The model reads that
+ * stderr and goes on working.
  */
 const bloquear = (motivo) => salir(2, 2, motivo);
 
-/** El payload del hook, o `{}` si no se pudo leer. Sin payload no hay nada que decidir. */
+/** The payload of the hook, or `{}` if it cannot be read. With no payload nothing is decided. */
 function payload() {
   try {
     return JSON.parse(readFileSync(0, 'utf8'));
@@ -159,9 +158,9 @@ function payload() {
 }
 
 /**
- * Toma el lock, o devuelve `false` si ya lo tiene otro y sigue vivo.
+ * Takes the lock, or returns `false` if another process holds it and it is still alive.
  *
- * `wx` es la creacion atomica: falla si el archivo existe, que es justo la pregunta.
+ * `wx` is the atomic creation: it fails if the file exists, which is exactly the question.
  */
 function tomarLock() {
   try {
@@ -174,8 +173,8 @@ function tomarLock() {
         return true;
       }
     } catch {
-      // El lock se libero entre el `wx` y el `stat`. Que la carrera termine en «no lo tomo»
-      // es la respuesta barata y correcta: el otro proceso ya lintea o va a linear.
+      // The lock was released between the `wx` and the `stat`. For the race to end in "not
+      // taken" is the cheap and correct answer: the other process lints or will lint.
     }
     return false;
   }
@@ -185,18 +184,18 @@ const soltarLock = () => {
   try {
     unlinkSync(LOCK);
   } catch {
-    // Ya no esta: otro lo dio por vencido. No hay nada que arreglar.
+    // It is gone: another process took it as expired. There is nothing to fix.
   }
 };
 
 /**
- * La salida de un comando de git, o `''` si git no contesta.
+ * The output of a git command, or `''` if git does not answer.
  *
- * **`core.quotePath=false` no es cosmetica.** Con el default, git devuelve toda ruta con un
- * caracter no ASCII escapada y **entre comillas** —`"docs/sesión.md"` sale como
- * `"docs/sesi\303\263n.md"`—, asi que la extension deja de ser `.md`, el archivo se cae del
- * filtro y no se lintea nunca. En un repo cuya documentacion se escribe en espanol eso es una
- * ruta con acento a un archivo que el hook no mira, callado. Verificado con `ls-files`.
+ * **`core.quotePath=false` is not cosmetic.** With the default, git returns every path with a
+ * non-ASCII character escaped and **between quotes** (`"docs/sesión.md"` comes out as
+ * `"docs/sesi\303\263n.md"`), so the extension stops being `.md`, the file falls out of the
+ * filter and is never linted. A path with an accent is then a file the hook does not look at,
+ * in silence. Verified with `ls-files`.
  */
 function git(...args) {
   try {
@@ -209,10 +208,10 @@ function git(...args) {
 }
 
 /**
- * Los archivos cambiados, con los TRES comandos.
+ * The changed files, from the THREE commands.
  *
- * El tercero no es opcional: un archivo recien creado no aparece en `git diff`, y es
- * exactamente el caso de un agente escribiendo codigo nuevo — el que se olvida.
+ * The third is not optional: a file just created does not appear in `git diff`, and that is
+ * exactly the case of an agent that writes new code, the one that gets forgotten.
  */
 function cambiados() {
   const crudo = [
@@ -223,59 +222,60 @@ function cambiados() {
   const lista = crudo.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
   return [...new Set(lista)]
     .filter((f) => EXTENSIONES.includes(path.extname(f)))
-    // **El archivo BORRADO se descarta, y esto no es prolijidad.** `git diff --name-only`
-    // lista los borrados igual que los modificados, y ESLint sobre una ruta que no existe
-    // sale con **status 2** —«No files matching the pattern»— que el discriminante de abajo
-    // lee como «no pude decidir» y deja pasar. O sea que un turno que borra un solo `.md`
-    // dejaba de verificar TODO lo demas, callado y en verde. Medido sobre este repo: con
-    // `docs/guides/troubleshooting.md` borrado, un `enum` recien escrito en
-    // `src/pieces/transform.ts` salio con exit 0. Y borrar no es raro aca: la convencion es
-    // que los borrados van en su propio commit, o sea en su propio turno.
+    // **A DELETED file is dropped, and this is not tidiness.** `git diff --name-only` lists
+    // deleted files the same as modified ones, and ESLint on a path that does not exist exits
+    // with **status 2** ("No files matching the pattern"), which the discriminant below reads
+    // as "could not decide" and lets through. So without this filter a turn that deletes one
+    // `.md` stops the check of ALL the rest, in silence and green. Measured on this repo: with
+    // `docs/guides/troubleshooting.md` deleted, an `enum` just written in
+    // `src/pieces/transform.ts` came out with exit 0. And a deletion is not rare here: the
+    // convention is that deletions go in their own commit, so in their own turn.
     .filter((f) => existsSync(path.join(RAIZ, f)));
 }
 
-/** Recorta la salida al tope y **dice que la recorto**: un corte mudo se lee como el final. */
+/** Truncates the output at the limit and **says so**: a mute cut reads as the end. */
 const recortar = (texto) => (texto.length <= TOPE_DEL_MENSAJE ? texto
-  : `${texto.slice(0, TOPE_DEL_MENSAJE)}\n\n[...recortado: ${texto.length} caracteres de hallazgos ` +
-    'en total. Arregla estos y corre `pnpm lint` para ver el resto.]');
+  : `${texto.slice(0, TOPE_DEL_MENSAJE)}\n\n[...truncated: ${texto.length} characters of findings ` +
+    'in total. Fix these and run `pnpm lint` to see the rest.]');
 
 const COMO_SALIR =
-  'Arreglalo antes de cerrar el turno, o corre `pnpm lint` para ver el detalle. Si el hallazgo ' +
-  'es una excepcion legitima, va como override por archivo en `eslint.config.js` con su motivo ' +
-  'escrito: `noInlineConfig` esta puesto a proposito y no hay `eslint-disable`. Este hook no ' +
-  'reemplaza a `pnpm verify` ni a la CI: solo adelanta el momento en que te enteras.';
+  'Fix it before you end the turn, or run `pnpm lint` to see the detail. If the finding is a ' +
+  'real exception, it goes as a per-file override in `eslint.config.js` with its reason ' +
+  'written: `noInlineConfig` is set on purpose and there is no `eslint-disable`. This hook ' +
+  'does not replace `pnpm verify` or CI: it only moves the moment you learn about the error.';
 
 const { stop_hook_active: bloqueoActivo } = payload();
 
-// El anti-bucle. Va antes que todo lo demas: si el bloqueo anterior fue de este hook, lo unico
-// correcto es callarse, y no cuesta ni una llamada a git.
+// The anti-loop. It goes before everything else: if the block before was from this hook, the
+// only correct thing is to stay quiet, and it does not cost one call to git.
 if (bloqueoActivo === true) process.exit(0);
 
 if (!tomarLock()) {
-  pasar('otro turno esta linteando ahora mismo; este no espera para no gastar su timeout');
+  pasar('another turn is linting right now; this one does not wait, so that it does not spend its timeout');
 }
 
-// **`process.on('exit')` y no un `finally`**: todas las salidas de abajo pasan por
-// `process.exit()`, que termina el proceso en el acto y **no corre los `finally`**. Con un
-// `try/finally` el lock quedaria puesto en cada bloqueo y en cada `pasar`, y a partir de ahi
-// el hook diria «otro turno esta linteando» durante un minuto entero — mudo, en verde y sin
-// que nada avise. Este handler si corre, incluida la salida por `process.exit`.
+// **`process.on('exit')` and not a `finally`**: every exit below goes through
+// `process.exit()`, which ends the process at once and **does not run a `finally`**. With a
+// `try/finally` the lock would stay set on each block and on each `pasar`, and from there the
+// hook would say "another turn is linting" for a whole minute: mute, green, with no warning.
+// This handler does run, also on an exit through `process.exit`.
 //
-// Va DESPUES de `tomarLock`: si no lo tomamos, el lock es de otro y borrarlo seria peor.
+// It goes AFTER `tomarLock`: if this process did not take the lock, the lock belongs to
+// another one, and to delete it would be worse.
 process.on('exit', soltarLock);
 
 {
   const archivos = cambiados();
 
-  // El caso mas comun, y tiene que costar cero.
+  // The most common case, and it must cost zero.
   if (archivos.length === 0) process.exit(0);
 
-  // El binario, preguntado antes de lanzarlo. **Sin este chequeo el hook bloquea cuando
-  // ESLint no esta**: node arranca igual, no encuentra el modulo y sale con status 1 —el
-  // MISMO que usa ESLint para «hay hallazgos»— escribiendo el «Cannot find module» por
-  // stderr. Un `node_modules` a medio instalar trabaria todos los turnos con un stack trace
-  // por mensaje, que es lo contrario de fallar abierto. Lo encontro el test, no el diseno.
-  if (!existsSync(ESLINT)) pasar('eslint no esta instalado, no se verifico');
+  // The binary, asked for before it is launched. **Without this check the hook blocks when
+  // ESLint is missing**: node starts anyway, does not find the module and exits with status 1,
+  // the SAME that ESLint uses for "there are findings", and writes the "Cannot find module" on
+  // stderr. A half-installed `node_modules` would block every turn with a stack trace per
+  // message, the opposite of failing open.
+  if (!existsSync(ESLINT)) pasar('eslint is not installed, nothing was verified');
 
   let salida;
   try {
@@ -285,23 +285,23 @@ process.on('exit', soltarLock);
       { cwd: RAIZ, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: TOPE_DEL_BUFFER },
     );
   } catch (error) {
-    // **El discriminante es exit 1 CON hallazgos por STDOUT**, y las dos mitades hacen falta.
-    // ESLint escribe sus hallazgos por stdout y sus fallas por stderr, asi que un exit 1 con
-    // stdout vacio no es un hallazgo sino la herramienta rota —un modulo que no carga, un
-    // plugin que tira al importarse—. Todo lo demas —la config ausente, que es exit 2— cae
-    // solo en el `pasar` de abajo.
+    // **The discriminant is exit 1 WITH findings on STDOUT**, and both halves are needed.
+    // ESLint writes its findings on stdout and its failures on stderr, so an exit 1 with an
+    // empty stdout is not a finding but the tool broken: a module that does not load, a
+    // plugin that throws on import. All the rest, like the missing config, which is exit 2,
+    // falls by itself into the `pasar` below.
     //
-    // Y `--no-warn-ignored` es lo que impide el falso positivo del archivo cambiado que cae
-    // bajo `globalIgnores` (`dist`, `.claude/worktrees`): con `--max-warnings 0`, ese aviso
-    // seria un exit 1 y un bloqueo por un archivo que el repo decidio no lintear.
+    // And `--no-warn-ignored` prevents the false positive of the changed file that falls
+    // under `globalIgnores` (`dist`, `.claude/worktrees`): with `--max-warnings 0`, that
+    // warning would be an exit 1, and a block for a file the repo decided not to lint.
     const hallazgos = `${error.stdout ?? ''}`.trim();
     if (error.status === 1 && hallazgos.length > 0) {
-      bloquear(`El lint encontro esto en lo que cambiaste:\n\n${recortar(hallazgos)}\n\n${COMO_SALIR}`);
+      bloquear(`Lint found this in what you changed:\n\n${recortar(hallazgos)}\n\n${COMO_SALIR}`);
     }
-    pasar(`no se pudo correr eslint (status ${String(error.status)}), no se verifico`);
+    pasar(`could not run eslint (status ${String(error.status)}), nothing was verified`);
   }
 
-  // Exit 0 y arbol limpio: no hay nada que decir, y decirlo seria ruido en cada turno.
+  // Exit 0 and a clean tree: there is nothing to say, and to say it would be noise in each turn.
   if (salida.trim().length > 0) pasar(salida.trim());
   process.exit(0);
 }

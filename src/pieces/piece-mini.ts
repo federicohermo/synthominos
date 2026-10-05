@@ -3,132 +3,126 @@ import { SHAPES } from './pieces.ts';
 import type { Cell } from './transform.ts';
 import type { PieceKey } from './pieces.ts';
 
-/* `PREVIEW_CELL_PX` (20) se fue con el panel de previsualizacion aparte (`PiecePreview`),
-   que dejo de existir cuando el fantasma del tablero paso a mostrar la nota de cada
-   celda (spec 007, issue #69).
+/* The thumbnail of the palette says no note and no `#N`. It says the SHAPE.
 
-   La miniatura de la paleta **no deshace ese retiro**, y conviene que quede escrito
-   porque se le parece. Aquel panel se fue por repetir las NOTAS —el fantasma las dice mejor,
-   sobre la celda donde van a caer— y la miniatura de la paleta no dice ni una nota
-   ni un `#N` (D7): dice la FORMA, que es lo que aquel retiro se llevo puesto de
-   paso y lo unico que el fantasma no puede contestar, porque para verlo ya hay que
-   haber elegido la pieza. Y aquel 20 era una miniatura sola en un panel de 252 px;
-   aca son doce en el mismo lugar. */
+   The ghost of the board says the notes better, on the cells where they will fall, so a
+   panel that repeats the notes has no place. The shape is the one thing the ghost cannot
+   answer: to see the ghost, the player must first choose the piece. One thumbnail alone
+   can take 20 px for each cell in a panel of 252 px. Here twelve share that space. */
 
 /**
- * El lado de la caja de la miniatura de la paleta, en celdas.
+ * The side of the box of the palette thumbnail, in cells.
  *
- * 5 es la caja mas chica que contiene cualquier pentomino en cualquiera de sus 8
- * orientaciones: el maximo en un eje lo pone sola la `I` —5×1 acostada, 1×5 parada— y
- * ninguna otra pieza pasa de 4×2 ni de 3×3. Con 4 la `I` no entra.
+ * 5 is the smallest box that holds any pentomino in any of its 8 orientations. The `I`
+ * alone sets the maximum on one axis, 5×1 flat and 1×5 upright, and no other piece is
+ * larger than 4×2 or 3×3. With 4 the `I` does not fit.
  *
- * **Con la orientacion por pieza la caja fija es MAS necesaria, no menos.** Si las doce
- * miniaturas compartieran una orientacion, una fila que se descuadra al rotar se descuadra
- * entera y de una vez. Como cada pieza recuerda la suya y las doce cambian por separado,
- * sin la caja fija rotar la `I` sola moveria a sus once vecinas de la grilla. El argumento
- * esta duplicado en `piece-mini.ts` y en `DESIGN.md`, y los tres tienen que decir lo mismo.
+ * **With one orientation for each piece, the fixed box is MORE necessary, not less.** If
+ * the twelve thumbnails shared one orientation, a row that goes out of line on a rotation
+ * would go out of line whole and at once. Each piece remembers its own orientation and
+ * the twelve change one at a time, so with no fixed box a rotation of the `I` alone would
+ * move its eleven neighbors in the grid. This argument is written three times: here, at
+ * `miniCells` in this file, and in `DESIGN.md`. The three must say the same.
  *
- * **No se toma `CELLS_PER_PIECE` de `pieces.ts`**, aunque valga 5 tambien. Son dos
- * numeros distintos que coinciden por casualidad: aquel dice cuantas celdas tiene una
- * pieza —una propiedad del modelo— y este cuantas casillas mide la caja donde se
- * dibuja, que es una decision de layout. Atarlos haria que cambiar el pentomino a
- * hexomino moviera el layout, y que agrandar la caja pareciera un cambio de modelo.
+ * **It does not take `CELLS_PER_PIECE` from `pieces.ts`**, although that is 5 too. They
+ * are two different numbers that are equal by chance. That one says how many cells a
+ * piece has, a property of the model. This one says how many squares the box measures, a
+ * decision of layout. To tie them would make a change from pentomino to hexomino move the
+ * layout, and would make a larger box look like a change of the model.
  */
 export const MINI_BOX = 5;
 
 /**
- * El lado de una celda de la miniatura, en px.
+ * The side of one cell of the thumbnail, in px.
  *
- * **El argumento con el que este numero se eligio esta muerto**, y conviene decirlo antes
- * que nada porque era el argumento entero: salia del alto de la fila de tarjetas que la
- * paleta compartia con el tablero, y esa fila no existe. La cadena completa —seis columnas
- * de 8 px para no robarle alto al tablero— esta en el spec 021 (issue #83). Hoy no hay
- * fila, no hay tarjeta y el tamano de celda sale del viewport; la paleta es un dock `fixed`
- * que flota encima y no le quita un pixel a nadie.
+ * **The argument that chose this number is dead**, and that comes first because it was
+ * the whole argument: the height of a row of cards that the palette shared with the
+ * board, six columns of 8 px so as to take no height from the board. There is no row and
+ * no card, and the cell size comes from the viewport. The palette is a `fixed` dock that
+ * floats above the board and takes no pixel from it.
  *
- * Lo que decide el numero ahora es la CAJA DEL DOCK, que mide `calc(var(--cell) * 2)` de
- * ancho — 146 px en el peor caso, que es el piso. Ahi adentro tienen que entrar las doce
- * miniaturas con su letra, y la tabla de columnas se resuelve contra el ancho real del
- * contenedor (`OrientationPanel.tsx`) y no contra el breakpoint del viewport, que no dice
- * nada sobre cuanto mide esta caja.
+ * What decides the number today is the BOX OF THE DOCK, which is `calc(var(--cell) * 2)`
+ * wide: 146 px in the worst case, the floor. The twelve thumbnails and their letters must
+ * fit in it. The count of columns resolves against the real width of the container
+ * (`OrientationPanel.tsx`) and not against the breakpoint of the viewport, which says
+ * nothing about the width of this box.
  *
- * 8 px se queda porque sigue siendo el mas chico que deja leer la FORMA: con `MINI_BOX = 5`
- * la caja mide 40 px de lado, y a menos que eso las piezas de tres celdas de ancho dejan de
- * distinguirse entre si. No se remidio con el dock puesto — si el dock cambia de ancho, este
- * es el numero a remedir.
+ * 8 px stays because it is the smallest size that lets the SHAPE be read. With
+ * `MINI_BOX = 5` the box is 40 px on a side, and below that the pieces that are three
+ * cells wide look the same. It was not measured again with the dock in place. If the dock
+ * changes its width, this is the number to measure again.
  */
 export const MINI_CELL_PX = 8;
 
 /**
- * El ancho minimo de una columna de la grilla de miniaturas, en px.
+ * The minimum width of one column of the grid of thumbnails, in px.
  *
- * Derivado y no tipeado: es la caja del mini (`MINI_BOX x MINI_CELL_PX` = 40) mas el
- * `px-2` del boton que la contiene (8 por lado) mas su borde (1 por lado). Si alguno de
- * los dos numeros de arriba cambia, este lo sigue solo.
+ * It is derived and not typed: the box of the thumbnail (`MINI_BOX x MINI_CELL_PX` = 40),
+ * plus the `px-2` of the button that holds it (8 on each side), plus its border (1 on
+ * each side). If one of the two numbers above changes, this one follows.
  *
- * Reemplaza a la tabla de breakpoints que `OrientationPanel` tenia: ahi las columnas salian
- * del ancho del VIEWPORT, que era una buena aproximacion del ancho de la tarjeta mientras la
- * tarjeta ocupaba una columna del grid.
- * Con el dock son dos variables distintas —el dock mide `calc(var(--cell) * 2)`, o sea
- * entre 146 y 360 px, mientras el viewport puede estar en `xl`— y la aproximacion se cae:
- * a 1366 x 768 el breakpoint pedia SEIS columnas adentro de una caja de 256 px. Con
- * `repeat(auto-fill, minmax(MINI_PISTA_PX, 1fr))` la cuenta la hace el navegador contra la
- * caja real, que es la misma decision de una sola fuente del numero que `--cell`.
+ * The count of columns does not come from a table of breakpoints, because a breakpoint
+ * reads the width of the VIEWPORT, and the dock is a different variable. The dock is
+ * `calc(var(--cell) * 2)` wide, between 146 and 360 px, while the viewport can be at
+ * `xl`. At 1366 x 768 a breakpoint asks for SIX columns inside a box of 256 px. With
+ * `repeat(auto-fill, minmax(MINI_PISTA_PX, 1fr))` the browser counts against the real
+ * box. It is the same decision as `--cell`: one source for the number.
  */
 export const MINI_PISTA_PX = MINI_BOX * MINI_CELL_PX + 16 + 2;
 
 /**
- * La forma de una pieza en coordenadas de la miniatura de la paleta: sus cinco celdas
- * ya rotadas, reflejadas y **centradas** en una caja de `MINI_BOX` × `MINI_BOX`.
+ * The shape of a piece in the coordinates of the palette thumbnail: its five cells,
+ * rotated, reflected and **centered** in a box of `MINI_BOX` × `MINI_BOX`.
  *
- * Vive acá y no adentro de `PiecePalette.tsx` por el motivo de siempre:
- * `react-refresh/only-export-components` prohíbe que un `.tsx` exporte algo que no sea
- * el componente, y el centrado es aritmética que se equivoca en silencio. Es el mismo
- * movimiento con el que salió `cell-text.ts`.
+ * It is here and not inside the component that draws it, because
+ * `react-refresh/only-export-components` forbids a `.tsx` to export anything that is not
+ * the component, and the centering is arithmetic that goes wrong with no error. It is the
+ * same move that made `cell-text.ts`.
  *
- * ## Por qué la caja es fija, y por qué mide 5
+ * ## Why the box is fixed, and why it measures 5
  *
- * La caja **no se ajusta al contenido**, y eso es lo que permite que la miniatura muestre
- * la orientación ACTUAL en vez de la canónica. La `I` pasa de 5×1 a 1×5 al rotar: con
- * cajas ajustadas, los doce botones reflowearían en cada rotación, que es exactamente el
- * bug que `PiecePalette.tsx` ya documenta para su línea de notas — un panel de control
- * que se acomoda solo cuando lo tocás mueve el botón justo cuando vas a apretarlo.
+ * The box **does not fit its content**, and that lets the thumbnail show the CURRENT
+ * orientation and not the canonical one. The `I` goes from 5×1 to 1×5 on a rotation. With
+ * fitted boxes, the twelve buttons would reflow on each rotation: a control panel that
+ * rearranges itself when you touch it moves the button just when you are about to press
+ * it.
  *
- * Cada pieza recuerda **su** orientación, así que las doce cambian por
- * separado: rotar la `I` sola alcanzaría para descuadrar a sus once vecinas. La caja fija
- * es lo que hace que esa independencia no cueste layout.
+ * Each piece remembers **its own** orientation, so the twelve change one at a time: a
+ * rotation of the `I` alone would be enough to move its eleven neighbors out of line. The
+ * fixed box is what makes that independence cost no layout.
  *
- * 5 es la caja más chica que contiene cualquier pentominó en cualquiera de sus 8
- * orientaciones: el máximo en un eje es 5 y lo pone sola la `I`; ninguna otra pieza pasa
- * de 4×2 ni de 3×3. Con 4×4 la `I` no entra.
+ * 5 is the smallest box that holds any pentomino in any of its 8 orientations: the
+ * maximum on one axis is 5 and the `I` alone sets it. No other piece is larger than 4×2
+ * or 3×3. With 4×4 the `I` does not fit.
  *
- * ## Acá el invariante de orden del array NO aplica
+ * ## Here the array-order rule does NOT apply
  *
- * Vale decirlo porque todo el resto del repo afirma lo contrario, y con razón: en
- * el dominio la celda del índice `k` tiene que seguir siendo la misma celda lógica después
- * de transformar, porque de eso dependen `ANCHOR_INDEX`, el grado de cada celda y las
- * puertas del circuito. Acá no: la miniatura no numera celdas, no las conecta con grados
- * y no dice qué suena — sólo pinta cuáles están ocupadas. Reordenar su salida no rompería
- * nada, y por eso el centrado puede ser un `map` sin cuidados especiales.
+ * It must be said because all the rest of the repo states the opposite, and rightly. In
+ * the domain, the cell at index `k` must be the same logical cell after a transformation:
+ * `ANCHOR_INDEX`, the degree of each cell and the gates of the circuit depend on it. Not
+ * here: the thumbnail does not number cells, does not connect them to degrees and does
+ * not say what sounds. It only paints which squares are occupied. A different order of
+ * its output would break nothing, so the centering can be a plain `map`.
  *
- * Lo que sí importa es el ORDEN DE LA CADENA: `rotateN` primero y el espejo después, que
- * es lo que hacen `App.tsx`, `invariants.ts` y `describePiece.ts`. Invertirlo compila y
- * da la orientación equivocada en 48 de las 96 combinaciones — o sea que la paleta
- * mostraría una pieza y el tablero colocaría otra.
+ * What does matter is the ORDER OF THE CHAIN: `rotateN` first and the reflection second,
+ * as in `App.tsx`, `invariants.ts` and `describePiece.ts`. The reverse order compiles and
+ * gives the wrong orientation in 48 of the 96 combinations: the palette would show one
+ * piece and the board would place another.
  */
 export function miniCells(piece: PieceKey, rotation: number, mirror: boolean): Cell[] {
   const rotada = rotateN(SHAPES[piece], rotation);
-  // `rotateN` y `reflect` normalizan los dos, asi que la forma ya viene pegada a (0,0):
-  // el minimo de cada eje es 0 y el maximo es el lado menos uno. Sin esa garantia el
-  // ancho habria que medirlo como `max - min + 1`, y leerlo antes de normalizar es una
-  // de las dos formas de que el centrado quede corrido y compile igual.
+  // `rotateN` and `reflect` both normalize, so the shape arrives at (0,0): the minimum of
+  // each axis is 0 and the maximum is the side minus one. Without that guarantee the
+  // width would be `max - min + 1`. To read it before the normalization is one of the two
+  // ways to get a shifted centering that still compiles.
   const forma = mirror ? reflect(rotada) : rotada;
   const ancho = Math.max(...forma.map((c) => c[0])) + 1;
   const alto = Math.max(...forma.map((c) => c[1])) + 1;
-  // `floor` y no `round`: es la otra forma de equivocarlo en silencio. Con `round`, una
-  // pieza de ancho par en una caja impar se corre un lugar de mas y queda pegada al borde
-  // derecho en la mitad de las orientaciones. Con `floor` el pixel impar sobrante queda
-  // siempre del mismo lado, que es lo unico que hace falta para que no salte al rotar.
+  // `floor` and not `round`: `round` is the other way to get it wrong with no error. With
+  // `round`, a piece of even width in an odd box moves one place too far and sits against
+  // the right edge in half of the orientations. With `floor` the odd spare square is
+  // always on the same side, which is all it takes for the shape not to jump on a
+  // rotation.
   const dx = Math.floor((MINI_BOX - ancho) / 2);
   const dy = Math.floor((MINI_BOX - alto) / 2);
   return forma.map(([x, y]): Cell => [x + dx, y + dy]);

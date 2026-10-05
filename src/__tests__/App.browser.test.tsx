@@ -12,19 +12,17 @@ import type { ReactNode } from 'react';
 import type { PropsDeOrientacion } from '../panels/OrientationPanel.tsx';
 
 /**
- * El shell, entero y en un navegador.
+ * The shell, whole and in a browser.
  *
- * `App.tsx` no tiene un solo `useEffect` —los seis viven en
- * `use-engine.ts` y `use-input.ts`— pero sigue siendo dueño de TODO el estado y de los
- * handlers que lo mueven, y eso es lo que no verificaba nada: el gesto de colocar, las
- * tres formas de editar en el tablero, cuándo se dispara el arpegio de
- * cortesía y cuándo no, y las tres derivaciones que AC15 del 017 obliga a llevar el
- * régimen.
+ * `App.tsx` has no `useEffect`: the six live in `use-engine.ts` and `use-input.ts`. But
+ * it owns ALL the state and the handlers that move it: the placement gesture, the three
+ * ways to edit on the board, when the courtesy arpeggio fires and when it does not, and
+ * the three derivations that must carry the regime.
  *
- * El motor va mockeado con un doble que RECUERDA si arrancó: es lo que hace verificable
- * que el botón de transporte refleje si el reloj arrancó de verdad y no si se lo apretó
- * —el ítem AC10, que esperó catorce specs—. Todo lo demás es real: el
- * dominio, los tres componentes y el DOM.
+ * The engine is mocked with a double that REMEMBERS if it started. That makes it
+ * verifiable that the transport button shows whether the clock started, and not whether
+ * the button was pressed. All the rest is real: the domain, the three components and
+ * the DOM.
  */
 const motor = vi.hoisted(() => {
   const estado = { corriendo: false };
@@ -46,34 +44,34 @@ const motor = vi.hoisted(() => {
 vi.mock('../playback/engine.ts', () => motor);
 
 /**
- * Cuantas veces se EJECUTA el panel de las doce miniaturas (AC6 y AC7).
+ * How many times the panel of the twelve thumbnails RUNS.
  *
- * `hover` vive en `App.tsx`, asi que cada celda que el cursor cruza re-renderiza el arbol
- * entero — y `OrientationPanel` son 337 elementos (1 grilla + 12 x (boton + grilla + 25
- * celdas + span), con `MINI_BOX = 5`) de los que ninguno depende del hover. Antes del memo
- * de este spec eran DIEZ ejecuciones al cruzar diez celdas, una por celda.
+ * `hover` lives in `App.tsx`, so each cell that the cursor crosses re-renders the whole
+ * tree. `OrientationPanel` is 337 elements (1 grid + 12 x (button + grid + 25 cells +
+ * span), with `MINI_BOX = 5`), and none depends on the hover. Without the `memo` it is
+ * TEN runs for ten crossed cells, one for each cell.
  *
- * Se instrumenta DESDE ACA y no metiendo un contador en el componente: un contador adentro
- * seria codigo de produccion que existe para el test.
+ * The count is taken FROM HERE and not with a counter in the component: a counter inside
+ * is production code that exists for the test.
  *
- * ## Por que el contador va ADENTRO del `memo` y no envolviendolo
+ * ## Why the counter is INSIDE the `memo` and does not wrap it
  *
- * `real.default` es un `memo` y `.type` es la funcion que tiene adentro; el mock cuenta ahi
- * y vuelve a envolver en `memo`, o sea que reproduce la misma barrera que el componente
- * real y mide lo que pasa detras de ella.
+ * `real.default` is a `memo` and `.type` is the function inside it. The mock counts
+ * there and wraps in `memo` again, so it makes the same barrier as the real component
+ * and measures what happens behind it.
  *
- * La forma obvia —una funcion sin memoizar que renderiza `<Real {...props} />`— esta
- * medida y MIENTE: da diez con el panel memoizado y diez sin memoizar, porque lo que cuenta
- * es el envoltorio, que nunca esta detras de la barrera. Es exactamente el modo de falla
- * que este repo persigue, un oraculo verde midiendo otra cosa.
+ * The obvious form, a function with no memo that renders `<Real {...props} />`, is
+ * measured and it gives a FALSE result: ten with the panel memoized and ten without the
+ * memo, because it counts the wrapper, which is never behind the barrier. It is the
+ * failure mode this repo hunts: a green oracle that measures another thing.
  *
- * React expone `.type` en runtime pero sus tipos no —`memo(fn)` resuelve a
- * `NamedExoticComponent`, que no lo declara—, asi que se estrecha con un chequeo de verdad
- * y no con un `as`: el dia que alguien saque el `memo`, el mock no adivina, tira con el
- * motivo puesto.
+ * React exposes `.type` at runtime but its types do not: `memo(fn)` resolves to
+ * `NamedExoticComponent`, which does not declare it. So it is narrowed with a real check
+ * and not with an `as`: if someone removes the `memo`, the mock does not guess. It
+ * throws, with the reason.
  *
- * El mock es de archivo y el contador sube tambien durante los otros tests: el que mide lo
- * pone en cero antes de montar.
+ * The mock belongs to the file, and the counter also goes up in the other tests: the
+ * test that measures sets it to zero before the mount.
  */
 const panel = vi.hoisted(() => ({ ejecuciones: 0 }));
 vi.mock('../panels/OrientationPanel.tsx', async (importActual) => {
@@ -82,7 +80,7 @@ vi.mock('../panels/OrientationPanel.tsx', async (importActual) => {
   const memoizado = (c: unknown): c is { type: (props: { orientacion: PropsDeOrientacion }) => ReactNode } =>
     typeof c === 'object' && c !== null && 'type' in c && typeof c.type === 'function';
   if (!memoizado(real.default)) {
-    throw new Error('OrientationPanel dejo de estar memoizado: la medicion pasaria a medir el envoltorio.');
+    throw new Error('OrientationPanel is not memoized: the count would measure the wrapper.');
   }
   const interior = real.default.type;
   return {
@@ -96,14 +94,14 @@ vi.mock('../panels/OrientationPanel.tsx', async (importActual) => {
 const App = (await import('../App.tsx')).default;
 
 /**
- * El viewport de estos tests, y por que ahora hay uno.
+ * The viewport of these tests, and why there is one.
  *
- * El tablero sale del viewport, asi que el tamano de la ventana dejo de
- * ser un detalle del runner: sin fijarlo, Playwright arranca en **414 x 896** —un telefono
- * en vertical— y el tablero queda de **6 columnas**, donde media docena de estos casos
- * apuntan a celdas que no existen. Se fija uno de escritorio, y las dimensiones esperadas
- * salen de la misma pura que las calcula y no de dos numeros escritos a mano: si la formula
- * cambia, estos tests la siguen.
+ * The board comes from the viewport, so the window size is not a detail of the runner.
+ * Without it, Playwright starts at **414 x 896**, a phone in portrait, and the board has
+ * **6 columns**, where half a dozen of these cases point at cells that do not exist. A
+ * desktop viewport is set, and the expected dimensions come from the same pure function
+ * that computes them, not from two numbers written by hand: if the formula changes,
+ * these tests follow it.
  */
 const VIEWPORT: [number, number] = [1024, 768];
 const { dims: DIMS } = grillaPara(...VIEWPORT);
@@ -115,42 +113,41 @@ beforeEach(async () => {
 });
 
 /**
- * Las celdas del tablero, en orden de indice.
+ * The cells of the board, in index order.
  *
- * Por ROL y no por estructura: la grilla es `role="row"` con celdas adentro, asi que
- * `div.grid > div` devuelve las filas y no las celdas. Y cuantas son no se puede
- * escribir: desde el 031 el tablero mide lo que entra en la ventana del navegador de test.
+ * By ROLE and not by structure: the grid is `role="row"` with cells inside, so
+ * `div.grid > div` returns the rows and not the cells. Their number cannot be written:
+ * the board has the size that fits the window of the test browser.
  */
 const celdas = (c: HTMLElement) => [...c.querySelectorAll('[role="gridcell"]')] as HTMLElement[];
 /**
- * El ancho del tablero RENDERIZADO, leido del arbol de accesibilidad.
+ * The width of the RENDERED board, read from the accessible tree.
  *
- * No es una constante, y esa es la mitad que este archivo nota: la app
- * mide su contenedor y dibuja las celdas que entran, asi que el ancho depende del tamano
- * de la ventana del navegador de test y no de una constante. Leerlo de `aria-colcount` —el
- * mismo atributo que el 025 puso para el lector de pantalla— es lo que hace que estos
- * tests no se rompan al cambiar el tamano de la ventana de Playwright.
+ * It is not a constant: the app measures its container and draws the cells that fit, so
+ * the width depends on the window size of the test browser. `aria-colcount` is the
+ * attribute the screen reader gets. To read the width from it keeps these tests whole
+ * when the window size of Playwright changes.
  */
 const anchoDe = (c: HTMLElement) => Number(c.querySelector('[role="grid"]')!.getAttribute('aria-colcount'));
 const celda = (c: HTMLElement, x: number, y: number) => celdas(c)[y * anchoDe(c) + x];
 const baldosa = (el: HTMLElement) => el.firstElementChild as HTMLElement;
 
-/** Donde caen las celdas de una pieza colocada con el ancla en (x, y). */
+/** Where the cells of a piece land, placed with its grip cell on (x, y). */
 const donde = (piece: PieceKey, x: number, y: number, rot = 0, mirror = false) => {
   const base = rotateN(SHAPES[piece], rot);
   return cellsAt(mirror ? reflect(base) : base, ANCHOR_INDEX[piece], x, y);
 };
 
-/** Cuantas celdas del tablero tienen texto: una por celda de pieza colocada. */
+/** How many cells of the board have text: one for each cell of a placed piece. */
 const conNota = (c: HTMLElement) => celdas(c).filter(e => baldosa(e).textContent !== '').length;
 
 /**
- * Lo que dice el fantasma, celda por celda: cambia con la rotacion (otra nota) y con la
- * reflexion (otro `#N`).
+ * What the ghost says, cell by cell: it changes with the rotation (another note) and
+ * with the reflection (another `#N`).
  *
- * Vive a nivel de modulo y no adentro de un `describe` porque lo leen los dos escritores
- * del cursor —el mouse y el foco del teclado—, que estan en bloques distintos; dos copias
- * serian dos formas de medir el mismo fantasma distinto.
+ * It lives at module level and not inside a `describe`, because the two writers of the
+ * pointed cell read it, the mouse and the keyboard focus, and they are in different
+ * blocks. Two copies are two ways to measure the same ghost differently.
  */
 const notaDelFantasma = (c: HTMLElement) => {
   const conTexto = celdas(c).filter(e => baldosa(e).textContent !== '');
@@ -158,11 +155,11 @@ const notaDelFantasma = (c: HTMLElement) => {
 };
 
 /**
- * El gesto COMPLETO de un modificador: son dos eventos y no uno. El `keydown` abre el tap
- * limpio y el `keyup` es el que alterna, para que `Ctrl`+C no de vuelta la reflexion.
+ * The COMPLETE gesture of a modifier: two events and not one. The `keydown` opens the
+ * clean tap and the `keyup` toggles, so that `Ctrl`+C does not flip the reflection.
  *
- * Recibe el target porque los dos casos importan: sobre `window` es el atajo global del
- * la entrada directa, y sobre una celda es el mismo atajo con el tablero enfocado.
+ * It receives the target because the two cases matter: on `window` it is the global
+ * shortcut, and on a cell it is the same shortcut with the board focused.
  */
 const tapDeModificador = (el: EventTarget, key: string) => {
   el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
@@ -173,41 +170,41 @@ const hover = (el: HTMLElement) => el.dispatchEvent(new MouseEvent('mouseover', 
 const click = (el: HTMLElement, init: MouseEventInit = {}) =>
   el.dispatchEvent(new MouseEvent('click', { bubbles: true, ...init }));
 
-describe('App — la composicion', () => {
-  it('021 — el tablero y los dos flotantes, sin una sola tarjeta', async () => {
-    // No hay tarjetas: el tablero ES la pantalla y los dos paneles flotan encima. Se
-    // afirma por ROL Y NOMBRE y no por `className`, que es lo que deja que el test
-    // sobreviva al proximo cambio de layout.
+describe('App: the composition', () => {
+  it('the board and the two floating panels, with no card', async () => {
+    // No card exists: the board IS the screen and the two panels float on top. The
+    // assertion is by ROLE AND NAME and not by `className`, so the test survives the
+    // next change of layout.
     const { container } = await render(<App />);
     expect(celdas(container).length).toBe(DIMS.w * DIMS.h);
 
-    // Los dos flotantes existen y son plegables: el encabezado es un control, no un `<h2>`.
+    // The two floating panels exist and they fold: the header is a control, not an `<h2>`.
     await expect.element(page.getByRole('button', { name: /^Piezas$/, expanded: true })).toBeInTheDocument();
     await expect.element(page.getByRole('button', { name: /^Señal$/, expanded: true })).toBeInTheDocument();
 
-    // Y no EMPUJAN la grilla: los dos son `fixed`, o sea que salen del flujo.
+    // And they do not PUSH the grid: the two are `fixed`, so they are out of the flow.
     for (const flotante of container.querySelectorAll('aside')) {
       expect(getComputedStyle(flotante).position).toBe('fixed');
     }
 
-    // La leyenda de gestos sobrevivio a la mudanza del `<footer>`: es el unico lugar donde
-    // los cuatro gestos del 013 y la letra del 018 estan escritos.
+    // The legend of gestures: it is the only place where the four direct gestures and
+    // the letter shortcut are written.
     expect(container.textContent).toContain('Rueda sobre el tablero');
     expect(container.textContent).toContain('arranca y para');
   });
 
-  it('AC-FIT-008 — la pagina no scrollea: el tablero mide exactamente el viewport', async () => {
+  it('AC-FIT-008 — the page does not scroll: the board has the exact size of the viewport', async () => {
     await render(<App />);
-    // Es la mitad falsable de AC1 que no necesita cinco viewports: si el raiz creciera mas
-    // que la ventana —una tarjeta de vuelta, un flotante en el flujo, un `min-h-screen`
-    // con contenido debajo— esto se cae.
+    // The falsifiable half that needs no five viewports: if the root grows more than the
+    // window (a card again, a floating panel in the flow, a `min-h-screen` with content
+    // below), this fails.
     expect(document.documentElement.scrollHeight).toBe(document.documentElement.clientHeight);
   });
 
-  it('AC-PNL-002 — los dos flotantes se pliegan, y el espectro sigue vivo al plegarse', async () => {
-    // Plegar OCULTA y no desmonta, y de eso dependen dos cosas medidas: el
-    // `ResizeObserver` del espectro —que redibuja porque su contenedor cambia de TAMAÑO— y
-    // la barrera del `memo` de `OrientationPanel`, que se pagaria entera al remontar.
+  it('AC-PNL-002 — the two floating panels fold, and the spectrum stays alive when folded', async () => {
+    // A fold HIDES and does not unmount. Two measured things depend on it: the
+    // `ResizeObserver` of the spectrum, which draws again because its container changes
+    // SIZE, and the `memo` barrier of `OrientationPanel`, which a new mount pays in full.
     const { container } = await render(<App />);
     const senal = page.getByRole('button', { name: /^Señal$/ });
     const region = container.querySelector('#franja-senal')!;
@@ -216,50 +213,50 @@ describe('App — la composicion', () => {
 
     await senal.click();
     await vi.waitFor(() => expect(region.hasAttribute('hidden')).toBe(true));
-    // El canvas sigue en el DOM: es lo que hace que el observador siga observando.
+    // The canvas stays in the DOM: that keeps the observer at work.
     expect(region.querySelector('canvas')).not.toBeNull();
 
     await senal.click();
     await vi.waitFor(() => expect(region.hasAttribute('hidden')).toBe(false));
 
-    // Y el dock de piezas, con el mismo mecanismo y su propio estado: son dos plegados
-    // independientes, no uno compartido. Acá también OCULTA y no desmonta — de eso depende
-    // la barrera del `memo` de `OrientationPanel`, que remontar pagaría entera.
+    // And the dock, with the same mechanism and its own state: they are two independent
+    // folds, not one shared. Here too the fold HIDES and does not unmount: the `memo`
+    // barrier of `OrientationPanel` depends on it, and a new mount pays it in full.
     const piezas = page.getByRole('button', { name: /^Piezas$/ });
     const dock = container.querySelector('#dock-piezas')!;
     expect(dock.hasAttribute('hidden')).toBe(false);
     await piezas.click();
     await vi.waitFor(() => expect(dock.hasAttribute('hidden')).toBe(true));
-    // La franja no se plegó con él.
+    // The signal panel did not fold with it.
     expect(region.hasAttribute('hidden')).toBe(false);
-    // Las doce miniaturas siguen en el DOM.
+    // The twelve slots stay in the DOM.
     expect(dock.querySelectorAll('button').length).toBeGreaterThan(12);
     await piezas.click();
     await vi.waitFor(() => expect(dock.hasAttribute('hidden')).toBe(false));
   });
 
-  it('AC-MUS-012 AC-PLY-005 — arranca con el tempo del motor y el regimen de siempre', async () => {
-    // `DEFAULT_BPM` es una sola declaracion: el estado del shell y el del motor no
-    // pueden discrepar porque salen del mismo numero.
+  it('AC-MUS-012 AC-PLY-005 — it starts with the tempo of the engine and the scale regime', async () => {
+    // `DEFAULT_BPM` is one declaration: the state of the shell and the state of the
+    // engine cannot differ, because they come from the same number.
     const { container } = await render(<App />);
     expect(container.textContent).toContain(String(DEFAULT_BPM));
-    // Abrir la app suena como sonaba (AC11 del 017).
+    // The app opens in the scale regime.
     await expect.element(page.getByRole('button', { name: REGIMEN.escala })).toHaveClass(/bg-slate-900/);
   });
 });
 
-describe('App — colocar', () => {
-  it('AC-BRD-002 — el click coloca la pieza en la mano y dispara su arpegio', async () => {
+describe('App: place', () => {
+  it('AC-BRD-002 — the click places the piece in hand and fires its arpeggio', async () => {
     const { container } = await render(<App />);
     click(celda(container, 3, 2));
 
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
-    // El click es la unica forma inmediata de escuchar la pieza: con D5 del 009 la
-    // pieza nueva ni siquiera entra al recorrido que esta sonando.
+    // The click is the only immediate way to hear the piece: the new piece is not in the
+    // sounding sequence.
     expect(motor.playNow).toHaveBeenCalledWith(arpeggioFor('F', 0, false, REGIMEN.escala));
   });
 
-  it('AC-BRD-005 — con el transporte corriendo NO lo dispara: seria el arpegio dos veces', async () => {
+  it('AC-BRD-005 — with the transport running it does NOT fire it: the arpeggio would sound two times', async () => {
     const { container } = await render(<App />);
     await page.getByRole('button', { name: 'Reproducir' }).click();
     motor.playNow.mockClear();
@@ -269,22 +266,22 @@ describe('App — colocar', () => {
     expect(motor.playNow).not.toHaveBeenCalled();
   });
 
-  it('AC-BRD-006 — `Alt`+click coloca MUTEADA, y tampoco suena', async () => {
-    // La pieza se pone justamente para que no suene: un arpegio de cortesia
-    // contradiria el gesto en el momento de hacerlo.
+  it('AC-BRD-006 — `Alt`+click places MUTED, and it does not sound either', async () => {
+    // The piece is placed so that it does not sound: a courtesy arpeggio contradicts the
+    // gesture at the moment of the gesture.
     const { container } = await render(<App />);
     click(celda(container, 3, 2), { altKey: true });
 
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
     expect(motor.playNow).not.toHaveBeenCalled();
-    // Y se ve: la baldosa muteada cae al blanco conservando su nota.
+    // And it shows: the muted tile goes white and keeps its note.
     const [x, y] = donde('F', 3, 2)[0];
     expect(baldosa(celda(container, x, y)).className).toContain('bg-white');
   });
 
-  it('AC-BRD-003 — una jugada invalida no coloca nada', async () => {
+  it('AC-BRD-003 — an invalid move places nothing', async () => {
     const { container } = await render(<App />);
-    // Contra el borde: parte de la `F` cae fuera del tablero.
+    // Against the edge: a part of the `F` falls outside the board.
     click(celda(container, 0, 0));
     await new Promise(r => setTimeout(r, 30));
     expect(conNota(container)).toBe(0);
@@ -292,7 +289,7 @@ describe('App — colocar', () => {
   });
 });
 
-describe('App — editar en el tablero', () => {
+describe('App: edit on the board', () => {
   const conUnaF = async () => {
     const vista = await render(<App />);
     click(celda(vista.container, 3, 2));
@@ -301,31 +298,31 @@ describe('App — editar en el tablero', () => {
     return vista;
   };
 
-  it('AC-BRD-007 — el click sobre la pieza propia la QUITA', async () => {
+  it('AC-BRD-007 — the click on an own piece REMOVES it', async () => {
     const { container } = await conUnaF();
     const [x, y] = donde('F', 3, 2)[0];
     click(celda(container, x, y));
     await vi.waitFor(() => expect(conNota(container)).toBe(0));
   });
 
-  it('AC-BRD-010 — `Alt`+click sobre la pieza propia alterna su muteo, ida y vuelta', async () => {
+  it('AC-BRD-010 — `Alt`+click on an own piece toggles its mute, there and back', async () => {
     const { container } = await conUnaF();
     const [x, y] = donde('F', 3, 2)[0];
 
     click(celda(container, x, y), { altKey: true });
     await vi.waitFor(() => expect(baldosa(celda(container, x, y)).className).toContain('bg-white'));
-    // Objeto nuevo y no mutacion: la pieza sigue en el tablero con sus cinco celdas.
+    // A new object and not a mutation: the piece stays on the board with its five cells.
     expect(conNota(container)).toBe(SHAPES.F.length);
 
     click(celda(container, x, y), { altKey: true });
     await vi.waitFor(() => expect(baldosa(celda(container, x, y)).style.background).not.toBe(''));
   });
 
-  it('AC-BRD-011 — mutear una pieza no toca a las demas', async () => {
-    // El `map` devuelve la MISMA referencia para las que no cambian, y objetos nuevos
-    // solo para la que se muteo: nunca mutar lo que ya se entrego a React.
+  it('AC-BRD-011 — the mute of one piece does not touch the others', async () => {
+    // The `map` returns the SAME reference for the pieces that do not change, and a new
+    // object only for the muted one: never mutate what React already has.
     const { container } = await conUnaF();
-    click(celda(container, 8, 3));   // una segunda `F`, lejos de la primera
+    click(celda(container, 8, 3));   // a second `F`, far from the first
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length * 2));
 
     const [x1, y1] = donde('F', 3, 2)[0];
@@ -333,14 +330,14 @@ describe('App — editar en el tablero', () => {
     click(celda(container, x1, y1), { altKey: true });
 
     await vi.waitFor(() => expect(baldosa(celda(container, x1, y1)).className).toContain('bg-white'));
-    // La otra sigue con su color: el muteo es de una pieza, no del tablero.
+    // The other keeps its color: the mute belongs to one piece, not to the board.
     expect(baldosa(celda(container, x2, y2)).style.background).not.toBe('');
     expect(conNota(container)).toBe(SHAPES.F.length * 2);
   });
 
-  it('AC-BRD-009 — sobre una pieza que NO esta en la mano no pasa nada', async () => {
+  it('AC-BRD-009 — on a piece that is NOT in hand nothing happens', async () => {
     const { container } = await conUnaF();
-    // Se cambia la pieza en la mano y se vuelve a apretar la `F` colocada.
+    // The piece in hand changes, and the placed `F` gets a click again.
     await page.getByRole('button', { name: 'W, rotación 0°' }).click();
     const [x, y] = donde('F', 3, 2)[0];
     click(celda(container, x, y));
@@ -350,8 +347,8 @@ describe('App — editar en el tablero', () => {
   });
 });
 
-describe('App — el fantasma', () => {
-  it('AC-BRD-014 — aparece bajo el cursor y desaparece al salir del tablero', async () => {
+describe('App: the ghost', () => {
+  it('AC-BRD-014 — it shows under the cursor and goes away when the cursor leaves the board', async () => {
     const { container } = await render(<App />);
     hover(celda(container, 4, 3));
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
@@ -360,9 +357,9 @@ describe('App — el fantasma', () => {
     await vi.waitFor(() => expect(conNota(container)).toBe(0));
   });
 
-  it('AC-BRD-015 — sobre la pieza propia NO se pinta: ahi el click edita, no coloca', async () => {
-    // Saldria rosa entero, diciendo "aca no entra" sobre la unica celda donde el click
-    // si hace algo (AC20 del 014).
+  it('AC-BRD-015 — on an own piece it is NOT drawn: there the click edits, it does not place', async () => {
+    // It would be all pink and say "it does not fit here" on the one cell where the click
+    // does something.
     const { container } = await render(<App />);
     click(celda(container, 3, 2));
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
@@ -370,18 +367,18 @@ describe('App — el fantasma', () => {
     const [x, y] = donde('F', 3, 2)[0];
     hover(celda(container, x, y));
     await new Promise(r => setTimeout(r, 30));
-    // Sigue habiendo cinco celdas con nota —las de la pieza— y ninguna rosa de choque.
+    // Five cells with a note stay, the cells of the piece, and no pink cell of a clash.
     expect(conNota(container)).toBe(SHAPES.F.length);
     expect(container.querySelectorAll('.bg-rose-500').length).toBe(0);
-    // Y el cursor dice que ahi se puede apretar.
+    // And the cursor says that a click works there.
     expect(celda(container, x, y).className).toContain('cursor-pointer');
   });
 });
 
-describe('App — el transporte', () => {
-  it('AC-PLY-002 — el boton refleja si el reloj ARRANCO, no si se lo apreto', async () => {
-    // AC10, que espero catorce specs: la decision vive en
-    // `alternarTransporte` y aca se verifica el cableado contra un motor que contesta.
+describe('App: the transport', () => {
+  it('AC-PLY-002 — the button shows whether the clock STARTED, not whether it was pressed', async () => {
+    // The decision lives in `alternarTransporte`. Here the wiring is verified against an
+    // engine that answers.
     const { container } = await render(<App />);
     await page.getByRole('button', { name: 'Reproducir' }).click();
     expect(motor.startClock).toHaveBeenCalled();
@@ -393,55 +390,54 @@ describe('App — el transporte', () => {
     expect(container).toBeTruthy();
   });
 
-  it('AC-PLY-003 — si el motor NO arranca, el boton se queda en Reproducir', async () => {
-    // Sin Web Audio `startClock` no arranca nada. Creerle a lo que se pidio dejaria el
-    // boton diciendo que suena algo que no suena.
+  it('AC-PLY-003 — if the engine does NOT start, the button stays on Reproducir', async () => {
+    // Without Web Audio, `startClock` starts nothing. To believe the request leaves the
+    // button saying that something sounds when nothing sounds.
     motor.startClock.mockImplementationOnce(() => {});
     await render(<App />);
     await page.getByRole('button', { name: 'Reproducir' }).click();
     await expect.element(page.getByRole('button', { name: 'Reproducir' })).toBeVisible();
   });
 
-  it('AC-BRD-030 AC-PLY-038 — Reset frena el transporte ADEMAS de vaciar el tablero', async () => {
-    // Vaciar solo `placed` deja al motor terminando su ciclo activo: hasta 7,5 s sonando
-    // sobre un tablero que ya esta vacio.
+  it('AC-BRD-030 AC-PLY-038 — Reset stops the transport AS WELL AS it empties the board', async () => {
+    // To empty only `placed` leaves the engine at work on its active cycle: up to 7.5 s
+    // of sound on a board that is already empty.
     const { container } = await render(<App />);
     click(celda(container, 3, 2));
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
     await page.getByRole('button', { name: 'Reproducir' }).click();
     motor.stopClock.mockClear();
 
-    // El boton perdio la palabra `Reset` y quedo en `↺`: se lo busca por
-    // el nombre accesible nuevo, que dice las dos mitades que este test verifica.
+    // The button shows `↺` and no word: the query uses its accessible name, which says
+    // the two halves that this test verifies.
     await page.getByRole('button', { name: 'Vaciar el tablero y frenar el transporte' }).click();
     expect(motor.stopClock).toHaveBeenCalled();
     await vi.waitFor(() => expect(conNota(container)).toBe(0));
     await expect.element(page.getByRole('button', { name: 'Reproducir' })).toBeVisible();
   });
 
-  it('AC-PLY-006 — el tempo y los clicks bajan al motor', async () => {
+  it('AC-PLY-006 — the tempo and the clicks go down to the engine', async () => {
     await render(<App />);
     await page.getByRole('slider').fill('128');
     await vi.waitFor(() => expect(motor.setBpm).toHaveBeenLastCalledWith(128));
 
-    // El recorrido dejo de ser una fila con etiqueta visible y paso a ser
-    // el metronomo de la fila de transporte: se lo busca por su nombre accesible, que es
-    // la misma etiqueta mudada a `aria-label`. Y sobre el MISMO render que el tempo: el
-    // segundo `render(<App />)` que habia aca dejaba dos apps montadas, que con una
-    // consulta por rol sobre la pagina entera es una violacion de modo estricto.
+    // The click switch is an icon-only control of the transport row: the query uses its
+    // accessible name, which is its `aria-label`. And on the SAME render as the tempo: a
+    // second `render(<App />)` leaves two apps mounted, and a query by role on the whole
+    // page is then a strict mode violation.
     await page.getByRole('button', { name: /^Recorrido en el vacío$/ }).click();
     await vi.waitFor(() => expect(motor.setClicksAudible).toHaveBeenLastCalledWith(true));
   });
 });
 
-describe('App — la orientacion, por panel y por gesto', () => {
-  it('AC-PNL-018 AC-PNL-020 — el panel ya no rota ni refleja: lo que hace es DECIR la orientacion', async () => {
-    // La tarjeta perdio los cuatro botones de grados y el ON/OFF de
-    // Reflexion, porque duplicaban la rueda, `Shift`, el boton derecho y `Ctrl`. Lo que
-    // queda en su lugar es un lector: una linea de texto que no se puede apretar.
+describe('App: the orientation, by panel and by gesture', () => {
+  it('AC-PNL-018 AC-PNL-020 — the panel does not rotate or reflect: it SAYS the orientation', async () => {
+    // The panel has no four buttons of degrees and no ON/OFF of reflection: they would
+    // duplicate the wheel, `Shift`, the right button and `Ctrl`. In their place is the
+    // orientation readout: a line of text that cannot be pressed.
     //
-    // Este test es la mitad de arriba de AC1 desde el shell —los seis controles no estan—
-    // y la mitad de abajo de AC4: la linea sigue al gesto.
+    // This test has two halves, from the shell: the six controls do not exist, and the
+    // readout follows the gesture.
     const { container } = await render(<App />);
     for (const grados of ['0°', '90°', '180°', '270°']) {
       expect(page.getByRole('button', { name: new RegExp(`^${grados}$`) }).elements(), grados)
@@ -449,8 +445,8 @@ describe('App — la orientacion, por panel y por gesto', () => {
     }
     expect(page.getByRole('button', { name: /^Reflexión$/ }).elements()).toHaveLength(0);
 
-    // El `<span>` de adentro y no el `<p>`: la linea comparte parrafo con
-    // el boton `0°`, asi que el `textContent` del `<p>` dice `0°0°`.
+    // The inner `<span>` and not the `<p>`: the readout shares its paragraph with the
+    // `0°` button, so the `textContent` of the `<p>` says `0°0°`.
     const linea = () => [...container.querySelectorAll('p > span')].find(e => /^\d+°/.test(e.textContent!))!;
     expect(linea().textContent).toBe('0°');
 
@@ -460,43 +456,44 @@ describe('App — la orientacion, por panel y por gesto', () => {
     await vi.waitFor(() => expect(linea().textContent).toBe('90° · reflejada'));
   });
 
-  it('AC-PCS-019 AC-PCS-020 AC-PCS-021 — la orientacion es de la PIEZA: se recuerda, y el `0°` resetea una sola', async () => {
-    // Los cuatro criterios que sólo el shell puede verificar, porque la memoria vive acá:
-    // AC1/AC2 (el gesto toca una ranura), AC5 (volver a una pieza la trae como la
-    // dejaste), AC7 (el `0°` no toca las otras once) y AC9 (la línea sigue a la pieza).
+  it('AC-PCS-019 AC-PCS-020 AC-PCS-021 — the orientation belongs to the PIECE: it is remembered, and the `0°` resets one piece', async () => {
+    // The four criteria that only the shell can verify, because the memory lives here:
+    // the gesture touches one entry, a return to a piece brings it as it was left, the
+    // `0°` does not touch the other eleven, and the readout follows the piece.
     const { container } = await render(<App />);
     const linea = () => [...container.querySelectorAll('p > span')].find(e => /^\d+°/.test(e.textContent!))!;
-    // Los dos encabezados de los flotantes son `<button>` SIN `aria-label` —su nombre es su
-    // texto visible— asi que hay que filtrarlos antes de leerlo.
+    // The two headers of the floating panels are `<button>` with NO `aria-label` (their
+    // name is their visible text), so they are filtered out before the read.
     const nombreDe = (key: string) => [...container.querySelectorAll('button')]
       .map(b => b.getAttribute('aria-label'))
       .find(n => n !== null && n.startsWith(`${key},`));
 
-    // La `F` a 180° y reflejada, con los dos gestos de teclado.
+    // The `F` at 180° and reflected, with the two keyboard gestures.
     tapDeModificador(window, 'Shift');
     tapDeModificador(window, 'Shift');
     tapDeModificador(window, 'Control');
     await vi.waitFor(() => expect(linea().textContent).toBe('180° · reflejada'));
-    // Y las otras once no se movieron: es el criterio que le da nombre al spec.
+    // And the other eleven did not move.
     expect(nombreDe('T')).toBe('T, rotación 0°');
     expect(nombreDe('F')).toBe('F, rotación 180°, reflejada');
 
-    // Ir a la `T` y volver: la `F` sigue como la dejaste (AC5), y la línea la sigue (AC9).
+    // Go to the `T` and come back: the `F` is as it was left, and the readout follows it.
     await page.getByRole('button', { name: 'T, rotación 0°' }).click();
     await vi.waitFor(() => expect(linea().textContent).toBe('0°'));
     await page.getByRole('button', { name: 'F, rotación 180°, reflejada' }).click();
     await vi.waitFor(() => expect(linea().textContent).toBe('180° · reflejada'));
 
-    // El `0°` devuelve la `F` al arranque —los grados Y la reflexión— y no toca a nadie más.
+    // The `0°` sets the `F` back to the initial orientation, the degrees AND the
+    // reflection, and touches no other piece.
     await page.getByRole('button', { name: /^Volver esta pieza a 0° sin reflejar$/ }).click();
     await vi.waitFor(() => expect(linea().textContent).toBe('0°'));
     expect(nombreDe('F')).toBe('F, rotación 0°');
     expect(nombreDe('T')).toBe('T, rotación 0°');
   });
 
-  it('AC-BRD-030 AC-PCS-022 — `↺` vacia el tablero y NO toca las orientaciones recordadas', async () => {
-    // AC8, con su costo escrito: se renuncia al invariante «después de `↺` la app queda
-    // como recién abierta» para que este botón conserve un alcance único y nombrable.
+  it('AC-BRD-030 AC-PCS-022 — `↺` empties the board and does NOT touch the remembered orientations', async () => {
+    // The cost is written: the invariant "after `↺` the app is as it was when it opened"
+    // is given up, so that this button keeps one scope that has a name.
     const { container } = await render(<App />);
     tapDeModificador(window, 'Shift');
     await vi.waitFor(() => expect(container.textContent).toContain('90°'));
@@ -511,13 +508,13 @@ describe('App — la orientacion, por panel y por gesto', () => {
     expect(nombre).toBe('F, rotación 90°');
   });
 
-  it('AC-PCS-023 — rotar la pieza en la mano no cambia una nota de la que ya esta puesta', async () => {
-    // AC11, que hasta este review solo tenia la confirmacion a ojo de T025 `[M]`. Es la
-    // promesa central del spec —«no cambia una nota»— y la que se rompe sola si algun dia
-    // la memoria del shell pasa a ser la fuente de lo que ya esta en el tablero: hoy cada
-    // `PlacedPiece` guarda la suya y por eso el `title` de sus cinco celdas —nota y `#N`,
-    // o sea sonido Y orden— no se mueve. Se lee del DOM y no del estado porque lo que hay
-    // que verificar es que el tablero no cambio, no que el shell no lo escribio.
+  it('AC-PCS-023 — a rotation of the piece in hand changes no note of a placed piece', async () => {
+    // The central promise of the orientation memory: "it changes no note". It breaks if
+    // the memory of the shell becomes the source of what is already on the board. Each
+    // `PlacedPiece` keeps its own orientation, so the `title` of its five cells (note and
+    // `#N`, so sound AND order) does not move. It is read from the DOM and not from the
+    // state, because the thing to verify is that the board did not change, not that the
+    // shell did not write it.
     const { container } = await render(<App />);
     click(celda(container, 3, 2));
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
@@ -525,7 +522,7 @@ describe('App — la orientacion, por panel y por gesto', () => {
       .map(([x, y]) => `${baldosa(celda(container, x, y)).textContent}@${celda(container, x, y).getAttribute('title')}`);
     const antes = puesta();
 
-    // La `F` de la mano a 90° y reflejada: los dos gestos, los dos sobre una sola ranura.
+    // The `F` in hand at 90° and reflected: the two gestures, the two on one entry.
     tapDeModificador(window, 'Shift');
     tapDeModificador(window, 'Control');
     await vi.waitFor(() => expect(container.textContent).toContain('90° · reflejada'));
@@ -534,13 +531,13 @@ describe('App — la orientacion, por panel y por gesto', () => {
     expect(conNota(container)).toBe(SHAPES.F.length);
   });
 
-  it('AC-MUS-013 — el regimen cambia lo que la rotacion HACE, y se ve en el fantasma', async () => {
-    // AC7 del 017: sin llevar el regimen a las tres derivaciones, cambiarlo no
-    // re-derivaria el tablero.
+  it('AC-MUS-013 — the regime changes what the rotation DOES, and the ghost shows it', async () => {
+    // Without the regime in the three derivations, a change of regime does not re-derive
+    // the board.
     const { container } = await render(<App />);
-    // Se rota con `Shift`: no hay boton `90°`, la rotacion es un modificador del gesto
-    // directo. Lo que el test mide —que el regimen llegue a las tres derivaciones— es
-    // independiente del gesto con el que se llegue a una rotacion distinta de cero.
+    // The rotation is by `Shift`: no `90°` button exists, the rotation is a modifier of
+    // the direct gesture. What the test measures, that the regime reaches the three
+    // derivations, does not depend on the gesture that gives a rotation other than zero.
     tapDeModificador(window, 'Shift');
     hover(celda(container, 4, 3));
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
@@ -551,7 +548,7 @@ describe('App — la orientacion, por panel y por gesto', () => {
     await vi.waitFor(() => expect(notaDelFantasma(container)).not.toBe(enEscala));
   });
 
-  it('AC-BRD-024 AC-BRD-028 — `Shift` rota, `Ctrl` refleja y la barra alterna el transporte', async () => {
+  it('AC-BRD-024 AC-BRD-028 — `Shift` rotates, `Ctrl` reflects and the space bar toggles the transport', async () => {
     const { container } = await render(<App />);
     hover(celda(container, 4, 3));
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
@@ -572,7 +569,7 @@ describe('App — la orientacion, por panel y por gesto', () => {
     await vi.waitFor(() => expect(motor.startClock).toHaveBeenCalled());
   });
 
-  it('AC-BRD-023 — la rueda sobre el tablero rota, y `Ctrl`+rueda no', async () => {
+  it('AC-BRD-023 — the wheel on the board rotates, and `Ctrl`+wheel does not', async () => {
     const { container } = await render(<App />);
     const tablero = container.querySelector('div.relative')!;
     hover(celda(container, 4, 3));
@@ -583,8 +580,8 @@ describe('App — la orientacion, por panel y por gesto', () => {
     hover(celda(container, 4, 3));
     await vi.waitFor(() => expect(notaDelFantasma(container)).not.toBe(antes));
 
-    // El zoom del navegador es una afordancia de accesibilidad: un gesto del sistema le
-    // gana a uno nuestro.
+    // The zoom of the browser is an accessibility affordance: a gesture of the system
+    // wins over one of the app.
     const conRueda = notaDelFantasma(container);
     tablero.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, ctrlKey: true, bubbles: true, cancelable: true }));
     await new Promise(r => setTimeout(r, 30));
@@ -593,7 +590,7 @@ describe('App — la orientacion, por panel y por gesto', () => {
     expect(notaDelFantasma(container)).toBe(conRueda);
   });
 
-  it('AC-BRD-026 — el boton derecho refleja, salvo el `Ctrl`+click de macOS', async () => {
+  it('AC-BRD-026 — the right button reflects, except the `Ctrl`+click of macOS', async () => {
     const { container } = await render(<App />);
     const tablero = container.querySelector('div.relative')!;
     hover(celda(container, 4, 3));
@@ -602,14 +599,14 @@ describe('App — la orientacion, por panel y por gesto', () => {
 
     const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
     tablero.dispatchEvent(menu);
-    // El menu contextual no se abre NUNCA sobre el tablero.
+    // The context menu NEVER opens on the board.
     expect(menu.defaultPrevented).toBe(true);
     hover(celda(container, 4, 3));
     await vi.waitFor(() => expect(notaDelFantasma(container)).not.toBe(antes));
 
-    // En macOS `Ctrl`+click llega como `contextmenu` con `ctrlKey`, y ahi el que alterna
-    // es el `keyup` del `Ctrl`: contar los dos daria neto cero y la reflexion no
-    // respondería nunca en una laptop de Apple sin mouse.
+    // On macOS, `Ctrl`+click arrives as `contextmenu` with `ctrlKey`, and there the
+    // `keyup` of `Ctrl` toggles: to count the two gives a net of zero, and the reflection
+    // never answers on an Apple laptop with no mouse.
     const conReflexion = notaDelFantasma(container);
     tablero.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, ctrlKey: true }));
     await new Promise(r => setTimeout(r, 30));
@@ -618,7 +615,7 @@ describe('App — la orientacion, por panel y por gesto', () => {
     expect(notaDelFantasma(container)).toBe(conReflexion);
   });
 
-  it('elegir otra pieza cambia lo que hay en la mano', async () => {
+  it('the choice of another piece changes the piece in hand', async () => {
     const { container } = await render(<App />);
     await page.getByRole('button', { name: 'I, rotación 0°' }).click();
     hover(celda(container, 4, 3));
@@ -626,24 +623,24 @@ describe('App — la orientacion, por panel y por gesto', () => {
     expect(container.textContent).toContain('tónica');
   });
 
-  it('AC-BRD-017 — la LETRA elige la pieza, sin ir al panel', async () => {
-    // No es redundante con el test de `use-input`: lo que cubre de mas es el callback del
-    // shell, que es el que traduce la pieza a la ranura de estado y que ningun test del
-    // hook ejerce.
+  it('AC-BRD-017 — the LETTER chooses the piece, with no visit to the panel', async () => {
+    // It is not redundant with the test of `use-input`: what it adds is the callback of
+    // the shell, which translates the piece to the state entry and which no test of the
+    // hook exercises.
     const { container } = await render(<App />);
     hover(celda(container, 4, 3));
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'i', bubbles: true, cancelable: true }));
 
-    // El oraculo es DONDE cae el fantasma y no cuantas celdas tiene: las doce piezas
-    // tienen cinco, asi que contarlas no distingue una `I` de una `F`.
+    // The oracle is WHERE the ghost lands and not how many cells it has: the twelve
+    // pieces have five, so a count does not tell an `I` from an `F`.
     await vi.waitFor(() => {
       for (const [x, y] of donde('I', 4, 3)) {
         expect(baldosa(celda(container, x, y)).textContent, `${x},${y}`).not.toBe('');
       }
     });
-    // Y en minuscula tanto como en mayuscula: `Shift`+`p` es la misma pieza.
+    // And in lower case as much as in upper case: `Shift`+`p` is the same piece.
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'P', shiftKey: true, bubbles: true, cancelable: true }));
     await vi.waitFor(() => {
       for (const [x, y] of donde('P', 4, 3)) {
@@ -653,22 +650,20 @@ describe('App — la orientacion, por panel y por gesto', () => {
   });
 });
 
-describe('App — lo que llega al arbol de accesibilidad', () => {
-  it('AC-ACC-011 — ningun boton de la app puede enviar un formulario', async () => {
-    // Hoy no hay un solo `<form>` en el arbol, asi que no hay bug — y por eso mismo
-    // esta es la unica linea que nada mas falsea: existe para una
-    // regresion futura. El default de un `<button>` dentro de un formulario es
-    // `submit`, y en esta app eso significa recargar la pagina perdiendo el tablero
-    // entero, sin deshacer.
+describe('App: what reaches the accessible tree', () => {
+  it('AC-ACC-011 — no button of the app can submit a form', async () => {
+    // The tree has no `<form>` today, so there is no bug, and for that reason nothing
+    // else falsifies this line: it exists for a future regression. The default of a
+    // `<button>` inside a form is `submit`, and in this app that is a reload of the page
+    // that loses the whole board, with no undo.
     //
-    // Se afirma sobre la app COMPLETA y no componente por componente porque los botones
-    // salen de tres archivos —doce miniaturas, el regimen en la tarjeta, y los tres del
-    // transporte— y ninguno de los tres los tiene todos.
+    // The assertion is on the WHOLE app and not component by component, because the
+    // buttons come from several files (the twelve slots, the regime, the three of the
+    // transport row) and no file has them all.
     //
-    // Llegaron a ser 22, con los cuatro grados y el ON/OFF de Reflexion, y sin el del
-    // recorrido mudado: 12 + 2 + 3 = 17. La orientacion por pieza devuelve UNO —el `0°` de la linea de
-    // orientacion— y son 18. El 021 suma los DOS encabezados de los flotantes, que pasan de
-    // `<h2>` a `<button>` con `aria-expanded`: 20.
+    // The count: 12 slots + 2 of the regime + 3 of the transport row = 17. The `0°` of
+    // the orientation readout makes 18. The TWO headers of the floating panels, which
+    // are `<button>` with `aria-expanded`, make 20.
     const { container } = await render(<App />);
     const botones = [...container.querySelectorAll('button')];
     expect(botones.length).toBe(20);
@@ -678,26 +673,26 @@ describe('App — lo que llega al arbol de accesibilidad', () => {
   });
 });
 
-describe('App — lo que cuesta mover el cursor', () => {
-  /** Diez celdas interiores: dos filas de cinco, con el fantasma entero adentro del tablero. */
+describe('App: what a move of the cursor costs', () => {
+  /** Ten inner cells: two rows of five, with the whole ghost inside the board. */
   const RECORRIDO = [2, 3].flatMap(y => [1, 2, 3, 4, 5].map(x => [x, y] as const));
 
-  /** La huella del fantasma: que celdas del tablero tienen nota, como un mapa de bits. */
+  /** The footprint of the ghost: which cells of the board have a note, as a bitmap. */
   const huella = (c: HTMLElement) => celdas(c).map(e => (baldosa(e).textContent === '' ? '0' : '1')).join('');
 
-  it('cruzar diez celdas ya no ejecuta el panel de orientacion, y rotar si', async () => {
+  it('to cross ten cells does not run the orientation panel, and a rotation does', async () => {
     panel.ejecuciones = 0;
     const { container } = await render(<App />);
-    // El render inicial se cuenta APARTE, y es lo que vuelve falsificable el cero de abajo:
-    // un panel que no se ejecutara nunca —o un mock roto— tambien daria cero.
+    // The initial render is counted APART, and that makes the zero below falsifiable: a
+    // panel that never runs, or a broken mock, also gives zero.
     expect(panel.ejecuciones).toBe(1);
     panel.ejecuciones = 0;
 
-    // Se espera a que el fantasma se REPINTE antes de mover el cursor otra vez, y no es
-    // ceremonia: `mouseover` es un evento CONTINUO, asi que React 19 agenda su re-render en
-    // prioridad default y dos despachos seguidos se cobran como uno solo. Medido con un
-    // `setTimeout(0)` entre medio: daban 8 de 10, o sea el test contando menos trabajo del
-    // que paga un cursor de verdad, que cruza una celda por cuadro dibujado.
+    // The loop waits for the ghost to REPAINT before it moves the cursor again, and that
+    // is not ceremony: `mouseover` is a CONTINUOUS event, so React 19 schedules its
+    // re-render at default priority, and two dispatches in a row are paid as one.
+    // Measured with a `setTimeout(0)` between them: 8 of 10. So the test counts less work
+    // than a real cursor pays, which crosses one cell for each drawn frame.
     const huellas = new Set<string>();
     let antes = huella(container);
     for (const [x, y] of RECORRIDO) {
@@ -707,36 +702,37 @@ describe('App — lo que cuesta mover el cursor', () => {
       huellas.add(antes);
     }
 
-    // Diez posiciones distintas del fantasma, o sea DIEZ re-renders del arbol: el shell
-    // trabajo las diez veces, que es la mitad del sistema que este numero mide.
+    // Ten different positions of the ghost, so TEN re-renders of the tree: the shell
+    // worked the ten times, which is the half of the system that this number measures.
     expect(huellas.size).toBe(RECORRIDO.length);
     expect(conNota(container)).toBe(SHAPES.F.length);
-    // Y el panel no se ejecuto una sola vez. Antes del `memo` eran diez, una por celda:
-    // 3.370 elementos reconciliados para llegar al mismo DOM.
+    // And the panel did not run one time. Without the `memo` it is ten, one for each
+    // cell: 3370 elements reconciled to reach the same DOM.
     expect(panel.ejecuciones).toBe(0);
 
-    // La memo no lo congelo: cuando la orientacion cambia DE VERDAD, se ejecuta. Sin esta
-    // mitad, el cero de arriba lo cumpliria igual un panel roto. Se rota con `Shift`, que
-    // es el gesto que hay: no existe un boton `90°`.
+    // The memo did not freeze it: when the orientation REALLY changes, it runs. Without
+    // this half, a broken panel also gives the zero above. The rotation is by `Shift`,
+    // the gesture that exists: no `90°` button exists.
     tapDeModificador(window, 'Shift');
     await vi.waitFor(() => expect(panel.ejecuciones).toBe(1));
   });
 });
 
 /**
- * El teclado sobre el SHELL entero.
+ * The keyboard on the WHOLE shell.
  *
- * `Board.browser.test.tsx` ya verifica el roving tabindex, las flechas, `Home`/`End` y las
- * cuatro acciones contra un `Board` suelto y con props fijas. Lo que solo existe ACA es lo
- * que necesita la pagina completa: el `Tab` que entra desde la paleta y sale en uno solo,
- * el listener global de `window` —que es de quien el tablero le saca la barra sin apagarle
- * `Shift` ni `Ctrl`—, el desempate entre el foco y el mouse por el mismo `hover`, y la
- * region `aria-live`, que es del shell porque es el shell el que sabe que edicion ocurrio.
+ * `Board.browser.test.tsx` already verifies the roving tabindex, the arrows, `Home`/`End`
+ * and the four actions against a lone `Board` with fixed props. What exists only HERE is
+ * what needs the complete page: the `Tab` that enters from the dock and leaves in one
+ * press, the global listener of `window` (from which the board takes the space bar and
+ * leaves `Shift` and `Ctrl` on), the tie-break between the focus and the mouse for the
+ * same `hover`, and the `aria-live` region, which belongs to the shell because the
+ * shell knows which edit happened.
  *
- * Los eventos van despachados SOBRE EL NODO de la celda y con `bubbles`, no sobre `window`:
- * el listener global mira `e.target.closest('[role="gridcell"]')`, y un
- * `window.dispatchEvent(...)` llega con `target === window`, que no es ninguna celda. O sea
- * que despachar en `window` verificaria el caso contrario al que dice verificar.
+ * The events are dispatched ON THE NODE of the cell and with `bubbles`, not on `window`:
+ * the global listener reads `e.target.closest('[role="gridcell"]')`, and a
+ * `window.dispatchEvent(...)` arrives with `target === window`, which is no cell. So a
+ * dispatch on `window` verifies the opposite case to the one it says.
  */
 const tecla = (el: Element, key: string, init: KeyboardEventInit = {}) => {
   const evento = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
@@ -744,59 +740,56 @@ const tecla = (el: Element, key: string, init: KeyboardEventInit = {}) => {
   return evento;
 };
 
-/** El tablero, entero a la vista: lo que scrollea despues es la tecla y no el `.focus()`. */
+/** The board, whole in view: what scrolls after that is the key and not the `.focus()`. */
 const aLaVista = (c: HTMLElement) =>
   c.querySelector('div.relative')!.scrollIntoView({ block: 'center' });
 
-describe('App — el tablero se toca con el teclado', () => {
-  it('AC-ACC-013 — desde la paleta, UN `Tab` entra al tablero y otro lo pasa de largo', async () => {
-    // `Tab` de VERDAD, por Playwright, y no el conteo de cuantas celdas tienen `tabIndex`
-    // distinto de -1: las dos cosas no son la misma. El conteo mide el DOM y seria cierto
-    // igual con el `0` sobre una celda que el navegador se saltea; lo que AC1 y AC12
-    // afirman es lo que hace el navegador con el ORDEN DE TABULACION, que es lo unico que
-    // convierte —o no— a la tarjeta del tablero en una trampa de salida.
+describe('App: the board is played with the keyboard', () => {
+  it('AC-ACC-013 — from the dock, ONE `Tab` enters the board and one more leaves it', async () => {
+    // A REAL `Tab`, by Playwright, and not a count of the cells with a `tabIndex` other
+    // than -1: the two are not the same. The count measures the DOM, and is also true
+    // with the `0` on a cell that the browser skips. The criterion is about what the
+    // browser does with the TAB ORDER, the one thing that makes the board an exit trap
+    // or not.
     const { container } = await render(<App />);
     const ancla = celdas(container).find(c => c.tabIndex === 0)!;
 
-    // El control de la paleta que esta JUSTO antes del tablero, tomado del orden del DOM y
-    // no por su nombre: asi agregarle un boton a la paleta no rompe este test.
+    // The control of the dock that is JUST before the board, taken from the DOM order
+    // and not by its name: so a new button in the dock does not break this test.
     const paradas = [...container.querySelectorAll<HTMLElement>('button, input, [tabindex="0"]')];
     paradas[paradas.indexOf(ancla) - 1].focus();
 
     await userEvent.tab();
     expect(document.activeElement).toBe(ancla);
 
-    // Y una sola pulsacion mas lo deja atras. Con sesenta paradas esta linea aterrizaria en
-    // la celda (1,0) y todo lo que viene detras del tablero quedaria a sesenta `Tab`.
+    // And one more press leaves it behind. With one tab stop for each cell, this line
+    // lands on the cell (1,0), and all that comes after the board is that many `Tab`
+    // presses away.
     await userEvent.tab();
     expect(celdas(container)).not.toContain(document.activeElement);
   });
 
-  it('AC-ACC-016 — las flechas mueven el foco del DOM, y la pagina NO scrollea', async () => {
-    // Teclas de VERDAD, por Playwright, y esa es toda la razon de ser de este test: un
-    // `dispatchEvent` fabrica un evento NO confiable, y un evento no confiable **nunca
-    // ejecuta la accion por default** — con lo que "la pagina no scrolleo" seria cierto
-    // aunque `preventDefault` no existiera. Es exactamente el modo de falla que este repo
-    // persigue, una afirmacion verde que no puede ponerse en rojo. `Board.browser.test.tsx`
-    // ya verifica el `preventDefault` con eventos sinteticos, que ahi si es el oraculo
-    // correcto porque lo que afirma es lo que hace el HANDLER; lo que se afirma aca es lo
-    // que hace el NAVEGADOR, y para eso la tecla tiene que ser real.
+  it('AC-ACC-016 — the arrows move the DOM focus, and the page does NOT scroll', async () => {
+    // REAL keys, by Playwright, and that is the whole reason for this test: a
+    // `dispatchEvent` makes an UNTRUSTED event, and an untrusted event **never runs the
+    // default action**. So "the page did not scroll" is true also if `preventDefault`
+    // does not exist. It is the failure mode this repo hunts, a green assertion that
+    // cannot turn red. `Board.browser.test.tsx` verifies the `preventDefault` with
+    // synthetic events, which is the correct oracle there, because it asserts what the
+    // HANDLER does. Here the assertion is about what the BROWSER does, and for that the
+    // key must be real.
     const { container } = await render(<App />);
     aLaVista(container);
     const origen = celda(container, 4, 2);
     origen.focus();
 
-    // **El oraculo cambio de forma, y hacia arriba.** Antes la pagina
-    // TENIA de donde scrollear —la app medía mas que el viewport— y lo que se afirmaba era
-    // que las cuatro flechas no le hicieran perder esa posicion; sin esa premisa el par del
-    // final habria sido trivialmente cierto. Hoy el contenedor raiz mide exactamente
-    // `100dvh` y es `overflow-hidden`, asi que la pagina **no tiene scroll que perder**: es
-    // AC1, y es una propiedad mas fuerte que la que este test verificaba.
+    // The root container has the exact size of `100dvh` and is `overflow-hidden`, so the
+    // page **has no scroll to lose**. That property is stronger than "the arrows keep
+    // the scroll position", and the first assertion below states it.
     //
-    // Lo que se sigue verificando con teclas de VERDAD es lo de arriba —que las flechas
-    // muevan el foco— y que no aparezca scroll de pagina en el intento. El
-    // `preventDefault` en si lo verifica `Board.browser.test.tsx` con eventos sinteticos,
-    // que ahi es el oraculo correcto porque afirma lo que hace el HANDLER.
+    // What the REAL keys verify is that the arrows move the focus, and that no page
+    // scroll shows in the attempt. `Board.browser.test.tsx` verifies the `preventDefault`
+    // itself with synthetic events.
     expect(document.documentElement.scrollHeight)
       .toBe(document.documentElement.clientHeight);
     const antes = [document.documentElement.scrollTop, document.documentElement.scrollLeft];
@@ -811,13 +804,13 @@ describe('App — el tablero se toca con el teclado', () => {
     await userEvent.keyboard('{ArrowUp}');
     expect(document.activeElement).toBe(origen);
 
-    // El default de las cuatro es scrollear, y el tablero mide seis filas: cuatro flechas
-    // sin frenar se lo llevan de la pantalla mientras el foco sigue adentro.
+    // The default of the four arrows is to scroll: the scroll position must not move
+    // while the focus moves.
     expect([document.documentElement.scrollTop, document.documentElement.scrollLeft])
       .toEqual(antes);
   });
 
-  it('`Home` y `End` van a los extremos de SU fila, sin salirse de ella', async () => {
+  it('`Home` and `End` go to the ends of THEIR row, and do not leave it', async () => {
     const { container } = await render(<App />);
     aLaVista(container);
     const media = celda(container, 5, 3);
@@ -827,21 +820,21 @@ describe('App — el tablero se toca con el teclado', () => {
     expect(document.activeElement).toBe(celda(container, anchoDe(container) - 1, 3));
     tecla(celda(container, anchoDe(container) - 1, 3), 'Home');
     expect(document.activeElement).toBe(celda(container, 0, 3));
-    // Y en el extremo se queda: `Home` no salta a la fila de arriba, que es lo que haria
-    // si el par mirara el tablero entero en vez de la fila.
+    // And at the end it stays: `Home` does not jump to the row above, which is what it
+    // does if the pair looks at the whole board and not at the row.
     tecla(celda(container, 0, 3), 'Home');
     expect(document.activeElement).toBe(celda(container, 0, 3));
   });
 
-  it('AC-ACC-020 — `Enter` coloca, `Enter` sobre la pieza propia la quita, `Alt`+`Enter` mutea — y la region lo dice', async () => {
-    // Las cuatro entran por el MISMO `onCellClick` que el click, o sea por `accionDeClick`:
-    // lo que se verifica aca es que el shell las reciba iguales y que la region `aria-live`
-    // cuente la edicion que el tablero acaba de aplicar y no la que se pidio.
+  it('AC-ACC-020 — `Enter` places, `Enter` on an own piece removes it, `Alt`+`Enter` mutes, and the region says it', async () => {
+    // The four enter by the SAME `onCellClick` as the click, so by `accionDeClick`. What
+    // is verified here is that the shell receives them the same, and that the `aria-live`
+    // region tells the edit that the board applied and not the one requested.
     //
-    // El oraculo del tablero es el NOMBRE ACCESIBLE de la celda y no cuantas tienen texto:
-    // con el foco puesto, la celda enfocada ES `hover`, asi que el fantasma pinta cinco
-    // celdas con texto tambien sobre el tablero vacio. `cellNameFor` no las confunde —una
-    // celda con fantasma se llama "libre", igual que una sin nada.
+    // The oracle of the board is the ACCESSIBLE NAME of the cell and not how many have
+    // text: with the focus set, the focused cell IS `hover`, so the ghost draws five
+    // cells with text also on the empty board. `cellNameFor` does not confuse them: a
+    // cell with a ghost is named "libre", the same as an empty one.
     const { container } = await render(<App />);
     const conPieza = () => celdas(container).filter(e => e.getAttribute('aria-label')!.includes('pieza')).length;
     const dicho = () => container.querySelector('[aria-live="polite"]')!.textContent;
@@ -856,15 +849,15 @@ describe('App — el tablero se toca con el teclado', () => {
     await vi.waitFor(() => expect(conPieza()).toBe(0));
     expect(dicho()).toBe('pieza F quitada de fila 3, columna 4');
 
-    // `Alt` significa "muteado" en los dos lados del gesto, tambien con el teclado.
+    // `Alt` means "muted" on the two sides of the gesture, also with the keyboard.
     const [mx, my] = donde('F', 3, 2)[0];
     tecla(c, 'Enter', { altKey: true });
     await vi.waitFor(() => expect(baldosa(celda(container, mx, my)).className).toContain('bg-white'));
     expect(conPieza()).toBe(SHAPES.F.length);
     expect(dicho()).toBe('pieza F colocada muteada en fila 3, columna 4');
 
-    // Y sobre una pieza YA muteada la devuelve al sonido: el anuncio dice el estado en el
-    // que la pieza QUEDA, no que tecla se apreto.
+    // And on a piece ALREADY muted it gives the sound back: the announcement says the
+    // state the piece is LEFT in, not which key was pressed.
     tecla(c, 'Enter', { altKey: true });
     await vi.waitFor(() => expect(dicho()).toBe('pieza F con sonido en fila 3, columna 4'));
     expect(baldosa(celda(container, mx, my)).style.background).not.toBe('');
@@ -873,63 +866,66 @@ describe('App — el tablero se toca con el teclado', () => {
     await vi.waitFor(() => expect(dicho()).toBe('pieza F muteada en fila 3, columna 4'));
   });
 
-  it('AC-BRD-031 — con una celda enfocada la barra NO alterna el transporte; con el foco en el `body`, si', async () => {
-    // El oraculo es el TRANSPORTE —el motor y el nombre del boton— y no "se llamo
-    // `preventDefault`": la barra frena el default tambien con la celda enfocada, porque su
-    // default es scrollear y eso hay que frenarlo lo maneje quien lo maneje. Usar el
-    // `preventDefault` de oraculo daria verde con el bug puesto.
+  it('AC-BRD-031 — with a cell focused the space bar does NOT toggle the transport; with the focus on the `body`, it does', async () => {
+    // The oracle is the TRANSPORT (the engine and the name of the button) and not
+    // "`preventDefault` was called": the space bar stops the default also with the cell
+    // focused, because its default is to scroll, and that must stop whoever handles the
+    // key. With `preventDefault` as the oracle, the test is green with the bug present.
     const { container } = await render(<App />);
     const c = celda(container, 3, 2);
     c.focus();
 
     tecla(c, ' ');
-    // El mismo golpe SI edito: sin la guarda, un solo `Espacio` colocaria la pieza Y
-    // arrancaria el transporte.
+    // The same press DID edit: without the guard, one `Space` places the piece AND
+    // starts the transport.
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
     expect(motor.startClock).not.toHaveBeenCalled();
     await expect.element(page.getByRole('button', { name: 'Reproducir' })).toBeVisible();
 
-    // Con un `<button>` enfocado tampoco, y por la otra guarda: ahi el navegador tiene que
-    // quedarse el evento ENTERO para activar el control, sin un `blur()` a mano.
+    // With a `<button>` focused it does not toggle either, by the other guard: there
+    // the browser must keep the WHOLE event to activate the control, with no `blur()`
+    // by hand.
     const play = [...container.querySelectorAll('button')]
       .find(b => (b.getAttribute('aria-label') ?? b.textContent) === 'Reproducir')!;
     play.focus();
     tecla(play, ' ');
     expect(motor.startClock).not.toHaveBeenCalled();
 
-    // Y con el foco en ningun lado, la barra sigue siendo del transporte: la celda le
-    // saca UNA tecla en UN lugar, no la apaga.
+    // And with the focus nowhere, the space bar still belongs to the transport: the
+    // cell takes ONE key in ONE place, it does not turn it off.
     play.blur();
     window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(motor.startClock).toHaveBeenCalled());
     await expect.element(page.getByRole('button', { name: 'Pausa' })).toBeVisible();
   });
 
-  it('AC-BRD-032 — con una celda enfocada, `Shift` SI rota y `Ctrl` SI refleja', async () => {
-    // Va separado del test de la barra a proposito: uno verifica que se apago, este que NO
-    // se apago de mas. Ensanchar la guarda del listener global para que matchee la celda es
-    // lo tentador —es una linea— y apagaria los tres atajos para arreglar uno.
+  it('AC-BRD-032 — with a cell focused, `Shift` DOES rotate and `Ctrl` DOES reflect', async () => {
+    // It is apart from the test of the space bar on purpose: that one verifies that the
+    // shortcut is off, this one that NO MORE is off. To widen the guard of the global
+    // listener so that it matches the cell is tempting, it is one line, and it turns
+    // off the three shortcuts to fix one.
     const { container } = await render(<App />);
     const c = celda(container, 4, 3);
     c.focus();
-    // La celda enfocada ES el cursor: el fantasma aparece sin que el mouse toque nada.
+    // The focused cell IS the pointed cell: the ghost shows with no touch of the mouse.
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
     const antes = notaDelFantasma(container);
 
     tapDeModificador(c, 'Shift');
     await vi.waitFor(() => expect(notaDelFantasma(container)).not.toBe(antes));
 
-    // La reflexion no cambia la NOTA de una celda, cambia el orden: lo que se mueve es el
-    // `#N`, y por eso el oraculo es el `title` entero y no la nota sola.
+    // The reflection does not change the NOTE of a cell, it changes the order: what
+    // moves is the `#N`, so the oracle is the whole `title` and not the note alone.
     const conRotacion = notaDelFantasma(container);
     tapDeModificador(c, 'Control');
     await vi.waitFor(() => expect(notaDelFantasma(container)).not.toBe(conRotacion));
   });
 
-  it('AC-BRD-021 AC-BRD-032 — con una celda enfocada, la letra IGUAL elige la pieza', async () => {
-    // AC13: `targetEsCelda` apaga la barra y solo la barra. El `switch` del `onKeyDown` de
-    // la celda cierra con `default: return`, asi que una letra no la maneja nadie mas y no
-    // hay doble disparo que evitar — vetarla ahi apagaria el atajo justo donde mas sirve.
+  it('AC-BRD-021 AC-BRD-032 — with a cell focused, the letter STILL chooses the piece', async () => {
+    // `targetEsCelda` turns off the space bar and only the space bar. The `switch` of
+    // the `onKeyDown` of the cell ends with `default: return`, so nothing else handles a
+    // letter and there is no double fire to prevent. A veto there turns the shortcut off
+    // where it is most useful.
     const { container } = await render(<App />);
     const c = celda(container, 4, 3);
     c.focus();
@@ -941,106 +937,104 @@ describe('App — el tablero se toca con el teclado', () => {
         expect(baldosa(celda(container, x, y)).textContent, `${x},${y}`).not.toBe('');
       }
     });
-    // Y el transporte sigue parado: la letra elige y no hace nada ademas.
+    // And the transport stays stopped: the letter chooses and does nothing else.
     expect(motor.startClock).not.toHaveBeenCalled();
   });
 
-  it('AC-ACC-022 — con el foco en una celda, sacar el mouse de la grilla no apaga el fantasma', async () => {
-    // LA regla de desempate: mientras el foco del DOM este adentro del tablero, el foco
-    // manda sobre el mouse. Sin ella el mouse apagaria el fantasma de la celda enfocada y
-    // el roving tabindex se quedaria sin ancla — o sea que "la celda enfocada es el hover"
-    // seria una promesa que el mouse rompe.
+  it('AC-ACC-022 — with the focus on a cell, a mouse that leaves the grid does not clear the ghost', async () => {
+    // THE tie-break rule: while the DOM focus is inside the board, the focus wins over
+    // the mouse. Without it the mouse clears the ghost of the focused cell and the
+    // roving tabindex has no anchor. Then "the focused cell is the hover" is a promise
+    // that the mouse breaks.
     const { container } = await render(<App />);
     celda(container, 4, 3).focus();
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
     const conFoco = notaDelFantasma(container);
 
     container.querySelector('[role="grid"]')!.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
-    // Se espera de verdad: el mismo gesto con el foco AFUERA lo apaga en el mismo tick, asi
-    // que sin la espera esta afirmacion pasaria por llegar antes que el re-render.
+    // A real wait: the same gesture with the focus OUTSIDE clears it in the same tick,
+    // so without the wait this assertion passes because it runs before the re-render.
     await new Promise(r => setTimeout(r, 30));
     expect(conNota(container)).toBe(SHAPES.F.length);
     expect(notaDelFantasma(container)).toBe(conFoco);
   });
 
-  it('AC-ACC-023 — un click del mouse NO le saca el mando al mouse: el fantasma sigue al cursor', async () => {
-    // La otra dirección de la misma regla, y el bug que costó el review: un `div` con
-    // `tabIndex` es enfocable POR CLICK, así que sin el `preventDefault` del `mousedown`
-    // el primer click prendía `focoEnTablero` y desde ahí el mouse quedaba inerte — el
-    // fantasma congelado en la celda clickeada hasta salir del tablero con `Tab`. Es el
-    // gesto primario del producto, roto al primer click.
+  it('AC-ACC-023 — a mouse click does NOT take the command from the mouse: the ghost follows the cursor', async () => {
+    // The other direction of the same rule: a `div` with `tabIndex` is focusable BY
+    // CLICK. Without the `preventDefault` of the `mousedown`, the first click sets
+    // `focoEnTablero`, and from there the mouse is inert: the ghost is frozen on the
+    // clicked cell until `Tab` leaves the board. It is the primary gesture of the
+    // product, broken at the first click.
     //
-    // Click y hover de VERDAD, por Playwright, y ahí está toda la razón de ser del test:
-    // un `dispatchEvent('click')` no dispara `mousedown` y por lo tanto **no mueve el
-    // foco**, así que con eventos sintéticos esta afirmación sería verde con el bug
-    // puesto. Es el mismo modo de falla que el de las flechas, unas líneas más arriba.
+    // A REAL click and hover, by Playwright, and that is the whole reason for the test:
+    // a `dispatchEvent('click')` fires no `mousedown` and so **does not move the
+    // focus**. With synthetic events this assertion is green with the bug present. It is
+    // the same failure mode as the one of the arrows, some lines above.
     const { container } = await render(<App />);
     aLaVista(container);
 
     await userEvent.click(celda(container, 2, 1));
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length));
-    // Y el foco no se quedó en el tablero, que es lo que la guarda garantiza.
+    // And the focus did not stay in the board, which is what the guard guarantees.
     expect(celdas(container)).not.toContain(document.activeElement);
 
-    // Cinco celdas de la pieza colocada más las cinco del fantasma nuevo: si el mouse
-    // hubiera quedado inerte, seguirían siendo cinco.
+    // Five cells of the placed piece plus the five of the new ghost: with an inert
+    // mouse they stay five.
     await userEvent.hover(celda(container, 7, 4));
     await vi.waitFor(() => expect(conNota(container)).toBe(SHAPES.F.length * 2));
   });
 });
 
-describe('App — el fondo, un solo valor', () => {
-  // Hasta este spec NINGUN test miraba el fondo, asi que AC6 y AC9 se firmaban a ojo: el
-  // color vivia dos veces —el hex a mano en el `body` y la clase de Tailwind que resuelve
-  // al mismo hex en el `div` raiz— y nada ataba las dos copias. Un grep del hex tampoco lo
-  // delataba, porque la segunda copia estaba escrita como nombre de clase y no como color.
-  // El hex no se escribe aca por eso mismo: su unica aparicion en `src/` es el token.
-  it('AC-PNL-030 — el div raiz pinta lo mismo que el body, y ninguno de los dos es transparente', async () => {
+describe('App: the background, one value', () => {
+  // The background color has one value. A hex written by hand in the `body` and a
+  // Tailwind class on the root `div` that resolves to the same hex are two copies with
+  // nothing to tie them, and a grep of the hex does not find the second: it is the name
+  // of a class, not a color. So the hex is not written here: its only place in `src/` is
+  // the token.
+  it('AC-PNL-030 — the root div paints the same as the body, and neither is transparent', async () => {
     const { container } = await render(<App />);
-    // El primer hijo del contenedor y no `div.min-h-screen`: esa clase paso a ser
-    // `h-[100dvh] overflow-hidden`. Buscarlo por posicion en vez de por una clase de
-    // layout es lo que hace que este test siga midiendo el FONDO cuando el layout cambie.
+    // The first child of the container, found by position and not by a layout class: so
+    // this test still measures the BACKGROUND when the layout changes.
     const raiz = container.firstElementChild!;
     const delDiv = getComputedStyle(raiz).backgroundColor;
     const delBody = getComputedStyle(document.body).backgroundColor;
 
-    // La asercion es que COINCIDAN, no que valgan una cadena fija: comparar cada uno
-    // contra `rgb(248, 250, 252)` deja que manana alguien cambie uno y no el otro, que es
-    // exactamente la duplicacion que el token vino a borrar.
+    // The assertion is that they MATCH, not that each has a fixed string: to compare
+    // each against `rgb(248, 250, 252)` lets a later change move one and not the other,
+    // which is the duplicate that the token deletes.
     expect(delDiv).toBe(delBody);
 
-    // Y que ninguno sea transparente, porque si el token desapareciera de los dos lados
-    // los dos computarian `rgba(0, 0, 0, 0)` y la igualdad de arriba se cumpliria vacia.
-    // Ese es el modo de falla que hay que cerrar: verde sin fondo.
+    // And that neither is transparent: if the token goes away from the two sides, the
+    // two compute `rgba(0, 0, 0, 0)` and the equality above holds empty. That is the
+    // failure mode to close: green with no background.
     expect(delDiv).not.toBe('rgba(0, 0, 0, 0)');
     expect(delBody).not.toBe('rgba(0, 0, 0, 0)');
   });
 });
 
-describe('App — el tablero crece hasta la pantalla', () => {
-  it('AC-FIT-008 — no scrollea ninguno de los dos ejes, en escritorio ni en telefono', async () => {
-    // La mitad del AC1 que solo se puede ver montando la app entera: el tablero mide lo que
-    // el contenedor mide, y los dos flotantes van encima sin empujarlo. Se prueban los dos
-    // extremos de la tabla del spec — el escritorio grande y el telefono en vertical, que
-    // es el caso donde antes del 031 el tablero scrolleaba a lo ancho.
+describe('App: the board grows to the screen', () => {
+  it('AC-FIT-008 — neither axis scrolls, on a desktop or on a phone', async () => {
+    // The half that only the whole app can show: the board has the size of the
+    // container, and the two floating panels go on top and do not push it. The two ends
+    // of the table of reference boxes are tested: the large desktop and the phone in
+    // portrait.
     for (const [w, h] of [[1440, 900], [375, 667]] as const) {
       await page.viewport(w, h);
       const { container, unmount } = await render(<App />);
       const raiz = document.documentElement;
-      expect(raiz.scrollWidth, `${w}x${h} ancho`).toBeLessThanOrEqual(raiz.clientWidth);
-      expect(raiz.scrollHeight, `${w}x${h} alto`).toBe(raiz.clientHeight);
+      expect(raiz.scrollWidth, `${w}x${h} width`).toBeLessThanOrEqual(raiz.clientWidth);
+      expect(raiz.scrollHeight, `${w}x${h} height`).toBe(raiz.clientHeight);
 
-      // Y el tablero tampoco: es el nodo que hasta el 031 tenia `overflow-x-auto`.
+      // And the board does not scroll either.
       const tablero = container.querySelector('div.relative')!;
-      expect(tablero.scrollWidth, `${w}x${h} tablero`).toBeLessThanOrEqual(tablero.clientWidth + 1);
+      expect(tablero.scrollWidth, `${w}x${h} board`).toBeLessThanOrEqual(tablero.clientWidth + 1);
       await unmount();
     }
   });
 
-  it('AC-FIT-010 — la grilla que se dibuja es la que sale del viewport', async () => {
-    // El extremo chico de la tabla: 5 columnas por 9 filas en un telefono en vertical,
-    // contra las 26 x 15 de un escritorio. Es el numero que hasta el 031 era 10 x 6 en los
-    // dos.
+  it('AC-FIT-010 — the grid that is drawn is the one that comes from the viewport', async () => {
+    // The small end of the table: 5 columns by 9 rows on a phone in portrait, against
+    // the 26 x 15 of a desktop.
     await page.viewport(375, 667);
     const { container } = await render(<App />);
     const grilla = container.querySelector('[role="grid"]')!;
@@ -1050,18 +1044,18 @@ describe('App — el tablero crece hasta la pantalla', () => {
     expect(celdas(container).length).toBe(esperado.w * esperado.h);
   });
 
-  it('AC-ACC-028 AC-BRD-004 — la pieza 13 no entra, y se dice', async () => {
-    // El tope que hasta el 031 lo garantizaba el area: con 154 celdas entrarian 30 piezas y
-    // el circuito exacto es `O(n^2 * 2^n)`. Es el unico rechazo que no se explica solo —una
-    // jugada invalida se ve, porque el fantasma sale rosa— asi que se anuncia.
+  it('AC-ACC-028 AC-BRD-004 — piece 13 does not enter, and the app says it', async () => {
+    // The piece limit, which the area does not give: 154 cells hold 30 pieces, and the
+    // exact circuit is `O(n^2 * 2^n)`. It is the only refusal that does not explain
+    // itself (an invalid move is seen, because the ghost is pink), so it is announced.
     const { container } = await render(<App />);
     const dicho = () => container.querySelector('[aria-live="polite"]')!.textContent;
     const conPieza = () => celdas(container).filter(e => e.getAttribute('aria-label')!.includes('pieza')).length;
 
-    // Doce `I` acostadas, dos por fila: la `I` mide 5 x 1 y el tablero de 1024 x 768 tiene
-    // 14 columnas y 11 filas, asi que entran dos por fila y sobra lugar. La letra se aprieta
-    // UNA vez —seleccionar es estado del shell, no del gesto de colocar— y recien cuando el
-    // fantasma dice `I` se empieza a colocar.
+    // Twelve flat `I`, two in each row: the `I` is 5 x 1 and the board of 1024 x 768 has
+    // 14 columns and 11 rows, so two fit in each row with room to spare. The letter is
+    // pressed ONE time (the selection is state of the shell, not of the placement
+    // gesture), and the placement starts only when the ghost says `I`.
     const primera = celda(container, 2, 0);
     primera.focus();
     tecla(primera, 'i');
@@ -1077,28 +1071,29 @@ describe('App — el tablero crece hasta la pantalla', () => {
     const trece = celda(container, 2, 7);
     trece.focus();
     tecla(trece, 'Enter');
-    // El tablero no cambio…
+    // The board did not change.
     await vi.waitFor(() => expect(dicho()).toContain(`acepta ${MAX_PIEZAS} piezas`));
     expect(conPieza()).toBe(SHAPES.I.length * MAX_PIEZAS);
   });
 
-  it('AC-FIT-021 — achicar la ventana no borra piezas: vuelven enteras al agrandarla', async () => {
-    // El repo no tiene deshacer y arrastrar el borde de una ventana no es
-    // un gesto de edicion. La pieza que deja de entrar se guarda: no se dibuja, no suena, y
-    // vuelve identica cuando hay lugar.
+  it('AC-FIT-021 — a smaller window deletes no piece: they come back whole when it grows', async () => {
+    // The repo has no undo, and a drag of the window edge is not an edit gesture. The
+    // piece that does not fit is stored: it is not drawn, it does not sound, and it
+    // comes back identical when there is room.
     const { container } = await render(<App />);
     const conPieza = () => celdas(container).filter(e => e.getAttribute('aria-label')!.includes('pieza')).length;
     const nombres = () => celdas(container)
       .map(e => e.getAttribute('aria-label')!)
       .filter(n => n.includes('pieza'));
 
-    // Una `I` acostada bien a la derecha: con el ancla en (11,4) ocupa de (9,4) a (13,4),
-    // asi que en 14 columnas entra y en 5 no.
+    // A flat `I` well to the right: with the grip cell on (11,4) it takes (9,4) to
+    // (13,4), so it fits in 14 columns and not in 5.
     //
-    // Se ESPERA la seleccion antes del `Enter`, como en el test del tope: la letra es
-    // estado del shell y hasta que no re-renderiza, `Enter` coloca la pieza anterior. Sin
-    // la espera este test colocaba una `F` —que tambien mide cinco celdas, asi que la
-    // cuenta pasaba igual— y no verificaba lo que su comentario dice.
+    // The test WAITS for the selection before the `Enter`, as in the test of the piece
+    // limit: the letter is state of the shell, and until the re-render `Enter` places
+    // the piece that was in hand. Without the wait this test places an `F`, which also
+    // has five cells, so the count passes all the same and the test does not verify
+    // what its comment says.
     const c = celda(container, 11, 4);
     c.focus();
     tecla(c, 'i');
@@ -1116,21 +1111,22 @@ describe('App — el tablero crece hasta la pantalla', () => {
     expect(nombres()).toEqual(antes);
   });
 
-  it('AC-BRD-016 AC-FIT-022 — la pieza que queda a medias tampoco recibe clicks: la celda vacia se comporta como vacia', async () => {
-    // El caso que el AC8 de arriba no toca: ahi la ventana deja la pieza ENTERA afuera, y
-    // aca la deja **a medias** —dos celdas adentro de la grilla nueva y tres afuera—, que
-    // es el unico estado donde el modelo y lo que se ve pueden discrepar. La pieza no se
-    // dibuja (el criterio es la pieza entera), asi que sus celdas de adentro se ven vacias;
-    // y si el shell consultara el ocupante sobre `placed` en vez de sobre lo visible, un
-    // click ahi quitaria una pieza que no esta en pantalla y lo anunciaria.
+  it('AC-BRD-016 AC-FIT-022 — a piece left half outside gets no clicks either: the empty cell behaves as empty', async () => {
+    // The case that the test above does not touch: there the window leaves the WHOLE
+    // piece outside, and here it leaves it **half outside**, two cells inside the new
+    // grid and three outside. It is the only state where the model and what is seen can
+    // differ. The piece is not drawn (the criterion is the whole piece), so its inner
+    // cells look empty. If the shell asked for the occupant on `placed` and not on the
+    // visible pieces, a click there would remove a piece that is not on screen and
+    // announce it.
     //
-    // No hay deshacer: borrar por accidente lo que no se ve es
-    // exactamente el gesto que guardar la pieza entera hace imposible.
+    // There is no undo: to delete by accident what is not seen is the gesture that the
+    // whole stored piece makes impossible.
     const { container } = await render(<App />);
     const conPieza = () => celdas(container).filter(e => e.getAttribute('aria-label')!.includes('pieza')).length;
     const dicho = () => container.querySelector('[aria-live="polite"]')!.textContent;
 
-    // La misma `I` acostada del test de arriba: ancla en (11,4), o sea las celdas 9 a 13.
+    // The same flat `I` of the test above: grip cell on (11,4), so the cells 9 to 13.
     const c = celda(container, 11, 4);
     c.focus();
     tecla(c, 'i');
@@ -1138,54 +1134,54 @@ describe('App — el tablero crece hasta la pantalla', () => {
     tecla(c, 'Enter');
     await vi.waitFor(() => expect(conPieza()).toBe(SHAPES.I.length));
 
-    // 800 x 600 da 11 columnas: quedan adentro (9,4) y (10,4), y afuera las otras tres.
+    // 800 x 600 gives 11 columns: (9,4) and (10,4) stay inside, and the other three outside.
     const chico = grillaPara(800, 600).dims;
     expect(chico.w).toBe(11);
     await page.viewport(800, 600);
     await vi.waitFor(() => expect(celdas(container).length).toBe(chico.w * chico.h));
     expect(conPieza()).toBe(0);
 
-    // El click sobre (9,4) —que el modelo sigue teniendo ocupada— no quita nada y no
-    // anuncia nada. Con la `I` en la mano, que es el unico gesto que podria quitarla.
+    // The click on (9,4), which the model still has as occupied, removes nothing and
+    // announces nothing. With the `I` in hand, the only gesture that could remove it.
     const tapada = celda(container, 9, 4);
     tapada.focus();
-    // Enfocarla ya escribe el cursor, asi que acá se ve la OTRA mitad de la misma consulta:
-    // el fantasma se dibuja, o sea que el gesto que la celda promete es colocar —invalido,
-    // porque la pieza guardada la sigue ocupando— y no editar. Si `hoverEdita` mirara
-    // `placed`, el fantasma se apagaria y el cursor prometeria una edicion sobre una celda
-    // que se ve vacia.
+    // The focus on it already writes the pointed cell, so here the OTHER half of the
+    // same query shows: the ghost is drawn, so the gesture that the cell promises is a
+    // placement (invalid, because the stored piece still occupies it) and not an edit.
+    // If `hoverEdita` read `placed`, the ghost would turn off and the cursor would
+    // promise an edit on a cell that looks empty.
     await vi.waitFor(() => expect(conNota(container)).toBeGreaterThan(0));
 
     tecla(tapada, 'Enter');
-    // Se espera de verdad y no se afirma en el mismo tick: sin la espera, este `expect`
-    // pasaria por llegar antes del re-render y no por que no haya pasado nada.
+    // A real wait, and no assertion in the same tick: without the wait, this `expect`
+    // passes because it runs before the re-render, not because nothing happened.
     await new Promise(r => setTimeout(r, 30));
     expect(conPieza()).toBe(0);
     expect(dicho()).not.toContain('quitada');
 
-    // Y no la quito de verdad: al agrandar vuelve entera.
+    // And it did not really remove it: when the window grows, the piece comes back whole.
     await page.viewport(...VIEWPORT);
     await vi.waitFor(() => expect(conPieza()).toBe(SHAPES.I.length));
   });
 
-  it('AC-ACC-014 AC-FIT-024 — achicar la ventana no deja al tablero sin ancla de tabulacion', async () => {
-    // El OTRO estado que la grilla nueva puede dejar apuntando afuera, y que no es una
-    // pieza: el cursor. Lo escriben el mouse y el foco y ninguno de los dos se
-    // entera de un `resize`, asi que el par guardado puede caer fuera de `dims`.
+  it('AC-ACC-014 AC-FIT-024 — a smaller window does not leave the board with no anchor cell', async () => {
+    // The OTHER state that the new grid can leave pointing outside, and it is not a
+    // piece: the pointed cell. The mouse and the focus write it, and neither hears of a
+    // `resize`, so the pair that is kept can fall outside `dims`.
     //
-    // `Board` ancla el roving tabindex en esa celda, o sea que si no se acota, NINGUNA
-    // celda se queda con `tabIndex={0}` y el tablero entero sale del orden de tabulacion —
-    // para quien navega con teclado, que es de quien es el 026, la app se vuelve
-    // inalcanzable hasta que un mouse toque el tablero.
+    // `Board` puts the anchor of the roving tabindex on that cell. If it is not bounded,
+    // NO cell has `tabIndex={0}` and the whole board leaves the tab order: for a person
+    // who uses the keyboard, the app cannot be reached until a mouse touches the board.
     //
-    // Se fija el cursor con el MOUSE y no con el foco a proposito: al achicar, la celda
-    // enfocada se DESMONTA, y si el navegador emite el `focusout` de ese desmonte el cursor
-    // se apaga por otro camino y el test pasaria sin verificar nada. El `mouseover` no tiene
-    // esa segunda via — nadie movio el puntero, asi que no hay `mouseout` que lo limpie.
+    // The pointed cell is set with the MOUSE and not with the focus on purpose: when the
+    // window shrinks, the focused cell UNMOUNTS. If the browser emits the `focusout` of
+    // that unmount, the pointed cell clears by another way and the test passes with
+    // nothing verified. The `mouseover` has no second way: the pointer did not move, so
+    // no `mouseout` clears it.
     const { container } = await render(<App />);
     const anclas = () => celdas(container).filter(e => e.getAttribute('tabindex') === '0');
 
-    // Una celda de la derecha del todo, que en el tablero chico no existe.
+    // A cell at the far right, which the small board does not have.
     hover(celda(container, anchoDe(container) - 1, 4));
     await vi.waitFor(() => expect(anclas()).toEqual([celda(container, anchoDe(container) - 1, 4)]));
 
@@ -1193,13 +1189,13 @@ describe('App — el tablero crece hasta la pantalla', () => {
     await page.viewport(375, 667);
     await vi.waitFor(() => expect(celdas(container).length).toBe(chico.w * chico.h));
 
-    // Sigue habiendo exactamente UNA parada de tabulacion, y es la (0,0): el destino del
-    // `?? [0, 0]` de `Board`, que es lo que el cursor apagado le devuelve.
+    // Exactly ONE tab stop stays, and it is (0,0): the target of the `?? [0, 0]` of
+    // `Board`, which is what a cleared pointed cell gives.
     expect(anclas()).toEqual([celda(container, 0, 0)]);
 
-    // Y la otra mitad del mismo cursor colgado: con `hover` puesto fuera del tablero,
-    // `previewValid` da `false` y pintaba las 45 celdas de `cursor-not-allowed`, diciendo
-    // "aca no entra" justo donde la jugada entra.
+    // And the other half of the same dangling pointed cell: with `hover` outside the
+    // board, `previewValid` gives `false` and the 45 cells show `cursor-not-allowed`,
+    // which says "it does not fit here" where the move fits.
     expect(celdas(container).filter(e => e.className.includes('cursor-not-allowed'))).toEqual([]);
   });
 });

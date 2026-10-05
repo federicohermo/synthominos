@@ -1,13 +1,13 @@
 /**
- * Mapeo de bins de la FFT a geometria de barras.
+ * The mapping from the bins of the analysis to the geometry of the bars.
  *
- * Vive aparte del AnalyserNode a proposito: el nodo NO se puede testear con un
- * OfflineAudioContext —el render offline no tiene cuadros y getByteFrequencyData
- * devuelve el estado del ultimo bloque procesado—, asi que toda la logica que se
- * puede afirmar se mudo aca, donde la entrada es un Uint8Array a mano y la salida
- * es determinista. El nodo queda reducido a una fuente de datos sin test propio.
+ * It is apart from the AnalyserNode on purpose: the node CANNOT be tested with an
+ * OfflineAudioContext. The offline render has no frames, and getByteFrequencyData returns
+ * the state of the last processed block. So all the logic that a test can assert is here,
+ * where the input is a Uint8Array made by hand and the output is deterministic. The node is
+ * only a source of data, with no test of its own.
  *
- * Modulo puro: sin Web Audio, sin DOM, sin React.
+ * A pure module: no Web Audio, no DOM, no React.
  */
 
 /**
@@ -16,23 +16,22 @@
  * They live here and not in the engine because a node test reads them, and the node project
  * must not load `engine.ts`: see `docs/guides/conventions.md`.
  */
-/** 128 bins (fftSize / 2). Suficiente para visualizar, insuficiente para afinar. */
+/** 128 bins (fftSize / 2). Enough to visualize, not enough to tune. */
 export const FFT_SIZE = 256;
 
-/** Promediado temporal entre lecturas: sin el la animacion tiembla; de mas, es melaza. */
+/** Time smoothing between readings: without it the animation shakes, with too much it lags. */
 export const SMOOTHING = 0.8;
 
 /**
- * Agrupa los bins de la FFT en `barCount` barras con espaciado logaritmico y
- * devuelve alturas normalizadas 0-1.
+ * Groups the bins into `barCount` bars with logarithmic band edges and returns heights
+ * normalized from 0 to 1.
  *
- * Logaritmico y no lineal porque los bins estan espaciados linealmente en
- * frecuencia pero la percepcion no: con reparto lineal las primeras barras se
- * comen toda la informacion musical util y el resto del canvas queda vacio.
+ * Logarithmic and not linear because the bins are linear in frequency and perception is
+ * not: with a linear split the first bars take all the useful musical information and the
+ * rest of the canvas stays empty.
  *
- * Pico por banda y no promedio: promediar una banda ancha aplana los transitorios,
- * que es justo lo que hay que ver en un instrumento percusivo. El pico conserva el
- * ataque.
+ * The peak of the band and not the mean: the mean of a wide band flattens the transients,
+ * which are exactly what must show in a percussive instrument. The peak keeps the attack.
  */
 export function binsToBars(bins: Uint8Array, barCount: number): Float32Array {
   const n = Math.max(0, Math.floor(barCount));
@@ -41,11 +40,10 @@ export function binsToBars(bins: Uint8Array, barCount: number): Float32Array {
 
   for (let b = 0; b < n; b++) {
     const from = Math.min(bandEdge(bins.length, n, b), bins.length - 1);
-    // Piso de `from + 1`: garantiza que ninguna banda quede vacia cuando barCount
-    // supera la cantidad de bins. Sin el, los bordes de las bandas graves caen
-    // todos en el mismo indice y esas barras salen en 0 sin importar la senal.
-    // El precio es que dos barras vecinas pueden compartir un bin; a esa escala
-    // el reparto ya perdio resolucion de todas formas.
+    // The floor of `from + 1` guarantees that no band is empty when barCount is larger than
+    // the number of bins. Without it, the edges of the low bands all fall on the same index
+    // and those bars give 0 whatever the signal. The price is that two neighbouring bars
+    // can share a bin. At that scale the split has lost its resolution in any case.
     const to = Math.max(from + 1, Math.min(bandEdge(bins.length, n, b + 1), bins.length));
 
     let peak = 0;
@@ -56,11 +54,11 @@ export function binsToBars(bins: Uint8Array, barCount: number): Float32Array {
 }
 
 /**
- * Borde inferior de la banda `b` sobre el indice de bin, con reparto logaritmico.
+ * The lower edge of band `b` as a bin index, with a logarithmic split.
  *
- * Se eleva `binCount + 1` y se resta 1 para que la funcion sea exacta en los dos
- * extremos: b = 0 da 0 y b = barCount da binCount. Con `binCount ** (b/barCount)`
- * a secas el ultimo borde cae en binCount - 1 y el bin mas agudo nunca se lee.
+ * It raises `binCount + 1` and subtracts 1 so that the function is exact at the two ends:
+ * b = 0 gives 0 and b = barCount gives binCount. With a bare `binCount ** (b/barCount)` the
+ * last edge falls on binCount - 1 and the highest bin is never read.
  */
 function bandEdge(binCount: number, barCount: number, b: number): number {
   return Math.floor((binCount + 1) ** (b / barCount)) - 1;

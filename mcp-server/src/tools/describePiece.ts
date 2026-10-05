@@ -18,138 +18,137 @@ import { SHAPES, ANCHOR_INDEX } from '../../../src/pieces/pieces.ts';
 import type { RegimenDeRotacion } from '../../../src/musical-model/music.ts';
 
 /**
- * Forma + sonido de una pieza en una orientacion.
+ * Shape and sound of a piece in one orientation.
  *
- * Es la tool de mayor ahorro: responder esto leyendo el codigo obliga a componer
- * cuatro puras a mano sobre cinco pares de coordenadas, y nadie avisa si la
- * simulacion mental salio mal.
+ * It is the tool that saves the most: to answer this from the code, a reader must
+ * compose four pure functions by hand over five coordinate pairs, and nothing warns if
+ * the mental simulation went wrong.
  *
- * Todo lo que se calcula viene de `src/`. Lo unico propio es el ASCII.
+ * All that is computed comes from `src/`. Only the ASCII is local.
  */
 
 /**
- * Como se llama la formula que elige cada rotacion EN EL REGIMEN `escala`.
+ * The name of the formula that each rotation selects IN THE `escala` REGIME.
  *
- * Es una ETIQUETA, no la regla: quien elige la formula es `notesForRotation` en
- * `musical-model/music.ts`, y las notas de la respuesta salen de ahi. Si el mapeo
- * rotacion→formula cambia alla, este texto hay que actualizarlo.
+ * It is a LABEL, not the rule: `notesForRotation` in `musical-model/music.ts` selects
+ * the formula, and the notes of the answer come from there. If the mapping from
+ * rotation to formula changes there, update this text.
  *
- * Es uno de los DOS supuestos del server sobre el dominio que pueden quedar
- * desincronizados sin que `tsc` diga nada; el otro es `ORIENTATIONS_PER_PIECE` en
- * `checkInvariants.ts`. Estan anotados los dos, y son los dos unicos: todo lo
- * demas se ejecuta en vez de describirse.
+ * It is one of the TWO assumptions of the server about the domain that can go out of
+ * sync while `tsc` says nothing. The other is `ORIENTATIONS_PER_PIECE` in
+ * `checkInvariants.ts`. The two are marked, and they are the only two: all the rest is
+ * run, not described.
  *
- * El spec 017 lo cobro: con el regimen `orden` las CUATRO entradas son falsas —la
- * formula es siempre la pentatonica mayor y lo que la rotacion mueve es el arranque—,
- * y ningun gate lo habria atrapado. Por eso el array dejo de ser lo que la respuesta
- * lee: lo lee `scaleLabel`, que primero mira el regimen.
+ * Under the `orden` regime the FOUR entries are false: the formula is always the major
+ * pentatonic, and the rotation moves the start. No gate catches that. So the answer
+ * does not read the array: `scaleLabel` reads it, and it checks the regime first.
  */
 const SCALE_LABEL = [
-  'pentatónica mayor (rotación 0°)',
-  'pentatónica menor (rotación 90°)',
-  'pentatónica menor con blue note (rotación 180°)',
-  'pentatónica mayor transpuesta +7 (rotación 270°)',
+  'major pentatonic (rotation 0°)',
+  'minor pentatonic (rotation 90°)',
+  'minor pentatonic with blue note (rotation 180°)',
+  'major pentatonic transposed +7 (rotation 270°)',
 ];
 
 /**
- * Que dice la respuesta en `scale`, que depende del regimen y no solo de la rotacion.
+ * What the answer says in `scale`. It depends on the regime, not only on the rotation.
  *
- * Reportar el regimen y seguir diciendo «pentatónica menor (rotación 90°)» bajo `orden`
- * es peor que no reportarlo: la respuesta se contradiria a si misma, y las notas que
- * trae al lado serian las correctas.
+ * To report the regime and still say "minor pentatonic (rotation 90°)" under `orden` is
+ * worse than no report: the answer would contradict itself, and the notes next to it
+ * would be the correct ones.
  */
 function scaleLabel(regimen: RegimenDeRotacion, rotation: number): string {
   if (regimen === REGIMEN.escala) return SCALE_LABEL[rotation];
   return rotation === 0
-    ? 'pentatónica mayor, sin correr (rotación 0°)'
-    : `pentatónica mayor corrida ${rotation} ${rotation === 1 ? 'posición' : 'posiciones'} (rotación ${rotation * 90}°)`;
+    ? 'major pentatonic, not shifted (rotation 0°)'
+    : `major pentatonic shifted ${rotation} ${rotation === 1 ? 'position' : 'positions'} (rotation ${rotation * 90}°)`;
 }
 
 const inputSchema = z.object({
   piece: z.enum(PIECE_KEYS)
-    .describe('Letra de la pieza. Describe la FORMA, no el sonido: la pieza F suena en C.'),
+    .describe('Letter of the piece. It names the SHAPE, not the sound: the piece F sounds in C.'),
   rotation: z.number().int().min(0).max(3).default(0)
-    .describe('Cuartos de vuelta horarios: 0=0°, 1=90°, 2=180°, 3=270°. Qué hace lo decide `regimen`.'),
+    .describe('Clockwise quarter turns: 0=0°, 1=90°, 2=180°, 3=270°. `regimen` decides what the rotation does.'),
   mirror: z.boolean().default(false)
-    .describe('Reflexión. Invierte el orden de las notas (retrógrado) y a veces no cambia la forma.'),
+    .describe('Reflection. It reverses the order of the notes (retrograde), and sometimes it does not change the shape.'),
   octave: z.number().int().min(0).max(8).default(DEFAULT_OCTAVE)
-    .describe(`Octava en la que se construye el arpegio. La app usa ${DEFAULT_OCTAVE}.`),
+    .describe(`Octave in which the arpeggio is built. The app uses ${DEFAULT_OCTAVE}.`),
   regimen: z.enum([REGIMEN.escala, REGIMEN.orden]).default(DEFAULT_REGIMEN)
     .describe(
-      'Qué cambia la rotación (spec 017). `escala`: elige entre cuatro fórmulas, o sea que rotar ' +
-      'cambia QUÉ NOTAS suena la pieza. `orden`: pentatónica mayor siempre, corrida `rotation` ' +
-      `posiciones, o sea que rotar cambia POR DÓNDE ARRANCA el arpegio. El default es ${DEFAULT_REGIMEN}, ` +
-      'que es el de la app. A rotación 0 los dos dan lo mismo; en las otras 36 de las 48 ' +
-      'combinaciones dan cosas distintas.',
+      'What the rotation changes. `escala` (the scale regime): it selects one of four formulas, so ' +
+      'a rotation changes WHICH NOTES the piece sounds. `orden` (the order regime): always the major pentatonic, shifted `rotation` ' +
+      `positions, so a rotation changes WHERE the arpeggio STARTS. The default is ${DEFAULT_REGIMEN}, ` +
+      'the one of the app. At rotation 0 the two give the same notes. In the other 36 of the 48 ' +
+      'combinations they give different notes.',
     ),
 });
 
 export const describePiece = defineTool({
   name: 'describe_piece',
-  title: 'Describir una pieza',
+  title: 'Describe a piece',
   annotations: { readOnlyHint: true, openWorldHint: false },
   description:
-    'Qué forma tiene y qué suena una pieza en una orientación dada. Usar ANTES de simular a mano ' +
-    'una rotación o un arpegio: devuelve las celdas ya transformadas (en orden de array), el ' +
-    'render ASCII con la celda de agarre marcada, la tónica, la fórmula de escala y las cinco ' +
-    'notas MIDI con el retrógrado ya aplicado. Devuelve además `cellMap`: qué grado del arpegio y ' +
-    'qué nota le toca a CADA celda, en el mismo orden que `cells`. Ejecuta las funciones reales de ' +
-    'src/, así que responde lo que suena hoy, no lo que decía la documentación.\n' +
-    'Tres trampas medidas que conviene tener presentes: (1) la letra describe la FORMA, no el ' +
-    'sonido — la pieza F suena con tónica C, y la nota F le toca a la pieza T; (2) la reflexión ' +
-    'siempre invierte las notas, pero a veces no se ve: en I y X deja la forma idéntica en las ' +
-    'cuatro rotaciones, y en T y U en las rotaciones 0 y 180°; (3) `cellMap` sale del arpegio ' +
-    'ASCENDENTE, no de `notes` — el retrógrado es del ORDEN DE REPRODUCCIÓN, así que reflejar ' +
-    'mueve las celdas de lugar pero no cambia qué nota le toca a cada una.\n' +
-    'Desde el spec 017 la rotación hace UNA DE DOS cosas y la elige `regimen`: con `escala` cambia ' +
-    'la fórmula (las notas), con `orden` corre el arpegio sobre una pentatónica mayor fija (el ' +
-    'arranque). La respuesta trae el `regimen` que usó y su `scale` lo respeta — a rotación 0 los ' +
-    'dos dan lo mismo, en las otras 36 de 48 combinaciones no.\n' +
-    'Hay DOS dibujos: `ascii` marca la celda de agarre (`@`) y `asciiPlayOrder` pone el PASO de ' +
-    'cada celda —su lugar en el orden de reproducción, que es el número que el tablero pinta en la ' +
-    'esquina—, así que el `0` es siempre por donde el recorrido entra y el `4` por donde sale. Con ' +
-    '`mirror` NO coincide con el grado: el retrógrado invierte el orden, así que el paso es ' +
-    '`4 - grado`. `cellMap` trae los dos números por celda.',
+    'The shape and the sound of a piece in a given orientation. Use it BEFORE you simulate a ' +
+    'rotation or an arpeggio by hand: it returns the transformed cells (in array order), the ' +
+    'ASCII render with the grip cell marked, the tonic, the scale formula and the five ' +
+    'MIDI notes with the retrograde applied. It also returns `cellMap`: the degree of the arpeggio and ' +
+    'the note that EACH cell owns, in the same order as `cells`. It runs the real functions of ' +
+    'src/, so it answers what sounds today, not what the documentation said.\n' +
+    'Three measured traps: (1) the letter names the SHAPE, not the ' +
+    'sound: the piece F sounds with tonic C, and the note F belongs to the piece T; (2) the reflection ' +
+    'always reverses the notes, but sometimes it does not show: on I and X it leaves the shape identical in the ' +
+    'four rotations, and on T and U at rotations 0 and 180°; (3) `cellMap` comes from the ' +
+    'ASCENDING arpeggio, not from `notes`: the retrograde is about the PLAY ORDER, so a reflection ' +
+    'moves the cells but does not change the note that each one owns.\n' +
+    'The rotation does ONE OF TWO things, and `regimen` selects which: with `escala` it changes ' +
+    'the formula (the notes), with `orden` it shifts the arpeggio on a fixed major pentatonic (the ' +
+    'start). The answer has the `regimen` it used, and its `scale` agrees with it. At rotation 0 the ' +
+    'two give the same notes; in the other 36 of 48 combinations they do not.\n' +
+    'There are TWO drawings: `ascii` marks the grip cell (`@`), and `asciiPlayOrder` puts the STEP of ' +
+    'each cell: its position in the play order, which is the number that the board paints in the ' +
+    'corner. So `0` is always where the circuit enters and `4` where it leaves. With ' +
+    '`mirror` the step is NOT the degree: the retrograde reverses the order, so the step is ' +
+    '`4 - degree`. `cellMap` has the two numbers for each cell.',
   inputSchema,
   run: ({ piece, rotation, mirror, octave, regimen }) => {
     const rotated = rotateN(SHAPES[piece], rotation);
     const cells = mirror ? reflect(rotated) : rotated;
     const anchorIndex = ANCHOR_INDEX[piece];
 
-    // El retrogrado se aplica igual que en la app: `notesForRotation` produce el
-    // arpegio ascendente y la reflexion lo da vuelta despues.
+    // The retrograde is applied as in the app: `notesForRotation` gives the ascending
+    // arpeggio and the reflection reverses it after.
     const ascending = notesForRotation(BASE_MAP[piece], octave, rotation, regimen);
     const notes = mirror ? [...ascending].reverse() : ascending;
 
-    // La forma CANONICA, no `cells`: rotar corre el origen del angulo, asi que
-    // recalcular el mapeo sobre la transformada daria otros grados. Se arrastra
-    // por indice porque `rotateN` y `reflect` son `map`, igual que el ancla.
+    // The CANONICAL shape, not `cells`: a rotation moves the origin of the angle, so the
+    // mapping computed again on the transformed shape would give other degrees. It
+    // carries by index because `rotateN` and `reflect` are `map`, the same as the grip cell.
     const degrees = degreeByCellIndex(SHAPES[piece]);
-    // El paso es el grado con el retrogrado aplicado, y NO se recalcula aca: sale de
-    // la misma pura que alimenta a `gates` y al numero que se ve en el tablero.
+    // The step is the degree with the retrograde applied, and it is NOT computed again
+    // here: it comes from the same pure function that feeds `gates` and the number shown
+    // on the board.
     const playOrder = playOrderByCellIndex(SHAPES[piece], mirror);
 
     return json({
       piece, rotation, mirror, octave,
-      // El regimen viaja EN LA RESPUESTA y no solo en la entrada: en 36 de las 48
-      // combinaciones la misma pieza tiene dos arpegios, asi que una respuesta que
-      // dice cinco notas sin decir bajo que regimen es ambigua las tres cuartas
-      // partes de las veces.
+      // The regime travels IN THE ANSWER, not only in the input: in 36 of the 48
+      // combinations the same piece has two arpeggios. An answer that gives five notes
+      // and not the regime is ambiguous three times out of four.
       regimen,
       tonic: CHROMATIC[BASE_MAP[piece]],
       tonicPc: BASE_MAP[piece],
       scale: scaleLabel(regimen, rotation),
-      // El indice k es la misma celda logica que en SHAPES: rotar, reflejar y
-      // normalizar son `map`. De eso depende que el ancla salga por indice.
+      // Index k is the same logical cell as in SHAPES: rotate, reflect and normalize
+      // are `map`. The grip cell by index depends on that.
       cells,
-      // Campo NUEVO al lado de `cells`, que no se toca: pisarlo cambiaria en
-      // silencio el contrato de la tool. Indexa `ascending` y no `notes` porque
-      // el retrogrado es del orden de reproduccion —eso ya lo dice `notes`—: la
-      // nota de una celda es la del grado que le toca en el arpegio ascendente.
-      // `degree` y `playOrder` son el MISMO numero solo sin reflexion. El `degree`
-      // contesta que nota tiene la celda —por eso indexa `ascending`—; el `playOrder`
-      // contesta cuando suena, y es el que hay que mirar para seguir a la cabeza
-      // lectora o para contrastar contra lo que se ve en pantalla.
+      // A field NEXT to `cells`, which does not change: to overwrite `cells` would
+      // silently change the contract of the tool. It indexes `ascending` and not `notes`
+      // because the retrograde is about the play order, and `notes` already says that:
+      // the note of a cell is the one of its degree in the ascending arpeggio.
+      // `degree` and `playOrder` are the SAME number only with no reflection. `degree`
+      // answers which note the cell has, and so it indexes `ascending`. `playOrder`
+      // answers when it sounds: use it to follow the playhead or to compare with the
+      // screen.
       cellMap: cells.map((c, k) => ({
         cell: c,
         degree: degrees[k],
@@ -160,11 +159,11 @@ export const describePiece = defineTool({
       anchor: cells[anchorIndex],
       size: sizeOf(cells),
       ascii: renderAscii(cells, anchorIndex),
-      // El mismo dibujo con el PASO en cada celda: es donde se ve el recorrido que
-      // el arpegio hace por la forma, siempre del `0` al `4`. Dibuja el paso y no el
-      // grado porque es el numero que el tablero pinta, y dos numeraciones distintas
-      // —una en pantalla y otra en la tool— es exactamente como se verifica mal.
-      // `ascii` no se toca — dicen cosas distintas.
+      // The same drawing with the STEP in each cell: it shows the walk that the arpeggio
+      // makes through the shape, always from `0` to `4`. It draws the step and not the
+      // degree because the step is the number that the board paints. Two different
+      // numberings, one on the screen and one in the tool, is exactly how a check goes
+      // wrong. `ascii` does not change: the two drawings say different things.
       asciiPlayOrder: renderCellNumbers(cells, playOrder),
       notes: notes.map(m => ({ midi: m, name: midiName(m) })),
       retrograde: mirror,

@@ -2,87 +2,85 @@ import { GRID_MIN } from '../board-editing/placement.ts';
 import type { Dims } from '../board-editing/placement.ts';
 
 /**
- * El tamano de celda OBJETIVO, en px, y lo unico que queda de la larga historia de
- * `CELL_PX`.
+ * The TARGET cell size, in px.
  *
- * El tablero no tiene un tamano fijo en celdas: la grilla es la que entra en el viewport a
- * este tamano. O sea que este numero no decide cuanto mide el tablero —eso lo decide la
- * pantalla— sino **que tan grande se ve una baldosa**, que es lo unico que decide de verdad.
+ * The board has no fixed size in cells: the board is what fits the box at this size. So
+ * this number does not decide how big the board is: the screen decides that. It decides
+ * **how big a tile looks**.
  *
  * ```
- * 1. cuantas entran           c0 = max(GRID_MIN.w, round(vw / CELL_PX_OBJETIVO))
+ * 1. how many fit             c0 = max(GRID_MIN.w, round(vw / CELL_PX_OBJETIVO))
  *                             r0 = max(GRID_MIN.h, round(vh / CELL_PX_OBJETIVO))
- * 2. el tamano real           cell = min(vw / c0, vh / r0)
- * 3. y cuantas entran a ESE   cols = max(GRID_MIN.w, floor(vw / cell))
+ * 2. the real size            cell = min(vw / c0, vh / r0)
+ * 3. how many fit at THAT     cols = max(GRID_MIN.w, floor(vw / cell))
  *                             rows = max(GRID_MIN.h, floor(vh / cell))
  * ```
  *
- * La formula vive en `board-fit/grid-fit.ts` —donde tiene test— y quien la escribe en el
- * DOM es `board-fit/use-grid.ts`. Todo lo que dependa del tamano de celda lee
- * `var(--cell)` y no este numero: una custom property la resuelve el navegador en cada
- * elemento, asi que redimensionar la ventana reposiciona las celdas, el velo y la cabeza
- * lectora **sin un solo re-render de React**.
+ * The formula is `grillaPara`, in this file, where it has a test.
+ * `board-fit/use-grid.ts` writes its result to the DOM. Everything that depends on the
+ * cell size reads `var(--cell)` and not this number. The browser resolves a custom
+ * property on each element, so a resize of the window moves the cells, the veil and the
+ * playhead **with no React re-render**.
  *
- * Medido sobre los viewports reales:
+ * Measured on the real boxes:
  *
  * ```
- * viewport        cols x rows   celdas   celda    nota
- * 1920 x 1080      26 x  15      390     72,0 px  18,7 px
- * 1512 x  982      21 x  13      273     72,0 px  18,7 px
- * 1440 x  900      20 x  12      240     72,0 px  18,7 px
- * 1366 x  768      19 x  11      209     69,8 px  18,2 px
- * 1280 x  720      18 x  10      180     71,1 px  18,5 px
- *  834 x 1112      11 x  15      165     74,1 px  19,3 px
- *  430 x  932       6 x  13       78     71,7 px  18,7 px
- *  375 x  667       5 x   9       45     74,1 px  19,3 px
- *  320 x  568       5 x   8       40     64,0 px  16,7 px
+ * box             cols x rows   cells    cell     note name
+ * 1920 x 1080      26 x  15      390     72.0 px  18.7 px
+ * 1512 x  982      21 x  13      273     72.0 px  18.7 px
+ * 1440 x  900      20 x  12      240     72.0 px  18.7 px
+ * 1366 x  768      19 x  11      209     69.8 px  18.2 px
+ * 1280 x  720      18 x  10      180     71.1 px  18.5 px
+ *  834 x 1112      11 x  15      165     74.1 px  19.3 px
+ *  430 x  932       6 x  13       78     71.7 px  18.7 px
+ *  375 x  667       5 x   9       45     74.1 px  19.3 px
+ *  320 x  568       5 x   8       40     64.0 px  16.7 px
  * ```
  *
- * La celda real se queda entre 64 y 74,1 px: el redondeo la mueve un 4,4 % como mucho,
- * salvo en el ultimo viewport, donde el minimo de 5 columnas de `GRID_MIN` no entra a 73 px
- * y **se achica la celda antes que dejar que aparezca scroll**.
+ * The real cell size stays between 64 and 74.1 px: the rounding moves it 4.4 % at most.
+ * The exception is the last box, where the minimum of 5 columns of `GRID_MIN` does not
+ * fit at 73 px and **the cell shrinks so that nothing scrolls**.
  *
- * ## Por que 73 y no 60
+ * ## Why 73 and not 60
  *
- * El argumento es **tipografico**. El candidato anterior era 60 y estaba medido con un
- * `Range` sobre el nodo de texto a la fuente que se renderiza —los nombres con sostenido,
- * `D#4`, todos iguales porque `tabular-nums` iguala los digitos, ocupan 35,4 px a los 19 px
- * que la celda usaba—, pero valia con la fuente clavada en 19 px. Con la tipografia
- * proporcional a la celda (las razones de abajo), 60 de celda da una nota de 15,6 px, o sea
- * por debajo del tamano que el repo midio como necesario. **73 es la celda donde la nota
- * vale exactamente los 19 px medidos.**
+ * The argument is **typographic**. A cell of 60 px holds the note name only with the font
+ * fixed at 19 px. Measured with a `Range` on the text node, in the rendered font, the
+ * names with a sharp (`D#4`, all equal because `tabular-nums` makes the digits equal)
+ * take 35.4 px at 19 px. With the type proportional to the cell (the ratios below), a
+ * cell of 60 px gives a note name of 15.6 px, below the size that the repo measured as
+ * necessary. **73 is the cell size where the note name is exactly the measured 19 px.**
  *
- * El numero sube con la fuente, asi que hay que remedirlo cada vez que cambien las razones
- * de abajo — es la trampa que este docblock ya se comio dos veces con el layout viejo.
+ * The number grows with the font, so measure it again each time the ratios below change.
+ * That is the trap of this number.
  */
 export const CELL_PX_OBJETIVO = 73;
 
 /**
- * Las razones que vuelven proporcional todo lo que la baldosa media en px fijos.
+ * The ratios that make each measure of the tile proportional to the cell size.
  *
- * Cada una es `medida_de_hoy / CELL_PX_OBJETIVO`, con el denominador tomado del SIMBOLO y
- * no escrito a mano: asi el 73 vive en un solo lugar. A `--cell = 73` las seis dan de
- * vuelta el numero exacto que la baldosa tenia cuando cada medida era un px clavado, que es
- * lo que sostiene que la baldosa se vea **igual** — y lo que evita tener que remedir el aire
- * alrededor del texto, la trampa que el docblock de arriba nombra.
+ * Each one is `measure_at_the_target / CELL_PX_OBJETIVO`, with the denominator taken from
+ * the SYMBOL and not written by hand: so the 73 lives in one place. At `--cell = 73` the
+ * seven give back the exact px of each measure, so the tile looks **the same** at the
+ * target cell size. That avoids a new measurement of the gap around the text, the trap
+ * that the docblock above names.
  *
- * Se consumen como `calc(var(--cell) * RAZON)` y por estilo inline, nunca como clase:
- * Tailwind escanea el fuente y una clase interpolada no se genera.
+ * They are used as `calc(var(--cell) * RAZON)` in an inline style, never as a class:
+ * Tailwind scans the source and does not generate an interpolated class.
  *
- * La lista, con la medida que la origino:
+ * The list, with the measure each one comes from:
  *
  * ```
- * NOTA_RAZON      19 px   el `text-[19px]` de la nota
- * PASO_RAZON      13 px   el `text-[13px]` del `#N`
- * AIRE_RAZON       2 px   el `p-0.5` entre la caja de la celda y la baldosa
- * RADIO_RAZON      8 px   el `rounded-lg`, dicho DOS veces sobre el mismo objeto
- * RESERVA_RAZON    8 px   el `pb-2` que le deja alto a la nota sobre el `#N`
- * PASO_ABAJO_RAZON     2 px   el `bottom-0.5` del `#N`
- * PASO_DERECHA_RAZON   6 px   el `right-1.5` del `#N`
+ * NOTA_RAZON      19 px   the `text-[19px]` of the note name
+ * PASO_RAZON      13 px   the `text-[13px]` of the `#N`
+ * AIRE_RAZON       2 px   the `p-0.5` between the cell box and the tile
+ * RADIO_RAZON      8 px   the `rounded-lg`, said TWICE on the same object
+ * RESERVA_RAZON    8 px   the `pb-2` that leaves height for the note name above the `#N`
+ * PASO_ABAJO_RAZON     2 px   the `bottom-0.5` of the `#N`
+ * PASO_DERECHA_RAZON   6 px   the `right-1.5` of the `#N`
  * ```
  *
- * **El borde de 1 px NO esta en esta lista, y es a proposito** — ver el comentario junto
- * al `border` de `Board.tsx`.
+ * **The border of 1 px is NOT in this list, on purpose.** See the comment next to the
+ * `border` in `Board.tsx`.
  */
 export const NOTA_RAZON = 19 / CELL_PX_OBJETIVO;
 export const PASO_RAZON = 13 / CELL_PX_OBJETIVO;
@@ -93,113 +91,115 @@ export const PASO_ABAJO_RAZON = 2 / CELL_PX_OBJETIVO;
 export const PASO_DERECHA_RAZON = 6 / CELL_PX_OBJETIVO;
 
 /**
- * Los dos anchos del anillo de foco de la celda, **como razon de la celda**.
+ * The two widths of the focus ring of a cell, **as ratios of the cell size**.
  *
- * ## Por que son DOS y no uno
+ * ## Why TWO and not one
  *
- * Porque abajo de la celda enfocada puede haber cualquiera de los 12 colores, y los dos
- * extremos de la lamina son `#FFFF00` (la `V`) y `#0000FF` (la `W`): un solo tono se
- * pierde contra alguno de ellos. Van claro adentro y oscuro afuera, y como un `outline`
- * de CSS tiene un unico color hacen falta DOS propiedades — es lo que DESIGN.md fija.
+ * Because any of the 12 colors can be under the focused cell, and the two extremes of
+ * the reference sheet are `#FFFF00` (the `V`) and `#0000FF` (the `W`): one tone alone is
+ * lost against one of them. The light band goes inside and the dark band outside. A CSS
+ * `outline` has one color only, so TWO properties are necessary. DESIGN.md sets this.
  *
- * ## Donde cae cada banda, que es lo que decide los numeros
+ * ## Where each band falls, which decides the numbers
  *
- * Una celda son dos cajas: la de `--cell` y la baldosa redondeada de adentro, con el aire
- * de `AIRE_RAZON` entre las dos (el padding de `Board.tsx`). Las dos bandas se reparten ese
- * aire y el borde de la baldosa, y las dos se dibujan HACIA ADENTRO de la caja de afuera:
+ * A cell has two parts: the cell box, of size `--cell`, and the rounded tile inside it,
+ * with the gap of `AIRE_RAZON` between the two (the padding in `Board.tsx`). The two
+ * bands share that gap and the border of the tile, and both are drawn INWARD from the
+ * cell box:
  *
  * ```
- *   0 → 1 aire   banda OSCURA   sobre el aire, o sea sobre el blanco del panel
- *   1 → 2 aires  banda CLARA    sobre el borde negro de la baldosa y el arranque de su color
+ *   0 → 1 gap    DARK band    on the gap, that is, on the light background
+ *   1 → 2 gaps   LIGHT band   on the black border of the tile and the start of its color
  * ```
  *
- * **Y por eso son razones y no dos numeros de 2 px.**
- * El reparto de arriba no dice «2 px»: dice «una banda sobre el aire y la siguiente sobre la
- * baldosa», o sea que los dos numeros son el aire dicho dos veces. Con el aire vuelto
- * proporcional y estos dos clavados en 2, a celda 180 el aire mide 4,93 px y las DOS bandas
- * caen enteras adentro de el: la clara deja de pisar la baldosa, queda sobre el mismo blanco
- * que la oscura y el anillo se vuelve de un solo tono — que es exactamente el modo de falla
- * que estos dos numeros existen para evitar.
+ * **That is why they are ratios and not two numbers of 2 px.**
+ * The split above does not say "2 px". It says "one band on the gap and the next one on
+ * the tile", so the two numbers are the gap said twice. With a proportional gap and
+ * these two fixed at 2 px, at a cell size of 180 px the gap is 4.93 px and BOTH bands
+ * fall fully inside it: the light band does not reach the tile, it stays on the same
+ * light background as the dark band, and the ring has one tone only. That is exactly the
+ * failure that these two numbers exist to prevent.
  *
- * Valen lo mismo que el aire porque el aire es la unidad del reparto: la banda clara tiene
- * que pisar la baldosa para quedar sobre el color de la pieza, que es contra lo que se la
- * eligio. Con ese reparto el anillo se ve SIEMPRE: sobre `#FFFF00` la clara desaparece pero
- * la oscura esta sobre blanco, y sobre `#0000FF` pasa lo contrario.
+ * They are equal to the gap because the gap is the unit of the split: the light band
+ * must reach the tile to be on the color of the piece, which is the color it was chosen
+ * against. With that split the ring ALWAYS shows: on `#FFFF00` the light band disappears
+ * but the dark band is on the light background, and on `#0000FF` the opposite occurs.
  *
- * ## Por que hacia adentro y no hacia afuera, que es lo obvio
+ * ## Why inward and not outward, which is the obvious choice
  *
- * Por el orden de pintado. Los `outline` se pintan al final del contexto de apilamiento
- * —arriba de todo—, pero un `box-shadow` se pinta en la fase de fondo del elemento, y las
- * baldosas de todas las celdas son `relative`, o sea POSICIONADAS: se pintan despues. Un
- * anillo hacia afuera dejaria la banda oscura tapada por las baldosas vecinas en los
- * cuatro lados y la clara visible encima — o sea un anillo de un solo tono, que es
- * justamente lo que estos dos numeros existen para evitar. Hacia adentro no hay
- * competencia: la oscura cae en el aire, que no lo pinta nadie.
+ * Because of the paint order. An `outline` is painted at the end of the stacking
+ * context, above everything. But a `box-shadow` is painted in the background phase of
+ * the element, and the tiles of all the cells are `relative`, that is, POSITIONED: they
+ * are painted later. With an outward ring, the neighbor tiles would cover the dark band
+ * on the four sides and the light band would show above them: a ring of one tone, which
+ * is exactly what these two numbers exist to prevent. Inward there is no competition:
+ * the dark band falls on the gap, which nothing paints.
  *
- * Y de paso resuelve solo el recorte: dibujado hacia adentro el anillo no asoma ni un pixel
- * fuera de la caja, asi que no puede agrandar la region scrolleable ni quedar recortado en
- * las celdas del borde. Quien recorta es el `overflow-hidden` del contenedor raiz, y el
- * anillo no le llega.
+ * It also solves the clipping. Drawn inward, the ring does not go one pixel outside the
+ * cell box, so it cannot make the scroll area larger and it cannot be clipped on the
+ * cells at the edge. The `overflow-hidden` of the root container does the clipping, and
+ * the ring does not reach it.
  */
 export const ANILLO_FOCO_OSCURO_RAZON = AIRE_RAZON;
 export const ANILLO_FOCO_CLARO_RAZON = AIRE_RAZON;
 
 /**
- * Lo que hay que dibujar para llenar un viewport de `vw × vh` con celdas de unos 73 px:
- * cuántas entran y cuánto mide cada una.
+ * What to draw to fill a box of `vw × vh` with cells of about 73 px: how many fit and the
+ * size of each one.
  *
- * Reemplaza a `cellPxPara`, y el cambio es de qué se despeja. Aquel tenía el
- * tablero fijo en 10 × 6 y despejaba el TAMAÑO de la celda, que en un escritorio se iba a
- * 180 px; éste tiene la celda fija en 73 y despeja la CANTIDAD.
+ * It keeps the cell near 73 px and solves for the COUNT. A board fixed at 10 × 6 that
+ * solves for the SIZE of the cell gives a cell of 180 px on a desktop.
  *
  * ```
- * 1. cuántas entran al objetivo   c0 = max(GRID_MIN.w, round(vw / CELL_PX_OBJETIVO))
+ * 1. how many fit at the target   c0 = max(GRID_MIN.w, round(vw / CELL_PX_OBJETIVO))
  *                                 r0 = max(GRID_MIN.h, round(vh / CELL_PX_OBJETIVO))
- * 2. el tamaño real               cell = min(vw / c0, vh / r0)
- * 3. y cuántas entran a ESE       cols = max(GRID_MIN.w, floor(vw / cell))
+ * 2. the real size                cell = min(vw / c0, vh / r0)
+ * 3. how many fit at THAT         cols = max(GRID_MIN.w, floor(vw / cell))
  *                                 rows = max(GRID_MIN.h, floor(vh / cell))
  * ```
  *
- * ## El paso 2 es el que garantiza que no haya scroll
+ * ## Step 2 is what guarantees that nothing scrolls
  *
- * `min` de los dos ejes, igual que en el 021 y por el mismo motivo: la celda es cuadrada,
- * así que manda la dimensión más apretada. Tomar el máximo daría una grilla que desborda
- * por el otro eje, y desbordar es exactamente lo que este spec vino a sacar.
+ * `min` of the two axes: the cell is square, so the tighter dimension decides. The
+ * maximum would give a board that overflows on the other axis, and the board must never
+ * overflow its box.
  *
- * ## El paso 3 parece redundante y no lo es
+ * ## Step 3 looks redundant and it is not
  *
- * Los dos primeros ya dan un tablero que entra, pero el eje que **no** manda puede quedar
- * con más de una celda libre cuando la ventana es muy desproporcionada: a 2000 × 300 el
- * mínimo de 5 filas fuerza una celda de 60 px y sobrarían 380 px de ancho, o sea seis
- * columnas sin usar. Recontar contra la celda real cierra eso, y sigue sin poder desbordar
- * porque `floor(vw / cell) · cell ≤ vw` por definición de `floor`. En los nueve viewports
- * reales de la tabla de `CELL_PX_OBJETIVO` este paso no cambia ningún número.
+ * The first two steps already give a board that fits. But the axis that does **not**
+ * decide can have a leftover of more than one cell when the box is very disproportionate:
+ * at 2000 × 300 the minimum of 5 rows forces a cell of 60 px and leaves 380 px of width,
+ * that is, six unused columns. A new count against the real cell size closes that. It
+ * still cannot overflow, because `floor(vw / cell) · cell ≤ vw` by the definition of
+ * `floor`. In the nine real boxes of the table of `CELL_PX_OBJETIVO` this step changes no
+ * number.
  *
- * El `+ EPS` del `floor` no es defensivo: cuando el eje que manda es el mismo que ya
- * contó —el caso normal—, `vw / cell` es exactamente `c0` en aritmética real pero puede
- * dar `25,999999996` en coma flotante, y ahí el `floor` **quita una columna de verdad**.
+ * The `+ EPS` of the `floor` is not defensive. When the axis that decides is the one that
+ * step 1 counted, which is the normal case, `vw / cell` is exactly `c0` in real
+ * arithmetic but can give `25.999999996` in floating point, and there the `floor`
+ * **removes a real column**.
  *
- * ## Los mínimos son un piso duro
+ * ## The minimums are a hard floor
  *
- * `GRID_MIN` sale de `placement.ts`: 5 × 5 es la caja más chica donde entra cualquier pentominó
- * en cualquier orientación. Abajo de eso hay piezas de la paleta que no se podrían colocar
- * en ningún lado, así que en un viewport que no dé para 5 celdas de 73 px lo que cede es el
- * tamaño de la celda (320 × 568 → 64 px) y nunca la cantidad.
+ * `GRID_MIN` comes from `placement.ts`: 5 × 5 is the smallest board that holds every
+ * pentomino in every orientation. Below that, some pieces of the palette cannot be
+ * placed anywhere. So in a box with no room for 5 cells of 73 px, the cell size gives
+ * way (320 × 568 → 64 px) and never the count.
  *
- * Es una pura y vive acá y no en `use-grid.ts` por el motivo de siempre: así se testea en
- * `environment: 'node'`, sin navegador y sin fabricar un `resize`. Lo que queda del otro
- * lado es cableado —leer la caja, escribir la custom property y guardar las dimensiones—
- * y eso lo cubre el proyecto `browser`.
+ * It is a pure function, and it lives here and not in `use-grid.ts` so that its test
+ * runs in `environment: 'node'`, with no browser and no synthetic `resize`. What stays on
+ * the other side is wiring: read the box, write the custom property and store the
+ * dimensions. The `browser` project covers that.
  */
 export function grillaPara(vw: number, vh: number): { dims: Dims; cell: number } {
   const c0 = Math.max(GRID_MIN.w, Math.round(vw / CELL_PX_OBJETIVO));
   const r0 = Math.max(GRID_MIN.h, Math.round(vh / CELL_PX_OBJETIVO));
   const cell = Math.min(vw / c0, vh / r0);
-  // Una caja de lado cero —el contenedor todavía sin medir, o la app dentro de un
-  // `display: none`— daría una división por cero y un `NaN` que viajaría hasta el
-  // `gridTemplateColumns`. Se contesta el tablero mínimo con celdas de cero: es lo que
-  // corresponde dibujar en una caja sin tamaño, y en cuanto la caja mida algo el `resize`
-  // vuelve a pasar por acá.
+  // A box with a side of zero (a container not measured yet, or the app inside a
+  // `display: none`) would give a division by zero and a `NaN` that reaches
+  // `gridTemplateColumns`. The answer is the minimum board with cells of size zero: that
+  // is what a box with no size must draw, and when the box gets a size the `resize`
+  // passes through here again.
   if (cell <= 0) return { dims: GRID_MIN, cell: 0 };
   const EPS = 1e-9;
   return {

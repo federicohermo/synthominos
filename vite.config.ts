@@ -21,31 +21,28 @@ export default defineConfig({
      * `test:browser` would let `verify` report green after it ran half. `budget` runs
      * alone, and its block below says why.
      *
-     * El corte no es por capa sino por lo que el test NECESITA:
+     * The split is not by layer but by what the test NEEDS:
      *
-     * - `node` — el dominio es puro y el audio corre contra `node-web-audio-api`,
-     *   que es una implementacion nativa de Web Audio. Ahi viven los tests de
-     *   siempre, sin un solo cambio.
-     * - `browser` — Chromium de verdad, por Playwright. Entra porque jsdom no
-     *   puede: `Spectrum.tsx` necesita canvas 2D, `createLinearGradient`,
-     *   `ResizeObserver`, `matchMedia` y un `getBoundingClientRect` con numeros, y
-     *   `engine.ts` necesita `new AudioContext()` y `window.setInterval`. Con jsdom,
-     *   cubrirlos exigiria mockear exactamente el codigo que se quiere cubrir, que
-     *   es cobertura sin verificacion.
+     * - `node`: the domain is pure, and the audio runs against `node-web-audio-api`, a
+     *   native implementation of Web Audio.
+     * - `browser`: a real Chromium, through Playwright. It is here because jsdom cannot do
+     *   it: `Spectrum.tsx` needs canvas 2D, `createLinearGradient`, `ResizeObserver`,
+     *   `matchMedia` and a `getBoundingClientRect` with numbers, and `engine.ts` needs
+     *   `new AudioContext()` and `window.setInterval`. With jsdom, to cover them would
+     *   take a mock of exactly the code to cover, which is coverage with no verification.
      *
-     * El discriminante es el SUFIJO y no una carpeta: un test de `Board.tsx` que
-     * necesita navegador sigue siendo un test de `Board.tsx` y vive al lado. La
-     * extension ademas separa sola —`node` toma `.ts` y el navegador `.tsx`—, asi
-     * que un test con JSX no puede caer en node por accidente.
+     * The discriminant is the SUFFIX and not a folder: a test of `Board.tsx` that needs a
+     * browser is still a test of `Board.tsx` and lives next to it. The extension also
+     * separates by itself (`node` takes `.ts` and the browser `.tsx`), so a test with JSX
+     * cannot fall into node by accident.
      *
-     * `extends: true` en los dos, y es lo que evita duplicar config: medido, con el
-     * los proyectos heredan `plugins` (sin eso el JSX del proyecto de navegador no
-     * compila) y tambien el bloque `coverage`. Que `coverage` sea UNO SOLO y viva
-     * arriba es lo que hace que los dos proyectos reporten en una tabla y contra un
-     * unico umbral.
+     * `extends: true` in each, and it avoids a duplicate config: measured, with it the
+     * projects inherit `plugins` (without that the JSX of the browser project does not
+     * compile) and also the `coverage` block. `coverage` is ONE and lives above, so the
+     * projects report in one table and against one threshold.
      *
-     * El navegador no es libre mientras el coverage sea v8: vitest valida el nombre
-     * y falla explicito con firefox o webkit, ofreciendo istanbul como alternativa.
+     * The browser is not a free choice while coverage is v8: vitest validates the name and
+     * fails explicitly with firefox or webkit, and offers istanbul as the alternative.
      */
     projects: [
       {
@@ -96,21 +93,21 @@ export default defineConfig({
         test: {
           name: 'browser',
           include: ['src/**/__tests__/*.browser.test.tsx'],
-          // La hoja de estilos se importa UNA vez y desde el setup, no desde cada
-          // test. Medido: sin ella `z-10` esta en el `className` pero
-          // `getComputedStyle(...).zIndex` devuelve `auto`, o sea que un test de
-          // layout pasa o falla por el motivo equivocado y en silencio.
+          // The stylesheet is imported ONCE, from the setup, not from each test. Measured:
+          // without it `z-10` is in the `className` but `getComputedStyle(...).zIndex`
+          // returns `auto`, so a layout test passes or fails for the wrong reason, in
+          // silence.
           setupFiles: ['./src/__tests__/browser-setup.ts'],
           browser: {
             enabled: true,
             headless: true,
             provider: playwright({
               launchOptions: {
-                // Sin esto, la politica de autoplay de Chromium crea todo
-                // `AudioContext` en `suspended` y `resume()` se queda esperando un
-                // gesto que en un test no llega. `engine.ts` y `Spectrum.tsx`
-                // dependen de `ctx.state === 'running'` para hacer algo, asi que sin
-                // el flag no se puede cubrir ni una de sus ramas activas.
+                // Without this, the autoplay policy of Chromium creates every
+                // `AudioContext` as `suspended`, and `resume()` waits for a gesture that
+                // does not come in a test. `engine.ts` and `Spectrum.tsx` depend on
+                // `ctx.state === 'running'` to do anything, so without the flag not one
+                // of their active branches can be covered.
                 args: ['--autoplay-policy=no-user-gesture-required'],
               },
             }),
@@ -120,14 +117,14 @@ export default defineConfig({
       },
     ],
 
-    // ## El timeout se afloja bajo coverage, y no es pereza
+    // ## The timeout is looser under coverage, for a measured reason
     //
-    // v8 instrumenta insertando contadores en cada rama, y los tests combinatorios del
-    // dominio —los que recorren las 96 orientaciones o resuelven tableros de 12 piezas—
-    // son justo los que mas ramas ejecutan. Medido sobre los presupuestos del 009: 11,3
-    // ms contra 1,8 sin instrumentar, o sea entre 2x y 4x. Con los cuatro nodos de
-    // `verify` compitiendo por CPU al mismo tiempo, eso lleva a alguno de esos tests por
-    // encima de los 5 s del default y lo pone en rojo **sin que nada este mal**.
+    // v8 instruments by inserting counters in each branch, and the combinatorial tests of
+    // the domain (the ones that walk the 96 orientations or solve boards of 12 pieces) are
+    // the ones that run the most branches. Measured on the time budgets: 11.3 ms against
+    // 1.8 ms without instrumentation. With the four nodes of `verify` competing for CPU at
+    // the same time, that takes one of those tests above the 5 s of the default and turns
+    // it red **with nothing wrong**.
     //
     // A false red in the convergence node is worse than no node: it teaches people to read
     // red as noise. Time is still checked where it means something, in the `budget` project.
@@ -136,36 +133,35 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
 
-      // El denominador se declara ENTERO y se descuenta por nombre, y esa es la
-      // decision: por defecto vitest mide solo los archivos que algun test
-      // importo, con lo que los diez que estan en cero absoluto —los que mas
-      // importan— no aparecerian en la tabla y el numero saldria mas lindo sin
-      // significar nada. En vitest 4 alcanza con declarar `include`; el flag
-      // `all` que hacia esto en la 3 ya no existe y el typecheck lo rechaza.
-      // Y `eslint-rules/**/*.mjs`, que es la excepcion a la linea de arriba: v8 reporta
-      // todo archivo que se EJECUTO, asi que el `.mjs` que importa el `RuleTester` entra
-      // a la tabla lo declaremos o no —es el mismo mecanismo que obliga a excluir
-      // `mcp-server/**` mas abajo—. La salida elegida es la contraria a la de alla:
-      // incluir y cubrir. `mcp-server/**` se excluye porque tiene su propio gate al 100
-      // con otro runner; estas dos reglas no tienen otro runner, las cubre vitest.
+      // The denominator is declared WHOLE and discounted by name, and that is the decision:
+      // by default vitest measures only the files that some test imported. So a file at
+      // absolute zero, the one that matters most, would not appear in the table, and the
+      // number would look better and mean nothing. In vitest 4, `include` is enough: it has
+      // no `all` flag, and the typecheck rejects one.
+      // And `eslint-rules/**/*.mjs`, which is not under `src/`: v8 reports every file that
+      // RAN, so the `.mjs` that the `RuleTester` imports enters the table, declared or not.
+      // It is the same mechanism that forces the exclusion of `mcp-server/**` below. The way
+      // out chosen here is the opposite one: include and cover. `mcp-server/**` is excluded
+      // because it has its own gate at 100 with another runner; these rules have no other
+      // runner, so vitest covers them.
       //
-      // Y `.agents/scripts/*.ts`, por el mismo motivo que `eslint-rules/`: es codigo de este
-      // repo que corre de afuera —los hooks de Claude y de Codex, el limpiador de worktrees y
-      // el generador de copias— y sus tests lo importan en el mismo proceso. Las copias que
-      // viajan dentro de los skills no entran: nadie las ejecuta desde un test, y son byte a
-      // byte las de aca.
+      // And `.agents/scripts/*.ts`, for the same reason as `eslint-rules/`: it is code of
+      // this repo that runs from outside (the hooks of Claude and of Codex, the worktree
+      // cleaner and the generator of copies), and its tests import it in the same process.
+      // The copies that travel inside the skills are not included: no test runs them, and
+      // they are byte for byte the ones here.
       include: ['src/**/*.{ts,tsx}', 'eslint-rules/**/*.mjs', '.agents/scripts/*.ts', '.spec-anchored/*.ts'],
 
       exclude: [
-        // Son los tests.
+        // These are the tests.
         'src/**/__tests__/**',
         'eslint-rules/**/__tests__/**',
         '.agents/scripts/__tests__/**',
         '.spec-anchored/__tests__/**',
-        // Declaraciones de tipo: no llegan al runtime.
+        // Type declarations: they do not reach the runtime.
         'src/vite-env.d.ts',
-        // Bootstrap: `createRoot(...).render(<App />)`. Cubrirlo verifica que
-        // React monta, no que este repo funcione.
+        // Bootstrap: `createRoot(...).render(<App />)`. To cover it verifies that React
+        // mounts, not that this repo works.
         'src/main.tsx',
         // The other package, which has its own gate at 100. v8 reports every file that
         // RAN, so a Vitest test that imports one `mcp-server/` module would add the file
@@ -174,33 +170,30 @@ export default defineConfig({
         'mcp-server/**',
       ],
 
-      // `text` y nada mas: el gate es binario, y para leerlo alcanza la tabla en
-      // consola. `reportOnFailure` NO es opcional — sin el, un test en rojo hace
-      // que vitest no imprima la tabla, y entonces la corrida que mas necesita
-      // el reporte es justo la que no lo da.
+      // `text` and nothing else: the gate is binary, and the table in the console is enough
+      // to read it. `reportOnFailure` is NOT optional: without it, a red test makes vitest
+      // not print the table, so the run that needs the report most is the one that does
+      // not give it.
       reporter: ['text'],
       reportOnFailure: true,
 
-      // ## Cien, y no noventa y cinco
+      // ## One hundred, and not ninety-five
       //
-      // Un umbral por debajo del 100 es un presupuesto de deuda SIN DUENO: nadie sabe
-      // cuales son las lineas que el margen permite dejar sin cubrir, asi que nadie las
-      // revisa y el margen se llena solo. El 100 no admite esa ambiguedad — cada linea
-      // que entra al repo o esta cubierta, o esta excluida por nombre y con un motivo
-      // escrito arriba— y muda la discusion del promedio al archivo, que es donde se
-      // puede resolver.
+      // A threshold below 100 is a debt budget with NO OWNER: nobody knows which lines the
+      // margin lets stay uncovered, so nobody reviews them and the margin fills by itself.
+      // 100 does not admit that ambiguity: each line that enters the repo is covered, or it
+      // is excluded by name with a reason written above. It moves the discussion from the
+      // average to the file, where it can be resolved.
       //
-      // Es la misma forma que el repo ya eligio dos veces: «cero `any` y cero
-      // `@ts-ignore`», no "pocos". Y el corolario vale igual: si una rama parece
-      // inalcanzable, la salida es borrarla o volverla alcanzable, nunca el comentario
-      // magico que le pide al proveedor de coverage que la saltee. Las cuatro que
-      // aparecieron en este spec se resolvieron asi, y estan anotadas en el
-      // `research.md` del 029.
+      // It is the same form the repo chose for "zero `any` and zero `@ts-ignore`", not
+      // "few". The corollary holds too: if a branch looks unreachable, the way out is to
+      // delete it or to make it reachable, never the magic comment that asks the coverage
+      // provider to skip it.
       //
-      // Esa perifrasis no es pudor: desde el 032 `no-warning-comments` prohibe los tres
-      // terminos, y la regla mira texto y no sintaxis, asi que **deletrear el termino
-      // para explicar por que no usarlo lo viola igual**. La lista literal vive en
-      // `eslint.config.js`, que es el unico lugar del repo donde tiene que estar.
+      // That periphrasis is not modesty: `no-warning-comments` forbids the three terms, and
+      // the rule looks at text and not at syntax, so **to spell the term to explain why not
+      // to use it breaks the rule too**. The literal list lives in `eslint.config.js`, the
+      // only place of the repo where it must be.
       thresholds: { lines: 100, statements: 100, functions: 100, branches: 100 },
     },
   },

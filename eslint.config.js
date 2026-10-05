@@ -12,15 +12,14 @@ import commentShape from './eslint-rules/comment-shape.mjs'
 import commentAnchor from './eslint-rules/comment-anchor.mjs'
 
 /**
- * Los paquetes de estado global que `CLAUDE.md` prohibe. Estaba escrito y no lo verificaba
- * nadie, y es de las reglas mas faciles de romper sin querer: la tentacion no aparece al
- * escribir el import sino tres niveles de props mas abajo.
+ * The global state packages that `AGENTS.md` forbids. This rule is among the easiest to break
+ * by accident: the temptation does not come with the import, but three levels of props below.
  */
 const ESTADO_GLOBAL = ['zustand', 'redux', '@reduxjs/toolkit', 'jotai', 'valtio', 'recoil', 'mobx', 'mobx-react-lite']
 
 const GRUPO_ESTADO = {
   group: ESTADO_GLOBAL,
-  message: 'Sin estado global: el estado vive en App.tsx y baja por props.',
+  message: 'No global state: the state lives in App.tsx and goes down through props.',
 }
 
 /**
@@ -43,112 +42,104 @@ const ZONAS = [
  * below that adds its own rule repeats these, or turns them off for the files it matches.
  */
 /**
- * Los cuatro nodos que nombran un modulo por su ruta. Se listan los cuatro y no solo
- * `ImportDeclaration` porque las otras formas pueden aparecer —hoy hay cuatro `import()`
- * en los tests que reimportan con `vi.resetModules()`— y una regla que cubre una sola de ellas es
- * exactamente la red que este spec vino a borrar: pasa en verde y se lee como completa.
+ * The four nodes that name a module by its path.
  *
- * La medida que fijo la lista: `import-x/no-restricted-paths`, que resuelve rutas en vez de
- * mirar strings, dispara sobre las tres formas sin que haya que enumerarlas. Este selector
- * escrito a mano tiene que enumerarlas para empatarle.
+ * All four are listed, and not only `ImportDeclaration`, because the other forms do appear: the
+ * tests that import a module again after `vi.resetModules()` use `import()`. A rule that covers
+ * one form passes green and reads as complete.
  *
- * Un `export { x }` sin `from` tiene `source: null`, asi que el atributo no matchea y no
- * dispara. Un `import(variable)` tampoco: sin `source.value` no hay string que juzgar.
+ * The measure that fixed the list: `import-x/no-restricted-paths` resolves paths and does not
+ * look at strings, so it fires on every form with no list. This selector is written by hand,
+ * and it must list them to match that rule.
+ *
+ * An `export { x }` with no `from` has `source: null`, so the attribute does not match and the
+ * selector does not fire. An `import(variable)` does not fire either: with no `source.value`
+ * there is no string to judge.
  */
 const NODOS_CON_RUTA = ['ImportDeclaration', 'ImportExpression', 'ExportNamedDeclaration', 'ExportAllDeclaration']
 
 /**
- * El specifier local al que le falta la extension.
+ * The local specifier with no extension.
  *
- * `.mjs` entro con el spec 051: los tests de las dos reglas locales importan la regla, que
- * es un `.mjs`, y hasta ese spec ningun `.ts` de este repo podia importar uno —`allowJs`
- * estaba apagado en los dos tsconfig, que es por lo que los scripts de `.claude/scripts/`
- * se ejercen por subproceso—. Sin esta alternativa la regla lee `../comment-shape.mjs`
- * como un import SIN extension, que es justo lo contrario de lo que pasa.
+ * `.mjs` is in the list because the tests of the two local rules import the rule, which is a
+ * `.mjs`. Without this alternative the selector reads `../comment-shape.mjs` as an import with
+ * NO extension, which is the opposite of the fact.
  */
 const SIN_EXTENSION = '[source.value=/^[.].*(?<![.]ts|[.]tsx|[.]mjs|[.]css|[.]json)$/]'
 
 const REGLAS_DEL_REPO = [
   {
-    // "Sin barrels, con extension explicita, sin alias." Omitir la extension no rompe la
-    // app —Vite y el `moduleResolution: bundler` del tsconfig resuelven igual— asi que el
-    // error seria invisible del lado del navegador y solo aparece al cargar `domain/` con
-    // node crudo, que es justo lo que hace el MCP server del 006.
+    // "No barrels, explicit extensions, no aliases." A missing extension does not break the
+    // app: Vite and the `moduleResolution: bundler` of the tsconfig resolve it anyway. So the
+    // error is invisible on the browser side, and shows only when raw node loads a module of
+    // `src/`, which is what the MCP server does.
     selector: NODOS_CON_RUTA.map((nodo) => nodo + SIN_EXTENSION).join(', '),
-    message: 'Todo import local lleva extension explicita: ./music.ts, no ./music.',
+    message: 'Every local import has an explicit extension: ./music.ts, not ./music.',
   },
   {
-    // La otra mitad de "sin barrels", que hasta el spec 049 no la miraba nadie. El nodo YA
-    // esta en `NODOS_CON_RUTA`, pero ahi entra combinado con `SIN_EXTENSION`, o sea que el
-    // selector de arriba verifica la extension y no el barrel: un `export * from './x.ts'`
-    // lo CUMPLE. Lo que se prohibe aca es el mismo nodo sin ese filtro.
+    // The other half of "no barrels". The node IS in `NODOS_CON_RUTA`, but there it is joined
+    // with `SIN_EXTENSION`, so the selector above checks the extension and not the barrel: an
+    // `export * from './x.ts'` SATISFIES it. This entry forbids the same node without that
+    // filter.
     //
-    // El motivo esta en `docs/guides/conventions.md`: re-exportar hace cargar archivos de
-    // mas y vuelve al modulo responsable de propagar esas re-exportaciones por HMR.
+    // The reason: a re-export loads extra files and makes the module responsible for
+    // propagating those re-exports through HMR.
     //
-    // **El nombre `index.ts` NO se prohibe, y no es un olvido.** Los tres que hay
-    // —`mcp-server/src/index.ts`, `resources/index.ts` y `tools/index.ts`— son un
-    // entrypoint y dos registros que arman un `readonly [...]`, no barrels; la convencion
-    // escrita dice «ningun `index.ts` **de re-exportacion**» y ese calificativo un selector
-    // no lo evalua. Un bloque `files: ['**/index.ts']` daria tres falsos positivos y ademas
-    // les apagaria `REGLAS_DEL_REPO`, que es el trap de flat config que este archivo
-    // persigue. Queda afuera el barrel que re-exporta a mano (`export { a } from './a.ts'`),
-    // y se declara: media red escrita como media red es honesta.
+    // **The name `index.ts` is NOT forbidden, on purpose.** The three that exist
+    // (`mcp-server/src/index.ts`, `resources/index.ts` and `tools/index.ts`) are an entrypoint
+    // and two registries that build a `readonly [...]`, not barrels. The convention is against
+    // an `index.ts` that re-exports, and a selector cannot evaluate "re-export". A block
+    // `files: ['**/index.ts']` would give three false positives. It would also turn
+    // `REGLAS_DEL_REPO` off for them, which is the flat config trap this file guards against.
+    // The barrel that re-exports by hand (`export { a } from './a.ts'`) stays outside, and
+    // `docs/guides/conventions.md` states it: half a net, written as half a net, is honest.
     selector: 'ExportAllDeclaration',
-    message: 'Sin barrels: nada de export *. Importar del archivo que define el simbolo.',
+    message: 'No barrels: no export *. Import from the file that defines the symbol.',
   },
   {
-    // Hoy lo caza `erasableSyntaxOnly` en el typecheck, pero con el mensaje de TypeScript.
-    // Aca falla con el motivo del repo y en el editor, mientras se escribe.
+    // `erasableSyntaxOnly` catches it in the typecheck, but with the message of TypeScript.
+    // Here it fails with the reason of the repo, and in the editor, while you write.
     selector: 'TSEnumDeclaration',
-    message: 'Cero enum: conjunto cerrado = const-object + union type derivado.',
+    message: 'Zero enum: a closed set is a const object plus a derived union type.',
   },
   {
-    // La otra mitad de "sin estado global": el import de `react` es legitimo en
-    // ui/, asi que lo que hay que prohibir es la llamada, no el paquete.
+    // The other half of "no global state": the import of `react` is legitimate in a
+    // component, so the call must be forbidden, not the package.
     selector: "CallExpression[callee.name='createContext'], CallExpression[callee.property.name='createContext']",
-    message: 'Sin estado global: ni Context, ni Redux, ni Zustand. El estado vive en App.tsx.',
+    message: 'No global state: no Context, Redux or Zustand. The state lives in App.tsx.',
   },
 ]
 
 /**
- * "Un `.tsx` no declara la logica de un efecto." Hasta el spec 049 esta regla vivio solo en
- * `docs/guides/conventions.md` y estaba escrita mal en las dos mitades: decia que
- * los efectos eran seis —son nueve, contando el `useLayoutEffect` de `use-grid.ts` que
- * aparecio al implementar esta regla— y que ninguno vivia en un `.tsx` —viven dos—.
+ * "A `.tsx` does not declare the logic of an effect."
  *
- * El motivo no es estetico: `react-refresh/only-export-components` prohibe que un `.tsx`
- * exporte algo ademas del componente, asi que la logica de un efecto declarada ahi adentro
- * **no se puede exportar y por lo tanto no se puede testear**. Es el mismo argumento con el
- * que el spec 005 saco el dominio de `App.tsx`.
+ * The reason is not style. `react-refresh/only-export-components` forbids a `.tsx` to export
+ * anything but the component, so effect logic declared there **cannot be exported and so
+ * cannot be tested**. The same argument keeps the domain out of `App.tsx`.
  *
- * Se ancla en el nombre y no en el import porque el import de `react` es legitimo en
- * `ui/`: lo que hay que prohibir es la llamada, igual que con `createContext`.
+ * The anchor is the name and not the import, because the import of `react` is legitimate in a
+ * component: the call must be forbidden, as with `createContext`.
  *
- * **Y nombra los DOS hooks, no solo `useEffect`.** El spec 049 lo escribio con uno; al
- * implementarlo aparecio que `use-grid.ts` monta su efecto con `useLayoutEffect` —el 021 lo
- * eligio a proposito, para que medir el viewport no se vea durante un cuadro—, asi que un
- * selector anclado solo en `useEffect` dejaba abierta la mitad de la puerta: la misma logica,
- * en el mismo `.tsx`, con el otro nombre. Es exactamente la red con un agujero que se lee
- * como completa, que es lo que el spec 030 vino a borrar. Cero hallazgos con las dos: hoy
- * ningun `.tsx` declara un `useLayoutEffect`.
+ * **It names BOTH hooks, not only `useEffect`.** `use-grid.ts` mounts its effect with
+ * `useLayoutEffect`, on purpose, so that the viewport measure does not show for one frame. A
+ * selector on `useEffect` alone lets the same logic through, in the same `.tsx`, under the
+ * other name: a net with a hole that reads as complete. Zero findings with both: no `.tsx`
+ * declares a `useLayoutEffect`.
  */
 const REGLA_EFECTOS = {
   selector: "CallExpression[callee.name=/^use(Layout)?Effect$/]",
-  message: 'Un .tsx no declara la logica de un efecto: va a un modulo de ui/ y el .tsx lo monta.',
+  message: 'A .tsx does not declare the logic of an effect: it goes in a .ts module, and the .tsx mounts it.',
 }
 
 export default tseslint.config([
   /**
-   * `.claude/worktrees/` esta ignorado por el mismo motivo por el que lo esta en
-   * `.gitignore`: adentro vive un checkout completo del repo mientras corre una tarea
-   * en paralelo.
+   * `.claude/worktrees/` is ignored for the same reason it is in `.gitignore`: it holds a
+   * complete checkout of the repo while a parallel task runs.
    *
-   * Y sin esta linea `pnpm lint` **falla** durante esas tareas, por un motivo que
-   * parece un detalle y no lo es: los overrides de este archivo emparejan por RUTA, y
-   * `.claude/worktrees/agent-x/src/main.tsx` no matchea `src/main.tsx`. O sea que las
-   * tres aserciones no nulas que el repo declara deliberadas se leen como prohibidas
-   * en la copia, y el rojo aparece en `main` por trabajo que ni siquiera es de `main`.
+   * Without this entry `pnpm lint` **fails** during those tasks. The overrides of this file
+   * match by PATH, and `.claude/worktrees/agent-x/src/main.tsx` does not match `src/main.tsx`.
+   * So the three non-null assertions that the repo declares deliberate read as forbidden in
+   * the copy, and the red shows in the main checkout for work that is not its own.
    */
   // The generated copies of the harness: `node .agents/scripts/sync.ts --check` verifies they
   // match their canonical source, which is linted. A nested `AGENTS.md` joins several rules.
@@ -160,16 +151,15 @@ export default tseslint.config([
   ]),
 
   {
-    // Sin `files`, o sea que valen para todo el repo.
+    // No `files`, so these hold for all of the repo.
     //
-    // `reportUnusedDisableDirectives` viene en `warn` por default en ESLint 9, y un warn no
-    // rompe nada: el script pasa a correr con `--max-warnings 0` justamente para que si.
+    // `reportUnusedDisableDirectives` is `warn` by default in ESLint 9, and a warn breaks
+    // nothing: the script runs with `--max-warnings 0` so that it does.
     //
-    // `noInlineConfig` es la contraparte lint del "cero `any`, cero `@ts-ignore`" que el
-    // repo ya cumple de hecho: medido antes de ponerlo, habia CERO `eslint-disable` en
-    // `src/` y en `mcp-server/src/`. Se pone ahora porque ponerlo ahora es gratis. Si
-    // manana hace falta una excepcion legitima, va como override por archivo en este
-    // archivo —que se ve en el diff y se explica— y no como un comentario suelto que no.
+    // `noInlineConfig` is the lint counterpart of "zero `any`, zero `@ts-ignore`". Measured
+    // when it went in: ZERO `eslint-disable` in `src/` and in `mcp-server/src/`, so it cost
+    // nothing. A real exception goes as a per-file override in this file, where the diff
+    // shows it and a comment explains it, and not as a loose comment.
     linterOptions: {
       reportUnusedDisableDirectives: 'error',
       noInlineConfig: true,
@@ -177,13 +167,13 @@ export default tseslint.config([
   },
 
   {
-    // Los `.js` del repo —hoy solo este archivo— no los lintaba NADIE: el unico bloque que
-    // extendia `js.configs.recommended` estaba atado a `**/*.{ts,tsx}`, asi que el archivo
-    // que decide que se verifica era el unico que no se verificaba. Medido con
-    // `--print-config eslint.config.js`: 0 reglas.
+    // The `.js` files of the repo, which today is this file alone. The block that extends
+    // `js.configs.recommended` for TypeScript is tied to `**/*.{ts,tsx}`, so without this
+    // block the file that decides what is verified is the one file that is not verified.
+    // Measured without it, with `--print-config eslint.config.js`: 0 rules.
     //
-    // No necesita `disableTypeChecked` —que es lo que documenta typescript-eslint para este
-    // caso— porque el bloque con tipos de abajo matchea `**/*.{ts,tsx}` y no lo alcanza.
+    // It needs no `disableTypeChecked`, which is what typescript-eslint documents for this
+    // case, because the typed block below matches `**/*.{ts,tsx}` and does not reach it.
     files: ['**/*.js'],
     extends: [js.configs.recommended],
     languageOptions: {
@@ -194,17 +184,17 @@ export default tseslint.config([
   },
 
   {
-    // TypeScript en todo el repo, CON informacion de tipos. `projectService: true` es la
-    // forma que documenta typescript-eslint: cada archivo se typechequea con el tsconfig
-    // que le corresponde —`tsconfig.app.json` para `src/`, `tsconfig.node.json` para
-    // `vite.config.ts`, `mcp-server/tsconfig.json` para el server— sin listarlos aca.
+    // TypeScript in all of the repo, WITH type information. `projectService: true` is the
+    // form typescript-eslint documents: each file is typechecked with the tsconfig that owns
+    // it (`tsconfig.app.json` for `src/`, `tsconfig.node.json` for `vite.config.ts`,
+    // `mcp-server/tsconfig.json` for the server), with no list here.
     //
-    // El costo esta medido y es lo que hace que entre: `recommendedTypeChecked` sobre el
-    // repo entero da 100 hallazgos, y 97 son un solo patron de `node:test` que se apaga con
-    // una opcion (ver `no-floating-promises` abajo). Lo que compra es prospectivo y es el
-    // punto: `no-floating-promises` sobre `audio/` —donde `resume()` y `close()` devuelven
-    // promesas— es el error que ningun test de este repo puede ver, porque el audio no se
-    // testea por su sonido.
+    // The cost is measured, and it is why this is on: `recommendedTypeChecked` on the whole
+    // repo gives 100 findings, and 97 are one pattern of `node:test` that one option turns
+    // off (see `no-floating-promises` below). What it buys is prospective, and that is the
+    // point: `no-floating-promises` on the audio code, where `resume()` and `close()` return
+    // promises, is the error that no test of this repo can see, because audio is not tested
+    // by its sound.
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, tseslint.configs.recommendedTypeChecked],
     languageOptions: {
@@ -216,72 +206,71 @@ export default tseslint.config([
     },
     plugins: { 'import-x': importX },
     settings: {
-      // El resolver por defecto de import-x no conoce `.ts`. Se usa `createNodeResolver` y
-      // no el resolver de TypeScript porque este repo no tiene alias ni `paths`: lo unico
-      // que hay que resolver son rutas relativas con extension explicita, y para eso el
-      // resolver de node alcanza y no arrastra el binario nativo (`unrs-resolver`), cuyo
-      // script de instalacion queda bloqueado por el `allowBuilds` de `pnpm-workspace.yaml`.
+      // The default resolver of import-x does not know `.ts`. `createNodeResolver` is used
+      // and not the TypeScript resolver because this repo has no alias and no `paths`: the
+      // only thing to resolve is a relative path with an explicit extension. The node
+      // resolver is enough for that, and it does not bring the native binary
+      // (`unrs-resolver`), whose install script the `allowBuilds` of `pnpm-workspace.yaml`
+      // blocks.
       'import-x/resolver-next': [importX.createNodeResolver({ extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'] })],
     },
     rules: {
-      // La direccion de dependencia, por ruta. Reemplaza a los cuatro overrides de
-      // `no-restricted-imports` que verificaban lo mismo contando `../`.
+      // The dependency direction, by path.
       //
-      // `basePath` no es opcional aunque tenga default: el default es `process.cwd()`, o sea
-      // que las zonas se resuelven contra **desde donde se corrio eslint** y no contra la
-      // raiz del repo. Medido: el mismo archivo con la misma violacion da 1 error desde la
-      // raiz y **0 corriendo `eslint` desde `src/`**, sin avisar de nada. Es el modo de falla
-      // que este archivo persigue —fallar en verde—, y anclarlo cuesta una linea.
+      // `basePath` is not optional even with a default: the default is `process.cwd()`, so
+      // the zones resolve against **where eslint was run from** and not against the repo
+      // root. Measured: the same file with the same violation gives 1 error from the root
+      // and **0 when `eslint` runs from `src/`**, with no warning. That is the failure mode
+      // this file guards against, failing green, and one line anchors it.
       'import-x/no-restricted-paths': ['error', { basePath: import.meta.dirname, zones: ZONAS }],
 
-      // `import-x/no-cycle` NO esta, y la ausencia es la decision. Se probó y se midió:
-      // encuentra CERO ciclos y cuesta ~15 s sobre un `pnpm lint` que hoy tarda **21,78 s**
-      // —o sea que lo pasaria de 21,78 a ~37, mas de vez y media— porque recorre el grafo
-      // entero por archivo, y `mcp-server/` importa 31 simbolos de `src/`. El comentario
-      // decia «25 segundos» y ese era el lint de otro momento del repo: el numero viejo es
-      // lo que hacia que la decision se leyera como opinable.
+      // `import-x/no-cycle` is NOT here, and its absence is the decision. It was tried and
+      // measured: it finds ZERO cycles and costs ~15 s on a `pnpm lint` that takes
+      // **21.78 s**. So it would take lint from 21.78 s to ~37 s, more than one and a half
+      // times, because it walks the whole graph for each file, and `mcp-server/` imports 31
+      // symbols of `src/`.
       //
       // What it would buy: no zone orders the modules of `src/` any more, so a cycle between
       // two of them passes lint. Run once by hand when the layer zones left
       // (`eslint --rule '{"import-x/no-cycle":"error"}' src mcp-server/src`), it found ZERO
       // cycles. What is checked each time it comes up is the price, against the cycles found.
       //
-      // **Y hay una arista nueva que el spec 048 agrega, en contra:** su hook corre el lint
-      // UNA VEZ POR TURNO sobre la lista de lo que cambio —4,42 s medidos para un archivo,
-      // con presupuesto de menos de 6 s—, y ahi `no-cycle` construye el grafo entero en ese
-      // arranque sin una corrida completa sobre la que amortizarlo. O sea que el sobrecosto
-      // se paga por turno, no una vez por PR.
+      // **One more cost, against it:** the stop hook runs lint ONCE PER TURN on the list of
+      // what changed (4.42 s measured for one file, with a budget of less than 6 s). There
+      // `no-cycle` builds the whole graph on that startup, with no full run to amortize it.
+      // So the extra cost is paid per turn, not once per PR.
       //
-      // Si algun dia se enciende igual, el cambio NO es una linea:
-      // `docs/guides/verification.md` da 23,7 s en paralelo contra 41,2 s en serie, y
-      // `lint` es el nodo largo de ese paralelo, asi que esa medicion deja de ser cierta.
+      // If it is turned on some day, the change is NOT one line: `pnpm verify` measures
+      // 23.7 s in parallel against 41.2 s in series, and `lint` is the long node of that
+      // parallel block, so that measurement stops being true.
 
-      // Los tres tsconfig tienen `verbatimModuleSyntax: true`, o sea que importar un tipo
-      // sin `type` ROMPE EL BUILD en vez de avisar. La regla es autofixable: el error deja
-      // de poder llegar al build.
+      // Every tsconfig has `verbatimModuleSyntax: true`, so a type imported without `type`
+      // BREAKS THE BUILD and gives no warning first. The rule is autofixable: the error
+      // cannot reach the build.
       //
-      // `disallowTypeAnnotations: false` deja pasar `typeof import('./x.ts')`, que es otra
-      // cosa y no la que la regla existe para atrapar. Son dos usos y los dos estan en
-      // tests que reimportan el modulo con `vi.resetModules()` / `vi.doMock`
-      // (`playback/__tests__/route-source.test.ts:28` y
-      // `pieces/__tests__/invariants.test.ts:114`): ahi `typeof import(...)` es la forma
-      // idiomatica de nombrar el tipo de un modulo que el archivo justamente NO quiere
-      // tener importado. Con `verbatimModuleSyntax` las dos formas se borran igual, asi que
-      // reescribirlas cambiaria la intencion sin cambiar el runtime.
+      // `disallowTypeAnnotations: false` lets `typeof import('./x.ts')` through, which is a
+      // different thing from what the rule exists to catch. The uses are in tests that
+      // import the module again with `vi.resetModules()` or `vi.doMock`
+      // (`playback/__tests__/route-source.test.ts` and
+      // `pieces/__tests__/invariants.test.ts`, among others): there `typeof import(...)` is
+      // the idiomatic way to name the type of a module that the file does NOT want
+      // imported. With `verbatimModuleSyntax` both forms are erased the same, so a rewrite
+      // would change the intent and not the runtime.
       '@typescript-eslint/consistent-type-imports': ['error', { disallowTypeAnnotations: false }],
       '@typescript-eslint/no-import-type-side-effects': 'error',
 
-      // `Cell` es `[number, number]` y el repo lo interpola a proposito en mensajes de
-      // falla (`${TODAS[i]} / ${TODAS[j]}`). `allowArray` permite exactamente eso —arrays
-      // cuyos elementos ya son interpolables— y deja parada la parte de la regla que
-      // importa: objetos, `any` y nullish siguen prohibidos. Sin la opcion son 35
-      // hallazgos, 25 de ellos en un solo archivo de tests.
+      // `Cell` is `[number, number]`, and the repo interpolates it on purpose in failure
+      // messages (`${TODAS[i]} / ${TODAS[j]}`). `allowArray` allows exactly that, arrays
+      // whose elements are already interpolable, and keeps the part of the rule that
+      // matters: objects, `any` and nullish stay forbidden. Without the option there are 35
+      // findings, 25 of them in one test file.
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true, allowArray: true }],
 
-      // `node:test` devuelve una promesa que NO hay que esperar: es la forma documentada de
-      // escribir un test con `node --test`, que es lo que corre `mcp-server`. Son los 97
-      // hallazgos de los 100 que da el preset. `allowForKnownSafeCalls` existe para esto y
-      // apunta al paquete, no al nombre: un `test()` de otra procedencia sigue prohibido.
+      // `node:test` returns a promise that must NOT be awaited: it is the documented way to
+      // write a test for `node --test`, which is what `mcp-server` runs. These are 97 of the
+      // 100 findings the preset gives. `allowForKnownSafeCalls` exists for this, and it
+      // points to the package, not to the name: a `test()` from another origin stays
+      // forbidden.
       '@typescript-eslint/no-floating-promises': ['error', {
         allowForKnownSafeCalls: [
           { from: 'package', name: 'test', package: 'node:test' },
@@ -292,36 +281,33 @@ export default tseslint.config([
 
       'no-restricted-syntax': ['error', ...REGLAS_DEL_REPO],
 
-      // La asercion no nula es un `any` chiquito: le dice al compilador que se calle sin
-      // darle un motivo. `CLAUDE.md` la prohibe desde el spec 027 y hasta hoy no la
-      // verificaba nadie, con el resultado esperable — el archivo decia que quedaban DOS
-      // en produccion y son TRES.
+      // The non-null assertion is a small `any`: it tells the compiler to be quiet without
+      // a reason.
       //
-      // La regla se apaga en dos lugares y en ninguno mas, los dos abajo con su motivo.
-      // Ese par de overrides pasa a ser la UNICA fuente del numero: mientras el conteo
-      // vivio en la prosa de `CLAUDE.md` se desincronizo, que es exactamente el modo de
-      // falla que el 030 vino a cerrar para las otras seis reglas.
+      // The rule is off in two places and in no other, both below with their reason. That
+      // pair of overrides is the ONLY source of the number. A count in prose goes out of
+      // sync: it said TWO in production when there were THREE.
       '@typescript-eslint/no-non-null-assertion': 'error',
 
-      // El corolario del umbral 100, que hasta el 032 era prosa. Si una rama parece
-      // inalcanzable la salida es borrarla o volverla alcanzable, nunca pedirle al
-      // proveedor de coverage que la saltee: un umbral con escapes es un umbral mas bajo
-      // sin dueno, que es el argumento con el que el 029 rechazo el 95.
+      // The corollary of the 100 threshold. If a branch looks unreachable, the way out is to
+      // delete it or to make it reachable, never to ask the coverage provider to skip it: a
+      // threshold with escapes is a lower threshold with no owner, which is the argument
+      // against 95.
       //
-      // `location: 'anywhere'` y no el default `start`: los tres terminos aparecen en
-      // medio de una frase, no encabezando el comentario.
+      // `location: 'anywhere'` and not the default `start`: the three terms appear in the
+      // middle of a sentence, not at the head of the comment.
       //
-      // La regla mira TEXTO y no sintaxis, asi que **deletrear un termino para explicar
-      // por que no usarlo lo viola igual**: es el precio de una regla textual y lo pagan
-      // los tres docblocks que lo hacian —`vite.config.ts:155`, `specStatus.ts` y
-      // `specWrite.ts`—, que hoy nombran el mecanismo en vez del termino.
+      // The rule looks at TEXT and not at syntax, so **to spell a term to explain why not to
+      // use it breaks the rule too**. That is the price of a textual rule, and the comment
+      // of `vite.config.ts` on the threshold pays it: it names the mechanism and not the
+      // term.
       //
-      // Los tres terminos viven aca y en ningun comentario del repo, pero ojo con el
-      // motivo: **este archivo no esta bajo la regla**. La regla se declara en el bloque
-      // `**/*.{ts,tsx}` y este es un `.js`, verificado con `--print-config eslint.config.js`
-      // —no aparece—; y aunque lo estuviera, `terms` es un array de strings y no un
-      // comentario. La perifrasis de arriba es por consistencia con los otros tres, no
-      // porque el linter la exija aca.
+      // The three terms live here and in no comment of the repo, but mind the reason: **this
+      // file is not under the rule**. The rule is declared in the `**/*.{ts,tsx}` block and
+      // this is a `.js`: verified with `--print-config eslint.config.js`, where it does not
+      // appear. And if it were, `terms` is an array of strings and not a comment. The
+      // periphrasis above is for consistency with that comment, not because the linter
+      // requires it here.
       'no-warning-comments': ['error', {
         terms: ['v8 ignore', 'c8 ignore', 'istanbul ignore'],
         location: 'anywhere',
@@ -330,34 +316,31 @@ export default tseslint.config([
   },
 
   {
-    // Las TRES aserciones no nulas de produccion, cada una con el motivo por el que el
-    // compilador no puede verlo. Van como override por archivo y no como comentario
-    // suelto porque `noInlineConfig` no admite `eslint-disable`, y porque la regla escrita
-    // ya predice este mecanismo palabra por palabra: «va como override por archivo en
-    // `eslint.config.js` —que se ve en el diff y se explica— y no como un comentario
-    // suelto» (`docs/guides/conventions.md`, y `CLAUDE.md` la primera mitad).
+    // The THREE non-null assertions of production, each with the reason the compiler cannot
+    // see. They go as a per-file override and not as a loose comment because `noInlineConfig`
+    // admits no `eslint-disable`, and because the written rule states this mechanism: "A
+    // real exception goes as a per-file override in `eslint.config.js`, where the diff shows
+    // it and a comment explains it" (`docs/guides/conventions.md`).
     //
-    // Antes de agregar una cuarta, probar el `const`: la que habia en `engine.ts` existia
-    // solo porque TypeScript pierde el estrechamiento al entrar al closure de un
-    // `forEach` cuando la variable es un `let` de modulo, y salio gratis con una `const`
-    // local (spec 027).
+    // Before you add a fourth, try a `const`: TypeScript loses the narrowing inside the
+    // closure of a `forEach` when the variable is a module `let`, and a local `const` keeps
+    // it.
     //
-    // - `main.tsx`         el idiom de Vite sobre un `#root` que el propio `index.html`
-    //                      garantiza.
-    // - `invariants.ts`    el `queue.shift()!` de un BFS, dentro de un `while` que ya
-    //                      garantiza la cola no vacia.
-    // - `Board.tsx`        el ancestro `[role="grid"]` existe por construccion: el
-    //                      handler esta en un descendiente de esa grilla. El `if`
-    //                      alternativo seria una rama inalcanzable, y el umbral 100 no
-    //                      deja cubrirla.
+    // - `main.tsx`         the Vite idiom on a `#root` that `index.html` itself guarantees.
+    // - `invariants.ts`    the `queue.shift()!` of a BFS, inside a `while` that already
+    //                      guarantees a non-empty queue.
+    // - `Board.tsx`        the `[role="grid"]` ancestor exists by construction: the handler
+    //                      lives in a descendant of that grid. The alternative `if` is an
+    //                      unreachable branch, and the 100 threshold does not let it be
+    //                      covered.
     files: ['src/main.tsx', 'src/pieces/invariants.ts', 'src/board-editing/Board.tsx'],
     rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
   },
 
   {
-    // En un test el `!` sobre un `find` o un `querySelector` que el propio test acaba de
-    // fijar es la forma de que el test **falle** si el nodo no esta, que es justo lo que
-    // se quiere. `CLAUDE.md` ya las declara deliberadas.
+    // In a test, the `!` on a `find` or a `querySelector` that the test itself just set up
+    // makes the test **fail** if the node is missing, which is what is wanted.
+    // `docs/guides/conventions.md` declares them deliberate.
     files: [
       'src/**/__tests__/**/*.{ts,tsx}', '__tests__/*.ts', 'docs/__tests__/*.ts',
       'specs/__tests__/*.ts', '.claude/scripts/__tests__/*.ts', '.agents/scripts/__tests__/*.ts',
@@ -367,20 +350,19 @@ export default tseslint.config([
   },
 
   {
-    // Los globals por entorno. Antes `globals.browser` se aplicaba a `**/*.{ts,tsx}`, o sea
-    // tambien a `mcp-server/` y a `vite.config.ts`: verificado con `--print-config`,
-    // `mcp-server/src/index.ts` recibia `window`, `document` y `AudioContext` definidos y
-    // `process` NO. No rompia porque `no-undef` esta apagado para TypeScript —lo apaga el
-    // preset de tseslint, y con razon: eso lo verifica el compilador—, pero era sorpresa
-    // guardada y contradecia la regla que este mismo archivo escribe tres veces.
+    // The globals by environment. `globals.browser` on `**/*.{ts,tsx}` would also reach
+    // `mcp-server/` and `vite.config.ts`: verified with `--print-config`,
+    // `mcp-server/src/index.ts` then gets `window`, `document` and `AudioContext` defined,
+    // and NOT `process`. That breaks nothing, because `no-undef` is off for TypeScript (the
+    // tseslint preset turns it off, with reason: the compiler verifies that), but it is a
+    // surprise in store.
     files: ['src/**/*.{ts,tsx}'],
     languageOptions: { globals: globals.browser },
   },
   {
-    // Los gates que no son de la app van aca y no arriba, y es el arreglo del mismo
-    // error con otra cara: leen el disco con `node:fs` y `node:url`, lanzan `gh`, y
-    // ninguno toca un DOM. Mientras vivieron en `src/` caian en `globals.browser`, o
-    // sea que recibian `window` y `document` definidos y `process` NO.
+    // The gates that are not of the app go here and not above: they read the disk with
+    // `node:fs` and `node:url`, they launch `gh`, and none touches a DOM. Under `src/` they
+    // would get `globals.browser`: `window` and `document` defined, and NOT `process`.
     files: [
       'mcp-server/**/*.ts', '__tests__/*.ts', 'docs/__tests__/*.ts',
       'specs/__tests__/*.ts', '.claude/scripts/**/*.ts', '.agents/scripts/**/*.ts', '.spec-anchored/**/*.ts', '*.config.ts',
@@ -392,74 +374,73 @@ export default tseslint.config([
     // React only where React is: the hook rules read the `.tsx` files and the `use-*.ts`
     // hooks, which are the only files with hooks.
     //
-    // La clave es `configs.flat[...]` y no `configs[...]`: en el plugin 7.x el export de
-    // arriba volvio a ser el de eslintrc —`plugins` como array de strings— y flat config lo
-    // rechaza con un error de arranque. El preset pasa de 2 reglas a 17: ademas de
-    // `rules-of-hooks` y `exhaustive-deps` entran las del React Compiler, que segun react.dev
-    // salen por este plugin y no por uno separado, y sirven aunque el compilador no se
-    // adopte. `set-state-in-effect` es literalmente el patron que el spec 022 concentro en
-    // `use-engine.ts`; `immutability` y `purity` son la version React de una funcion pura.
+    // The key is `configs.flat[...]` and not `configs[...]`: in the 7.x plugin the top
+    // export is the eslintrc one, with `plugins` as an array of strings, and flat config
+    // rejects it with a startup error. The preset has 17 rules: besides `rules-of-hooks` and
+    // `exhaustive-deps` it brings those of the React Compiler, which react.dev says ship in
+    // this plugin and not in a separate one. They are useful even if the compiler is not
+    // adopted. `set-state-in-effect` is the pattern that `use-engine.ts` concentrates;
+    // `immutability` and `purity` are the React version of a pure function.
     files: ['src/**/*.tsx', 'src/**/use-*.ts'],
     extends: [reactHooks.configs.flat['recommended-latest']],
   },
   {
-    // `only-export-components` solo tiene sentido donde puede haber un componente. Y lo
-    // mismo `jsx-a11y`, que lee JSX: solo un `.tsx` tiene JSX.
+    // `only-export-components` makes sense only where a component can be. The same holds
+    // for `jsx-a11y`, which reads JSX: only a `.tsx` has JSX.
     //
-    // **`strict` y no `recommended`**, con los dos numeros medidos a la vista: sobre este
-    // codigo `recommended` da UN hallazgo y `strict` da DOS, y el segundo es en el mismo
-    // archivo y sobre una construccion que ya queda exenta abajo. O sea que `strict` no
-    // cuesta nada mas hoy y cubre mas de aca en adelante. La diferencia real entre las dos
-    // configs no es una lista de reglas distinta —son practicamente las mismas— sino que
-    // `recommended` viene con excepciones cableadas: le acota los handlers a
-    // `no-static-element-interactions` (por eso `onContextMenu` se le escapa), le pasa un
-    // mapa de `tag: [roles]` tolerado a las dos de `element-to-role`, y deja
-    // `no-noninteractive-tabindex` con `allowExpressionValues`.
+    // **`strict` and not `recommended`**, with the two measured numbers: on this code
+    // `recommended` gives ONE finding and `strict` gives TWO, and the second is in the same
+    // file, on a construction that the block below exempts. So `strict` costs nothing more
+    // today and covers more from here on. The real difference between the two configs is not
+    // the list of rules, which is almost the same. `recommended` comes with wired
+    // exceptions: it limits the handlers of `no-static-element-interactions` (so
+    // `onContextMenu` escapes it), it gives the two `element-to-role` rules a tolerated map
+    // of `tag: [roles]`, and it leaves `no-noninteractive-tabindex` with
+    // `allowExpressionValues`.
     //
-    // Este plugin **no necesita informacion de tipos**: lee el JSX y nada mas, asi que no
-    // arrastra el costo del type-aware linting.
+    // This plugin **needs no type information**: it reads the JSX and nothing else, so it
+    // does not bring the cost of type-aware linting.
     //
-    // Lo que NO cubre, y por eso este spec trae ademas un gate de navegador: ninguna de sus
-    // configs exige `aria-label` en un control solo-icono ni `aria-pressed` en uno que
-    // alterna. No puede distinguir un glifo de un texto ni saber cual boton es un toggle —
-    // eso solo lo contesta el arbol de accesibilidad renderizado
+    // What it does NOT cover, which is why a browser gate exists too: none of its configs
+    // requires `aria-label` on an icon-only control or `aria-pressed` on a control that
+    // toggles. It cannot tell a glyph from a text, or know which button is a toggle. Only
+    // the rendered accessibility tree answers that
     // (`src/__tests__/arbol-accesible.browser.test.tsx`).
     files: ['src/**/*.tsx'],
     extends: [reactRefresh.configs.vite, jsxA11y.flatConfigs.strict],
   },
   {
-    // Los DOS hallazgos de `jsx-a11y` sobre el repo, con **un motivo por regla** porque son
-    // dos construcciones distintas del mismo archivo y no una. Van como override por archivo
-    // y con las reglas nombradas —no por glob ni apagando la categoria— por el mismo
-    // mecanismo con el que se declaran las tres aserciones no nulas de arriba: `noInlineConfig`
-    // no admite `eslint-disable`, asi que la excepcion se ve en el diff y se explica.
+    // The TWO findings of `jsx-a11y` on the repo, with **one reason per rule**, because they
+    // are two different constructions of the same file. They go as a per-file override with
+    // the rules named, not by glob and not with the category off, by the mechanism that
+    // declares the three non-null assertions above: `noInlineConfig` admits no
+    // `eslint-disable`, so the diff shows the exception and a comment explains it.
     //
-    // Bloque propio y no una linea mas en el de `src/main.tsx` / `invariants.ts` /
-    // `Board.tsx`: aquel nombra el mismo archivo pero explica otra cosa, y juntarlos haria
-    // que un `Board.tsx` que dejara de necesitar una de las dos exenciones se lleve puesta
-    // la otra.
+    // It is its own block and not one more line in the block of `src/main.tsx`,
+    // `invariants.ts` and `Board.tsx`. That block names the same file but explains another
+    // thing. In one block, a `Board.tsx` that stops needing one of the two exemptions would
+    // take the other with it.
     //
-    // **(a) `interactive-supports-focus`** — `Board.tsx:331`, el `<div role="grid">`. La
-    // regla pide que un elemento con rol interactivo sea focusable, y esta grilla **no lo es
-    // a proposito**: implementa *roving tabindex*, o sea que la celda del cursor lleva
-    // `tabIndex={0}` y las otras `-1` (`Board.tsx:184`), y el foco se mueve con las flechas.
-    // Un contenedor focusable MAS celdas focusables daria 61 paradas de tabulacion donde el
-    // patron correcto pide una, y es literalmente lo que `.agents/rules/ui.md` documenta:
-    // «una region compuesta es UNA parada de tabulacion, y adentro se mueve con las flechas».
+    // **(a) `interactive-supports-focus`**: the `<div role="grid">` of `Board.tsx`. The rule
+    // asks that an element with an interactive role be focusable, and this grid **is not, on
+    // purpose**. It implements *roving tabindex*: the cell of the cursor has `tabIndex={0}`
+    // and the others `-1`, and the arrows move the focus. A focusable container PLUS
+    // focusable cells would give 61 tab stops on a board of 60 cells, where the correct
+    // pattern asks for one. It is what `.agents/rules/ui.md` documents: a composite region
+    // is ONE tab stop, and the arrows move inside it.
     //
-    // **(b) `no-static-element-interactions`** — `Board.tsx:311`, el envoltorio posicionado
-    // (`<div ref={boardRef} className="relative" onContextMenu={...}>`), que NO es la
-    // grilla. La regla pide un handler de teclado hermano en el mismo nodo; aca la
-    // contraparte de teclado existe pero vive en el listener global de `use-input.ts`, y esa
-    // asimetria esta medida y escrita en `Board.tsx:300`–`:310`: react-dom registra
-    // `touchstart`, `touchmove` y `wheel` como PASIVOS, asi que la rueda tiene que ir por
-    // `addEventListener(..., { passive: false })` desde el hook. `contextmenu` no esta entre
-    // esos tres y por eso si puede ir por prop — pero su hermano de teclado quedo del otro
-    // lado igual.
+    // **(b) `no-static-element-interactions`**: the positioned wrapper of `Board.tsx`
+    // (`<div ref={boardRef} className="relative" onContextMenu={...}>`), which is NOT the
+    // grid. The rule asks for a sibling keyboard handler on the same node. Here the keyboard
+    // counterpart exists, but it lives in the global listener of `use-input.ts`. That
+    // asymmetry is measured and written in `Board.tsx`, above the wrapper: react-dom
+    // registers `touchstart`, `touchmove` and `wheel` as PASSIVE, so the wheel must go
+    // through `addEventListener(..., { passive: false })` from the hook. `contextmenu` is
+    // not among those three, so it can go through a prop, but its keyboard sibling stays on
+    // the other side.
     //
-    // Las dos son la regla generica chocando contra una decision que el repo tomo, midio y
-    // escribio. Si alguna de las dos construcciones cambia, la exencion deja de aplicar por
-    // su propio argumento.
+    // Both are the generic rule against a decision that the repo took, measured and wrote.
+    // If one of the two constructions changes, its own argument stops the exemption.
     files: ['src/board-editing/Board.tsx'],
     rules: {
       'jsx-a11y/interactive-supports-focus': 'off',
@@ -468,32 +449,29 @@ export default tseslint.config([
   },
 
   {
-    // Los paquetes prohibidos. Es lo unico que quedo en `no-restricted-imports`: un paquete
-    // de npm no tiene ruta en el repo, asi que las zonas de `import-x` no lo pueden ver.
+    // The forbidden packages. `no-restricted-imports` holds only this: an npm package has no
+    // path in the repo, so the zones of `import-x` cannot see it.
     //
-    // Se usa la variante de typescript-eslint y no la core porque tambien ve los
-    // `import type`, que son justo los que un refactor descuidado usaria para colarse.
+    // The typescript-eslint variant is used and not the core one because it also sees the
+    // `import type`, which is what a careless refactor would use to get in.
     files: ['src/**/*.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-restricted-imports': ['error', { patterns: [GRUPO_ESTADO] }],
     },
   },
   {
-    // La regla de los efectos, solo para la capa que puede tener un componente. Repite
-    // `REGLAS_DEL_REPO` porque el override REEMPLAZA `no-restricted-syntax`: sin eso, este
-    // bloque le apagaria a todo `.tsx` las otras cuatro.
+    // The effects rule, only where a component can be. It repeats `REGLAS_DEL_REPO` because
+    // the override REPLACES `no-restricted-syntax`: without that, this block would turn the
+    // other four off for every `.tsx`.
     //
-    // **`__tests__/` queda afuera por decision escrita, no por omision** (issue #147). El
-    // glob `src/**/*.tsx` tambien matchea los **once** `.tsx` de test que hay hoy —doce
-    // cuando aterrice el spec 050, que agrega `src/__tests__/arbol-accesible.browser.test.tsx`—
-    // y ahi entrarian en verde: ninguno declara un efecto, sus tres apariciones de los dos
-    // nombres (`Playhead.browser.test.tsx:17`, `use-grid.browser.test.tsx:18`,
-    // `App.browser.test.tsx:19`) son comentarios. O sea que
-    // el rojo no llegaria nunca y la decision se tomaria sola: un harness futuro que monte un
-    // componente con efecto quedaria bloqueado por una regla que nunca decidio aplicarle. La
-    // prohibicion es sobre la capa de componentes, no sobre lo que la monta, asi que los
-    // directorios de test se nombran — igual que hacen los dos bloques vecinos que ya los
-    // distinguen. Los tests siguen bajo `REGLAS_DEL_REPO` por el bloque general.
+    // **`__tests__/` stays outside by a written decision, not by omission** (issue #147).
+    // The glob `src/**/*.tsx` also matches the **twelve** `.tsx` test files, and they would
+    // pass green there: none declares an effect, and where they name the two hooks it is in
+    // a comment. So the red would never come and the decision would take itself: a future
+    // harness that mounts a component with an effect would be blocked by a rule that never
+    // decided to apply to it. The ban is on the components, not on what mounts them, so the
+    // test directories are named, as the two neighbor blocks that tell them apart do. The
+    // tests stay under `REGLAS_DEL_REPO` by the general block.
     files: ['src/**/*.tsx'],
     ignores: ['src/**/__tests__/**/*.tsx'],
     rules: {
@@ -501,25 +479,23 @@ export default tseslint.config([
     },
   },
   {
-    // Los DOS `.tsx` que montan un efecto, nombrados uno por uno y no por glob. El
-    // precedente es el de las tres aserciones no nulas de arriba, y el motivo de que sea por
-    // archivo es que un glob crece solo: `src/*.tsx` eximiria a todo componente
-    // futuro sin que nadie lo decida.
+    // The TWO `.tsx` files that mount an effect, named one by one and not by glob. The
+    // precedent is the three non-null assertions above. It is per file because a glob grows
+    // by itself: `src/*.tsx` would exempt every future component with no decision.
     //
-    // Los dos cumplen el motivo de la regla y violan su letra, que es lo que los hace
-    // excepcion y no tolerancia. Son de UNA LINEA y no declaran logica propia:
+    // Both meet the reason of the rule and break its letter, which makes them an exception
+    // and not a tolerance. Each is ONE LINE and declares no logic of its own:
     //
     //     useEffect(() => iniciarCabeza(capaRef.current, ref.current, resalteRef.current), [])
     //     useEffect(() => iniciarEspectro(ref.current), [])
     //
-    // `iniciarCabeza` e `iniciarEspectro` viven en `playhead-loop.ts` y `spectrum-loop.ts`,
-    // fuera del `.tsx`, y si estan testeados —`Playhead.browser.test.tsx` lo dice en su
-    // docblock: «mientras estuvo adentro del `useEffect` de un `.tsx` no se podia exportar»—.
-    // **Si manana uno de ellos crece, la exencion deja de aplicar por su propio argumento**, y
-    // el linter no mide lineas: por eso el motivo esta escrito aca y no solo en el spec.
+    // `iniciarCabeza` and `iniciarEspectro` live in `playhead-loop.ts` and `spectrum-loop.ts`,
+    // outside the `.tsx`, and they are tested. **If one of those lines grows, its own
+    // argument stops the exemption**, and the linter does not count lines: so the reason is
+    // written here.
     //
-    // Repite `REGLAS_DEL_REPO` por el mismo trap de flat config, y omite `REGLA_EFECTOS`:
-    // eso es exactamente lo que exime.
+    // It repeats `REGLAS_DEL_REPO` for the same flat config trap, and it omits
+    // `REGLA_EFECTOS`: that is exactly what it exempts.
     files: ['src/playback/Playhead.tsx', 'src/spectrum/Spectrum.tsx'],
     rules: {
       'no-restricted-syntax': ['error', ...REGLAS_DEL_REPO],
@@ -527,13 +503,13 @@ export default tseslint.config([
   },
 
   {
-    // Fallar en verde es el bug que este repo ya se comio dos veces —el `--filter "{.}"` que
-    // reportaba exito sin correr nada, y el `$` del regex que arrancaba un segundo vitest— y
-    // un `.only` olvidado es el mismo bug con otra cara: deja pasar la suite entera sin que
-    // nada avise. Medido antes de ponerlo: cero `.only` y cero `.skip` en los 16 archivos.
+    // Failing green is the bug this repo has had twice: the `--filter "{.}"` without which
+    // the script reports success with nothing run, and the `$` of the regex without which a
+    // second vitest starts. A forgotten `.only` is the same bug: it lets the whole suite
+    // pass with no warning. Measured when the rule went in: zero `.only` and zero `.skip`.
     //
-    // `fixable: false` es deliberado: no se quiere que `--fix` borre el `.only` en silencio,
-    // se quiere que falle.
+    // `fixable: false` is deliberate: `--fix` must not delete the `.only` in silence, it
+    // must fail.
     files: [
       'src/**/__tests__/**/*.{ts,tsx}', '__tests__/*.ts', 'docs/__tests__/*.ts',
       'specs/__tests__/*.ts', '.claude/scripts/__tests__/*.ts',
@@ -544,58 +520,57 @@ export default tseslint.config([
       'vitest/no-focused-tests': ['error', { fixable: false }],
       'vitest/no-disabled-tests': 'error',
       'vitest/expect-expect': 'error',
-      // `maxArgs: 2` porque Vitest —a diferencia de Jest— acepta un mensaje como segundo
-      // argumento (`expect(x, 'por que')`), y este repo lo usa en 24 aserciones. Con el
-      // default de la regla las 24 fallaban por una diferencia de API, no por un problema.
+      // `maxArgs: 2` because Vitest, unlike Jest, takes a message as the second argument
+      // (`expect(x, 'why')`), and this repo uses it. Measured: with the default of the rule,
+      // 24 assertions failed for an API difference, not for a problem.
       'vitest/valid-expect': ['error', { maxArgs: 2 }],
       'vitest/no-identical-title': 'error',
     },
   },
 
   {
-    // El mismo "fallar en verde", para el otro runner. `mcp-server/` corre con `node --test`
-    // y `@vitest/eslint-plugin` no lo mira, asi que sus 85 tests quedaban afuera de la regla
-    // que `CLAUDE.md` escribe para todo el repo.
+    // The same "failing green", for the other runner. `mcp-server/` runs with `node --test`
+    // and `@vitest/eslint-plugin` does not look at it, so without this block its tests are
+    // outside the rule that `AGENTS.md` writes for all of the repo.
     //
-    // Sin esto un `.skip` ahi fallaba igual, pero **por accidente**: lo cazaba
-    // `no-floating-promises`, porque `allowForKnownSafeCalls` nombra `test`/`describe`/`it`
-    // y no sus miembros. O sea que el mensaje hablaba de promesas sin esperar y no del
-    // motivo, y bastaba con un `void` para silenciarlo sin que nada dijera nada.
+    // Without this a `.skip` there fails too, but **by accident**: `no-floating-promises`
+    // catches it, because `allowForKnownSafeCalls` names `test`/`describe`/`it` and not
+    // their members. So the message talks about unawaited promises and not about the reason,
+    // and a `void` silences it with no warning.
     //
-    // Repite `REGLAS_DEL_REPO` porque `no-restricted-syntax` se REEMPLAZA entre overrides:
-    // es el mismo trap de flat config que el resto del archivo.
+    // It repeats `REGLAS_DEL_REPO` because `no-restricted-syntax` is REPLACED between
+    // overrides: the same flat config trap as in the rest of the file.
     //
-    // El test sin una sola asercion no tiene equivalente barato con `node:test` —no hay un
-    // `expect` que contar— y queda afuera a proposito; `docs/guides/conventions.md` lo dice
-    // asi, en `## Tests`. Vivia en `CLAUDE.md` hasta que el 032 lo recorto y lo mudo ahi.
+    // The test without an assertion has no cheap equivalent with `node:test`, which has no
+    // `expect` to count, and it stays outside on purpose. `docs/guides/conventions.md` says
+    // so.
     files: ['mcp-server/**/__tests__/**/*.ts'],
     rules: {
       'no-restricted-syntax': ['error', ...REGLAS_DEL_REPO, {
         selector: 'CallExpression[callee.object.name=/^(test|it|describe|suite)$/][callee.property.name=/^(only|skip)$/]',
-        message: 'Nada de .only ni .skip: dejan pasar la suite en verde. Arreglar el test o borrarlo.',
+        message: 'No .only and no .skip: they let the suite pass green. Fix the test or delete it.',
       }],
     },
   },
 
   {
-    // ## Las dos reglas locales del spec 051
+    // ## The two local rules
     //
-    // Son la unica convencion de `conventions.md` que seguia siendo prosa despues del 030
-    // y del 049, y la que quedaba tenia el motivo medido de siempre: una regla escrita y
-    // no verificada esta desincronizada la mitad de las veces. Viven en `eslint-rules/`
-    // —portadas de otro repo del mismo dueno, pero NO copiadas: verbatim daban 1007
-    // hallazgos en 92 de 93 archivos— y el porque de cada chequeo que entro y de cada uno
-    // que se rechazo esta escrito arriba de su codigo.
+    // They check the comment conventions. A rule that is written and not verified is out of
+    // sync half of the time. They live in `eslint-rules/`. They are ported from another repo
+    // of the same owner, but NOT copied: verbatim they gave 1007 findings in 92 of 93 files.
+    // The reason for each check that went in, and for each one that was rejected, is written
+    // above its code.
     //
-    // El criterio que ordena las dos: **exactitud, no longitud**. Ninguna mide cuanto dice
-    // un comentario; las dos miden si lo que dice sigue siendo cierto.
+    // The criterion that orders both: **accuracy, not length**. Neither measures how much a
+    // comment says. Both measure if what it says is still true.
     //
-    // Se declaran como plugin inline y no como paquete: son dos archivos de este repo y
-    // empaquetarlos pediria un `package.json` y una version para algo que nunca sale de
-    // aca. El prefijo `local/` es lo que las distingue en la salida del linter.
+    // They are declared as an inline plugin and not as a package: they are files of this
+    // repo, and a package would ask for a `package.json` and a version for a thing that
+    // never leaves this repo. The `local/` prefix tells them apart in the linter output.
     //
-    // Los dos arboles y no `**/*.{ts,tsx}`: `eslint-rules/` se lintea a si misma —seria un
-    // ciclo con el arranque de ESLint— y de `specs/[0-9]*/` no sale codigo.
+    // The two trees and not `**/*.{ts,tsx}`: `eslint-rules/` would lint itself, which is a
+    // cycle with the startup of ESLint.
     files: ['src/**/*.{ts,tsx}', 'mcp-server/src/**/*.ts'],
     plugins: { local: { rules: { 'comment-shape': commentShape, 'comment-anchor': commentAnchor } } },
     rules: {
@@ -605,32 +580,32 @@ export default tseslint.config([
   },
 
   {
-    // Todo `.md` del repo: la documentacion, las reglas, los skills y los specs por
-    // capacidad. Preset completo: cada uno se mantiene al dia, asi que puede cumplirlo.
+    // Every `.md` of the repo: the documentation, the rules, the skills and the specs per
+    // capability. The whole preset: each file is kept up to date, so it can meet it.
     //
-    // **El `extends` va con el OBJETO y no con el string `'markdown/recommended'`**, y no
-    // es preferencia: este archivo se arma con `tseslint.config()`, que tira ante un string
-    // ahi —«This is a feature of eslint's defineConfig() helper and is not supported by
-    // typescript-eslint»—. O sea que la forma que documenta `@eslint/markdown`, que asume
-    // `defineConfig`, no falla al lintear un `.md`: falla al CARGAR la config, y se cae
-    // `pnpm lint` entero.
+    // **`extends` takes the OBJECT and not the string `'markdown/recommended'`**, and it is
+    // not a preference: this file is built with `tseslint.config()`, which throws on a
+    // string there ("This is a feature of eslint's defineConfig() helper and is not
+    // supported by typescript-eslint"). So the form that `@eslint/markdown` documents, which
+    // assumes `defineConfig`, does not fail when it lints a `.md`: it fails when the config
+    // LOADS, and all of `pnpm lint` goes down.
     files: ['**/*.md'],
     plugins: { markdown },
     language: 'markdown/gfm',
     languageOptions: {
-      // Sin esto el `---` del frontmatter se lee como contenido y los `name:` y
-      // `description:` de adentro salen como encabezados. Medido: 22 falsos positivos, y
-      // los 22 son comentarios YAML de los archivos de `.claude/`.
+      // Without this the `---` of the frontmatter reads as content, and the `name:` and
+      // `description:` inside come out as headings. Measured: 22 false positives, and all
+      // 22 are YAML comments of the files of `.claude/`.
       frontmatter: 'yaml',
     },
     extends: [markdown.configs.recommended],
     rules: {
-      // Apagada porque **arreglar lo que marca lo rompe de verdad**. Su slugger no coincide con el de GitHub sobre un encabezado
-      // con backticks y guion bajo: un enlace a `#find_symbol`, que en GitHub resuelve, sale
-      // roto.
-      // Lo que si se verifica —enlaces y anclas, con el slugger correcto— es
-      // `docs/__tests__/enlaces-resueltos.test.ts`, que ademas cubre los enlaces a OTRO
-      // archivo, que esta regla no mira.
+      // Off because **to fix what it marks breaks the link for real**. Its slugger does not
+      // match the one of GitHub on a heading with backticks and an underscore: a link to the
+      // anchor `#find_symbol`, which resolves on GitHub, comes out broken.
+      // What is verified, links and anchors with the correct slugger, is
+      // `docs/__tests__/enlaces-resueltos.test.ts`, which also covers the links to ANOTHER
+      // file, which this rule does not look at.
       'markdown/no-missing-link-fragments': 'off',
     },
   },

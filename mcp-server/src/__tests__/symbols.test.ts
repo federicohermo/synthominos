@@ -4,23 +4,23 @@ import { parseModule, findSymbol, outline } from '../symbols.ts';
 import type { CodeIndex } from '../symbols.ts';
 
 /**
- * Sobre strings fijos y NO sobre los archivos del repo: si estos tests leyeran
- * `src/`, agregar un export rompería el build.
+ * On fixed strings and NOT on the files of the repo: if these tests read `src/`, a new
+ * export would break the build.
  */
 
 const MUSIC = `import { CHROMATIC as NOTAS } from './constants/music.constants.ts';
 import { z } from 'zod';
 
 /**
- * Las cinco notas del arpegio. La rotación elige la fórmula de escala.
+ * The five notes of the arpeggio. The rotation selects the scale formula.
  *
- * El retrógrado NO se aplica acá.
+ * The retrograde is NOT applied here.
  */
 export function notesForRotation(basePc: number, octave: number, rot: number): number[] {
   return [basePc, octave, rot];
 }
 
-/** Nombre MIDI. */
+/** MIDI name. */
 export function midiName(m: number): string {
   return NOTAS[m] + z;
 }
@@ -29,7 +29,7 @@ function noExportada(): void {}
 
 export const DEFAULT_OCTAVE = 4;
 
-/** MIDI a Hz. */
+/** MIDI to Hz. */
 export const midiToHz = (m: number): number => 440 * m;
 
 export interface Nota { midi: number }
@@ -38,15 +38,15 @@ export type Escala = 'mayor' | 'menor';
 `;
 
 /**
- * Un componente con la convencion de los `.tsx` de este repo: el bloque que lo
- * describe va arriba y lo sigue `interface Props`, que no se exporta.
+ * A component with the convention of the `.tsx` files of this repo: the block that
+ * describes it is at the top, and `interface Props`, which is not exported, follows it.
  */
 const BOARD = `import { notesForRotation } from '../domain/music.ts';
 
 /**
- * Panel central: la grilla del tablero.
+ * Central panel: the grid of the board.
  *
- * Presentacional: sin estado, sin efectos.
+ * Presentational: no state, no effects.
  */
 
 interface Props { placed: number[] }
@@ -64,25 +64,25 @@ import Tablero from './components/Board.tsx';
 const INVARIANTS = `import { notesForRotation, midiName } from './music.ts';
 `;
 
-/** Solo importa del homonimo: no es usuario de `domain/music.ts`. */
+/** It imports only from the module of the same name: it is not a user of `domain/music.ts`. */
 const FAKE_USER = `import { notesForRotation } from './fake.ts';
 `;
 
 const TEST_FILE = `import { notesForRotation } from '../music.ts';
 
-/** Helper solo de tests: no es superficie de src/. */
+/** Helper for tests only: it is not surface of src/. */
 export function peakNear(x: number): number {
   return x;
 }
 `;
 
-/** Una tool del server: aporta arista al grafo, y sus exports NO van al índice. */
+/** A tool of the server: it adds an edge to the graph, and its exports do NOT go into the index. */
 const TOOL = `import { notesForRotation } from '../../../src/domain/music.ts';
 
 export const describePiece = defineTool({});
 `;
 
-/** Un índice armado a mano, del mismo modo que lo arma `readIndex`. */
+/** An index built by hand, in the same way `readIndex` builds it. */
 function indexOf(
   files: Record<string, string>,
   soloGrafo: Record<string, string> = {},
@@ -114,7 +114,7 @@ const INDEX = indexOf(
 );
 
 describe('parseModule', () => {
-  test('saca las funciones exportadas con firma sin cuerpo y la primera frase del doc', () => {
+  test('gets the exported functions with a signature without body and the first sentence of the doc', () => {
     const { exports } = parseModule(MUSIC, 'src/domain/music.ts');
     const n = exports.find(e => e.name === 'notesForRotation');
 
@@ -122,10 +122,10 @@ describe('parseModule', () => {
     assert.equal(n?.file, 'src/domain/music.ts');
     assert.equal(n?.line, 9);
     assert.equal(n?.signature, 'export function notesForRotation(basePc: number, octave: number, rot: number): number[]');
-    assert.equal(n?.doc, 'Las cinco notas del arpegio.');
+    assert.equal(n?.doc, 'The five notes of the arpeggio.');
   });
 
-  test('reconoce const, interface y type, y deja afuera lo no exportado', () => {
+  test('recognizes const, interface and type, and leaves out what is not exported', () => {
     const { exports } = parseModule(MUSIC, 'src/domain/music.ts');
     const kinds = new Map(exports.map(e => [e.name, e.kind]));
 
@@ -135,7 +135,7 @@ describe('parseModule', () => {
     assert.equal(kinds.has('noExportada'), false);
   });
 
-  test('resuelve el specifier relativo a ruta del repo y deja los paquetes en null', () => {
+  test('resolves the relative specifier to a repo path and leaves the packages as null', () => {
     const { imports } = parseModule(MUSIC, 'src/domain/music.ts');
 
     const local = imports.find(i => i.from.startsWith('.'));
@@ -146,32 +146,32 @@ describe('parseModule', () => {
   });
 
   /**
-   * `{ CHROMATIC as NOTAS }` importa a `CHROMATIC`: el segundo nombre es solo como
-   * se llama del lado de acá.
+   * `{ CHROMATIC as NOTAS }` imports `CHROMATIC`: the second name is only its name on
+   * this side.
    *
-   * Guardando el local, `find_symbol("CHROMATIC")` no lista al archivo que lo usa, y
-   * el fallo es mudo.
+   * With the local name stored, `find_symbol("CHROMATIC")` does not list the file that
+   * uses it, and the failure is silent.
    */
-  test('un import con alias registra el nombre exportado, no el local', () => {
+  test('an import with an alias records the exported name, not the local one', () => {
     const { imports } = parseModule(MUSIC, 'src/domain/music.ts');
     const local = imports.find(i => i.from.startsWith('.'));
 
     assert.deepEqual(local?.names, ['CHROMATIC']);
   });
 
-  /** Los seis `export default` de `src/` son `App` y los cinco componentes. */
-  test('marca el binding por defecto, que no viaja en names', () => {
+  /** Each `export default` of `src/` is `App` or a component. */
+  test('marks the default binding, which does not travel in names', () => {
     const { imports } = parseModule(APP, 'src/App.tsx');
     const board = imports.find(i => i.from.endsWith('Board.tsx'));
 
     assert.equal(board?.porDefecto, true);
-    assert.deepEqual(board?.names, [], 'el default no tiene nombre del lado del export');
+    assert.deepEqual(board?.names, [], 'the default has no name on the export side');
 
     const named = imports.find(i => i.from === './domain/music.ts');
     assert.equal(named?.porDefecto, false);
   });
 
-  test('un export default queda marcado como tal', () => {
+  test('an export default is marked as such', () => {
     const { exports } = parseModule(BOARD, 'src/components/Board.tsx');
     const b = exports.find(e => e.name === 'Board');
 
@@ -180,27 +180,27 @@ describe('parseModule', () => {
   });
 
   /**
-   * La convención de los `.tsx`: el bloque va antes de `interface Props`, que no se
-   * exporta.
+   * The convention of the `.tsx` files: the block is before `interface Props`, which
+   * is not exported.
    *
-   * Así que TypeScript se lo adjudica a ella y el componente queda con `doc: null` —
-   * los cinco, o sea toda la capa de UI.
+   * So TypeScript attaches it to the interface and the component has `doc: null`. That
+   * is every component, the whole UI layer.
    */
-  test('el default hereda el doc del archivo cuando no tiene uno pegado', () => {
+  test('the default inherits the doc of the file when it has none attached', () => {
     const { exports } = parseModule(BOARD, 'src/components/Board.tsx');
     const b = exports.find(e => e.name === 'Board');
 
-    assert.equal(b?.doc, 'Panel central: la grilla del tablero.');
+    assert.equal(b?.doc, 'Central panel: the grid of the board.');
   });
 
   /**
-   * En `.ts` `<T>` abre un genérico; en TSX abre una etiqueta JSX que nunca cierra y
-   * **se come el resto del archivo**.
+   * In `.ts` a `<T>` opens a generic. In TSX it opens a JSX tag that never closes and
+   * **eats the rest of the file**.
    *
-   * Medido: con `ScriptKind.TSX` fijo este módulo aporta `id` y pierde `OTRO`, sin
-   * ningún error. Por eso el kind sale de la extensión y no es una constante.
+   * Measured: with a fixed `ScriptKind.TSX` this module gives `id` and loses `OTRO`,
+   * with no error. So the kind comes from the extension and is not a constant.
    */
-  test('un .ts con arrow genérica no se parsea como TSX', () => {
+  test('a .ts with a generic arrow is not parsed as TSX', () => {
     const { exports } = parseModule(
       'export const id = <T>(x: T): T => x;\nexport const OTRO = 1;\n',
       'src/domain/id.ts',
@@ -209,7 +209,7 @@ describe('parseModule', () => {
     assert.deepEqual(exports.map(e => e.name), ['id', 'OTRO']);
   });
 
-  test('una arrow asignada a const cuenta como función y conserva la firma', () => {
+  test('an arrow assigned to a const counts as a function and keeps the signature', () => {
     const { exports } = parseModule(MUSIC, 'src/domain/music.ts');
     const f = exports.find(e => e.name === 'midiToHz');
 
@@ -220,16 +220,16 @@ describe('parseModule', () => {
     assert.equal(c?.kind, 'const');
   });
 
-  test('sube un nivel bien: `../music.ts` desde __tests__ resuelve al módulo', () => {
+  test('goes up one level correctly: `../music.ts` from __tests__ resolves to the module', () => {
     const { imports } = parseModule(TEST_FILE, 'src/domain/__tests__/music.test.ts');
     assert.equal(imports[0].resolved, 'src/domain/music.ts');
   });
 
   /**
-   * Los archivos del repo están en CRLF. Es el trap documentado de este server, y
-   * el motivo de fondo por el que este módulo usa un AST y no una regex de líneas.
+   * The files of the repo are in CRLF. It is the documented trap of this server, and
+   * the root reason why this module uses an AST and not a line regex.
    */
-  test('da lo mismo con CRLF que con LF', () => {
+  test('gives the same result with CRLF as with LF', () => {
     const crlf = parseModule(MUSIC.replace(/\n/g, '\r\n'), 'src/domain/music.ts');
     const lf = parseModule(MUSIC, 'src/domain/music.ts');
 
@@ -239,7 +239,7 @@ describe('parseModule', () => {
 });
 
 describe('findSymbol', () => {
-  test('encuentra la definición y lista quién la importa, sin los tests', () => {
+  test('finds the definition and lists who imports it, without the tests', () => {
     const [hit] = findSymbol(INDEX, 'notesForRotation', false);
 
     assert.equal(hit.file, 'src/domain/music.ts');
@@ -253,17 +253,18 @@ describe('findSymbol', () => {
   });
 
   /**
-   * La arista que faltaba: tocar una firma de `domain/` puede romper una tool.
+   * The edge to the server: a change to a signature of `domain/` can break a tool.
    *
-   * `pnpm verify` lo atrapa —el tsconfig del server cruza el borde de paquete— pero
-   * recién al final: si `usedBy` la esconde, la estimación ya se hizo mal.
+   * `pnpm verify` catches it, because the tsconfig of the server crosses the package
+   * boundary, but only at the end: if `usedBy` hides the edge, the estimate is already
+   * wrong.
    */
-  test('cuenta a mcp-server entre los usuarios del dominio', () => {
+  test('counts mcp-server among the users of the domain', () => {
     const [hit] = findSymbol(INDEX, 'notesForRotation', false);
     assert.ok(hit.usedBy.includes('mcp-server/src/tools/describePiece.ts'));
   });
 
-  test('con includeTests suma el test', () => {
+  test('with includeTests it adds the test', () => {
     const [hit] = findSymbol(INDEX, 'notesForRotation', true);
     assert.deepEqual(hit.usedBy, [
       'mcp-server/src/tools/describePiece.ts',
@@ -275,35 +276,35 @@ describe('findSymbol', () => {
   });
 
   /**
-   * Lo que un grep no puede hacer: en el índice hay DOS símbolos llamados
+   * What a grep cannot do: the index has TWO symbols with the name
    * `notesForRotation`.
    *
-   * Uno es el de `domain/music.ts` y el otro lo exporta el módulo de audio homónimo
-   * que arma este fixture —una ruta que no existe en el repo, y es a propósito: así el
-   * homónimo no se confunde con ningún archivo real—. Quien importa el segundo no es
-   * usuario del primero, y un grep lo contaría igual.
+   * One is that of `domain/music.ts`. The audio module of the same name that this
+   * fixture makes exports the other. Its path does not exist in the repo, on purpose:
+   * so no real file is confused with it. A file that imports the second is not a user
+   * of the first, and a grep would count it anyway.
    */
-  test('no confunde homónimos de módulos distintos', () => {
+  test('does not confuse symbols of the same name from different modules', () => {
     const [hit] = findSymbol(INDEX, 'notesForRotation', false);
     const deFake = INDEX.imports.filter(i => i.resolved === 'src/audio/fake.ts');
 
-    assert.equal(deFake.length, 2, 'los dos imports del homónimo están en el índice');
+    assert.equal(deFake.length, 2, 'the two imports of the second symbol are in the index');
     assert.deepEqual(
       deFake.map(i => i.names),
       [['notesForRotation'], ['notesForRotation']],
-      'el alias de App.tsx no esconde el nombre exportado',
+      'the alias of App.tsx does not hide the exported name',
     );
     assert.equal(hit.usedBy.includes('src/audio/otro.ts'), false);
   });
 
   /**
-   * `Board` no se importa por nombre en ningún lado: `App.tsx` lo trae por defecto y
-   * encima renombrado.
+   * No file imports `Board` by name: `App.tsx` imports it as the default, and with
+   * another name.
    *
-   * Sin esta arista los seis `export default` de `src/` —`App` y los cinco
-   * componentes— contestan `usedBy: []`, que un agente lee como código muerto.
+   * Without this edge each `export default` of `src/`, `App` and the components,
+   * answers `usedBy: []`, which an agent reads as dead code.
    */
-  test('cuenta a quien importa por defecto, aunque lo renombre', () => {
+  test('counts the file that imports the default, although it renames it', () => {
     const [hit] = findSymbol(INDEX, 'Board', false);
 
     assert.equal(hit.file, 'src/components/Board.tsx');
@@ -311,32 +312,32 @@ describe('findSymbol', () => {
   });
 
   /**
-   * Las dos puntas o ninguna: filtrando solo `usedBy`, un helper de test salía
-   * como match huérfano y presentado como superficie de `src/`.
+   * The two ends or none: with a filter on `usedBy` alone, a test helper is an orphan
+   * match that looks like surface of `src/`.
    */
-  test('sin includeTests un símbolo definido en __tests__ no es match', () => {
+  test('without includeTests a symbol defined in __tests__ is not a match', () => {
     assert.deepEqual(findSymbol(INDEX, 'peakNear', false), []);
 
     const [hit] = findSymbol(INDEX, 'peakNear', true);
     assert.equal(hit.file, 'src/domain/__tests__/music.test.ts');
   });
 
-  test('sin coincidencia exacta cae a subcadena sin distinguir mayúsculas', () => {
+  test('with no exact match it falls back to a case-insensitive substring', () => {
     const hits = findSymbol(INDEX, 'notesfor', false);
     assert.deepEqual(hits.map(h => h.name), ['notesForRotation']);
   });
 
-  test('un símbolo que no existe devuelve lista vacía', () => {
+  test('a symbol that does not exist returns an empty list', () => {
     assert.deepEqual(findSymbol(INDEX, 'noExisteEnNingunLado', false), []);
   });
 });
 
 describe('outline', () => {
   /**
-   * `midiToHz()` con paréntesis: es una arrow function y marcarla como valor
-   * desinformaba justo en el mapa cuyo propósito es "qué hay y dónde".
+   * `midiToHz()` with parentheses: it is an arrow function, and to mark it as a value
+   * would misinform in the map whose purpose is "what exists and where".
    */
-  test('agrupa por archivo y marca las funciones con (), arrows incluidas', () => {
+  test('groups by file and marks the functions with (), arrows included', () => {
     const o = outline(INDEX, false);
 
     assert.deepEqual(o['src/domain/music.ts'], [
@@ -346,10 +347,10 @@ describe('outline', () => {
   });
 
   /**
-   * `mcp-server/` entra al grafo pero no al mapa: el índice describe la superficie
-   * de `src/`, y sumar las tools lo haría crecer sin responder nada nuevo.
+   * `mcp-server/` goes into the graph but not into the map: the index describes the
+   * surface of `src/`, and the tools would make it grow with no new answer.
    */
-  test('no lista los símbolos de los archivos que son solo grafo', () => {
+  test('does not list the symbols of the files that are graph only', () => {
     const o = outline(INDEX, true);
 
     assert.equal('mcp-server/src/tools/describePiece.ts' in o, false);
@@ -361,58 +362,58 @@ describe('outline', () => {
 });
 
 /**
- * Los cuatro bordes del parser, que ningun archivo del repo ejerce.
+ * The edge cases of the parser that no file of the repo exercises.
  *
- * Son justamente los que un indice construido EN LA CONSULTA no puede darse el lujo
- * de tener rotos: `find_symbol` corre sobre lo que haya en el arbol en ese momento,
- * incluido un archivo a medio escribir. Que hoy `src/` no tenga ninguno de estos
- * cuatro casos es una propiedad del repo de hoy, no del parser.
+ * An index built IN THE QUERY cannot afford to have them broken: `find_symbol` runs on
+ * what is in the tree at that time, a half-written file included. That `src/` has none
+ * of these cases today is a property of the repo of today, not of the parser.
  */
-describe('parseModule — los bordes que el repo no tiene', () => {
-  test('un docblock vacio no cuenta como doc', () => {
+describe('parseModule: the edge cases that the repo does not have', () => {
+  test('an empty docblock does not count as doc', () => {
     const [e] = parseModule('/** */\nexport const A = 1;\n', 'x.ts').exports;
     assert.equal(e.doc ?? null, null);
   });
 
-  test('un archivo sin un solo docblock tampoco', () => {
+  test('a file with no docblock has no doc', () => {
     const [e] = parseModule('export const A = 1;\n', 'x.ts').exports;
     assert.equal(e.doc ?? null, null);
   });
 
-  test('un `/**` sin cerrar no se lee como documentacion', () => {
-    // El caso del archivo a medio escribir. Va DESPUES del export a proposito: un
-    // bloque sin cerrar al principio se come el resto del archivo en el parser de
-    // TypeScript y no habria export que documentar. Lo que se afirma aca es la otra
-    // guarda —la del `indexOf('*/')` que devuelve -1— sin la cual el `slice` daria
-    // basura y la tool la mostraria como si fuera doc.
-    const m = parseModule('export const A = 1;\n/** empieza y no termina\n', 'x.ts');
+  test('a `/**` that is not closed is not read as documentation', () => {
+    // The case of the half-written file. It goes AFTER the export on purpose: a block
+    // not closed at the start eats the rest of the file in the TypeScript parser, and
+    // there would be no export to document. The assertion here is on the other guard,
+    // the `indexOf` of the block end that returns -1. Without it the `slice` would give
+    // garbage and the tool would show it as doc.
+    const m = parseModule('export const A = 1;\n/** starts and does not end\n', 'x.ts');
     assert.equal(m.exports.length, 1);
     assert.equal(m.exports[0].doc ?? null, null);
   });
 
   /**
-   * El doc de nivel de archivo solo se busca para un `export default` SIN doc propio.
+   * The doc at file level is searched only for an `export default` with NO doc of its
+   * own.
    *
-   * Es la unica forma de export que suele documentarse arriba de todo y no encima, asi
-   * que sus dos guardas viven detras de esa puerta.
+   * It is the only form of export that usually has its doc at the top of the file and
+   * not above it, so its two guards live behind that condition.
    */
-  test('un default sin doc propio ni doc de archivo no inventa documentacion', () => {
+  test('a default with no doc of its own and no file doc invents no documentation', () => {
     const [e] = parseModule('export default function A() {}\n', 'x.tsx').exports;
     assert.equal(e.esDefault, true);
     assert.equal(e.doc ?? null, null);
   });
 
-  test('un default cuyo unico `/**` esta sin cerrar tampoco', () => {
-    // Sin la guarda del `indexOf('*/')`, el `slice` hasta un -1 devolveria basura y
-    // la tool la mostraria como si fuera la primera frase del archivo.
-    const [e] = parseModule('export default function A() {}\n/** sin cerrar\n', 'x.tsx').exports;
+  test('a default whose only `/**` is not closed has no doc', () => {
+    // Without the guard on the `indexOf` of the block end, the `slice` up to -1 would
+    // return garbage and the tool would show it as the first sentence of the file.
+    const [e] = parseModule('export default function A() {}\n/** not closed\n', 'x.tsx').exports;
     assert.equal(e.doc ?? null, null);
   });
 
-  test('un export desestructurado no entra al indice, y no rompe el archivo', () => {
-    // `export const { a, b } = obj` no tiene un identificador que nombrar, asi que
-    // se saltea. Lo que importa es que los exports NORMALES del mismo archivo sigan
-    // saliendo: un solo caso raro no puede dejar el modulo sin indexar.
+  test('a destructured export does not go into the index, and does not break the file', () => {
+    // `export const { a, b } = obj` has no identifier to name, so the parser skips it.
+    // What matters is that the NORMAL exports of the same file still come out: one odd
+    // case cannot leave the module out of the index.
     const m = parseModule('export const { a, b } = obj;\nexport const C = 1;\n', 'x.ts');
     assert.deepEqual(m.exports.map(e => e.name), ['C']);
   });

@@ -5,8 +5,8 @@ import { simulateBoard } from './simulateBoard.ts';
 import { findSymbol } from './findSymbol.ts';
 
 /**
- * El registro. Agregar una tool es un archivo mas una linea aca: el entrypoint no
- * se toca y no hay ningun `switch` que mantener sincronizado.
+ * The registry. A new tool is one file plus one line here: the entry point does not
+ * change, and there is no `switch` to keep in sync.
  */
 export const tools: readonly ToolDef[] = [
   describePiece,

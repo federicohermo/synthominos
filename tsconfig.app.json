@@ -24,19 +24,19 @@
     "noUncheckedSideEffectImports": true
   },
   /*
-   * Cinco raices, y las cuatro que no son `src` son los gates que viven al lado
-   * de lo que verifican: `__tests__` mira los archivos de la raiz del repo, `docs` los
-   * tres gates de la documentacion (issue #100), `specs/__tests__/` el registro (spec
-   * 035) y `.claude/scripts` trae `lib/specs.ts` mas el `__tests__/` que lo importa.
+   * Seven roots. The six that are not `src` hold the gates that live next to what they
+   * verify, and the harness: `__tests__` looks at the files of the repo root, `docs` holds
+   * the gates of the documentation (issue #100), `specs` the gate of the contracts,
+   * `.claude/scripts` and `.agents/scripts` the harness scripts with their tests, and
+   * `.spec-anchored` the kernel of the implementation protocol.
    *
-   * Ese import es lo que mete a `lib/` en el programa: `tsc -b` lo typechequea por el
-   * import lo declaremos o no. Declararlo es lo que necesita el linter, que usa
-   * `projectService` y rechaza con un error de parseo todo archivo que ningun tsconfig
-   * incluya — y por eso los `__tests__/` tambien tienen que estar nombrados.
+   * `tsc -b` typechecks a file that a test imports, declared or not. The declaration is
+   * what the linter needs: it uses `projectService`, and it rejects with a parse error
+   * every file that no tsconfig includes. So the `__tests__/` folders must be named too.
    *
-   * Son los directorios ENTEROS y no sus subcarpetas de tests: `allowJs` esta apagado,
-   * asi que de `.claude/scripts` no entran los `.mjs` ejecutables y de `docs` no entra
-   * un solo `.md`. TypeScript levanta unicamente los `.ts` de adentro.
+   * They are WHOLE directories and not their test subfolders: `allowJs` is off, so the
+   * `.mjs` executables of `.claude/scripts` do not enter, and not one `.md` of `docs`
+   * enters. TypeScript takes only the `.ts` files inside.
    */
   "include": ["src", "__tests__", "docs", "specs", ".claude/scripts", ".agents/scripts", ".spec-anchored/**/*"]
 }

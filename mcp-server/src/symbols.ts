@@ -3,69 +3,67 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, posix } from 'node:path';
 
 /**
- * Indice de simbolos de `src/`, construido EN LA CONSULTA y nunca persistido.
+ * Index of the symbols of `src/`, built IN THE QUERY and never persisted.
  *
- * Es la unica tool que mira el codigo como texto en vez de ejecutarlo, y por eso
- * conviene ser explicito con lo que NO cambia: no hay archivo de indice, no hay
- * paso de build y no hay `generatedAt`. Cada llamada parsea `src/` de nuevo desde
- * disco, asi que la respuesta es HEAD en el momento de preguntar. Se puede porque
- * medirlo dio, sobre los 36 + 16 archivos de entonces, 112 ms en frio y ~50 ms
- * despues. Hoy el indice son 92 archivos mas 22 que solo aportan aristas; el dia
- * que eso duela, la respuesta es cachear por mtime, no generar un artefacto que
- * alguien tenga que regenerar.
+ * It serves the only tool that reads the code as text and does not run it, so it is
+ * worth being explicit about what does NOT change: there is no index file, no build step
+ * and no `generatedAt`. Each call parses `src/` again from disk, so the answer is HEAD
+ * at the time of the question. That is affordable. Measured on 36 + 16 files: 112 ms
+ * cold and ~50 ms after. Today the index is 72 files plus 17 that only add edges. If
+ * that hurts, the answer is a cache by mtime, not a generated artifact that someone must
+ * regenerate.
  *
- * Por que un AST y no una regex: la pregunta que se quiere contestar es "quien
- * USA este simbolo", y eso se resuelve por el grafo de imports —specifier
- * relativo resuelto a archivo—, no por coincidencia de texto. Un grep sobre
- * `notesForRotation` devuelve 14 lineas de las cuales 11 son llamadas dentro de
- * un mismo test; el grafo devuelve los 3 archivos que lo importan. Ademas el
- * compilador ya viene con el paquete y se encarga de CRLF, comentarios y strings,
- * que es justo donde una regex de lineas se equivoca en silencio en este repo.
+ * Why an AST and not a regex: the question to answer is "who USES this symbol", and the
+ * import graph answers it, a relative specifier resolved to a file, not a text match. A
+ * grep for `notesForRotation` returns 14 lines, and 11 of them are calls inside one
+ * test. The graph returns the 3 files that import it. Also, the compiler comes with the
+ * package and handles CRLF, comments and strings, which is exactly where a line regex
+ * goes wrong silently in this repo.
  */
 
 /**
- * Que es el simbolo. Sin `enum`: `erasableSyntaxOnly` los rechaza.
+ * What the symbol is. No `enum`: `erasableSyntaxOnly` rejects them.
  *
- * Una arrow function asignada a un `const` cuenta como `'function'` y no como
- * `'const'`: la pregunta que contesta este campo es que ES el simbolo, y en
- * `playback/engine.ts` hay seis que son funciones y se leian como valores.
+ * An arrow function assigned to a `const` counts as `'function'` and not as `'const'`:
+ * this field answers what the symbol IS, and `playback/engine.ts` has six that are
+ * functions and would read as values.
  */
 export type SymbolKind = 'function' | 'const' | 'interface' | 'type';
 
 export interface ExportedSymbol {
   name: string;
   kind: SymbolKind;
-  /** Ruta relativa a la raiz del repo, con `/` aun en Windows. */
+  /** Path relative to the repo root, with `/` also on Windows. */
   file: string;
   line: number;
-  /** La firma en una linea: lo que evita tener que abrir el archivo. */
+  /** The signature on one line: it avoids the need to open the file. */
   signature: string;
-  /** Primera frase del bloque de doc, si hay. */
+  /** First sentence of the doc block, if there is one. */
   doc: string | null;
   /**
-   * Si se exporta con `export default`. Hace falta para casar el import: del lado
-   * del importador el binding por defecto no trae el nombre del simbolo.
+   * True if the export is an `export default`. The import match needs it: on the
+   * importer side the default binding does not have the name of the symbol.
    */
   esDefault: boolean;
 }
 
 export interface ImportBinding {
   file: string;
-  /** El specifier tal cual esta escrito. */
+  /** The specifier as written. */
   from: string;
   /**
-   * El specifier resuelto a ruta del repo, o `null` si es un paquete externo.
-   * Es lo que permite distinguir dos simbolos homonimos de modulos distintos.
+   * The specifier resolved to a repo path, or `null` for an external package.
+   * It tells apart two symbols of the same name from different modules.
    */
   resolved: string | null;
-  /** Los nombres tal como los EXPORTA el modulo de origen, no los locales. */
+  /** The names as the source module EXPORTS them, not the local ones. */
   names: string[];
   /**
-   * Si el import trae el binding por defecto.
+   * True if the import has the default binding.
    *
-   * Va aparte de `names` porque del lado del export ese simbolo no tiene nombre:
-   * `import Tablero from './Board.tsx'` importa a `Board`, asi que casarlo por
-   * nombre daria falso.
+   * It is apart from `names` because on the export side that symbol has no name:
+   * `import Tablero from './Board.tsx'` imports `Board`, so a match by name would be
+   * false.
    */
   porDefecto: boolean;
 }
@@ -75,10 +73,10 @@ export interface ModuleFacts {
   imports: ImportBinding[];
 }
 
-/** Barre `\r`, saltos e indentacion: una firma multilinea entra en una linea. */
+/** Removes `\r`, line breaks and indentation: a multi-line signature fits on one line. */
 const oneLine = (s: string): string => s.replace(/\s+/g, ' ').trim();
 
-/** Primera frase de un bloque de doc crudo, delimitadores incluidos. */
+/** First sentence of a raw doc block, delimiters included. */
 function primeraFrase(raw: string): string | null {
   if (!raw.startsWith('/**')) return null;
 
@@ -92,10 +90,10 @@ function primeraFrase(raw: string): string | null {
 }
 
 /**
- * Primera frase del JSDoc que precede al nodo.
+ * First sentence of the JSDoc before the node.
  *
- * Se toma del texto crudo y no de `ts.getJSDocCommentsAndTags` porque alcanza con
- * la primera frase y asi no se arrastra la estructura de tags.
+ * It comes from the raw text and not from `ts.getJSDocCommentsAndTags`: the first
+ * sentence is enough, and this way the tag structure is not carried.
  */
 function leadingDoc(node: ts.Node, full: string): string | null {
   const ranges = ts.getLeadingCommentRanges(full, node.getFullStart()) ?? [];
@@ -106,18 +104,19 @@ function leadingDoc(node: ts.Node, full: string): string | null {
 }
 
 /**
- * Primer bloque de doc del archivo, buscado sobre el texto crudo.
+ * First doc block of the file, searched in the raw text.
  *
- * Es el fallback del `export default`, y existe por la convencion de los `.tsx`
- * de este repo: el bloque que describe al componente va arriba del archivo y lo
- * sigue `interface Props`, que NO se exporta. TypeScript se lo adjudica a ella,
- * asi que el componente quedaba con `doc: null` — los cinco, o sea toda la capa
- * de UI, que es justo donde la tool promete evitar abrir el archivo.
+ * It is the fallback of the `export default`, and it exists because of the convention
+ * of the `.tsx` files of this repo: the block that describes the component is at the top
+ * of the file, and `interface Props`, which is NOT exported, follows it. TypeScript
+ * attaches the block to the interface, so the component would have `doc: null`. That is
+ * every component, the whole UI layer, exactly where the tool promises to avoid opening
+ * the file.
  *
- * Solo se aplica al default: `react-refresh/only-export-components` obliga a que
- * un `.tsx` exporte una sola cosa, asi que el primer bloque no puede ser de otro
- * simbolo exportado. Sobre texto crudo y no sobre el AST porque el bloque no esta
- * adjunto a ningun nodo que sobreviva al filtro de exports.
+ * It applies only to the default: `react-refresh/only-export-components` makes a `.tsx`
+ * export one thing, so the first block cannot belong to another exported symbol. On raw
+ * text and not on the AST, because the block is attached to no node that survives the
+ * export filter.
  */
 function primerDocDelArchivo(full: string): string | null {
   const ini = full.indexOf('/**');
@@ -127,12 +126,11 @@ function primerDocDelArchivo(full: string): string | null {
 }
 
 /**
- * La cabecera de una declaracion, sin su cuerpo.
+ * The header of a declaration, without its body.
  *
- * El `=>` entra en lo que se recorta porque para una arrow function el corte va
- * en el cuerpo: cortar en el inicializador dejaba `midiToHz` pelado, sin
- * parametros ni tipo de retorno, que es exactamente lo que el llamador venia a
- * buscar para no abrir el archivo.
+ * The `=>` is part of what is trimmed because for an arrow function the cut is at the
+ * body. A cut at the initializer would leave `midiToHz` bare, with no parameters and no
+ * return type, which is exactly what the caller came for, to avoid opening the file.
  */
 function signatureOf(node: ts.Node, sf: ts.SourceFile, body?: ts.Node): string {
   const start = node.getStart(sf);
@@ -141,15 +139,15 @@ function signatureOf(node: ts.Node, sf: ts.SourceFile, body?: ts.Node): string {
 }
 
 /**
- * Resuelve un specifier relativo a ruta del repo. Devuelve `null` para paquetes
- * externos, que es lo que hace que `react` y `zod` no ensucien el grafo.
+ * Resolves a relative specifier to a repo path. Returns `null` for external packages,
+ * which keeps `react` and `zod` out of the graph.
  *
- * No toca el disco: los imports de este repo llevan extension explicita, asi que
- * no hay que adivinar `index.ts` ni probar sufijos.
+ * It does not touch the disk: the imports of this repo have an explicit extension, so
+ * there is no `index.ts` to guess and no suffix to try.
  *
- * Con `posix` y no con `resolve`: las rutas que maneja este modulo son relativas
- * al repo y con `/`, asi que meterlas en el resolvedor del sistema las haria pasar
- * por `cwd` —que en un server MCP no promete nada— para volver a salir.
+ * With `posix` and not with `resolve`: the paths of this module are relative to the
+ * repo and use `/`. The resolver of the system would pass them through `cwd`, which
+ * promises nothing in an MCP server, and back out.
  */
 function resolveSpecifier(from: string, file: string): string | null {
   if (!from.startsWith('.')) return null;
@@ -157,18 +155,18 @@ function resolveSpecifier(from: string, file: string): string | null {
 }
 
 /**
- * Exports e imports de UN modulo. Pura sobre el texto: los tests le pasan un
- * string fijo, asi que editar `src/` no los rompe.
+ * Exports and imports of ONE module. Pure on the text: the tests give it a fixed
+ * string, so an edit of `src/` does not break them.
  *
- * `file` es la ruta relativa al repo y se usa tal cual en la salida y como base
- * para resolver los specifiers.
+ * `file` is the path relative to the repo. It goes as is into the output, and it is the
+ * base to resolve the specifiers.
  */
 export function parseModule(text: string, file: string): ModuleFacts {
-  // El `ScriptKind` sale de la extension y no es fijo TSX. En TSX el `<T>` de una
-  // arrow generica —o un cast viejo `<Foo>bar`— abre una etiqueta que nunca cierra
-  // y se COME el resto del archivo: `createSourceFile` no tira, simplemente
-  // devuelve los exports de arriba y ninguno de los de abajo. Hoy `src/` no tiene
-  // ninguno de los dos; elegir bien el kind es lo que hace que siga sin importar.
+  // The `ScriptKind` comes from the extension and is not a fixed TSX. In TSX the `<T>` of
+  // a generic arrow, or an old cast `<Foo>bar`, opens a tag that never closes and EATS
+  // the rest of the file: `createSourceFile` does not throw, it only returns the exports
+  // above and none of those below. Today `src/` has neither. The correct kind keeps that
+  // from mattering.
   const kind = file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.ES2023, true, kind);
   const exports: ExportedSymbol[] = [];
@@ -184,18 +182,17 @@ export function parseModule(text: string, file: string): ModuleFacts {
         file,
         from: st.moduleSpecifier.text,
         resolved: resolveSpecifier(st.moduleSpecifier.text, file),
-        // `propertyName ?? name` y no `name` a secas: en `{ isValid as esValida }`
-        // el simbolo importado es el primero y el segundo es solo como se llama
-        // aca. Guardar el local hacia que `find_symbol("isValid")` no listara al
-        // archivo que lo usa.
+        // `propertyName ?? name` and not plain `name`: in `{ isValid as esValida }` the
+        // imported symbol is the first, and the second is only its local name. With the
+        // local name stored, `find_symbol("isValid")` would not list the file that uses
+        // it.
         names: nb && ts.isNamedImports(nb)
           ? nb.elements.map(e => (e.propertyName ?? e.name).text)
           : [],
-        // El binding por defecto vive en `importClause.name` y no en
-        // `namedBindings`: ignorarlo dejaba a los seis `export default` de `src/`
-        // —`App` y los cinco componentes— con `usedBy: []`, que se lee como
-        // codigo muerto. Un `import * as x` sigue afuera: no dice que simbolo se
-        // usa, y `src/` no tiene ninguno.
+        // The default binding lives in `importClause.name` and not in `namedBindings`.
+        // Without it each `export default` of `src/`, `App` and the components, has
+        // `usedBy: []`, which reads as dead code. An `import * as x` stays out: it does
+        // not say which symbol is used, and `src/` has none.
         porDefecto: clause?.name !== undefined,
       });
       continue;
@@ -219,8 +216,8 @@ export function parseModule(text: string, file: string): ModuleFacts {
         const esFn = init !== undefined && (ts.isArrowFunction(init) || ts.isFunctionExpression(init));
         exports.push({
           name: d.name.text, kind: esFn ? 'function' : 'const', file, line: lineOf(st),
-          // Una constante corta en el `=`, porque su valor puede ser las 12
-          // piezas; una arrow corta en el cuerpo, para conservar la firma.
+          // A constant cuts at the `=`, because its value can be the 12 pieces. An arrow
+          // cuts at the body, to keep the signature.
           signature: signatureOf(d, sf, esFn ? init.body : init), doc, esDefault,
         });
       }
@@ -241,29 +238,29 @@ export function parseModule(text: string, file: string): ModuleFacts {
 }
 
 /**
- * Todos los `.ts`/`.tsx` bajo un directorio, en orden estable.
+ * All the `.ts`/`.tsx` files under a directory, in a stable order.
  *
- * El comparador es aritmetico y no un `?:`, y las dos razones se midieron juntas
- * cuando el spec 023 corrio `pnpm verify` en un runner de Linux por primera vez.
+ * The comparator is arithmetic and not a `?:`, for two reasons that were measured
+ * together on a Linux runner.
  *
- * Decia `a.name < b.name ? -1 : 1`, y eso tiene un defecto latente y uno visible.
- * El latente: para dos nombres IGUALES devuelve 1, o sea afirma `a > b`. Es un
- * comparador inconsistente; hoy no explota porque los nombres de un directorio son
- * unicos, pero es una promesa que el tipo de `sort` no obliga a cumplir.
+ * A comparator `a.name < b.name ? -1 : 1` has a latent defect and a visible one. The
+ * latent one: for two EQUAL names it returns 1, so it states `a > b`. That comparator is
+ * inconsistent. It does not fail here because the names of a directory are unique, but
+ * the type of `sort` does not enforce that promise.
  *
- * El visible es el que lo delato, y es de la familia que este repo persigue —pasar
- * en verde—: **que rama del `?:` se ejecuta depende del orden en que el sistema de
- * archivos entrega las entradas**. NTFS las devuelve alfabeticas y ext4 en orden de
- * hash, asi que V8 puede no tomar nunca uno de los dos lados. Medido: en Windows
- * las 102 ramas de este archivo quedaban cubiertas y en el runner una no
- * —`BRDA:243,72,0,0`, la de esta linea—, y `mcp:test` daba
- * `99.64% branch coverage does not meet threshold of 100%`. O sea que el umbral 100
- * que fijo el 029 pasaba por el sistema de archivos de quien lo corriera.
+ * The visible one is of the family this repo hunts, a gate whose result depends on the
+ * machine: **which branch of the `?:` runs depends on the order in which the file system
+ * gives the entries**. NTFS returns them in alphabetical order and ext4 in hash order,
+ * so V8 can leave one of the two sides never taken. Measured: on Windows the 102
+ * branches of this file were covered, and on the runner one was not, the one of this
+ * line (`BRDA:243,72,0,0`). `mcp:test` gave
+ * `99.64% branch coverage does not meet threshold of 100%`. So the threshold of 100
+ * depended on the file system of the machine that ran it.
  *
- * `Number(x) - Number(y)` no tiene ramas, asi que no hay nada cuya cobertura pueda
- * depender del entorno, y de paso el orden queda total: devuelve 0 para iguales. No
- * se usa `localeCompare` porque depende del locale, que es cambiar una dependencia
- * del entorno por otra.
+ * `Number(x) - Number(y)` has no branches, so no coverage can depend on the
+ * environment. Also the order is total: it returns 0 for equal names. `localeCompare`
+ * is not used because it depends on the locale, which would trade one dependency on the
+ * environment for another.
  */
 function walk(dir: string): string[] {
   const out: string[] = [];
@@ -279,21 +276,21 @@ function walk(dir: string): string[] {
 export interface CodeIndex {
   exports: ExportedSymbol[];
   imports: ImportBinding[];
-  /** Archivos cuyos exports entran al indice. */
+  /** Files whose exports go into the index. */
   archivos: number;
-  /** Archivos que solo aportan aristas al grafo: se leen sus imports, no sus exports. */
+  /** Files that only add edges to the graph: their imports are read, not their exports. */
   archivosGrafo: number;
 }
 
 /**
- * Lee y parsea el codigo. Es la unica parte que toca el disco.
+ * Reads and parses the code. It is the only part that touches the disk.
  *
- * `soloGrafo` son directorios de los que interesan las ARISTAS y no los simbolos:
- * hoy es `mcp-server/src/`, que importa 45 cosas de `src/`.
- * Sin ellos `usedBy` sub-reporta y la tool queda menos completa que el grep que
- * vino a reemplazar — un `grep notesForRotation` encuentra `describePiece.ts` y
- * el grafo, si no se lo indexa, no. Sus exports quedan afuera a proposito: el
- * indice es el mapa de `src/`, y las tools no son superficie de la app.
+ * `soloGrafo` are directories that give EDGES and not symbols: today it is
+ * `mcp-server/src/`, which imports 45 symbols of `src/`.
+ * Without them `usedBy` under-reports and the tool is less complete than the grep it
+ * replaces: a `grep notesForRotation` finds `describePiece.ts`, and the graph does not
+ * unless the directory is indexed. Their exports stay out on purpose: the index is the
+ * map of `src/`, and the tools are not surface of the app.
  */
 export function readIndex(root: string, srcDir: string, soloGrafo: readonly string[] = []): CodeIndex {
   const exports: ExportedSymbol[] = [];
@@ -323,24 +320,24 @@ export function readIndex(root: string, srcDir: string, soloGrafo: readonly stri
 }
 
 export interface SymbolHit extends ExportedSymbol {
-  /** Archivos que lo importan, resueltos por el grafo y no por texto. */
+  /** Files that import it, resolved by the graph and not by text. */
   usedBy: string[];
 }
 
 const esTest = (f: string): boolean => f.includes('__tests__');
 
 /**
- * Busca un simbolo por nombre. Exacto primero; si no hay ninguno, subcadena sin
- * distinguir mayusculas, que es lo que salva la consulta a medio recordar.
+ * Finds a symbol by name. Exact match first. If there is none, a case-insensitive
+ * substring, which saves the half-remembered query.
  *
- * `usedBy` cuenta un archivo UNA vez aunque lo llame quince veces: la pregunta es
- * quien depende del simbolo, y es justo donde el grep infla la respuesta.
+ * `usedBy` counts a file ONCE although it calls the symbol fifteen times: the question
+ * is who depends on the symbol, and that is exactly where grep inflates the answer.
  *
- * `includeTests` filtra las DOS puntas —los matches y los usuarios— y no una
- * sola: filtrando solo `usedBy`, un helper de `__tests__/` salia como match con
- * cero usuarios, o sea presentado como huerfano y como parte de la superficie de
- * `src/`; y peor, una coincidencia exacta en un test tapaba la busqueda por
- * subcadena de un simbolo real, porque el fallback solo corre si no hubo exacta.
+ * `includeTests` filters the TWO ends, the matches and the users, not one. With a
+ * filter on `usedBy` alone, a helper of `__tests__/` is a match with zero users: it
+ * looks like an orphan and like part of the surface of `src/`. Worse, an exact match in
+ * a test hides the substring search for a real symbol, because the fallback runs only
+ * when there is no exact match.
  */
 export function findSymbol(index: CodeIndex, query: string, includeTests: boolean): SymbolHit[] {
   const q = query.toLowerCase();
@@ -353,8 +350,8 @@ export function findSymbol(index: CodeIndex, query: string, includeTests: boolea
     usedBy: [...new Set(
       index.imports
         .filter(i => i.resolved === e.file
-          // Por nombre exportado, o por el binding por defecto: ese no trae
-          // nombre, asi que lo unico que lo casa es el archivo.
+          // By exported name, or by the default binding: that one has no name, so only
+          // the file matches it.
           && (i.names.includes(e.name) || (e.esDefault && i.porDefecto))
           && (includeTests || !esTest(i.file)))
         .map(i => i.file),
@@ -363,10 +360,11 @@ export function findSymbol(index: CodeIndex, query: string, includeTests: boolea
 }
 
 /**
- * El indice entero, agrupado por archivo y sin firmas.
+ * The whole index, grouped by file and with no signatures.
  *
- * Sin firmas a proposito: agrupado asi sirve para orientarse —que hay y donde—, y
- * con firmas pasa de ~2 KB a ~16 KB, que deja de ser un mapa y es el codigo otra vez.
+ * No signatures on purpose: grouped like this it is for orientation, what exists and
+ * where. With signatures it goes from ~2 KB to ~16 KB, which is not a map: it is the
+ * code again.
  */
 export function outline(index: CodeIndex, includeTests: boolean): Record<string, string[]> {
   const out: Record<string, string[]> = {};

@@ -5,73 +5,71 @@ import { cellsByPlayOrder } from '../circuit/sequence.ts';
 import { cycleGeneration } from './engine.ts';
 
 /**
- * El par activa/pendiente del recorrido CON celdas, para que la cabeza dibuje lo que
- * suena y no lo que va a sonar.
+ * The sounding/queued pair of the sequence WITH cells, so that the playhead draws what
+ * sounds and not what will sound.
  *
- * El motor ya tiene su propio par, pero su `Sequence` no lleva `pieceId` ni `cell`: el
- * click no tiene altura y para sonar alcanza con contarlo, y el motor habla MIDI: no
- * conoce `Cell`. La unica
- * secuencia con celdas es la del dominio, y la UI la deriva de `placed`, que es el
- * tablero DE AHORA — o sea la pendiente. Sin este modulo la cabeza recorreria el
- * circuito encolado mientras suena el viejo, justo durante los hasta 7,5 s de espera
- * que este spec existe para hacer visibles.
+ * The engine has its own pair, but its `Sequence` carries no `pieceId` and no `cell`:
+ * the engine speaks MIDI and does not know `Cell`. The only sequence with cells is that
+ * of the circuit, and the UI derives it from `placed`, which is the CURRENT board: the
+ * queued sequence. Without this module the playhead would follow the queued circuit
+ * while the old one sounds, during a wait of up to 7.5 s.
  *
- * Vive fuera del motor por esa misma frontera: habla `Cell`. Es el
- * mismo cruce que `proyectarAlMotor` (`playback/engine-bridge.ts`) ya hace al proyectar la
- * secuencia para `setSequence`.
+ * It lives outside the engine for that same border: it speaks `Cell`. It is the same
+ * step across the border that `proyectarAlMotor` (`playback/engine-bridge.ts`) makes
+ * when it projects the sequence for `setSequence`.
  *
- * Singleton de modulo y NO estado de React a proposito: lo lee un loop de
- * requestAnimationFrame, igual que `readSpectrum()`. Meterlo en estado seria un render
- * por cuadro para un dato que el loop consume y descarta.
+ * A module singleton and NOT React state, on purpose: a requestAnimationFrame loop
+ * reads it, like `readSpectrum()`. As state it would be one render for each frame, for
+ * data that the loop uses and drops.
  *
- * Lo que se guarda no es la `Sequence` cruda sino su TABLA POR OFFSET, armada una vez
- * al encolar. Dos motivos, y ninguno es de estilo:
+ * What is kept is not the raw `Sequence` but its TABLE BY OFFSET, built once when the
+ * sequence is queued. Two reasons, and neither is style:
  *
- * - `Step` no lleva las celdas de sus cinco notas, asi que ir de un offset a una celda
- *   exige cruzar la secuencia con `placed` via `cellsByPlayOrder`. Hacerlo en el loop
- *   seria repetir 60 veces por segundo un join que no cambia entre cuadro y cuadro.
- * - El cruce tiene que quedar CONGELADO junto con la ruta. `placed` es el tablero de
- *   ahora: si el loop lo mirara en vivo, una pieza quitada durante el ciclo se apagaria
- *   antes de dejar de sonar, que es el mismo desfasaje que AC9 existe para evitar.
+ * - `Step` does not carry the cells of its five notes, so to go from an offset to a
+ *   cell the sequence must be joined with `placed` through `cellsByPlayOrder`. In the
+ *   loop, that would repeat 60 times a second a join that does not change between
+ *   frames.
+ * - The join must stay FROZEN with the sequence. `placed` is the current board: if the
+ *   loop looked at it live, a piece removed during the cycle would go dark before it
+ *   stops sounding. The playhead must draw the sounding sequence.
  */
 
-/** Los tres sonidos que puede pisar la cabeza: ver `MARCA` en `route-source.ts`. */
+/** The three sounds that the playhead can be on: see `MARCA`. */
 export type MarcaKind = (typeof MARCA)[keyof typeof MARCA];
 
 /**
- * Que pisa la cabeza lectora en un intervalo del ciclo: una celda, y CUAL de los tres
- * sonidos posibles suena ahi.
+ * What the playhead is on in one interval of the cycle: a cell, and WHICH of the three
+ * possible sounds plays there.
  *
- * Es la traduccion de `Sequence` que el dibujo necesita y que el dominio no tiene por
- * que dar: `Step` lleva `pieceId`, `offset` y `notes` pero NO las celdas de sus cinco
- * notas, y `Click` lleva su celda pero por separado. Unir las dos cosas indexadas por
- * offset es trabajo de la UI, no del modelo.
+ * It is the translation of `Sequence` that the drawing needs and that the circuit has
+ * no reason to give: `Step` carries `pieceId`, `offset` and `notes` but NOT the cells
+ * of its five notes, and `Click` carries its cell, but apart. To join the two, indexed
+ * by offset, is work of the UI and not of the model.
  *
- * Esto llego a ser un booleano (`nota`): dos casos con marca, y el
- * tercero —"no hay nada en este intervalo"— se expresaba con la ausencia de la marca,
- * asi que un booleano alcanzaba. El cruce agrega un caso ADENTRO de lo que antes
- * era "hay marca y suena": `routeBetween` puede cruzar una celda OCUPADA sin que sea
- * el turno de esa pieza, y ese cruce suena una floritura (`Click.note`) que no es ni
- * la nota propia de una pieza ni el click mudo de siempre. Tres casos con marca mas la
- * ausencia, y un booleano no distingue los tres — de ahi el const-object.
+ * Three kinds and not a boolean. "Nothing in this interval" is the absence of the mark.
+ * With a mark there are three cases: `routeBetween` can cross an OCCUPIED cell when it
+ * is not the turn of that piece, and that crossing sounds a note (`Click.note`) that is
+ * neither the own note of a piece nor the click. A boolean does not tell the three
+ * apart, hence the const object.
  */
 export interface Marca {
   cell: Cell;
-  /** Nota de pieza, cruce con floritura o click mudo: los tres se ven distinto. */
+  /** A note of a piece, a crossing or a click: the three look different. */
   kind: MarcaKind;
 }
 
 /**
- * Una celda que todavia no se estreno: esta colocada pero no sono nunca dentro del
- * ciclo, asi que se dibuja atenuada hasta que la cabeza la toca por primera vez.
+ * A cell that has not sounded yet: it is placed but never sounded inside the cycle, so
+ * it is drawn veiled until the playhead reaches it for the first time.
  *
- * `offset` es el intervalo en que se estrena, o `null` si la pieza ni siquiera entro al
- * ciclo que esta sonando —quedo encolada esperando el cierre—: ahi no hay instante que
- * esperar todavia, solo el swap.
+ * `offset` is the interval where it loses its veil, or `null` if the piece is not even
+ * in the sounding cycle and waits, queued, for the boundary: there is no instant to
+ * wait for yet, only the swap.
  *
- * Lleva `id` de pieza y no solo la celda porque el estreno se recuerda: sin el, quitar
- * una pieza y colocar otra en la misma celda haria que la nueva naciera ya estrenada.
- * Los ids son monotonos (`String(++idRef.current)` en `App`), asi que nunca se reciclan.
+ * It carries the `id` of the piece and not only the cell because the loss of the veil
+ * is remembered: without it, to remove a piece and place another on the same cell would
+ * make the new one start with no veil. The ids are monotonic
+ * (`String(++idRef.current)` in `App`), so they are never reused.
  */
 export interface CeldaPorEstrenar {
   id: string;
@@ -80,27 +78,26 @@ export interface CeldaPorEstrenar {
 }
 
 /**
- * Los tres sonidos que puede pisar la cabeza lectora en un intervalo del recorrido: la
- * nota propia de una pieza, el cruce con floritura o el click mudo.
+ * The three sounds that the playhead can be on in one interval of the cycle: the own
+ * note of a piece, the crossing or the click.
  *
- * El cruce es sobre una celda ocupada que no es su turno, y el click mudo sobre celda
- * vacia. Const-object y no un booleano porque el conjunto tiene TRES valores y no dos, y
- * `erasableSyntaxOnly` rechaza `enum` (ver `Marca` en `route-source.ts` para el porque del
- * cambio).
+ * The crossing is over an occupied cell when it is not its turn, and the click over an
+ * empty cell. A const object and not a boolean because the set has THREE values and not
+ * two, and `erasableSyntaxOnly` refuses `enum` (see `Marca` for the reason).
  */
 export const MARCA = { nota: 'nota', cruce: 'cruce', click: 'click' } as const;
 
-/** Una celda de pieza dentro del ciclo: donde esta y en que intervalo suena. */
+/** A cell of a piece inside the cycle: where it is and in which interval it sounds. */
 interface CeldaDePieza {
   cell: Cell;
   offset: number;
 }
 
-/** Una ruta ya lista para dibujar: que celda pisa cada offset, y quienes suenan en ella. */
+/** A sequence ready to draw: the cell of each offset, and the pieces that sound in it. */
 interface Ruta {
   marcas: (Marca | null)[];
   ids: string[];
-  /** Las cinco celdas de cada pieza con el intervalo en que suena cada una. */
+  /** The five cells of each piece, with the interval where each one sounds. */
   porPieza: Map<string, CeldaDePieza[]>;
 }
 
@@ -110,33 +107,33 @@ let activa: Ruta = RUTA_VACIA;
 let pendiente: Ruta | null = null;
 
 /**
- * La ultima generacion de ciclo observada.
+ * The last cycle generation seen.
  *
- * Se compara contra `cycleGeneration()` porque el motor es el unico que sabe el instante
- * exacto del swap: lo decide `collectWindow` medio intervalo antes del borde, y ninguna
- * cuenta sobre `placed` lo ve venir.
+ * It is compared with `cycleGeneration()` because only the engine knows the exact
+ * instant of the swap: `collectWindow` decides it half an interval before the boundary,
+ * and no count over `placed` sees it come.
  */
 let generacion = 0;
 
 /**
- * Las piezas que entraron al ciclo en el ultimo swap y todavia no se estrenaron celda por
- * celda.
+ * The pieces that entered the cycle at the last swap and still have veiled cells.
  *
- * Se reemplaza entero en cada swap; recordar cuales YA se estrenaron es del loop de
- * dibujo, que es quien lo observa cuadro a cuadro.
+ * It is replaced whole at each swap. To remember which cells ALREADY lost the veil is
+ * the job of the draw loop, which sees it frame by frame.
  */
 let estrenando: string[] = [];
 
 let veloActual: CeldaPorEstrenar[] = [];
 
 /**
- * Encola el recorrido nuevo.
+ * Queues the new sequence.
  *
- * La llama el mismo efecto de `use-engine.ts` que ya hace `setSequence`: las dos colas se
- * encolan juntas, o la cabeza y el sonido quedarian mirando ciclos distintos.
+ * The same effect of `use-engine.ts` that calls `setSequence` calls it: the two queues
+ * get the sequence together, or the playhead and the sound would look at different
+ * cycles.
  *
- * Solo se guarda el ultimo, igual que en el motor: lo que se encola es el recorrido
- * COMPLETO, asi que dos cambios antes del cierre valen por uno.
+ * Only the last one is kept, as in the engine: what is queued is the WHOLE sequence, so
+ * two changes before the boundary count as one.
  */
 export function encolar(s: Sequence, placed: readonly PlacedPiece[]): void {
   pendiente = construir(s, placed);
@@ -144,65 +141,63 @@ export function encolar(s: Sequence, placed: readonly PlacedPiece[]): void {
 }
 
 /**
- * Devuelve la cola de dibujo a cero. La llama el Reset del shell —via
- * `reiniciarRecorrido()` de `use-engine.ts`— y NADIE mas.
+ * Returns the draw queue to zero. The Reset of the shell calls it, through
+ * `reiniciarRecorrido()` of `use-engine.ts`, and NOBODY else.
  *
- * Existe porque este modulo avanza solo cuando `cycleGeneration()` sube, y ese contador
- * lo mueve `tick()`, o sea el reloj. Con el transporte parado `activa` y `estrenando`
- * quedan congelados, pero `encolar` igual recomputa el velo leyendolos: el resultado era
- * el velo de piezas que se fueron, dibujado sobre un tablero vacio, y se autocuraba recien
- * al volver a apretar Play.
+ * It exists because this module advances only when `cycleGeneration()` goes up, and
+ * `tick()` moves that counter: the clock. With the transport stopped, `activa` and
+ * `estrenando` stay frozen, but `encolar` still computes the veil from them. Without
+ * this reset, the veil of pieces that left is drawn over an empty board until the next
+ * Play.
  *
- * La asimetria que arregla estaba escrita de un solo lado. `App.tsx` ya declara que
- * «Reset frena el transporte ADEMAS de vaciar el tablero […] Reset es una orden
- * explicita de volver a cero, no una edicion del tablero, asi que es el unico lugar
- * donde saltearse D5 es lo correcto» — y ese parrafo hablaba solo del motor. Esta es la
- * SEGUNDA cola, y le vale igual: las dos se reinician por el mismo camino o vuelve la
- * asimetria.
+ * Reset stops the transport AND empties the board. It is an explicit order to return to
+ * zero, not an edit of the board, so it is the only place where it is correct not to
+ * wait for the cycle boundary. That holds for the engine, and for this SECOND queue
+ * too: the two reset by the same path, or the two queues disagree.
  *
- * Por eso NO alcanza con que `encolar` limpie sola cuando la secuencia viene vacia: eso
- * convertiria «el tablero quedo vacio» en «volve a cero», y son cosas distintas. Quitar
- * la ultima pieza con el transporte corriendo tiene que seguir respetando D5 del 009 y
- * dejar que el ciclo cierre; el reinicio es una ORDEN, no una consecuencia.
+ * So it is NOT enough that `encolar` clears alone when the sequence comes empty: that
+ * would turn "the board is empty" into "return to zero", and those are different
+ * things. To remove the last piece with the transport running must still let the cycle
+ * finish. The reset is an ORDER, not a consequence.
  *
- * `generacion` es lo unico que NO vuelve a su valor inicial: se sincroniza con el motor.
- * `cycleGen` no se resetea nunca —su propio docblock dice que hacerlo «haria creer a la
- * UI que hubo un swap que no hubo»— asi que ponerla en cero reintroduce esa mentira
- * desde este lado, y ademas con la pendiente que `encolar` deja inmediatamente despues
- * el proximo cuadro haria un swap FUERA del borde del ciclo.
+ * `generacion` is the only one that does NOT return to its initial value: it syncs with
+ * the engine. `cycleGen` is never reset, because that would make the UI believe in a
+ * swap that did not happen. To set `generacion` to zero would bring that lie back from
+ * this side, and with the queued sequence that `encolar` leaves right after, the next
+ * frame would swap OUTSIDE the cycle boundary.
  */
 export function reiniciar(): void {
   activa = RUTA_VACIA;
   pendiente = null;
   estrenando = [];
   generacion = cycleGeneration();
-  // Por `recomputarVelo` y no por `veloActual = []` para que el velo tenga un solo lugar
-  // donde se calcula: con las tres de arriba ya en cero, sale vacio y con identidad
-  // nueva, que es la senal que el loop de dibujo mira para rearmar.
+  // Through `recomputarVelo` and not `veloActual = []`, so that the veil has one place
+  // where it is computed: with the three above at zero, it comes out empty and with a
+  // new identity, which is the signal that the draw loop looks at to build again.
   recomputarVelo();
 }
 
 /**
- * El recorrido que esta sonando ahora mismo, como tabla indexada por offset.
+ * The sequence that sounds now, as a table indexed by offset.
  *
- * La llama el loop de dibujo, y el swap ocurre ACA: en el mismo cuadro en que el motor lo
- * reporta, no cuando React se entere.
+ * The draw loop calls it, and the swap happens HERE: in the same frame where the engine
+ * reports it, not when React finds out.
  *
- * Que el loop corra tambien en pausa —igual que el de `Spectrum`— no es un problema
- * sino lo que hace que el swap se observe en el cuadro exacto.
+ * That the loop also runs while paused, like that of `Spectrum`, is not a problem: it
+ * is what makes the swap be seen in the exact frame.
  */
 export function rutaActiva(): readonly (Marca | null)[] {
   const g = cycleGeneration();
   if (g === generacion) return activa.marcas;
 
-  // La generacion se sincroniza SIEMPRE, haya pendiente o no: si el motor conto un swap
-  // que aca no tenia contraparte, quedarse atras haria que el proximo encolar entre en
-  // vigencia al cuadro siguiente en vez de esperar su borde.
+  // The generation ALWAYS syncs, with a queued sequence or without: if the engine
+  // counted a swap that had no counterpart here, to stay behind would make the next
+  // `encolar` start in the next frame and not wait for its boundary.
   generacion = g;
   if (pendiente === null) return activa.marcas;
 
-  // Las que no estaban sonando estrenan en este ciclo, y estrenan CELDA POR CELDA: es
-  // lo unico que hace visible en que momento exacto a la pieza le toca su turno.
+  // The pieces that were not sounding start in this cycle, and they lose the veil CELL
+  // BY CELL: it is the only thing that shows the exact moment of the turn of the piece.
   const sonaban = new Set(activa.ids);
   estrenando = pendiente.ids.filter((id) => !sonaban.has(id));
 
@@ -213,20 +208,20 @@ export function rutaActiva(): readonly (Marca | null)[] {
 }
 
 /**
- * Las celdas colocadas que todavia no sonaron nunca, para dibujarlas atenuadas (AC5).
+ * The placed cells that never sounded yet, to draw them veiled.
  *
- * Son dos poblaciones distintas y por eso `offset` puede ser `null`:
+ * They are two different populations, and so `offset` can be `null`:
  *
- * - Las de una pieza que YA entro al ciclo y todavia no llego su turno: tienen offset,
- *   y se estrenan cuando la cabeza las pisa. Esto es lo que hace legible que el orden
- *   de reproduccion no es el de colocacion — la pieza no se enciende cuando arranca el
- *   ciclo sino cuando le toca.
- * - Las de una pieza encolada, que ni siquiera entro: no hay instante que esperar
- *   todavia, solo el cierre del ciclo. Offset `null`.
+ * - Those of a piece that ALREADY entered the cycle and whose turn has not come: they
+ *   have an offset, and lose the veil when the playhead reaches them. This shows that
+ *   the play order is not the placement order: the piece does not light up when the
+ *   cycle starts but when its turn comes.
+ * - Those of a queued piece, which has not even entered: there is no instant to wait
+ *   for yet, only the cycle boundary. Offset `null`.
  *
- * La IDENTIDAD del array es la senal de cambio: mientras sea el mismo array, el loop no
- * tiene nada que rearmar. Cambia al encolar y al hacer swap, o sea rarisimo comparado
- * con los 60 cuadros por segundo que lo leen.
+ * The IDENTITY of the array is the change signal: while it is the same array, the loop
+ * has nothing to build again. It changes on `encolar` and on the swap, very rare
+ * against the 60 frames a second that read it.
  */
 export function velo(): readonly CeldaPorEstrenar[] {
   return veloActual;
@@ -251,18 +246,18 @@ function recomputarVelo(): void {
 }
 
 /**
- * Cruza la secuencia con el tablero y devuelve la tabla indexada por offset.
+ * Joins the sequence with the board and returns the table indexed by offset.
  *
- * Las celdas de las notas salen de `cellsByPlayOrder` —la pura del dominio, que ya trae
- * el retrogrado aplicado— y las de los clicks de `Click.cell`, que el 009 materializo
- * junto con la distancia. NINGUNA se calcula aca: entre las dos celdas mas lejanas del
- * tablero hay 792 caminos minimos, o sea 792 formas de dibujar un recorrido que no es el
- * que suena, y por eso D5 le prohibe a la vista elegir el suyo.
+ * The cells of the notes come from `cellsByPlayOrder`, the pure function of the circuit
+ * that already has the retrograde applied, and those of the clicks from `Click.cell`.
+ * NONE is calculated here: between the two farthest cells of the board there are 792
+ * shortest paths, 792 ways to draw a circuit that is not the one that sounds, so the
+ * view must not choose its own.
  *
- * `occupantAt` queda deliberadamente afuera aunque parezca el camino corto, y NO por
- * costo —medido: 4,1 us un tablero entero con 12 piezas, ver su docblock—, sino porque
- * contesta sobre `placed`, que es el tablero de AHORA. El dato que el loop necesita es
- * el de la ruta que esta sonando, y ese ya esta en la secuencia congelada.
+ * `occupantAt` stays out on purpose, although it looks like the short way. NOT for its
+ * cost (measured: 4.1 us for a whole board with 12 pieces, see its docblock), but
+ * because it answers about `placed`, the CURRENT board. The loop needs the data of the
+ * sequence that sounds, and the frozen sequence already has it.
  */
 function construir(s: Sequence, placed: readonly PlacedPiece[]): Ruta {
   const marcas: (Marca | null)[] = new Array<Marca | null>(Math.max(0, s.length)).fill(null);
@@ -271,12 +266,12 @@ function construir(s: Sequence, placed: readonly PlacedPiece[]): Ruta {
 
   for (const step of s.steps) {
     const pieza = porId.get(step.pieceId);
-    // No puede pasar: el shell deriva la secuencia de las MISMAS piezas que le pasa acá
-    // —las que entran en la grilla de ahora, ver `visibles` en `App.tsx`— con un `useMemo`,
-    // y las entrega juntas al hook en el mismo efecto. Si igual pasara, ese paso queda sin
-    // marcas y la cabeza lo cruza a oscuras en vez de dibujar una celda inventada — el
-    // silencio es preferible a la mentira, porque una celda equivocada se lee como que el
-    // modelo esta mal.
+    // It cannot happen: the shell derives the sequence from the SAME pieces that it
+    // gives here (those that fit the current grid, see `visibles` in `App.tsx`) with a
+    // `useMemo`, and gives them together to the hook in the same effect. If it did
+    // happen, that step has no marks and the playhead crosses it in the dark and does
+    // not draw an invented cell. Silence is better than a lie, because a wrong cell
+    // reads as a wrong model.
     if (!pieza) continue;
     const celdas = cellsByPlayOrder(pieza);
     const deLaPieza: CeldaDePieza[] = [];
@@ -287,29 +282,29 @@ function construir(s: Sequence, placed: readonly PlacedPiece[]): Ruta {
     porPieza.set(step.pieceId, deLaPieza);
   }
 
-  // Los clicks despues de las notas y no antes: sus offsets no se pisan —lo garantiza el
-  // test del 009— asi que el orden no cambia nada hoy, pero si alguna vez se pisaran, que
-  // gane la nota es lo correcto: es lo que se escucha con altura.
+  // The clicks are written after the notes. Their offsets do not collide (a test of
+  // `sequence.test.ts` guarantees it), so the order changes nothing today. If they
+  // ever collided, the mark written last would stay: that of the click.
   //
-  // `Click.note` distingue el cruce sobre celda ocupada del click mudo de
-  // siempre: `routeBetween` no sabe que hay debajo del camino que traza (D5 — la vista
-  // no elige su propio recorrido), asi que el mismo offset puede caer sobre una celda
-  // vacia o sobre una pieza que no le toca sonar todavia. Cuando cae sobre una pieza,
-  // esa celda SUENA su nota como floritura, y eso tiene que verse distinto del click.
+  // `Click.note` tells the crossing of an occupied cell from the click: `routeBetween`
+  // does not know what is under the path it draws (the view does not choose its own
+  // circuit), so the same offset can fall on an empty cell or on a piece whose turn
+  // has not come. When it falls on a piece, that cell SOUNDS its note, and that must
+  // look different from the click.
   for (const c of s.clicks) {
     marcas[c.offset] = { cell: c.cell, kind: c.note !== undefined ? MARCA.cruce : MARCA.click };
   }
 
-  // `ids` y `porPieza` salen de `s.steps` y NO de `s.order`, asi que una pieza MUTEADA
-  // no entra a ninguno de los dos: no tiene velo de estreno. Es una decision
-  // y no un accidente de donde estaba escrito el `for` — el velo dice "esto todavia no
-  // sono", y una pieza muteada no va a sonar nunca, asi que atenuarla hasta que le
-  // "toque" prometeria algo que no va a pasar. Ademas la opacidad ya esta ocupada
-  // diciendo eso, y el canal del muteo es otro: la baldosa blanca de `Board.tsx`.
+  // `ids` and `porPieza` come from `s.steps` and NOT from `s.order`, so a MUTED piece
+  // enters neither: it has no veil. That is a decision and not an accident of where
+  // the `for` is written. The veil says "this has not sounded yet", and a muted piece
+  // will never sound, so to veil it until its "turn" would promise something that will
+  // not happen. Also, opacity is already taken to say that, and mute has another
+  // channel: the white tile of `Board.tsx`.
   //
-  // Lo que si la cubre son las MARCAS: sus cinco celdas entran por el `for` de los
-  // clicks de arriba, asi que la cabeza lectora la sigue recorriendo celda por celda
-  // —esta ocupando ese tiempo— pero con `MARCA.click` en vez de `MARCA.nota`, o sea con
-  // el borde del click. Tambien es deliberado: lo que suena ahi ES un click.
+  // What does cover it is the MARKS: its five cells enter through the `for` of the
+  // clicks above, so the playhead still goes over it cell by cell (it takes that time)
+  // but with `MARCA.click` and not `MARCA.nota`: with the border of the click. That is
+  // deliberate too: what sounds there IS a click.
   return { marcas, ids: s.steps.map((st) => st.pieceId), porPieza };
 }

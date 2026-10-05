@@ -6,41 +6,41 @@ import { DEFAULT_BPM } from '../scheduler.ts';
 import type { Sequence } from '../scheduler.ts';
 
 /**
- * El motor, contra Web Audio de VERDAD.
+ * The engine, against REAL Web Audio.
  *
- * Es la unica de las cuatro partes del motor que no se podia testear: `voice`,
- * `scheduler` y `playhead` reciben el contexto por parametro y corren contra un
- * `OfflineAudioContext` de `node-web-audio-api`, pero este modulo **es** el que crea
- * el singleton —`new AudioContext()` a nivel de modulo— y ademas agenda con
- * `window.setInterval`. Ninguna de las dos cosas existe en `environment: 'node'`, y
- * por eso 107 statements —el 25 % del hueco de coverage de `src/`— estuvieron en cero
- * hasta este spec. No es UI: es el reloj, la reconciliacion del loop y el despacho a
- * sonido, o sea de lo que depende que algo suene a tiempo.
+ * `voice.ts`, `scheduler.ts` and `playhead-offset.ts` do not touch the singleton, so
+ * their tests run in `node`, with an `OfflineAudioContext` of `node-web-audio-api` where
+ * they need a context. This module **is** the one that creates the singleton, a
+ * `new AudioContext()` kept in a module variable, and it also schedules with
+ * `window.setInterval`. Neither exists in `environment: 'node'`. Measured without this
+ * file: 107 statements at zero, 25 % of the coverage gap of `src/`. It is not UI: it is
+ * the clock, the reconciliation of the loop and the dispatch to sound, on which the
+ * timing of every sound depends.
  *
- * ## Todo el estado es de MODULO, asi que cada caso reimporta
+ * ## All the state belongs to the MODULE, so each case imports it again
  *
  * `ctx`, `master`, `analyser`, `active`, `pending`, `clock`, `timer`, `bpm`,
- * `clicksAudible` y `cycleGen` viven en el modulo. Un test que arranca el reloj se lo
- * deja andando al siguiente, y uno que crea el `AudioContext` impide que el de la
- * rama del `catch` lo cree de nuevo —`audio()` devuelve el que ya hay—. Con
- * `vi.resetModules()` + `await import()` cada caso ve un motor recien cargado, y el
- * orden de los tests deja de ser parte del oraculo.
+ * `clicksAudible` and `cycleGen` live in the module. A test that starts the clock leaves
+ * it running for the next test, and a test that creates the `AudioContext` prevents the
+ * test of the `catch` branch from creating it again: `audio()` returns the existing one.
+ * With the fresh import of `motor()`, below, each case sees an engine just loaded, and
+ * the order of the tests is not part of the oracle.
  */
 type Engine = typeof import('../engine.ts');
 
 /**
- * Un motor recien cargado, con su estado de modulo en cero.
+ * An engine just loaded, with its module state at zero.
  *
- * **`vi.resetModules()` no sirve aca, y costo dos tests descubrirlo.** En
- * `environment: 'node'` limpia el registro de modulos de vitest y el `await import()`
- * siguiente devuelve una instancia nueva; en el navegador los modulos los registra el
- * propio motor de ESM por URL, y eso no se puede vaciar. El `ctx` del test anterior
- * sobrevive, `audio()` devuelve el que ya hay, y la rama del `catch` —que necesita que
- * el contexto NO exista todavia— nunca se alcanza.
+ * **`vi.resetModules()` does not work here.** In `environment: 'node'` it clears the
+ * module registry of vitest, and the next `await import()` returns a new instance. In
+ * the browser the ESM engine itself registers the modules by URL, and that registry
+ * cannot be emptied. The `ctx` of the test before survives, `audio()` returns the
+ * existing one, and the `catch` branch, which needs a context that does NOT exist yet, is
+ * never reached.
  *
- * Lo que si funciona es cambiarle la URL: `?fresh=N` es otro modulo para el navegador,
- * asi que Vite lo sirve de nuevo y sus `let` arrancan en su valor inicial. Es la unica
- * forma de aislar un singleton de modulo en browser mode.
+ * What works is a change of the URL: `?fresh=N` is another module for the browser, so
+ * Vite serves it again and its `let` variables start at their initial values. It is the
+ * only way to isolate a module singleton in browser mode.
  */
 let n = 0;
 const abiertos: Engine[] = [];
@@ -51,55 +51,55 @@ async function motor(): Promise<Engine> {
   return e;
 }
 
-/** Alias historico: hoy todo motor se registra para limpieza. */
+/** An alias of `motor`: every engine is registered for cleanup, with a clock or without. */
 const conReloj = motor;
 
 afterEach(async () => {
   for (const e of abiertos.splice(0)) {
-    // El `setInterval` sobrevive al modulo: el que viene no conoce el timer del que se
-    // fue, asi que sin esto queda un `tick` cada 25 ms contra un contexto que ya nadie
-    // mira, y eso ensucia los tests siguientes.
+    // The `setInterval` outlives the module: the next module does not know the timer of
+    // the one before. Without this, a `tick` stays every 25 ms against a context that
+    // nobody reads, and that disturbs the next tests.
     e.stopClock();
-    // Y el AudioContext hay que cerrarlo: Chromium topea la cantidad de contextos por
-    // documento, y con un modulo nuevo por test se llega enseguida. Cerrar uno ya
-    // cerrado tira, asi que el `catch` no es pereza.
-    try { await e.audio()?.close(); } catch { /* ya estaba cerrado */ }
+    // And the AudioContext must be closed: Chromium limits the number of contexts for
+    // each document, and with a new module for each test the limit comes soon. To close
+    // a closed context throws, so the `catch` is necessary.
+    try { await e.audio()?.close(); } catch { /* it was already closed */ }
   }
   vi.unstubAllGlobals();
 });
 
-/** Espera de reloj real: el motor agenda contra `currentTime`, que no se puede fingir. */
+/** A wait of the real clock: the engine schedules against `currentTime`, which cannot be faked. */
 const esperar = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /**
- * Espera a que la cabeza tenga una posición que dibujar, **sondeando en vez de dormir**.
+ * Waits until the playhead has a position to draw. It **polls, it does not sleep**.
  *
- * ## El reloj de pared y el reloj de audio no son el mismo reloj
+ * ## The wall clock and the audio clock are not the same clock
  *
- * `playheadOffset()` contesta un número recién cuando `ctx.currentTime` pasa
- * `clock.origin`, y `origin` lo fija `startClock` en `currentTime + CLOCK_START_DELAY`.
- * O sea que la condición vive en el **reloj del AudioContext**, que lo mueve el hilo de
- * render — no `setTimeout`.
+ * `playheadOffset()` answers a number only when `ctx.currentTime` passes `clock.origin`,
+ * and `startClock` sets `origin` to `currentTime + CLOCK_START_DELAY`. So the condition
+ * lives in the **clock of the AudioContext**, which the render thread moves, not
+ * `setTimeout`.
  *
- * Los tres sitios que llaman acá —cinco casos, contando el `it.each` de `outputLatency`—
- * dormían `CLOCK_START_DELAY * 1000 + TICK_MS * 4` ms de pared y afirmaban después: o
- * sea traducían una condición del reloj de audio a una espera del de pared. Con los
- * cuatro nodos de `verify` compitiendo por CPU esa traducción se rompe, y está medido
- * acá: **150 ms de pared, 50,7 ms de audio** —el hilo de render hambreado va a un
- * tercio— con el contexto en `running` y la secuencia ya puesta. Sumale que
- * `outputLatency` mide 40 ms en este Chromium y se resta antes de comparar: del margen
- * nominal de 100 ms quedaban 60, y de reloj de audio ni eso.
+ * A fixed sleep of `CLOCK_START_DELAY * 1000 + TICK_MS * 4` ms of wall time translates a
+ * condition of the audio clock into a wait of the wall clock. With the four nodes of
+ * `verify` competing for the CPU that translation breaks, and it is measured here:
+ * **150 ms of wall time, 50.7 ms of audio time**. The starved render thread goes at one
+ * third of the speed, with the context in `running` and the sequence already set. Also,
+ * `outputLatency` is 40 ms in this Chromium and is subtracted before the comparison: of
+ * the nominal margin of 100 ms, 60 ms remain, and less than that in audio time.
  *
- * El rojo no decía nada de eso: decía `expected null not to be null` sobre un motor que
- * estaba funcionando perfecto. Es el mismo modo de falla que el bucle de reintento de
- * «null mientras `origin` todavía es futuro» ya documenta treinta líneas más abajo, y la
- * respuesta es la misma: **cortar por reloj de pared, pero afirmar sobre la condición**.
+ * The failure said none of that: it said `expected null not to be null` about an engine
+ * that worked. It is the same failure mode that the retry loop of the test «null while
+ * `origin` is still in the future» documents below, and the answer is the same: **stop
+ * by the wall clock, but assert on the condition**.
  *
- * No afloja lo que se afirma. Lo que se pide sigue siendo un offset no nulo, entero y en
- * rango; lo único que deja de exigirse es que aparezca dentro de UNA siesta fija. El
- * techo es generoso a propósito —el presupuesto real son ~150 ms— porque acá no se está
- * midiendo cuánto tarda: para eso están los presupuestos del 009, que además se saltean
- * en la CI justamente porque el runner no es una máquina medible.
+ * This does not weaken the assertion. The test still asks for an offset that is not null,
+ * is an integer and is in range. It does not ask that the offset appears inside ONE fixed
+ * sleep. The ceiling is generous on purpose (the real budget is ~150 ms) because this
+ * does not measure how long it takes: the time budgets of `sequence.budget.test.ts` do
+ * that, and they are skipped in CI because the runner is not a machine that can be
+ * measured.
  */
 async function esperarCabeza(e: Engine, limiteMs = 4000): Promise<number | null> {
   const hasta = performance.now() + limiteMs;
@@ -112,12 +112,11 @@ async function esperarCabeza(e: Engine, limiteMs = 4000): Promise<number | null>
 }
 
 /**
- * Un ciclo con las tres clases de evento, escrito a mano y no derivado del dominio.
+ * A cycle with the three kinds of event, written by hand and not derived from a board.
  *
- * A mano porque el motor no importa el circuito —tambien en
- * sus tests— y porque lo que se verifica aca es el DESPACHO de cada clase, no de donde
- * salio: `A4` con altura, un cruce con altura y un click mudo, que son las tres ramas
- * del `for` de `tick()`.
+ * By hand because the engine does not import the circuit, in its tests too, and because
+ * the check here is the DISPATCH of each kind, not its source: a note, a crossing and a
+ * click, which are the three branches of the `for` of `tick()`.
  */
 const CICLO: Sequence = {
   steps: [{ offset: 0, notes: [69, 71] }],
@@ -125,21 +124,21 @@ const CICLO: Sequence = {
   length: 8,
 };
 
-describe('audio() — el singleton y su grafo', () => {
-  it('crea el contexto una sola vez y lo devuelve siempre', async () => {
+describe('audio() — the singleton and its graph', () => {
+  it('it creates the context once and always returns it', async () => {
     const e = await motor();
     const c = e.audio();
     expect(c).not.toBeNull();
-    // La segunda llamada NO construye un grafo nuevo: si lo hiciera, cada arpegio
-    // colgaria de un master distinto y el analizador miraria una mezcla parcial.
+    // The second call does NOT build a new graph: if it did, each arpeggio would hang
+    // from a different master, and the analyser would read a partial mix.
     expect(e.audio()).toBe(c);
   });
 
-  it('el analizador va ENTRE el master y el destino, con la config del repo', async () => {
+  it('the analyser goes BETWEEN the master and the destination, with the config of the repo', async () => {
     const e = await motor();
     const c = e.audio()!;
-    // Se afirma lo que `readSpectrum` necesita para responder algo util: el analizador
-    // existe, tiene el tamano de FFT del repo, y hay tantos bins como la mitad.
+    // The assertion is what `readSpectrum` needs to answer something useful: the
+    // analyser exists, it has the FFT size of the repo, and there are half as many bins.
     e.playNotes([69]);
     const bins = e.readSpectrum();
     expect(bins).not.toBeNull();
@@ -148,18 +147,18 @@ describe('audio() — el singleton y su grafo', () => {
     expect(MASTER_GAIN).toBeGreaterThan(0);
   });
 
-  it('AC-PLY-004 — sin Web Audio devuelve null y avisa, en vez de romper la app', async () => {
-    // La app «queda usable pero muda», que es lo que promete el docblock. Se verifica
-    // porque es una promesa sobre un navegador que no tenemos, y la unica forma de
-    // saber que se cumple es fabricarlo.
+  it('AC-PLY-004 — with no Web Audio it returns null and warns, and does not break the app', async () => {
+    // The app stays usable and silent, which is what the docblock promises. It is
+    // checked because it is a promise about a browser that we do not have, and the only
+    // way to know that it holds is to fake one.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    vi.stubGlobal('AudioContext', class { constructor() { throw new Error('sin Web Audio'); } });
+    vi.stubGlobal('AudioContext', class { constructor() { throw new Error('no Web Audio'); } });
 
     const e = await motor();
     expect(e.audio()).toBeNull();
     expect(warn).toHaveBeenCalled();
 
-    // Y cada llamador lo chequea: ninguna de las tres puertas de sonido explota.
+    // And each caller checks it: none of the three entry points to sound throws.
     expect(() => e.playNotes([69])).not.toThrow();
     expect(() => e.playNow([69])).not.toThrow();
     expect(() => e.startClock()).not.toThrow();
@@ -170,61 +169,62 @@ describe('audio() — el singleton y su grafo', () => {
     warn.mockRestore();
   });
 
-  it('AC-PLY-004 — el fallo avisa UNA vez y no una por click', async () => {
-    // Sin la marca de «ya fallo», cada llamada reintenta el constructor: y las llamadas
-    // vienen del usuario tocando el instrumento, asi que la consola se llenaba a razon
-    // de un warning por click. Se cuenta el warn y no se mira `audio()`, porque lo que
-    // cambio no es la respuesta —siempre fue null— sino cuantas veces se intenta.
+  it('AC-PLY-004 — the failure warns ONCE, not once for each click', async () => {
+    // Without the failure latch, each call tries the constructor again. The calls come
+    // from the user who plays the instrument, so the console would fill at one warning
+    // for each click. The warn is counted and `audio()` is not checked: the answer is
+    // null in both cases, and the difference is how many times the constructor is tried.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    vi.stubGlobal('AudioContext', class { constructor() { throw new Error('sin Web Audio'); } });
+    vi.stubGlobal('AudioContext', class { constructor() { throw new Error('no Web Audio'); } });
 
     const e = await motor();
     expect(e.audio()).toBeNull();
     expect(warn).toHaveBeenCalledTimes(1);
 
-    // Las tres puertas de sonido mas una consulta directa: cuatro intentos mas.
+    // The three entry points to sound plus one direct query: four more attempts.
     e.playNotes([69]);
     e.playNow([69]);
     e.startClock();
     expect(e.audio()).toBeNull();
 
-    expect(warn, 'la marca latchea: el segundo intento ya no llega al constructor').toHaveBeenCalledTimes(1);
+    expect(warn, 'the latch holds: the second attempt does not reach the constructor').toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
 });
 
-describe('readSpectrum() — el buffer reusado', () => {
-  it('AC-SPC-003 — devuelve null mientras no haya senal que mirar', async () => {
+describe('readSpectrum() — the reused buffer', () => {
+  it('AC-SPC-003 — it returns null while there is no signal to read', async () => {
     const e = await motor();
-    // Sin contexto todavia: `readSpectrum` NO lo crea, a proposito — su llamador es un
-    // loop de dibujo y crearlo ahi seria hacerlo sin gesto del usuario.
+    // No context yet: `readSpectrum` does NOT create it, on purpose. Its caller is a
+    // draw loop, and to create it there would be to create it with no user gesture.
     expect(e.readSpectrum()).toBeNull();
   });
 
-  it('AC-SPC-004 — es el MISMO array entre llamadas, que es lo que su docblock advierte', async () => {
+  it('AC-SPC-004 — it is the SAME array between calls, which is what its docblock warns about', async () => {
     const e = await motor();
     e.audio();
     const a = e.readSpectrum();
     const b = e.readSpectrum();
     expect(a).not.toBeNull();
-    // Identidad y no contenido: quien lo guarde va a verlo cambiar por debajo. La
-    // alternativa —alocar 60 veces por segundo— es la que el modulo rechaza.
+    // Identity and not content: a caller that keeps it will see it change. The
+    // alternative, to allocate 60 times each second, is what the module rejects.
     expect(b).toBe(a);
   });
 });
 
 describe('playNotes / playNow', () => {
-  it('playNotes agenda sin reanudar: no es un gesto del usuario', async () => {
+  it('playNotes schedules and does not resume: it is not a user gesture', async () => {
     const e = await motor();
     const c = e.audio()!;
     const antes = c.currentTime;
     e.playNotes([69, 71, 72, 74, 76]);
-    // Lo observable sin oir: no explota, no para el contexto y el reloj sigue corriendo.
+    // What can be observed without listening: it does not throw, it does not stop the
+    // context, and the clock still runs.
     expect(c.state).toBe('running');
     expect(c.currentTime).toBeGreaterThanOrEqual(antes);
   });
 
-  it('playNow reanuda si esta suspendido, que es su unica diferencia', async () => {
+  it('playNow resumes if the context is suspended, which is its only difference', async () => {
     const e = await motor();
     const c = e.audio()!;
     await c.suspend();
@@ -234,9 +234,9 @@ describe('playNotes / playNow', () => {
     await vi.waitFor(() => expect(c.state).toBe('running'));
   });
 
-  it('y con el contexto ya corriendo no lo toca', async () => {
-    // El caso normal: el gesto del usuario que reanuda es el PRIMERO, y desde ahi
-    // `playNow` es `playNotes` con una pregunta de mas.
+  it('and with the context already running it does not touch it', async () => {
+    // The normal case: the user gesture that resumes is the FIRST one, and after it
+    // `playNow` is `playNotes` with one more question.
     const e = await motor();
     const c = e.audio()!;
     expect(c.state).toBe('running');
@@ -248,34 +248,34 @@ describe('playNotes / playNow', () => {
     reanudar.mockRestore();
   });
 
-  it('con un arpegio vacio no agenda nada y tampoco falla', async () => {
+  it('with an empty arpeggio it schedules nothing and does not fail', async () => {
     const e = await motor();
     e.audio();
     expect(() => e.playNotes([])).not.toThrow();
   });
 });
 
-describe('los accesores del motor', () => {
-  it('sequenceInfo separa clicks de cruces, que es para lo que existe', async () => {
+describe('the accessors of the engine', () => {
+  it('sequenceInfo reports the sounding sequence, not the queued one', async () => {
     const e = await motor();
-    // Antes del primer ciclo la ACTIVA esta vacia: `setSequence` encola, no pone en
-    // vigencia. Preguntarle al motor que agendo y que conteste lo pendiente seria peor
-    // que no tener la funcion.
+    // Before the first cycle the SOUNDING sequence is empty: `setSequence` queues, it
+    // does not start the sequence. If the engine answered the queued sequence to the
+    // question of what it scheduled, that would be worse than no function.
     e.setSequence(CICLO);
     expect(e.sequenceInfo()).toEqual({ steps: 0, clicks: 0, crosses: 0, length: 0 });
   });
 
-  it('setBpm cambia el tempo del motor sin tocar el reloj', async () => {
+  it('setBpm changes the tempo of the engine and does not touch the clock', async () => {
     const e = await motor();
     expect(e.clockRunning()).toBe(false);
     e.setBpm(DEFAULT_BPM * 2);
     e.setClicksAudible(true);
-    // No hay getter, y eso es correcto: el bpm se observa en el espaciado. Lo que se
-    // afirma aca es que ponerlo no arranca ni para nada.
+    // There is no getter, and that is correct: the bpm is observed in the spacing. The
+    // assertion here is that to set it starts nothing and stops nothing.
     expect(e.clockRunning()).toBe(false);
   });
 
-  it('cycleGeneration arranca en 0 y no se resetea al parar', async () => {
+  it('cycleGeneration starts at 0 and does not reset on stop', async () => {
     const e = await conReloj();
     expect(e.cycleGeneration()).toBe(0);
     e.setSequence(CICLO);
@@ -283,19 +283,19 @@ describe('los accesores del motor', () => {
     await vi.waitFor(() => expect(e.cycleGeneration()).toBeGreaterThan(0), { timeout: 2000 });
     const g = e.cycleGeneration();
     e.stopClock();
-    // Pausar no cambia que ciclo esta en vigencia: resetear haria creer a la UI que
-    // hubo un swap que no hubo.
+    // A pause does not change which cycle is sounding: a reset would make the UI believe
+    // in a swap that did not occur.
     expect(e.cycleGeneration()).toBe(g);
   });
 });
 
-describe('el reloj', () => {
-  it('startClock es idempotente y stopClock tambien', async () => {
-    // Se cuentan los `setInterval` y no solo `clockRunning()`: con la guarda borrada el
-    // reloj SIGUE diciendo que corre —porque `timer` no es null— y lo que queda roto es
-    // un segundo timer huerfano que agenda cada onset dos veces contra el mismo
-    // `scheduledUntil`. Un pase de mutacion lo confirmo: sin este conteo, borrar
-    // `if (timer !== null) return` dejaba el test en verde.
+describe('the clock', () => {
+  it('startClock is idempotent and stopClock too', async () => {
+    // The `setInterval` calls are counted, not only `clockRunning()`: with the guard
+    // deleted the clock STILL says that it runs, because `timer` is not null, and what
+    // breaks is a second orphan timer that schedules each onset twice against the same
+    // `scheduledUntil`. A mutation pass confirmed it: without this count, the deletion
+    // of `if (timer !== null) return` left the test green.
     const intervalos = vi.spyOn(window, 'setInterval');
     const e = await conReloj();
 
@@ -305,7 +305,7 @@ describe('el reloj', () => {
 
     e.startClock();
     expect(e.clockRunning()).toBe(true);
-    expect(intervalos, 'la segunda llamada no puede abrir un segundo timer').toHaveBeenCalledTimes(1);
+    expect(intervalos, 'the second call must not open a second timer').toHaveBeenCalledTimes(1);
 
     const limpiados = vi.spyOn(window, 'clearInterval');
     e.stopClock();
@@ -314,13 +314,13 @@ describe('el reloj', () => {
 
     e.stopClock();
     expect(e.clockRunning()).toBe(false);
-    expect(limpiados, 'parar dos veces no limpia dos veces').toHaveBeenCalledTimes(1);
+    expect(limpiados, 'two stops do not clear twice').toHaveBeenCalledTimes(1);
 
     intervalos.mockRestore();
     limpiados.mockRestore();
   });
 
-  it('reanuda el contexto suspendido al arrancar', async () => {
+  it('it resumes the suspended context on start', async () => {
     const e = await conReloj();
     const c = e.audio()!;
     await c.suspend();
@@ -329,26 +329,26 @@ describe('el reloj', () => {
     expect(e.clockRunning()).toBe(true);
   });
 
-  it('AC-PLY-015 — el primer arranque pone en vigencia la pendiente y cuenta el swap', async () => {
+  it('AC-PLY-015 — the first start makes the queued sequence the sounding one and counts the swap', async () => {
     const e = await conReloj();
     e.setSequence(CICLO);
     e.setClicksAudible(true);
     e.startClock();
 
-    // El primer arranque pasa por la rama de `vigente.length <= 0` de `collectWindow`,
-    // y que ESA tambien suba el contador es lo que hace que la cabeza aparezca en el
-    // primer ciclo y no recien en el segundo.
+    // The first start goes through the branch `vigente.length <= 0` of `collectWindow`,
+    // and THAT branch must raise the counter too: so the playhead appears in the first
+    // cycle and not only in the second.
     await vi.waitFor(() => expect(e.sequenceInfo().length).toBe(CICLO.length), { timeout: 2000 });
     expect(e.cycleGeneration()).toBeGreaterThan(0);
     expect(e.sequenceInfo()).toEqual({
       steps: 1,
-      clicks: 1,   // el `{ offset: 3 }` sin nota
-      crosses: 1,  // el `{ offset: 2, note: 76 }`
+      clicks: 1,   // the `{ offset: 3 }` with no note
+      crosses: 1,  // the `{ offset: 2, note: 76 }`
       length: CICLO.length,
     });
   });
 
-  it('AC-PLY-021 — con los clicks apagados el ciclo sigue igual: es mezcla, no modelo', async () => {
+  it('AC-PLY-021 — with the clicks off the cycle stays the same: it is mix, not model', async () => {
     const e = await conReloj();
     e.setSequence(CICLO);
     e.setClicksAudible(false);
@@ -356,8 +356,8 @@ describe('el reloj', () => {
 
     await vi.waitFor(() => expect(e.sequenceInfo().length).toBe(CICLO.length), { timeout: 2000 });
 
-    // El ciclo entero, para que el despacho llegue al click MUDO del offset 3 con el
-    // interruptor apagado: es la rama que se apaga, y apagarla no puede acortar nada.
+    // The whole cycle, so that the dispatch reaches the click of offset 3 with the click
+    // switch off: that branch is silenced, and to silence it must not shorten anything.
     let maximo = -1;
     for (let i = 0; i < 80 && maximo < CICLO.length - 1; i++) {
       const off = e.playheadOffset();
@@ -366,69 +366,67 @@ describe('el reloj', () => {
     }
     expect(maximo).toBeGreaterThanOrEqual(CICLO.length - 1);
 
-    // Los clicks siguen en la secuencia y `collectHits` los sigue emitiendo: lo unico
-    // que cambia es que `tick()` no los cablea a sonido.
+    // The clicks stay in the sequence and `collectHits` still emits them: the only
+    // change is that `tick()` does not wire them to sound.
     expect(e.sequenceInfo().clicks).toBe(1);
     expect(e.sequenceInfo().length).toBe(CICLO.length);
   });
 });
 
 describe('playheadOffset()', () => {
-  it('AC-PLY-029 — null en pausa, aunque el contexto exista', async () => {
+  it('AC-PLY-029 — null while paused, even with a context', async () => {
     const e = await motor();
     e.audio();
     expect(e.playheadOffset()).toBeNull();
   });
 
-  it('AC-PLY-029 — null con el reloj andando y la secuencia vacia', async () => {
+  it('AC-PLY-029 — null with the clock running and an empty sequence', async () => {
     const e = await conReloj();
     e.startClock();
     expect(e.playheadOffset()).toBeNull();
   });
 
-  it('AC-PLY-029 — null mientras `origin` todavia es futuro, y un numero despues', async () => {
+  it('AC-PLY-029 — null while `origin` is still in the future, and a number after', async () => {
     const e = await conReloj();
     e.setSequence(CICLO);
     e.startClock();
 
-    // Antes del primer tick la activa sigue vacia, asi que el null sale por ahi.
+    // Before the first tick the sounding sequence is still empty, so the null comes from
+    // there.
     expect(e.playheadOffset()).toBeNull();
 
-    // La ventana que interesa es la de EN MEDIO, y es angosta a proposito: el swap
-    // ocurre en el primer tick (25 ms) y `origin` cae recien a los 50 ms
-    // (`CLOCK_START_DELAY`). En esos ~25 ms la secuencia activa YA es la nueva pero
-    // todavia no empezo a sonar, y ahi tiene que seguir contestando null. Sin ese
-    // corte `offsetAt` contesta —correctamente, como funcion total— la COLA del ciclo,
-    // o sea el offset MAXIMO, y ese numero destapaba de un saque las cinco celdas del
-    // velo: el estreno celda por celda no se veia nunca.
+    // The window of interest is the one IN THE MIDDLE, and it is narrow on purpose: the
+    // swap occurs in the first tick (25 ms), and it sets `origin` 50 ms after that tick
+    // (`CLOCK_START_DELAY`). In those ~50 ms the sounding sequence IS the new one but
+    // has not started to sound, and the answer must still be null. Without that guard,
+    // `offsetAt` answers the TAIL of the cycle, the MAXIMUM offset, which is correct for
+    // a total function. That number would uncover the five cells of the veil at once,
+    // and never cell by cell.
     //
-    // ## El muestreo cede el hilo en cada vuelta y no duerme un intervalo fijo
+    // ## The sampling yields the thread in each turn and does not sleep a fixed interval
     //
-    // La ventana va del primer tick (25 ms) a `origin` (50 ms despues), o sea ~50 ms, y
-    // el swap ocurre adentro de un `setInterval`: para verlo hay que devolverle el hilo
-    // al event loop, pero durmiendo 2 ms por vuelta se pierden muestras y el test
-    // PARPADEA bajo instrumentacion, que es donde mas lento va todo. Con `setTimeout(0)`
-    // se cede el hilo sin gastar ventana, y el corte es por reloj de pared y no por
-    // cantidad de vueltas — que es lo que lo hace independiente de la velocidad de la
-    // maquina.
+    // The swap occurs inside a `setInterval`: to see it, the test must give the thread
+    // back to the event loop. But a sleep of 2 ms in each turn loses samples, and the
+    // test FLICKERS under instrumentation, where all is slowest. `setTimeout(0)` yields
+    // the thread and spends no window, and the stop is by the wall clock and not by a
+    // number of turns. That makes it independent of the speed of the machine.
     //
-    // `vi.waitFor` no sirve: su intervalo por defecto es mas ancho que la ventana entera.
-    // ## Perder la ventana REINTENTA, no da rojo
+    // `vi.waitFor` does not work: its default interval is wider than the whole window.
     //
-    // `setTimeout(0)` lo clampea Chromium a 4 ms a partir del quinto anidamiento, asi
-    // que la ventana de ~25 ms da unas seis muestras: con los cuatro nodos de `verify`
-    // compitiendo por CPU, una sola pausa se la come entera y el test daria rojo sin que
-    // nada este mal. Es el mismo modo de falla que este spec le saco a los presupuestos
-    // del 009, y la misma razon: un rojo espurio en el nodo de convergencia entrena a
-    // leer el rojo como ruido.
+    // ## A lost window RETRIES, it does not fail
     //
-    // El reintento NO afloja lo que se afirma. `startClock` fija
-    // `clock.origin = currentTime + CLOCK_START_DELAY` y recien despues arma el timer,
-    // asi que al volver —con la secuencia YA activa del intento anterior— las cuatro
-    // guardas de `playheadOffset` estan en el mismo estado que en la ventana original y
-    // el null sale por `now < clock.origin`, que es exactamente la que se quiere ver. Lo
-    // que el reintento saca del medio es la carrera contra el primer tick, no la
-    // condicion.
+    // Chromium clamps `setTimeout(0)` to 4 ms from the fifth nesting level, so the window
+    // gives few samples. With the four nodes of `verify` competing for the CPU, one pause
+    // takes the whole window, and the test would fail with nothing wrong. A time budget
+    // on a loaded machine fails in the same way, and the same reason applies: a false
+    // failure in the convergence node trains the reader to take a failure as noise.
+    //
+    // The retry does NOT weaken the assertion. `startClock` sets
+    // `clock.origin = currentTime + CLOCK_START_DELAY` and then arms the timer. So on the
+    // retry, with the sequence ALREADY sounding from the attempt before, the four guards
+    // of `playheadOffset` are in the same state as in the first window, and the null
+    // comes from `now < clock.origin`, which is exactly the guard to observe. The retry
+    // removes the race against the first tick, not the condition.
     let visto = false;
     for (let intento = 0; !visto && intento < 5; intento++) {
       if (intento > 0) { e.stopClock(); e.startClock(); }
@@ -437,49 +435,50 @@ describe('playheadOffset()', () => {
       while (performance.now() < hasta && !visto && !llego) {
         if (e.sequenceInfo().length > 0) {
           if (e.playheadOffset() === null) visto = true;
-          else llego = true;   // `origin` ya paso: se perdio la ventana
+          else llego = true;   // `origin` passed: the window was lost
         }
         await esperar(0);
       }
     }
-    expect(visto, 'la ventana entre el swap y `origin` tiene que observarse al menos una vez').toBe(true);
+    expect(visto, 'the window between the swap and `origin` must be observed at least once').toBe(true);
 
-    // Y pasado `origin`, un número. Se sondea y no se duerme un fijo: la condición vive
-    // en el reloj del AudioContext y no en el de pared — ver `esperarCabeza`.
+    // And after `origin`, a number. It polls and does not sleep a fixed time: the
+    // condition lives in the clock of the AudioContext and not in the wall clock. See
+    // `esperarCabeza`.
     const off = await esperarCabeza(e);
-    expect(off, 'pasado `origin` la cabeza tiene que tener una celda que dibujar').not.toBeNull();
+    expect(off, 'after `origin` the playhead must have a cell to draw').not.toBeNull();
     expect(off!).toBeGreaterThanOrEqual(0);
     expect(off!).toBeLessThan(CICLO.length);
   });
 
-  it('AC-PLY-029 — null con el contexto suspendido, aunque el reloj siga andando', async () => {
+  it('AC-PLY-029 — null with the context suspended, even with the clock running', async () => {
     const e = await conReloj();
     e.setSequence(CICLO);
     e.startClock();
-    expect(await esperarCabeza(e), 'la premisa del caso: antes de suspender había cabeza').not.toBeNull();
+    expect(await esperarCabeza(e), 'the premise of the case: before the suspend there was a playhead').not.toBeNull();
 
     const c = e.audio()!;
     await c.suspend();
-    // La cabeza se apaga: lo que se dibujara ahi seria mentira.
+    // The playhead turns off: anything drawn there would be a lie.
     expect(e.playheadOffset()).toBeNull();
   });
 });
 
-describe('outputLatency — la cadena que TypeScript cree innecesaria', () => {
+describe('outputLatency — the chain that TypeScript believes unnecessary', () => {
   /**
-   * Fabrica un navegador con `outputLatency` y `baseLatency` caidos, y devuelve como
-   * restaurarlos.
+   * Fakes a browser where `outputLatency` and `baseLatency` are missing, and returns how
+   * to restore them.
    *
-   * `lib.dom.d.ts` los declara como `number` no opcional, pero Firefox no implementa el
-   * primero y ahi llega `undefined`. El fallback existe por eso, y hasta aca no lo
-   * ejercia nadie: los tests del motor corren contra `node-web-audio-api`, donde estos
-   * numeros no describen ninguna salida real.
+   * `lib.dom.d.ts` declares them as a non-optional `number`, but Firefox does not
+   * implement the first one, and there `undefined` arrives. The fallback exists for
+   * that. The `node` tests cannot exercise it: they run against `node-web-audio-api`,
+   * where these numbers describe no real output.
    *
-   * Se fabrica el navegador que falta parcheando el prototipo ANTES de que el modulo
-   * cree su contexto. No se puede llamar a la funcion directo —es privada del modulo,
-   * y exportarla solo para el test seria ensanchar la superficie por comodidad— asi
-   * que se la observa por su efecto: `playheadOffset` resta la latencia, y con las dos
-   * lecturas caidas tiene que seguir contestando un offset valido en vez de `NaN`.
+   * The missing browser is faked with a patch of the prototype BEFORE the module creates
+   * its context. The function cannot be called directly: it is private to the module,
+   * and an export only for the test would widen the surface for convenience. So it is
+   * observed by its effect: `playheadOffset` subtracts the latency, and with the two
+   * readings missing it must still answer a valid offset and not `NaN`.
    */
   function conLatencias(out: unknown, base: unknown): () => void {
     const proto = AudioContext.prototype;
@@ -494,9 +493,9 @@ describe('outputLatency — la cadena que TypeScript cree innecesaria', () => {
   }
 
   it.each([
-    ['sin outputLatency, cae a baseLatency (el caso Firefox)', undefined, 0.01],
-    ['sin ninguna de las dos, cae a 0', undefined, undefined],
-    ['con un outputLatency que no es finito, tampoco lo usa', NaN, undefined],
+    ['with no outputLatency, it falls back to baseLatency (the Firefox case)', undefined, 0.01],
+    ['with neither of the two, it falls back to 0', undefined, undefined],
+    ['with an outputLatency that is not finite, it does not use it either', NaN, undefined],
   ])('%s', async (_caso, out, base) => {
     const restaurar = conLatencias(out, base);
     try {
@@ -505,9 +504,9 @@ describe('outputLatency — la cadena que TypeScript cree innecesaria', () => {
       e.startClock();
 
       const off = await esperarCabeza(e);
-      expect(off, 'con las dos lecturas caídas la cabeza tiene que seguir contestando').not.toBeNull();
-      // Lo que el fallback compra: un offset entero y en rango, no un `NaN` que
-      // `Playhead.tsx` pintaria como una celda que no existe.
+      expect(off, 'with the two readings missing the playhead must still answer').not.toBeNull();
+      // What the fallback gives: an integer offset in range, not a `NaN` that
+      // `Playhead.tsx` would paint as a cell that does not exist.
       expect(Number.isInteger(off!)).toBe(true);
       expect(off!).toBeGreaterThanOrEqual(0);
       expect(off!).toBeLessThan(CICLO.length);
@@ -517,16 +516,16 @@ describe('outputLatency — la cadena que TypeScript cree innecesaria', () => {
   });
 });
 
-describe('tick() — el despacho de las tres clases', () => {
-  it('AC-PLY-023 — las tres ramas del `kind` se recorren en un ciclo con las tres', async () => {
-    // No hay forma de oir desde un test, asi que lo que se afirma es que el ciclo con
-    // nota, cruce y click mudo corre entero y con los clicks ENCENDIDOS —que es la
-    // unica rama con condicion— sin dejar el motor en un estado invalido.
+describe('tick() — the dispatch of the three kinds', () => {
+  it('AC-PLY-023 — the three branches of `kind` run in a cycle that has the three', async () => {
+    // A test cannot listen. So the assertion is that the cycle with a note, a crossing
+    // and a click runs whole with the clicks ON, which is the only branch with a
+    // condition, and leaves the engine in a valid state.
     //
-    // La espera es de un CICLO y no de unos ticks, y el numero sale de la aritmetica
-    // del instrumento: a 110 bpm el intervalo mide `barDuration/16` = 136 ms, asi que
-    // los 8 intervalos de `CICLO` duran 1,09 s. Con menos que eso el `for` alcanza la
-    // nota del offset 0 pero no llega ni al cruce del 2 ni al click del 3.
+    // The wait is one CYCLE and not a few ticks, and the number comes from the
+    // arithmetic of the instrument: at 110 bpm the interval is `barDuration/16` = 136 ms,
+    // so the 8 intervals of `CICLO` last 1.09 s. With less than that the `for` reaches
+    // the note of offset 0 but not the crossing of offset 2 or the click of offset 3.
     const e = await conReloj();
     e.setSequence(CICLO);
     e.setClicksAudible(true);
@@ -534,10 +533,11 @@ describe('tick() — el despacho de las tres clases', () => {
 
     await vi.waitFor(() => expect(e.sequenceInfo().steps).toBe(1), { timeout: 2000 });
 
-    // Se sigue a la cabeza en vez de mirar `cycleGeneration`, que aca NO se mueve: el
-    // contador cuenta SWAPS, y sin una pendiente nueva el ciclo se repite sin swap.
-    // El offset maximo alcanzado es lo que prueba que el `for` recorrio la secuencia
-    // entera —hasta pasar el cruce del offset 2 y el click del 3— y no solo su cabeza.
+    // The test follows the playhead and does not read `cycleGeneration`, which does NOT
+    // move here: the counter counts SWAPS, and with no new queued sequence the cycle
+    // repeats with no swap. The maximum offset reached proves that the `for` ran the
+    // whole sequence, past the crossing of offset 2 and the click of offset 3, and not
+    // only its start.
     let maximo = -1;
     for (let i = 0; i < 80; i++) {
       const off = e.playheadOffset();
@@ -552,51 +552,50 @@ describe('tick() — el despacho de las tres clases', () => {
     expect(HIT.note).not.toBe(HIT.cross);
   });
 
-  it('tick no explota si el contexto se cae debajo', async () => {
+  it('tick does not throw if the context goes away under it', async () => {
     const e = await conReloj();
     e.setSequence(CICLO);
     e.startClock();
     await esperar(TICK_MS * 2);
     await e.audio()!.close();
-    // El timer sigue disparando contra un contexto cerrado hasta que alguien lo pare.
+    // The timer still fires against a closed context until someone stops it.
     await esperar(TICK_MS * 2);
     expect(e.clockRunning()).toBe(true);
   });
 
-  it('AC-PLY-003 — con el grafo a medio construir, el motor NO dice que arranco', async () => {
-    // Este test llego a afirmar lo contrario, y el estado que describia era
-    // alcanzable de verdad: si `createGain()` falla, `audio()` cae al `catch` y devuelve
-    // null PERO `ctx` ya quedaba asignado, asi que el `if (ctx) return ctx` de la
-    // llamada siguiente contestaba un contexto con `master` en null. Desde ahi
-    // `startClock` —que solo mira que `audio()` no sea null— arrancaba el timer,
-    // `clockRunning()` pasaba a `true`, el boton decia «Pausa» y no sonaba nada: la
-    // falla suave entrando por la unica puerta que el llamador no puede chequear.
+  it('AC-PLY-003 — with the graph half built, the engine does NOT say that it started', async () => {
+    // Without the cleanup of the `catch`, a real browser can reach this state: if
+    // `createGain()` fails, `audio()` goes to the `catch` and returns null, BUT `ctx` is
+    // already assigned, so the `if (ctx) return ctx` of the next call answers a context
+    // with `master` at null. From there `startClock`, which only checks that `audio()`
+    // is not null, starts the timer, `clockRunning()` becomes `true`, the play button
+    // offers pause, and nothing sounds: the soft failure enters by the one door that the
+    // caller cannot check.
     //
-    // Dejo de ser alcanzable porque el `catch` ahora baja las tres referencias juntas.
-    // Lo que se afirma aca es esa consecuencia y no la guarda de `tick()`: con un fallo
-    // parcial el motor tiene que contestar lo MISMO que con un fallo total, o sea que
-    // no arranco.
+    // The `catch` clears the three references together, so that state cannot occur.
+    // This test asserts that consequence: with a partial failure the engine must answer
+    // the SAME as with a total failure, that it did not start.
     //
-    // Se hereda del AudioContext real en vez de fabricar uno de mentira: asi `state`,
-    // `currentTime` y `resume` son los de verdad y lo unico distinto es lo que se
-    // quiere romper.
+    // The class inherits from the real AudioContext and is not a fake: so `state`,
+    // `currentTime` and `resume` are the real ones, and the only difference is the part
+    // to break.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     class SinGain extends AudioContext {
-      createGain(): GainNode { throw new Error('sin gain'); }
+      createGain(): GainNode { throw new Error('no gain'); }
     }
     vi.stubGlobal('AudioContext', SinGain);
 
     const e = await conReloj();
-    expect(e.audio()).toBeNull();  // primera llamada: explota adentro del try
-    expect(e.audio()).toBeNull();  // segunda: el catch dejo `ctx` en null y vuelve a entrar al try
+    expect(e.audio()).toBeNull();  // first call: it throws inside the try
+    expect(e.audio()).toBeNull();  // second call: the catch cleared `ctx` and set the failure latch
 
     e.setSequence(CICLO);
     e.startClock();
-    // AC3: el reloj no puede arrancar sobre un grafo roto. Si arrancara, la UI
-    // preguntaria `clockRunning()` y le contestarian que si.
+    // The clock must not start on a broken graph. If it started, the UI would ask
+    // `clockRunning()` and the answer would be yes.
     expect(e.clockRunning()).toBe(false);
 
-    // Y sigue sin arrancar despues de varios ticks: no hay timer que los dispare.
+    // And it still does not start after several ticks: there is no timer to fire them.
     await esperar(TICK_MS * 4);
     expect(e.clockRunning()).toBe(false);
     expect(e.sequenceInfo().steps).toBe(0);

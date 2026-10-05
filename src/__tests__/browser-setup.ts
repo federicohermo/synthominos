@@ -1,16 +1,15 @@
 import '../styles/index.css';
 
 /**
- * Lo unico que el proyecto de navegador necesita antes de cada archivo: la hoja de
- * estilos.
+ * The one thing the browser project needs before each file: the style sheet.
  *
- * No es cosmetico y es la trampa mas cara de testear en un navegador de verdad. Sin
- * este import las clases de Tailwind estan en el `className` —o sea que un test que
- * lea el atributo pasa— pero no existen como reglas, asi que `getComputedStyle`
- * devuelve los valores iniciales: `z-10` se lee `auto`, un `h-24` se lee `auto` y
- * `getBoundingClientRect()` de un canvas estirado por CSS devuelve 0. Un test de
- * layout pasaria o fallaria por el motivo equivocado, sin decirlo.
+ * It is the most expensive trap of a test in a real browser. Without this import the
+ * Tailwind classes are in the `className`, so a test that reads the attribute passes.
+ * But they do not exist as rules, so `getComputedStyle` returns the initial values:
+ * `z-10` reads `auto`, an `h-24` reads `auto`, and `getBoundingClientRect()` of a canvas
+ * that CSS stretches returns 0. A layout test passes or fails for the wrong reason, and
+ * does not say so.
  *
- * Va en el setup y no en cada test por eso mismo: si depende de que alguien se
- * acuerde, el dia que no se acuerde el test no falla — miente.
+ * It is in the setup and not in each test for the same reason: a test that forgets the
+ * import does not fail. It gives a false result.
  */

@@ -1,51 +1,48 @@
 /**
- * La orientación de la pieza en la mano, dicha en palabras.
+ * The orientation of the piece in hand, in words.
  *
- * Existe porque la miniatura **no puede decirla entera**, y está medido: de
- * las 96 combinaciones de pieza × rotación × reflexión, **29 suenan distinto sin verse
- * distinto** (el 30 %, repartido en 6 de las 12 piezas). La `I` tiene dos formas para
- * cuatro rotaciones y la `X` una sola para las cuatro; la reflexión no le agrega ni una
- * forma a `I`, `T`, `U`, `V`, `W` ni `X`. Rotar una `X` cuatro veces da cuatro arpegios
- * distintos —`A4 B4 C#5 E5 F#5` a 0°, `E5 F#5 G#5 B5 C#6` a 270°— y cero cambio visible.
+ * It exists because the thumbnail **cannot say all of it**, and that is measured: of the 96
+ * combinations of piece × rotation × reflection, **29 sound different and look the same**
+ * (30 %, spread over 6 of the 12 pieces). The `I` has two shapes for four rotations and the
+ * `X` has one for the four. The reflection adds no shape to `I`, `T`, `U`, `V`, `W` or `X`.
+ * Four rotations of an `X` give four different arpeggios (`A4 B4 C#5 E5 F#5` at 0°,
+ * `E5 F#5 G#5 B5 C#6` at 270°) and no visible change.
  *
- * Hasta el 019 eso lo tapaban los cuatro botones de grados, que este spec borra porque
- * duplican la rueda y el `Shift`. Un botón que además informa es dos cosas; lo que hacía
- * falta era la segunda, y una línea de texto no se puede apretar.
+ * The dock has no button that turns a piece: the wheel and `Shift` do that. A button that
+ * also informs is two things. The dock needs only the second, and a line of text cannot be
+ * pressed.
  *
- * ## Por qué vive en un `.ts` y no adentro del `.tsx`
+ * ## Why it is in a `.ts` and not inside the `.tsx`
  *
- * `react-refresh/only-export-components` prohíbe que un `.tsx` exporte algo que no sea el
- * componente: escrita adentro de `PiecePalette.tsx` esta pura no se podría exportar y por
- * lo tanto no se podría testear. Es el mismo movimiento con el que salieron `cell-text.ts`
- * y `piece-mini.ts` (016), y es de quien esta función es hermana.
+ * `react-refresh/only-export-components` forbids a `.tsx` to export anything but the
+ * component. Inside `PiecePalette.tsx` this pure function could not be exported, so it could
+ * not be tested. `cell-text.ts` and `piece-mini.ts` are separate modules for the same reason.
  *
- * Y no en `cell-text.ts`: ese archivo contesta qué dice una CELDA DEL TABLERO y su tipo
- * cruza hacia `Board.tsx`. Acá la pregunta es qué dice el panel de la pieza en la mano.
+ * And not in `cell-text.ts`: that file answers what a CELL OF THE BOARD says, and its type
+ * crosses to `Board.tsx`. Here the question is what the dock says of the piece in hand.
  */
 
 /**
- * Los dos fragmentos de la orientación: los grados, y la palabra «reflejada» o `null`.
+ * The two fragments of the orientation: the degrees, and the word «reflejada» or `null`.
  *
- * **Fragmentos y no una cadena terminada**, y ésa es toda la decisión de este archivo: los
- * dos lectores que hay la escriben distinto y ninguno de los dos puede ceder.
+ * **Fragments and not a finished string.** That is the whole decision of this file: the two
+ * readers write the orientation in different ways, and neither can give way.
  *
  * ```
- * la línea visible del panel    180° · reflejada
- * el `aria-label` del botón     X, rotación 180°, reflejada
+ * the visible line of the dock     180° · reflejada
+ * the `aria-label` of the slot     X, rotación 180°, reflejada
  * ```
  *
- * Bajar el `aria-label` al formato visible le saca el sustantivo «rotación» y le mete un
- * separador que el lector de pantalla deletrea, o sea que unificar el texto saldaría la
- * duplicación agrandando la deuda de accesibilidad. Y subir la línea visible al del
- * `aria-label` la vuelve una frase larga en una fila que tiene que entrar en un renglón.
+ * The visible format in the `aria-label` would remove the noun «rotación» and add a
+ * separator that the screen reader spells out. The format of the `aria-label` in the visible
+ * line would make a long sentence in a row that must fit in one line.
  *
- * Lo que sí se comparte es la DERIVACIÓN —el `* 90` y la condición del espejo—, que es lo
- * que estaba escrito dos veces: partida la tarjeta, las dos copias ni siquiera comparten
- * archivo. Cada `.tsx` compone su formato con estos dos pedazos.
+ * What the two share is the DERIVATION: the `* 90` and the condition of the reflection. Each
+ * `.tsx` composes its format from these two fragments.
  *
- * El tipo va inline en la firma y no en un modulo aparte: no es un tipo de props que
- * dos componentes se pasen, es la forma del retorno de una función. El precedente es
- * `reflejaElContextMenu(e: { ctrlKey: boolean })` en `input.ts`.
+ * The type is inline in the signature and not in a separate module: it is not a props type
+ * that two components pass, it is the shape of the return of one function. The precedent is
+ * `reflejaElContextMenu(e: { ctrlKey: boolean })` in `input.ts`.
  */
 export function textoDeOrientacion(
   rotation: number,

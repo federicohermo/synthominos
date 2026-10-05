@@ -2,101 +2,94 @@ import { useEffect, useRef } from 'react';
 import { AIRE_RAZON, RADIO_RAZON } from '../board-fit/grid-fit.ts';
 import { NOTA, iniciarCabeza, borde } from './playhead-loop.ts';
 
-/** Lo que mide `n` celdas, en CSS. Ver `Board.tsx` y `playhead-loop.ts`. */
+/** The size of `n` cells, in CSS. See `Board.tsx` and `playhead-loop.ts`. */
 const celdas = (n: number) => `calc(var(--cell) * ${n})`;
 
 /**
- * La capa que se dibuja ENCIMA de la grilla al ritmo del audio: la cabeza lectora y el
- * velo de las celdas que todavia no se estrenaron.
+ * The layer drawn OVER the grid at the pace of the audio: the playhead and the veil of
+ * the cells that have not sounded yet.
  *
- * Sin props y sin estado, igual que `Spectrum.tsx` y por el mismo motivo medido: el
- * intervalo dura entre 0,25 s (60 bpm) y 0,094 s (160 bpm), o sea entre 4 y 10,6
- * cambios por segundo. Llevar eso a `useState` re-renderizaria el tablero entero —60
- * celdas— mas la paleta y la lista. React monta los dos contenedores y arranca el loop;
- * el resto es imperativo.
+ * No props and no state, like `Spectrum.tsx` and for the same measured reason: the
+ * interval lasts between 0.25 s (60 bpm) and 0.094 s (160 bpm), so between 4 and 10.6
+ * changes a second. In `useState` that would render again the whole board, every cell,
+ * and the palette. React mounts the two containers and starts the loop; the rest is
+ * imperative.
  *
- * ## Quien es dueno de que nodo
+ * ## Who owns which node
  *
- * React es dueno de los DOS contenedores y de nada mas; el loop es dueno de todo lo que
- * cuelga de ellos, incluidos los nodos del velo, que crea y destruye a mano. Esa linea
- * es la leccion cara del review del 007: lo que NO se puede hacer es partir el estilo de
- * un mismo nodo entre React y el loop. Por eso el velo no atenua la celda de `Board`
- * —que la renderiza React— sino que la tapa con un nodo propio.
+ * React owns the TWO containers and nothing more. The loop owns all that hangs from
+ * them, the nodes of the veil included, which it creates and destroys by hand. What
+ * CANNOT be done is to split the style of one node between React and the loop. So the
+ * veil does not dim the cell of `Board`, which React renders: it covers it with a node
+ * of its own.
  *
- * Antes esto pasaba por estado (`pendingIds` en props de `Board`) y se justificaba como
- * la excepcion declarada a D1, porque cambiaba una vez por ciclo. Dejo de valer cuando
- * el estreno paso a ser CELDA POR CELDA: son cinco cambios al ritmo del intervalo, o
- * sea exactamente la frecuencia que D1 mide y prohibe. La excepcion no se agrando: se
- * elimino, y hoy no hay nada en el arbol de React.
+ * The veil is not React state: its cells change one by one, five changes at the pace of
+ * the interval, which is exactly the frequency that rules state out here. Nothing of it
+ * is in the React tree.
  *
- * ## Va ARRIBA de las celdas, y eso necesita `z-10`
+ * ## It goes ABOVE the cells, and that needs `z-10`
  *
- * Las baldosas de `Board.tsx` son `relative`, asi que son elementos POSICIONADOS y se
- * pintan en orden de documento entre ellos. Como la grilla viene despues de este
- * componente en el DOM, sin `z-index` la capa queda DEBAJO de todas las celdas — y como
- * hasta la celda vacia tiene fondo opaco (`bg-white`), queda directamente invisible.
+ * The tiles of `Board.tsx` are `relative`, so they are POSITIONED elements and paint in
+ * document order among themselves. The grid comes after this component in the DOM, so
+ * without a `z-index` the layer is UNDER all the cells. And because the empty cell has
+ * an opaque background too (`bg-white`), the layer is plainly invisible.
  *
- * No se ve en el atributo `style`, y por eso durante veintidos specs este comentario
- * decia que ningun test lo atrapaba: el `z-10` es una clase de Tailwind, asi que hay
- * que leer el valor COMPUTADO y sin la hoja de estilos cargada da `auto`. Desde el
- * 029 si lo atrapa `__tests__/Playhead.browser.test.tsx:65`, sobre las dos capas y
- * junto con `pointer-events` y el orden en el DOM. La otra via —preguntarle a
- * `elementFromPoint` quien esta arriba, habilitando el hit-testing un instante porque
- * `pointer-events-none` hace que devuelva lo de abajo— sigue siendo la unica que mira
- * los pixeles de verdad, y no hizo falta.
+ * The `style` attribute does not show it: `z-10` is a Tailwind class, so a test must
+ * read the COMPUTED value, and without the stylesheet loaded that is `auto`.
+ * `__tests__/Playhead.browser.test.tsx` checks it on the two layers, with
+ * `pointer-events` and the order in the DOM. The other way is to ask `elementFromPoint`
+ * what is on top, with hit-testing enabled for an instant because `pointer-events-none`
+ * makes it return what is below. It is the only way that looks at the real pixels, and
+ * it was not necessary.
  *
- * ## Se mueve UN elemento, no cambian sesenta (D2)
+ * ## ONE element moves, the cells do not change
  *
- * La alternativa era recalcular la clase de TODAS las celdas en cada cuadro: tocarlas a
- * todas para cambiar una. Aca el costo por cuadro es una lectura aritmetica y, cuando
- * la celda cambio, una escritura de `transform`. Eran sesenta cuando se midio, y desde el
- * hoy son hasta 390 en un escritorio — o sea que el argumento se hizo mas fuerte, no
- * menos.
+ * The alternative is to compute the class of ALL the cells again on each frame: to
+ * touch them all to change one. Here the cost of a frame is one arithmetic read and,
+ * when the cell changed, one write of `transform`. Measured with sixty cells; a desktop
+ * has up to 390, so the argument is stronger.
  *
- * El absoluto se posiciona contra el `relative` que envuelve la grilla (`Board.tsx`), asi
- * que queda alineado con las celdas por construccion. Ese contenedor no scrollea, asi que
- * del argumento queda la mitad que siempre importo: el posicionado. La otra mitad —la capa
- * scrolleando con la grilla debajo de `md`— se fue con el `overflow-x-auto`, spec 031
- * (issue #93).
+ * The absolute box is positioned against the `relative` that wraps the grid
+ * (`Board.tsx`), so it is aligned with the cells by construction. That container does
+ * not scroll.
  *
- * ## Que dibuja y que NO calcula (D5, AC4)
+ * ## What it draws and what it does NOT calculate
  *
- * Nada de aritmetica de caminos ni de distancias: la celda de cada offset ya viene
- * resuelta en la tabla que devuelve `rutaActiva()`. Este archivo traduce un numero a
- * una posicion en pixeles y nada mas.
+ * No arithmetic of paths or of distances: the cell of each offset comes solved in the
+ * table that `rutaActiva()` returns. The loop translates a number to a position in
+ * pixels and nothing more.
  *
- * La cabeza SALTA y no se desliza (D6): el instrumento esta cuantizado a la grilla de
- * intervalos, y un movimiento continuo sugeriria una continuidad que no existe.
+ * The playhead JUMPS and does not slide: the instrument is quantized to the grid of
+ * intervals, and a continuous motion would suggest a continuity that does not exist.
  */
 export default function Playhead() {
   const capaRef = useRef<HTMLDivElement>(null);
   const ref = useRef<HTMLDivElement>(null);
-  // Dos refs para la cabeza y no una: el `transform` va en la caja de una celda —que es la
-  // que se mueve sobre la grilla— y el borde en la baldosa de adentro, un aire mas chica
-  // por lado (`AIRE_RAZON`, 2 px al piso y 4,93 al techo),
-  // que es la que tiene la forma y el redondeo de la celda. Dibujarlo en la caja externa
-  // daria un rectangulo que pisa la separacion entre celdas.
+  // Two refs for the playhead and not one: the `transform` goes on the box of one cell,
+  // the one that moves over the grid, and the border on the tile inside, one gap
+  // smaller on each side (`AIRE_RAZON`, 2 px at the floor and 4.93 at the ceiling),
+  // which has the shape and the rounding of the cell. Drawn on the outer box, it would
+  // be a rectangle that covers the separation between cells.
   const resalteRef = useRef<HTMLDivElement>(null);
 
-  // Dependencias vacias a proposito: el loop se monta una vez y lee del motor y del
-  // par de rutas por su cuenta, asi que no hay nada que re-suscribir cuando la app
-  // re-renderiza. Es la misma forma que `Spectrum.tsx`.
+  // Empty dependencies on purpose: the loop mounts once and reads from the engine and
+  // from the pair of sequences by itself, so there is nothing to subscribe again when
+  // the app renders again. It is the same shape as `Spectrum.tsx`.
   //
-  // El cuerpo vive en `playhead-loop.ts` y no aca: mientras estuvo adentro de este
-  // `.tsx` no se podia exportar —`react-refresh/only-export-components`— y por lo tanto
-  // no se podia testear. Lo que queda es el montaje, que es lo unico propio del
-  // componente.
+  // The body lives in `playhead-loop.ts` and not here: inside this `.tsx` it could not
+  // be exported (`react-refresh/only-export-components`) and so could not be tested.
+  // What stays is the mount, the only thing that belongs to the component.
   useEffect(() => iniciarCabeza(capaRef.current, ref.current, resalteRef.current), []);
 
 
-  // El velo va ANTES que la cabeza en el DOM y con el mismo `z-10`: asi la cabeza se
-  // pinta encima, y una celda que todavia no se estreno igual se resalta cuando le toca
-  // — que es el mismo cuadro en que deja de estar tapada.
+  // The veil goes BEFORE the playhead in the DOM and with the same `z-10`: so the
+  // playhead paints on top, and a cell that has not sounded yet is still highlighted
+  // when its turn comes, the same frame where it stops being covered.
   //
-  // `display: none` de arranque en la cabeza: sin reloj no hay nada que marcar, y
-  // montarla visible en (0,0) senalaria una celda que no suena hasta el primer cuadro.
-  // `pointer-events-none` en las dos porque van ENCIMA de las celdas y no pueden robarles
-  // el click de colocar.
+  // `display: none` at the start on the playhead: with no clock there is nothing to
+  // mark, and mounted visible at (0,0) it would point at a cell that does not sound,
+  // until the first frame. `pointer-events-none` on the two because they go OVER the
+  // cells and must not take the click that places a piece.
   return (
     <>
       <div ref={capaRef} aria-hidden="true" className="absolute top-0 left-0 z-10 pointer-events-none" />
@@ -106,11 +99,10 @@ export default function Playhead() {
         className="absolute top-0 left-0 z-10 pointer-events-none"
         style={{ width: celdas(1), height: celdas(1), padding: celdas(AIRE_RAZON), display: 'none' }}
       >
-        {/* Misma caja que la baldosa de `Board.tsx` —el aire y el radio, los dos como razon
-            de `--cell`— para que el borde cubra la celda exacta y no medio
-            pixel afuera. Eran un `p-0.5` y un `rounded-lg` literales: con la baldosa vuelta
-            proporcional y estos dos clavados, a celda 180 el anillo de la cabeza cubriria
-            2 px de aire sobre una baldosa que tiene 4,93. */}
+        {/* The same box as the tile of `Board.tsx`, the gap and the radius, the two as a
+            ratio of `--cell`, so that the border covers the exact cell and not half a
+            pixel outside. With a fixed `p-0.5` and `rounded-lg`, at a cell of 180 px the
+            ring of the playhead would cover 2 px of gap over a tile that has 4.93. */}
         <div ref={resalteRef} className="w-full h-full" style={{ borderRadius: celdas(RADIO_RAZON), boxShadow: borde(NOTA) }} />
       </div>
     </>

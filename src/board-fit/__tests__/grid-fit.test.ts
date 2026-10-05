@@ -3,17 +3,17 @@ import { grillaPara, CELL_PX_OBJETIVO, NOTA_RAZON, PASO_RAZON } from '../grid-fi
 import { GRID_MIN } from '../../board-editing/placement.ts';
 
 /**
- * La única parte que se puede verificar sin navegador: la fórmula.
+ * The only part that a test can check with no browser: the formula.
  *
- * El resto —que `--cell` se escriba con unidad, que un `resize` la reescriba, que las
- * dimensiones vuelvan como estado— es cableado y vive en `use-grid.browser.test.tsx`.
+ * The rest is wiring and lives in `use-grid.browser.test.tsx`: that `--cell` is written
+ * with its unit, that a `resize` writes it again, that the dimensions come back as state.
  *
- * Lo que este archivo fija es lo que el spec promete, y son tres cosas distintas: que la
- * grilla **entre** (AC1), que salga del viewport (AC2) y que la celda se quede **cerca de
- * los 73 px de siempre** (AC3).
+ * This file fixes three different things that the contract promises: that the board
+ * **fits**, that it comes from the box, and that the cell size stays **near the target
+ * of 73 px**.
  */
 
-/** La tabla del research, medida sobre viewports reales. */
+/** The table of the reference boxes, measured on real window sizes. */
 const VIEWPORTS: [vw: number, vh: number, cols: number, rows: number, cell: number][] = [
   [1920, 1080, 26, 15, 72.0],
   [1512, 982, 21, 13, 72.0],
@@ -23,13 +23,13 @@ const VIEWPORTS: [vw: number, vh: number, cols: number, rows: number, cell: numb
   [834, 1112, 11, 15, 74.1],
   [430, 932, 6, 13, 71.7],
   [375, 667, 5, 9, 74.1],
-  // El único donde manda el mínimo: 5 columnas de 73 px no entran en 320, así que lo que
-  // cede es la celda. Sin eso habría scroll, que es lo primero que el spec prohíbe.
+  // The only one where the minimum decides: 5 columns of 73 px do not fit in 320 px, so
+  // the cell size gives way. Otherwise the board would scroll, which the contract forbids.
   [320, 568, 5, 8, 64.0],
 ];
 
-describe('031 AC2 — la grilla sale del viewport', () => {
-  it('AC-FIT-001 — la tabla de viewports entera', () => {
+describe('the board comes from the box', () => {
+  it('AC-FIT-001 — the whole table of reference boxes', () => {
     for (const [vw, vh, cols, rows, cell] of VIEWPORTS) {
       const g = grillaPara(vw, vh);
       expect([g.dims.w, g.dims.h], `${vw}x${vh}`).toEqual([cols, rows]);
@@ -37,9 +37,10 @@ describe('031 AC2 — la grilla sale del viewport', () => {
     }
   });
 
-  it('AC-FIT-002 — crece con la pantalla, que es lo que el 021 hacía con la celda', () => {
-    // La comparación que da sentido al spec: el mismo par de viewports que en el 021 movía
-    // la BALDOSA de 73 a 180 px, acá mueve la CANTIDAD de celdas y deja la baldosa quieta.
+  it('AC-FIT-002 — the count grows with the screen, and the cell size stays', () => {
+    // The comparison that gives the fit its sense: this pair of boxes moves the COUNT of
+    // cells and leaves the tile still. With a board fixed at 10 × 6, the same pair moves
+    // the TILE from 73 to 180 px.
     const chico = grillaPara(730, 438);
     const grande = grillaPara(1920, 1080);
     expect(grande.dims.w * grande.dims.h).toBeGreaterThan(chico.dims.w * chico.dims.h * 6);
@@ -48,52 +49,54 @@ describe('031 AC2 — la grilla sale del viewport', () => {
 });
 
 /**
- * Lo que el epsilon del `floor` puede pasarse, en px.
+ * How far the epsilon of the `floor` can exceed the box, in px.
  *
- * No es una tolerancia de conveniencia: el epsilon existe para que `20,999999997` cuente
- * como 21 columnas, y el precio simétrico es que un ancho que da `21 - 1e-13` también las
- * cuente. Medido en el barrido de abajo, el peor caso es `916 px` de viewport, donde la
- * grilla se pasa **1e-13 px**. Un navegador maquetea en unidades de 1/64 px, así que eso
- * no es un píxel de scroll: es cero redondeado a más dígitos de los que el layout tiene.
+ * It is not a tolerance of convenience. The epsilon exists so that `20.999999997` counts
+ * as 21 columns, and the symmetric price is that a width that gives `21 - 1e-13` also
+ * counts as 21. Measured in the sweep below, the worst case is a box `916 px` wide, where
+ * the board exceeds it by **1e-13 px**. A browser does layout in units of 1/64 px, so
+ * that is not one pixel of scroll: it is zero, rounded to more digits than the layout
+ * has.
  */
 const ROCE = 1e-6;
 
-describe('031 AC1 — la grilla entra, siempre', () => {
-  it('AC-FIT-004 — en ningún viewport de la tabla la grilla desborda su caja', () => {
+describe('the board fits, always', () => {
+  it('AC-FIT-004 — the board overflows no box of the table', () => {
     for (const [vw, vh] of VIEWPORTS) {
       const { dims, cell } = grillaPara(vw, vh);
-      expect(dims.w * cell, `ancho ${vw}x${vh}`).toBeLessThanOrEqual(vw + ROCE);
-      expect(dims.h * cell, `alto ${vw}x${vh}`).toBeLessThanOrEqual(vh + ROCE);
+      expect(dims.w * cell, `width ${vw}x${vh}`).toBeLessThanOrEqual(vw + ROCE);
+      expect(dims.h * cell, `height ${vw}x${vh}`).toBeLessThanOrEqual(vh + ROCE);
     }
   });
 
-  it('AC-FIT-005 — lo que sobra es siempre menos de una celda, en los DOS ejes', () => {
-    // Es la mitad que el tercer paso de la fórmula agrega, y la que hace que «ocupa la
-    // pantalla» no sea una manera de decir: sobrar una celda entera significaría que
-    // entraba una fila o una columna más.
+  it('AC-FIT-005 — the leftover is always less than one cell, on BOTH axes', () => {
+    // This is the half that the third step of the formula adds, and it makes "fills the
+    // screen" a literal claim: a leftover of one full cell means that one more row or
+    // column fits.
     for (const [vw, vh] of VIEWPORTS) {
       const { dims, cell } = grillaPara(vw, vh);
-      expect(vw - dims.w * cell, `ancho ${vw}x${vh}`).toBeLessThan(cell);
-      expect(vh - dims.h * cell, `alto ${vw}x${vh}`).toBeLessThan(cell);
+      expect(vw - dims.w * cell, `width ${vw}x${vh}`).toBeLessThan(cell);
+      expect(vh - dims.h * cell, `height ${vw}x${vh}`).toBeLessThan(cell);
     }
   });
 
-  it('AC-FIT-005 — y también en las ventanas desproporcionadas, que es para lo que existe el tercer paso', () => {
-    // Sin recontar contra la celda real, a 2000 × 300 el mínimo de 5 filas fuerza una celda
-    // de 60 px y sobran 380 px de ancho: seis columnas sin usar. Los dos casos son el mismo
-    // dado vuelta, así que se verifican los dos — un `Math.min` mal puesto pasa uno.
+  it('AC-FIT-005 — and also in the disproportionate boxes, which is why the third step exists', () => {
+    // Without the new count against the real cell size, at 2000 × 300 the minimum of 5
+    // rows forces a cell of 60 px and leaves 380 px of width: six unused columns. The two
+    // cases are the same one turned over, so the test checks both: a wrong `Math.min`
+    // passes one of them.
     for (const [vw, vh] of [[2000, 300], [300, 2000]]) {
       const { dims, cell } = grillaPara(vw, vh);
-      expect(vw - dims.w * cell, `ancho ${vw}x${vh}`).toBeLessThan(cell);
-      expect(vh - dims.h * cell, `alto ${vw}x${vh}`).toBeLessThan(cell);
+      expect(vw - dims.w * cell, `width ${vw}x${vh}`).toBeLessThan(cell);
+      expect(vh - dims.h * cell, `height ${vw}x${vh}`).toBeLessThan(cell);
     }
   });
 
-  it('AC-FIT-006 — la cuenta es la MAXIMA que entra, y lo es en 244 anchos seguidos', () => {
-    // Barrido y no un caso: lo que se verifica es la propiedad de los dos pasos juntos
-    // —`cols` es el máximo que entra— y es la que un `floor` sin epsilon rompe en los
-    // anchos donde `vw / cell` cae exactamente en un entero y la coma flotante lo deja en
-    // `20,999999997`. Un caso solo no encuentra cuáles son.
+  it('AC-FIT-006 — the count is the LARGEST that fits, in a sweep of 243 widths', () => {
+    // A sweep and not one case: the test checks the property of the two steps together,
+    // that `cols` is the largest count that fits. A `floor` with no epsilon breaks it at
+    // the widths where `vw / cell` is exactly an integer and floating point gives
+    // `20.999999997`. One case alone does not find which widths those are.
     for (let vw = 300; vw <= 2000; vw += 7) {
       const { dims, cell } = grillaPara(vw, 800);
       expect(dims.w * cell, `${vw}`).toBeLessThanOrEqual(vw + ROCE);
@@ -102,8 +105,8 @@ describe('031 AC1 — la grilla entra, siempre', () => {
   });
 });
 
-describe('031 AC3 — la baldosa se sigue viendo como siempre', () => {
-  it('AC-FIT-003 — la celda se queda cerca del objetivo en todos los viewports', () => {
+describe('the tile keeps its look', () => {
+  it('AC-FIT-003 — the cell size stays near the target in every box', () => {
     for (const [vw, vh] of VIEWPORTS) {
       const { cell } = grillaPara(vw, vh);
       expect(cell, `${vw}x${vh}`).toBeGreaterThanOrEqual(64);
@@ -111,19 +114,19 @@ describe('031 AC3 — la baldosa se sigue viendo como siempre', () => {
     }
   });
 
-  it('AC-FIT-015 — a la celda objetivo las dos razones tipográficas dan los px exactos de siempre', () => {
-    // Es lo que hace que este spec no tenga que re-medir el aire alrededor del texto: a
-    // `CELL_PX_OBJETIVO` la nota vale 19 px y el `#N` 13, que son los dos números que el
-    // repo midió con un `Range` y que `Board.tsx` tenía escritos como clases de Tailwind.
+  it('AC-FIT-015 — at the target cell size the two typographic ratios give the exact measured px', () => {
+    // This is why the gap around the text needs no new measurement: at `CELL_PX_OBJETIVO`
+    // the note name is 19 px and the `#N` is 13 px, the two numbers that the repo measured
+    // with a `Range`.
     expect(CELL_PX_OBJETIVO * NOTA_RAZON).toBeCloseTo(19, 10);
     expect(CELL_PX_OBJETIVO * PASO_RAZON).toBeCloseTo(13, 10);
   });
 
-  it('AC-FIT-007 — nunca devuelve menos que `GRID_MIN`, ni con un viewport de un píxel', () => {
-    // El piso no es defensivo: abajo de 5 × 5 hay pentominós que no entran en ninguna
-    // posición, y un tablero donde la `I` no se puede colocar no es un tablero chico sino
-    // uno roto. Un viewport de 1 × 1 no existe en un navegador, pero sí en un test que
-    // monta el hook sobre un nodo todavía sin medir.
+  it('AC-FIT-007 — it never returns less than `GRID_MIN`, even with a box of one pixel', () => {
+    // The floor is not defensive: below 5 × 5 some pentominoes fit in no position, and a
+    // board where the `I` cannot be placed is not a small board, it is a broken one. A box
+    // of 1 × 1 does not exist in a browser, but it does in a test that mounts the hook on
+    // a node not measured yet.
     for (const [vw, vh] of [[1, 1], [0, 0], [100, 3000]]) {
       const { dims } = grillaPara(vw, vh);
       expect(dims.w, `${vw}x${vh}`).toBeGreaterThanOrEqual(GRID_MIN.w);

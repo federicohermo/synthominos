@@ -3,72 +3,71 @@ import { render } from 'vitest-browser-react';
 import { page } from 'vitest/browser';
 
 /**
- * El gate del árbol de accesibilidad: las reglas de `.claude/rules/ui.md`, sección «El árbol
- * de accesibilidad dice lo que el color pinta».
+ * The gate of the accessible tree: it checks the naming rules of the accessibility
+ * contract on the whole app. `.agents/rules/ui.md` states the same rules.
  *
- * Hasta el spec 050 no las verificaba ninguna máquina.
+ * What each assertion covers, against its rule:
  *
- * Qué cubre cada aserción, contra la cláusula que le corresponde:
+ * - Every control has a name, and a glyph alone is not a name (BR-ACC-002, BR-ACC-003):
+ *   the two assertions of the first case. The two are necessary: see `SOLO_SIMBOLOS`.
+ * - The visible label is the name, taken with `aria-labelledby` and not written a second
+ *   time in an `aria-label` (BR-ACC-004): the same first assertion. That is why it asks
+ *   for the COMPUTED name and not for the attribute: to require `aria-label` forbids the
+ *   preferred form.
+ * - A toggle has `aria-pressed`, and its name is what it toggles, not the value
+ *   (BR-ACC-005): the second case, **the second half only**. The first half is circular
+ *   and cannot be verified here; see "What it does NOT cover".
+ * - `type="button"` on every `<button>` (BR-ACC-010): **it does not belong to this
+ *   file**. Its owner is the `describe` "App: what reaches the accessible tree" of
+ *   `App.browser.test.tsx`, which visits the whole app as this file does.
  *
- * - «Todo control solo-icono lleva `aria-label`: **el glifo no es un nombre**» → las dos
- *   aserciones del primer caso, y hacen falta las dos: ver `SOLO_SIMBOLOS`.
- * - «La etiqueta se toma del texto visible con `aria-labelledby`, no se duplica en un
- *   `aria-label`» → la misma primera aserción, y por eso se pregunta por el nombre
- *   CALCULADO y no por el atributo: exigir `aria-label` prohibiría la forma preferida.
- * - «Todo control que alterna lleva `aria-pressed`, y su nombre es lo que alterna, no el
- *   valor» → el segundo caso, **la segunda mitad nada más**. La primera es circular y no se
- *   puede verificar acá; está en «qué NO cubre».
- * - «`type="button"` en todo `<button>`» → **no es de este archivo**: ya tiene dueño en el
- *   `describe` «App — lo que llega al arbol de accesibilidad» de `App.browser.test.tsx`, que
- *   recorre la app entera igual que éste.
+ * ## Why its own file and not one more `describe` in `App.browser.test.tsx`
  *
- * ## Por qué un archivo propio y no un `describe` más en `App.browser.test.tsx`
+ * That file already has a case that visits the whole app, "no button of the app can
+ * submit a form", so the form exists and the precedent is exact. But it is a file of
+ * **cases**: it verifies the gestures, the state and the derived values of the shell,
+ * with a mock of `OrientationPanel` that counts runs and an engine that remembers if it
+ * started. A gate that visits the tree shares none of that, and inside that file it is
+ * tied to that scenery.
  *
- * Aquel archivo ya tiene un `describe` que recorre la app entera —«ningun boton de la app
- * puede enviar un formulario»—, así que la forma existe y el precedente es exacto. Pero es
- * un archivo de **casos**: verifica los gestos, el estado y los derivados del shell, con un
- * mock de `OrientationPanel` que cuenta ejecuciones y un motor que recuerda si arrancó. Un
- * gate que recorre el árbol no comparte nada de eso, y meterlo ahí lo ataría a esa
- * escenografía.
+ * There is also a measurable reason. The three falsifications of this file **also turn
+ * `App.browser.test.tsx` red**: to remove the `aria-label` of a button, to add an empty
+ * one, and to rename a toggle to the value its `aria-pressed` already says. A
+ * falsification that turns two files red does not prove which of the two verified.
+ * Apart, `pnpm exec vitest run src/__tests__/arbol-accesible.browser.test.tsx` runs and
+ * the answer comes from one file.
  *
- * Y hay un motivo medible: las tres falsificaciones de este archivo —sacarle el
- * `aria-label` a un botón, agregar uno vacío, renombrar un toggle al valor que ya dice su
- * `aria-pressed`— **también ponen en rojo a `App.browser.test.tsx`**. Una falsificación que
- * enrojece dos archivos no prueba cuál de los dos verificó. Separados, se corre
- * `pnpm exec vitest run src/__tests__/arbol-accesible.browser.test.tsx` y la respuesta es
- * de uno solo.
+ * ## The difference between a test and a gate
  *
- * ## La diferencia entre un test y un gate
+ * The four files that query roles today (`OrientationPanel`, `PiecePalette`,
+ * `TransportPanel` and `App`) verify **the controls that each one knows**. A new control
+ * with no label breaks no name assertion. This file visits **all that it finds**, the
+ * native controls and the `role`s of the closed list `ROLES`, so it fails on a control
+ * that no test names.
  *
- * Los cuatro archivos que hoy consultan roles —`OrientationPanel`, `PiecePalette`,
- * `TransportPanel` y `App`— verifican **los controles que cada uno conoce**. Un control
- * nuevo sin etiqueta no rompe ninguna aserción de nombre. Este recorre **todo lo que
- * encuentra** —los controles nativos y los `role` de la lista cerrada de `ROLES`—, así que
- * falla ante un control que nadie escribió en ningún test.
+ * ## What it does NOT cover, which is the half to read before you trust it
  *
- * ## Qué NO cubre, que es la mitad que hay que leer antes de confiar
- *
- * - **Que el nombre sea BUENO.** Que un control tenga nombre accesible no dice que el
- *   nombre sirva: «Botón 3» pasa. Lo único que se puede decidir por máquina es que exista
- *   y —para un toggle— que no sea el valor que el propio `aria-pressed` ya anuncia.
- * - **Que un control que alterna LLEVE `aria-pressed`.** Es circular y por eso no está: el
- *   único modo de encontrar los toggles automáticamente es buscarlos **por el atributo que
- *   se quiere exigir**, así que un toggle al que se lo olvidaron no aparece en la lista y
- *   el gate lo saluda al pasar. Esa mitad sigue siendo revisión humana, y está declarada
- *   acá para que nadie lea este archivo como si la cubriera.
- * - **Un `role` que no esté en `ROLES`.** La lista es cerrada a propósito —ver su docblock—,
- *   así que un rol nuevo entra al árbol sin que este gate lo mire hasta que alguien lo
- *   agregue. Los controles NATIVOS sí entran todos, que es el caso frecuente.
- * - **El orden de tabulación**, que es la sección siguiente de `ui.md` y otro mecanismo.
- * - **El contraste**, que `DESIGN.md` trata como un test aparte (issue #50).
- * - **El comportamiento con un lector de pantalla de verdad.** Esto mira el árbol que el
- *   navegador calcula, que es una capa antes.
+ * - **That the name is GOOD.** A control with an accessible name can have a useless
+ *   one: "Botón 3" passes. A machine can decide only that the name exists and, for a
+ *   toggle, that it is not the value its own `aria-pressed` already announces.
+ * - **That a toggle HAS `aria-pressed`.** It is circular, so it is not here: the only
+ *   automatic way to find the toggles is **by the attribute the rule requires**. A
+ *   toggle without the attribute is not in the list, and the gate passes it. That half
+ *   stays with human review, and it is declared here so that nobody reads this file as
+ *   if it covered it.
+ * - **A `role` that is not in `ROLES`.** The list is closed on purpose (see its
+ *   docblock), so a new role enters the tree and this gate does not look at it until
+ *   someone adds it. The NATIVE controls do all enter, which is the frequent case.
+ * - **The tab order**, which is the next section of `ui.md` and another mechanism.
+ * - **The contrast**, which `DESIGN.md` treats as a separate test (issue #50).
+ * - **The behavior with a real screen reader.** This looks at the tree that the browser
+ *   computes, which is one layer before.
  */
 
 /**
- * El motor, mockeado igual que en `App.browser.test.tsx`: contar etiquetas no arranca audio.
+ * The engine, mocked as in `App.browser.test.tsx`: a count of labels starts no audio.
  *
- * Lo demás —el dominio, los componentes y el DOM— es real, y de ahí sale el árbol.
+ * The rest (the domain, the components and the DOM) is real, and the tree comes from it.
  */
 const motor = vi.hoisted(() => ({
   setSequence: vi.fn(),
@@ -88,11 +87,11 @@ vi.mock('../playback/engine.ts', () => motor);
 const App = (await import('../App.tsx')).default;
 
 /**
- * Un viewport de escritorio, igual que en `App.browser.test.tsx`.
+ * A desktop viewport, the same as in `App.browser.test.tsx`.
  *
- * Sin fijarlo, Playwright arranca en 414 x 896 y el tablero sale de seis columnas. El
- * veredicto no cambia, pero sí cuántos controles se recorren: un gate que mide menos según
- * la ventana se puede aflojar sin tocarlo.
+ * Without it, Playwright starts at 414 x 896 and the board has six columns. The verdict
+ * does not change, but the number of controls visited does: a gate that measures less
+ * with a smaller window can be weakened with no edit.
  */
 const VIEWPORT: [number, number] = [1024, 768];
 
@@ -101,19 +100,18 @@ beforeEach(async () => {
 });
 
 /**
- * Qué cuenta como control, y por qué es una lista y no una heurística.
+ * What counts as a control, and why it is a list and not a heuristic.
  *
- * Las dos mitades tienen motivos distintos. Los **nativos** entran por su etiqueta: un
- * `<button>` es un botón sin que nadie lo declare. Los **roles** entran por la lista
- * cerrada de abajo, que son los que esta app usa hoy más los vecinos obvios de cada uno —
- * un `role` nuevo que no esté acá no lo mira nadie, y eso es preferible a una heurística
- * que decida sola sobre roles que el repo todavía no tomó ninguna decisión sobre cómo
- * nombrar.
+ * The two halves have different reasons. The **native** ones enter by their tag: a
+ * `<button>` is a button with no declaration. The **roles** enter by the closed list
+ * below: the roles this app uses today plus the obvious neighbours of each. Nothing
+ * looks at a new `role` that is not here. That is better than a heuristic that decides
+ * alone about roles for which the repo has no naming decision yet.
  *
- * `grid`, `gridcell` y `group` son composites y no controles, y entran igual: los tres
- * llevan nombre en esta app —el tablero, cada celda y el par de botones de régimen— y un
- * composite sin nombre es exactamente el caso que no se nota mirando la pantalla, porque
- * en la pantalla se ve el contenido.
+ * `grid`, `gridcell` and `group` are composites and not controls, and they enter all the
+ * same: the three have a name in this app (the board, each cell and the pair of regime
+ * buttons). A composite with no name is the case that the screen does not show, because
+ * the screen shows the content.
  */
 const ROLES = [
   'button', 'checkbox', 'switch', 'radio', 'link', 'tab', 'menuitem',
@@ -123,75 +121,75 @@ const ROLES = [
 const CONTROLES = ['button', 'input', 'select', 'textarea', 'a[href]', ...ROLES.map((r) => `[role="${r}"]`)].join(', ');
 
 /**
- * Las palabras que son un VALOR y no un nombre, para el AC5.
+ * The words that are a VALUE and not a name.
  *
- * Va como lista cerrada y escrita acá porque las dos mitades de la pregunta se contestan
- * distinto: **cuál** control es un toggle lo dice el árbol —el que lleva `aria-pressed`—,
- * pero **qué palabra es un estado** no lo puede decidir ninguna máquina. «Activado» es un
- * valor y «Activar el metrónomo» es un nombre, y la diferencia es semántica.
+ * It is a closed list, written here, because the two halves of the question have
+ * different answers. The tree says **which** control is a toggle: the one with
+ * `aria-pressed`. But no machine can decide **which word is a state**. "Activado" is a
+ * value and "Activar el metrónomo" is a name, and the difference is semantic.
  *
- * Están en minúscula y se comparan con un regex anclado e insensible a mayúsculas, o sea
- * que caza «Activado» y no caza «Recorrido activado en el vacío» — que sería un nombre malo
- * pero no es lo que esta regla persigue.
+ * They are in lower case, and they are compared with an anchored, case-insensitive
+ * regex. So it catches "Activado" and does not catch "Recorrido activado en el vacío",
+ * which is a bad name but is not what this rule looks for.
  */
 const PALABRAS_DE_ESTADO = ['on', 'off', 'sí', 'si', 'no', 'activado', 'desactivado', 'encendido', 'apagado'];
 
 /**
- * Un nombre hecho SOLO de símbolos, y por qué esta segunda aserción no es de más.
+ * A name made ONLY of symbols, and why this second assertion is necessary.
  *
- * La regla del repo dice «todo control solo-icono lleva `aria-label`: **el glifo no es un
- * nombre**», y ésa es justamente la parte que `toHaveAccessibleName()` a secas NO verifica:
- * el algoritmo del navegador toma el contenido del botón, así que un `<button>▶</button>`
- * **tiene** nombre accesible y es «▶». Medido: sacándole el `aria-label` al botón de
- * transporte de `TransportPanel.tsx:88`, el gate escrito con la sola aserción de existencia
- * seguía en verde — o sea que la regla que este archivo dice cerrar quedaba abierta.
+ * The rule says that every icon-only control has a name and that **the glyph is not a
+ * name**. That is the part that `toHaveAccessibleName()` alone does NOT verify: the
+ * algorithm of the browser takes the content of the button, so a `<button>▶</button>`
+ * **has** an accessible name, and it is "▶". Measured: with the `aria-label` of the play
+ * button of `TransportPanel.tsx` removed, the gate written with only the assertion of
+ * existence stayed green. So the rule this file says it closes stayed open.
  *
- * La línea que sí se puede decidir por máquina es ésta: un nombre tiene que tener **al menos
- * una letra o un dígito**. Un glifo, un emoji o una flecha no lo son en ninguna lengua, y
- * `\p{L}` / `\p{N}` es la definición de Unicode, no una lista escrita a mano. No dice que el
- * nombre sea bueno —eso está en «qué NO cubre»—, dice que hay algo que leer en voz alta.
+ * The line that a machine can decide is this: a name must have **at least one letter or
+ * one digit**. A glyph, an emoji or an arrow is neither in any language, and `\p{L}` /
+ * `\p{N}` is the definition of Unicode, not a list written by hand. It does not say that
+ * the name is good (see "What it does NOT cover"). It says that there is something to
+ * read aloud.
  */
 const SOLO_SIMBOLOS = /^[^\p{L}\p{N}]+$/u;
 
-/** Cómo se nombra un control en un mensaje de falla, cuando justamente no tiene nombre. */
+/** How a control is named in a failure message, when it has no name. */
 const señas = (el: Element) => `<${el.tagName.toLowerCase()}${el.getAttribute('role') ? ` role="${el.getAttribute('role')}"` : ''}> "${el.textContent ?? ''}"`;
 
-describe('El arbol de accesibilidad de la app entera', () => {
-  it('AC-ACC-002 — todo control tiene nombre accesible, y se recorren todos', async () => {
+describe('The accessible tree of the whole app', () => {
+  it('AC-ACC-002 — every control has an accessible name, and the gate visits them all', async () => {
     const { container } = await render(<App />);
     const controles = [...container.querySelectorAll(CONTROLES)];
 
-    // Un recorrido vacío pasaría en verde sin haber verificado nada, que es el modo de
-    // falla que este repo ya se comió dos veces. El piso son los 20 botones que
-    // `App.browser.test.tsx` cuenta, así que cualquier número por debajo dice que el
-    // selector dejó de encontrar la app y no que la app dejó de tener controles.
+    // An empty visit passes green with nothing verified, a failure mode this repo has
+    // met two times. The floor is the 20 buttons that `App.browser.test.tsx` counts. So a
+    // lower number says that the selector does not find the app, not that the app has
+    // fewer controls.
     expect(controles.length).toBeGreaterThan(20);
 
     for (const control of controles) {
-      // `toHaveAccessibleName` y no leer `aria-label`: el nombre lo calcula el navegador
-      // combinando texto, `aria-label`, `aria-labelledby` y contenido. La regla del repo
-      // PREFIERE `aria-labelledby` sobre el texto visible, así que exigir el atributo
-      // prohibiría la forma preferida — y `TransportPanel.tsx:45` la usa.
+      // `toHaveAccessibleName` and not a read of `aria-label`: the browser computes the
+      // name from text, `aria-label`, `aria-labelledby` and content. The rule PREFERS
+      // `aria-labelledby` on the visible text, so to require the attribute forbids the
+      // preferred form, and the tempo control of `TransportPanel.tsx` uses it.
       expect(control, señas(control)).toHaveAccessibleName();
-      // Y que ese nombre no sea el glifo. Ver `SOLO_SIMBOLOS`: sin esta línea la regla del
-      // repo sobre los controles solo-icono queda escrita y sin verificar, que es
-      // literalmente el problema que este spec vino a cerrar.
-      expect(control, `${señas(control)} se llama con un glifo`).not.toHaveAccessibleName(SOLO_SIMBOLOS);
+      // And that name must not be the glyph. See `SOLO_SIMBOLOS`: without this line the
+      // rule about icon-only controls is written and not verified.
+      expect(control, `${señas(control)} is named with a glyph`).not.toHaveAccessibleName(SOLO_SIMBOLOS);
     }
   });
 
-  it('AC-ACC-006 — ningun control que alterna se llama como el estado que ya anuncia', async () => {
+  it('AC-ACC-006 — no toggle is named by the state it already announces', async () => {
     const { container } = await render(<App />);
     const toggles = [...container.querySelectorAll('[aria-pressed]')];
 
-    // Mismo motivo que arriba: si el selector deja de encontrarlos, la aserción de abajo
-    // no corre y nadie se entera. Hoy son los doce de `OrientationPanel`, los dos de
-    // régimen y el del recorrido.
+    // The same reason as above: if the selector finds none, the assertion below does
+    // not run and nothing reports it. Today they are the twelve of `OrientationPanel`,
+    // the two of the regime and the click switch.
     expect(toggles.length).toBeGreaterThan(0);
 
     for (const toggle of toggles) {
       for (const palabra of PALABRAS_DE_ESTADO) {
-        expect(toggle, `${señas(toggle)} se llama como su estado`)
+        expect(toggle, `${señas(toggle)} is named as its state`)
           .not.toHaveAccessibleName(new RegExp(`^${palabra}$`, 'i'));
       }
     }

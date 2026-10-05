@@ -17,39 +17,32 @@ import { proyectarAlMotor } from './engine-bridge.ts';
 import { encolar, reiniciar } from './route-source.ts';
 
 /**
- * Los cuatro efectos de reconciliación que mantienen al motor mirando el mismo tablero que
- * la pantalla: tempo, clicks, la secuencia contra el tablero y la limpieza al desmontar.
+ * The four reconciliation effects that keep the engine on the same board as the
+ * screen: tempo, clicks, the sequence against the board, and the cleanup on unmount.
  *
- * Estaban en `App.tsx` y se mudaron ENTEROS, en el mismo orden y con
- * sus docblocks: son argumentos ya medidos —el empalme al cierre de ciclo, la limpieza
- * sincrónica bajo StrictMode, por qué el desmontaje usa `DEFAULT_REGIMEN`— y
- * re-derivarlos es la forma más fácil de perderlos.
+ * Each one carries an argument that is already measured: the swap at the cycle
+ * boundary, the synchronous cleanup under StrictMode, why the unmount uses
+ * `DEFAULT_REGIMEN`. To derive them again is the easiest way to lose them.
  *
- * `secuencia` entra POR PARÁMETRO y este hook no la vuelve a derivar. Es lo que
- * garantiza que `encolar` y `setSequence` sigan viendo la MISMA instancia: si el hook
- * llamara a `buildSequence` por su cuenta, el dibujo y el sonido podrían quedar mirando
- * circuitos distintos sin que nada falle, que es exactamente lo que D5
- * existe para cerrar. El shell deriva la regla; el hook recibe el resultado.
+ * `secuencia` comes as a PARAMETER and this hook does not derive it again. That
+ * guarantees that `encolar` and `setSequence` see the SAME instance: if the hook called
+ * `buildSequence` by itself, the drawing and the sound could look at different circuits
+ * and nothing would fail. The shell derives the rule; the hook gets the result.
  *
- * Es un `.ts` y no un `.tsx`, así que `react-refresh/only-export-components` no lo mira
- * — la misma razón por la que `input.ts` y `route-source.ts` pueden exportar lo que
- * quieran.
+ * It is a `.ts` and not a `.tsx`, so `react-refresh/only-export-components` does not
+ * look at it: the same reason that lets `input.ts` and `route-source.ts` export what
+ * they want.
  */
 
 /**
- * El transporte real, cableado al rol que espera `alternarTransporte`.
+ * The real transport, wired to the role that `alternarTransporte` expects.
  *
- * Const de módulo y NO exportada, pese a la regla del repo de que los
- * módulos no declaran constantes: esa regla existe para los VALORES FIJOS que tenían que
- * coincidir en dos lados, y esto no es un valor sino el cableado de tres funciones
- * importadas de `playback/engine.ts`. Mandarlo a `constants/`, que hoy sólo tiene datos, la
- * obligaría a importar el singleton del `AudioContext`. Precedente exacto en la misma
- * capa: `route-source.ts` declara `RUTA_VACIA` y `cell-text.ts` su `memo`, los dos consts
- * de módulo y ninguno en `constants/`.
+ * It is not a fixed value: it is the wiring of three functions imported from
+ * `playback/engine.ts`.
  *
- * Vive acá y no en `engine-bridge.ts` porque éste es el único módulo de la capa que importa la API
- * de transporte del motor de verdad: la pura lo recibe por parámetro justamente para no tener que
- * hacerlo.
+ * It lives here and not in `engine-bridge.ts` because this is the only module that
+ * imports the transport API of the real engine: the pure function gets it as a
+ * parameter just so that it does not have to.
  */
 export const MOTOR: MotorDeTransporte = {
   arrancar: startClock,
@@ -58,33 +51,32 @@ export const MOTOR: MotorDeTransporte = {
 };
 
 /**
- * Frenar el transporte sin alternarlo, para el Reset del shell.
+ * Stops the transport and does not toggle it, for the Reset of the shell.
  *
- * Es la única llamada al motor que no es ni reconciliación ni transporte: la orden
- * explícita de volver a cero. Se exporta desde acá en vez de dejar a `App.tsx`
- * importando `playback/engine.ts` por una sola línea.
+ * It is the only call to the engine that is neither reconciliation nor transport: the
+ * explicit order to return to zero. It is exported from here so that the shell reaches
+ * the transport of the engine through one module.
  */
 export function frenarTransporte(): void { stopClock(); }
 
 /**
- * La otra mitad del Reset: devolver a cero la cola de DIBUJO.
+ * The other half of Reset: to return the DRAW queue to zero.
  *
- * Va acá al lado de `frenarTransporte()` y por el mismo motivo, que es lo que este spec
- * arregla: el Reset tiene que hablarles a las dos colas, y éste es el único módulo de
- * de la UI por donde el shell le habla a las dos. Si `App.tsx` importara
- * `route-source.ts` para esta línea, la segunda cola se reiniciaría por un camino
- * distinto del de la primera — que es exactamente la asimetría que dejó al velo
- * dibujado sobre un tablero vacío.
+ * It is here next to `frenarTransporte()` for the same reason: Reset must speak to the
+ * two queues, and this is the only module through which the shell speaks to the two. If
+ * `App.tsx` imported `route-source.ts` for this line, the second queue would reset by a
+ * path different from that of the first. That asymmetry leaves the veil drawn over an
+ * empty board.
  *
- * El porqué del reinicio —y por qué no lo hace `encolar` sola al ver una secuencia
- * vacía— está en el docblock de `reiniciar()` en `route-source.ts`.
+ * Why the reset exists, and why `encolar` does not do it alone when it sees an empty
+ * sequence, is in the docblock of `reiniciar()` in `route-source.ts`.
  */
 export function reiniciarRecorrido(): void { reiniciar(); }
 
 interface Reconciliacion {
   /**
-   * El recorrido ya derivado por el shell. No se re-deriva acá — ver el docblock del
-   * módulo.
+   * The sequence that the shell already derived. It is not derived again here: see the
+   * docblock of the module.
    */
   secuencia: Sequence;
   placed: readonly PlacedPiece[];
@@ -96,61 +88,57 @@ export function useMotorSincronizado({ secuencia, placed, tempo, clicks }: Recon
   useEffect(()=>{ setBpm(tempo); }, [tempo]);
   useEffect(()=>{ setClicksAudible(clicks); }, [clicks]);
 
-  // Reconcilia la secuencia del motor contra el tablero. `playing` salió de las
-  // dependencias a propósito: la secuencia es función del tablero, no del
-  // transporte, y quien corta o arranca el sonido es `togglePlay` llamando a
-  // `stopClock`/`startClock`. El `clearJobs()` + `if (!playing) return` de antes
-  // era la forma vieja de lograr lo mismo desde acá; con una sola llamada a
-  // `setSequence` deja de hacer falta — colocar o quitar con el transporte
-  // parado igual deja la secuencia lista para cuando arranque.
+  // Reconciles the sequence of the engine against the board. `playing` is not a
+  // dependency, on purpose: the sequence is a function of the board, not of the
+  // transport, and `togglePlay` of the shell stops or starts the sound, through
+  // `stopClock`/`startClock`. One call to `setSequence` is enough: a placement or a
+  // removal with the transport stopped leaves the sequence ready for the start.
   //
-  // `setSequence` no interrumpe el ciclo en curso: la secuencia
-  // nueva entra recién al cerrar el circuito activo, así que reordenar el
-  // tablero puede tardar hasta un ciclo completo en escucharse — 7,5 s con 8
-  // piezas a 110 bpm. Es el precio de que el circuito se pueda reordenar entero
-  // sin que el patrón salte a mitad de frase.
+  // `setSequence` does not interrupt the cycle in progress: the new sequence starts at
+  // the cycle boundary, so a new order of the board can take up to a full cycle to be
+  // heard, 7.5 s with 8 pieces at 110 bpm. It is the price of a circuit that can change
+  // its whole order and not jump in the middle of a phrase.
   //
-  // La `Sequence` de `buildSequence` no es la que espera el motor: la proyección vive en
-  // `engine-bridge.ts` y su docblock explica qué se cae y por qué. Acá sólo se la llama, y por
-  // eso este efecto y el del desmontaje no pueden divergir.
+  // The `Sequence` of `buildSequence` is not the one the engine expects: the projection
+  // lives in `engine-bridge.ts` and its docblock says what is dropped and why. Here it
+  // is only called, so this effect and that of the unmount cannot diverge.
   //
-  // Las celdas no se pierden: siguen en la secuencia del dominio, y por eso este efecto
-  // encola en DOS colas con la misma `secuencia`. Leerlas de `placed` —que es lo que
-  // decía este comentario antes— no alcanza, y ese es justo el punto de
-  // AC9: `placed` es el tablero de AHORA, o sea la ruta PENDIENTE, mientras que la
-  // cabeza tiene que dibujar la que está sonando. Quien guarda el par es
-  // `playback/route-source.ts`, y hace su swap cuando el motor reporta el suyo.
+  // The cells are not lost: they stay in the sequence of the circuit, and so this
+  // effect feeds TWO queues with the same `secuencia`. To read them from `placed` is
+  // not enough: `placed` is the CURRENT board, the QUEUED sequence, and the playhead
+  // must draw the one that sounds. `playback/route-source.ts` keeps the pair, and makes
+  // its swap when the engine reports its own.
   //
-  // Las dos colas se encolan desde acá y con la MISMA instancia a propósito: si cada una
-  // llamara a su propio `buildSequence`, el dibujo y el sonido podrían quedar mirando
-  // circuitos distintos sin que nada falle.
+  // The two queues are fed from here and with the SAME instance on purpose: if each one
+  // called its own `buildSequence`, the drawing and the sound could look at different
+  // circuits and nothing would fail.
   useEffect(()=>{
     encolar(secuencia, placed);
     setSequence(proyectarAlMotor(secuencia));
-    // `placed` esta en las dependencias aunque `secuencia` ya se derive de el, y no agrega
-    // ni una corrida: `secuencia` es un `useMemo` sobre `[placed, regimen]`, asi que cada
-    // vez que cambia `placed` cambia tambien `secuencia`. La implicacion va en UN solo
-    // sentido —`secuencia` puede cambiar sola, si cambio el regimen— y
-    // alcanza, porque lo que hay que descartar es una corrida de mas y no una de menos.
-    // El comentario decia `[placed]` a secas, que dejo de ser cierto con el regimen.
+    // `placed` is in the dependencies although `secuencia` already derives from it, and
+    // it adds no run: the shell derives `secuencia` with a `useMemo` over these pieces,
+    // the regime and the dimensions of the grid, so each time `placed` changes,
+    // `secuencia` changes too. The implication goes ONE way only (`secuencia` can
+    // change alone, if the regime or the grid changed) and that is enough, because the
+    // thing to exclude is one run too many and not one too few.
     //
-    // Y evita callar la regla de exhaustividad con un disable, que taparia el dia en que
-    // alguien desacople las dos.
+    // It also avoids a disable of the exhaustive-deps rule, which would hide the day
+    // somebody decouples the two.
   }, [secuencia, placed]);
 
-  // Al desmontar, frenar el reloj y vaciar la secuencia del motor. La limpieza
-  // sigue siendo sincrónica: si fuera asincrónica, en StrictMode podría
-  // ejecutarse después de que el efecto de arriba ya volvió a agendar, y
-  // pisaría la secuencia nueva con una vacía. Se proyecta `buildSequence([], …)`
-  // en vez de escribir el literal vacío a mano, para no meter la forma de un
-  // dato de dominio en la capa de la UI.
+  // On unmount, stop the clock and empty the sequence of the engine. The cleanup is
+  // synchronous: if it were asynchronous, in StrictMode it could run after the effect
+  // above scheduled again, and it would overwrite the new sequence with an empty one.
+  // `buildSequence([], …)` is projected, and the empty literal is not written by hand,
+  // so that the shape of a value of the circuit does not enter the UI.
   //
-  // Va `DEFAULT_REGIMEN` y `GRID_DEFAULT` y no lo que hay en el estado, y es la unica
-  // llamada del archivo donde fijarlos es correcto: con el tablero vacio `buildSequence`
-  // corta en `n === 0` y devuelve la secuencia vacia sin mirar ni el regimen ni las
-  // dimensiones, asi que las dos elecciones son inertes. Usar el del estado lo metería en las dependencias de un efecto que existe
-  // SOLO para el desmontaje, y entonces la limpieza correria en cada cambio de regimen:
-  // frenaria el reloj y vaciaria la secuencia, que es exactamente lo que AC7 prohibe.
+  // `DEFAULT_REGIMEN` and `GRID_DEFAULT` and not what is in the state, and this is the
+  // only call of the file where fixed values are correct: with the board empty
+  // `buildSequence` returns at `n === 0` with the empty sequence and looks at neither
+  // the regime nor the dimensions, so the two choices are inert. The value of the state
+  // would enter the dependencies of an effect that exists ONLY for the unmount, and
+  // then the cleanup would run on each regime change: it would stop the clock and empty
+  // the sequence, and a regime change must not do that.
   useEffect(()=> ()=>{
     stopClock();
     setSequence(proyectarAlMotor(buildSequence([], DEFAULT_REGIMEN, GRID_DEFAULT)));

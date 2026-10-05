@@ -35,224 +35,217 @@ import { ORIENTACION_INICIAL, ORIENTACIONES_INICIALES } from "./pieces/orientati
 import type { MemoriaDeOrientacion, Orientacion } from "./pieces/orientation.ts";
 
 /**
- * Pentomino Music — prototipo de instrumento, no un juego con reglas de resolucion.
+ * Pentomino Music: a prototype of an instrument, not a game with rules to solve.
  *
- * El usuario coloca pentominos en un tablero de 10x6 y cada pieza dispara un
- * arpegio de cinco notas. Que pieza determina la tonica; la rotacion, una de dos cosas
- * segun el REGIMEN elegido —la formula de escala con `escala`, o por donde
- * arranca el arpegio con `orden`—; la reflexion el orden de las notas; y la posicion en
- * el tablero el orden de reproduccion: un circuito cerrado visita las piezas colocadas
- * por el camino mas corto entre ellas, no por el orden
- * en que se fueron colocando.
+ * The user places pentominoes on a board sized to the screen, and each piece fires an
+ * arpeggio of five notes. The piece decides the tonic. The rotation decides one of two
+ * things, by the REGIME: the scale formula with `escala`, or where the arpeggio starts
+ * with `orden`. The reflection decides the order of the notes. The position on the board
+ * decides the playback order: a closed circuit visits the placed pieces by the shortest
+ * way between them, not in the order they were placed.
  *
- * Este archivo es el shell: estado, derivados, handlers y la composicion — y CERO
- * efectos. La geometria, la musica, las reglas del tablero, el sonido y los
- * componentes viven en su capacidad, `src/<capability>/`; y el puente con el motor, en `playback/use-engine.ts` (los cuatro
- * de reconciliacion) y `board-editing/use-input.ts` (los dos de entrada).
+ * This file is the shell: state, derived values, handlers and the composition, and ZERO
+ * effects. The geometry, the music, the board rules, the sound and the components live
+ * in their capability, `src/<capability>/`. The bridge to the engine lives in
+ * `playback/use-engine.ts` (the four reconciliation effects) and in
+ * `board-editing/use-input.ts` (the two input effects).
  *
- * Que los seis salieran de aca no fue prolijidad: en un `.tsx`
- * `react-refresh/only-export-components` prohibe exportar cualquier cosa que no sea el
- * componente, asi que nada de lo que viviera en este archivo podia testearse. Es el
- * mismo mecanismo por el que la logica vive en modulos `.ts`.
+ * The six effects are outside this file for a reason: in a `.tsx`,
+ * `react-refresh/only-export-components` forbids every export that is not the component,
+ * so nothing that lives in this file can have a test. The logic lives in `.ts` modules
+ * by the same mechanism.
  *
- * Ver docs/architecture/modelo-musical.md y docs/architecture/audio.md.
+ * See the contracts `specs/musical-model/musical-model.md` and `specs/playback/playback.md`.
  */
 
 export default function App() {
   const [selected, setSelected] = useState<PieceKey>('F');
 
-  // La orientacion es de la PIEZA y no del instrumento. Hasta el 019 habia un
-  // `rotation` y un `mirror` para las doce, y eso hacia que girar la rueda para acomodar
-  // una `F` reorientara las otras once sin que nadie lo pidiera: medido, 11 de 12
-  // miniaturas se movian en cada cuarto de vuelta (la unica quieta era la `X`, que es
-  // simetrica). Peor todavia, la orientacion que te encontrabas al elegir otra pieza no
-  // era la que habias elegido para ELLA sino la que dejo la ultima que tocaste.
+  // The orientation belongs to the PIECE and not to the instrument. One `rotation` and
+  // one `mirror` for the twelve makes a turn of the wheel on an `F` turn the other eleven
+  // with no request. Measured: 11 of 12 thumbnails moved on each quarter turn (the one
+  // that stayed was the `X`, which is symmetric). Worse, the orientation of the next
+  // piece in hand is then the one the last piece left, not the one chosen for IT.
   //
-  // Memoria y no "se resetea al elegir otra", que tambien arreglaba la queja: con memoria
-  // se pueden dejar preparadas doce orientaciones y alternar entre ellas sin volver a
-  // rotar, que es una forma de tocar; con reset, cada cambio de pieza borra trabajo.
+  // A memory, and not "it resets when another piece is chosen", which also fixes the
+  // complaint. With a memory the user can prepare twelve orientations and switch between
+  // them with no new rotation, which is a way to play. With a reset, each change of piece
+  // deletes work.
   //
-  // Las piezas YA COLOCADAS no dependen de esto: cada `PlacedPiece` guarda la suya desde
-  // siempre, asi que rotar la que esta en la mano no cambia una nota del tablero.
+  // The PLACED pieces do not depend on this: each `PlacedPiece` keeps its own
+  // orientation, so a rotation of the piece in hand changes no note of the board.
   const [orientaciones, setOrientaciones] = useState<MemoriaDeOrientacion>(ORIENTACIONES_INICIALES);
-  // Arranca del mismo numero que el motor: DEFAULT_BPM es una sola declaracion.
+  // It starts from the same number as the engine: DEFAULT_BPM is one declaration.
   const [tempo, setTempo] = useState<number>(DEFAULT_BPM);
   const [playing, setPlaying] = useState<boolean>(false);
-  // Los clicks del recorrido arrancan APAGADOS, y con el default en `false` el botón de
-  // la paleta es la única forma de ENCENDER el recorrido: por eso no se puede borrar.
+  // The clicks of the circuit start OFF. With the default at `false`, the click switch of
+  // the dock is the only way to turn them ON: that is why the switch cannot be deleted.
   //
-  // El default vive acá y en `clicksAudible` de `engine.ts`, que el efecto de
-  // `use-engine.ts` pisa al montar. Los dos dicen `false`: el mismo valor declarado dos
-  // veces no puede discrepar.
+  // The default lives here and in `clicksAudible` of `engine.ts`, which the effect of
+  // `use-engine.ts` overwrites on mount. The two say `false`: one value declared two
+  // times must not differ.
   //
-  // Apaga solo esos: el cruce por celda ocupada suena su nota y no lo gobierna este
-  // flag, porque es modelo y no mezcla.
+  // The flag turns off only the clicks. A crossing sounds the note of its occupied cell
+  // and this flag does not govern it, because a crossing is model and not mix.
   //
-  // El valor pasó por los dos estados y el argumento del que venía sigue siendo bueno:
-  // con el recorrido encendido por defecto los clicks tapaban la frase, así que arranca
-  // apagado y el botón es la única forma de encenderlos.
+  // The reason for `false`: with the clicks on by default, they cover the phrase.
   const [clicks, setClicks] = useState<boolean>(false);
-  // Que hace la rotacion. Arranca en `escala`, que es el de siempre: abrir
-  // la app suena como sonaba (AC11). Es GLOBAL y no por pieza —D3—: por pieza, dos
-  // piezas a 90° sonarian con reglas distintas y no habria forma de saber, mirando el
-  // tablero, que hace girar una. Es una propiedad del instrumento, como el tempo.
+  // What the rotation does. It starts in `escala`, the scale regime. It is GLOBAL and
+  // not for each piece: with a regime for each piece, two pieces at 90° sound with
+  // different rules, and the board cannot show what a turn does to one of them. It is a
+  // property of the instrument, like the tempo.
   //
-  // Vive aca y baja por props, sin Context ni singleton: el repo no tiene estado
-  // global, y ademas es lo que hace que retirar uno de los dos regimenes cuando se
-  // decida cual se queda sea borrar una rama en vez de desenredarla.
+  // It lives here and goes down by props, with no Context and no singleton: the repo has
+  // no global state. It also makes the removal of one of the two regimes the deletion of
+  // a branch, and not the untangling of one.
   const [regimen, setRegimen] = useState<RegimenDeRotacion>(DEFAULT_REGIMEN);
 
   // placed pieces
   const [placed, setPlaced] = useState<PlacedPiece[]>([]);
 
-  // Celda del tablero bajo el cursor, para el fantasma de previsualización. Desde el spec
-  // 026 tiene DOS escritores —el mouse y el foco del teclado— y sigue siendo UNO solo:
-  // la celda enfocada **es** `hover`. De ahí que el fantasma, el cursor `pointer`/
-  // `not-allowed` y `hoverEdita` funcionen con teclado sin una línea de dibujo nueva, y de
-  // ahí también que no aparezca un segundo «dónde está apuntando» que pueda
-  // desincronizarse del primero.
+  // The pointed cell of the board, for the ghost. It has TWO writers, the mouse and the
+  // keyboard focus, and it is still ONE state: the focused cell **is** `hover`. So the
+  // ghost, the `pointer`/`not-allowed` cursor and `hoverEdita` work with the keyboard
+  // with no new line of drawing. And no second "where it points" exists that can go out
+  // of sync with the first.
   //
-  // Lo que se DIBUJA con esto es `cursor`, más abajo: la grilla cambia de tamaño sola y
-  // el par guardado acá puede quedar apuntando a una celda que la grilla nueva no tiene.
+  // What is DRAWN with this is `cursor`, below: the grid changes size by itself, and the
+  // pair kept here can point at a cell that the new grid does not have.
   const [hover, setHover] = useState<Cell | null>(null);
 
-  // Si el foco del DOM está adentro del tablero. Es lo único que `hover` no puede contestar
-  // solo —el mouse también lo escribe— y hacen falta las dos cosas que dependen de eso:
-  // pintar el anillo de foco (que no tiene que aparecer bajo el mouse, que no tiene foco
-  // ninguno) y la regla de desempate del `onMouseLeave`, abajo.
+  // Whether the DOM focus is inside the board. It is the one thing `hover` cannot answer
+  // alone, because the mouse also writes it. Two things depend on it: the focus ring
+  // (which must not show under the mouse, which has no focus) and the tie-break rule of
+  // `onMouseLeave`, below.
   //
-  // Es estado nuevo y el spec pedía evitarlo, así que el número: cambia cuando el foco
-  // ENTRA o SALE del tablero, no por celda cruzada. Contra los 337 elementos por celda que
-  // midió el 027, son dos re-renders por visita — la razón por la que `hover` no puede ser
-  // un ref no vale para éste al revés: acá la baja frecuencia es la que lo hace barato.
+  // It is one more state, so here is its cost: it changes when the focus ENTERS or
+  // LEAVES the board, not on each cell crossed. Against the 337 elements measured for
+  // each crossed cell, it is two re-renders for each visit. The low frequency is what
+  // makes it cheap as state.
   const [focoEnTablero, setFocoEnTablero] = useState<boolean>(false);
 
-  // Lo último que cambió en el tablero, dicho para la región `aria-live` (AC10). Vive en el
-  // estado y no se escribe en el DOM a mano porque es el shell quien sabe qué edición
-  // ocurrió: la región es un nodo más del render, y React lo actualiza como a cualquier
-  // otro. El texto sale de `cell-name.ts` y no de una cadena armada acá.
+  // The last change of the board, as text for the `aria-live` region. It lives in the
+  // state and is not written to the DOM by hand, because the shell is the one that knows
+  // which edit happened: the region is one more node of the render, and React updates it
+  // like any other. The text of an edit comes from `cell-name.ts`, not from a string
+  // built here.
   const [anuncio, setAnuncio] = useState<string>('');
 
-  // El par de la pieza en la mano, derivado y no duplicado: todo lo que antes leia los dos
-  // `useState` sigue leyendo estos dos nombres. La memoria tiene las doce ranuras
-  // garantizadas por su tipo —el `Record` se deriva de `SHAPES`— asi que esto no puede dar
-  // `undefined` y no hace falta un default.
+  // The pair of the piece in hand, derived and not duplicated. The type of the memory
+  // guarantees its twelve entries, because the `Record` is derived from `SHAPES`. So
+  // this cannot give `undefined` and needs no default.
   const { rotation, mirror } = orientaciones[selected];
 
   const idRef = useRef(0);
 
-  // `selected`, leible sin ser dependencia. Existe por UN consumidor: `alRotar`, el
-  // callback de la rueda, que tiene dependencias vacias a proposito
-  // —es lo que deja que `useRuedaRota` registre el listener de `wheel` una sola vez por
-  // montaje—. Con la orientacion global su cuerpo no leia nada; con la
-  // memoria por pieza necesita saber CUAL ranura rotar, y agregarle `selected` a las
-  // dependencias romperia esa cardinalidad.
+  // `selected`, readable without being a dependency. It exists for ONE consumer:
+  // `alRotar`, the callback of the wheel, which has empty dependencies on purpose. That
+  // is what lets `useRuedaRota` register the `wheel` listener one time for each mount.
+  // With the memory for each piece, the body must know WHICH entry to rotate, and
+  // `selected` in the dependencies breaks that cardinality.
   //
-  // El setter funcional no alcanza como salida: `setOrientaciones(prev => ...)` recibe el
-  // `Record` anterior y nada mas, asi que no hay forma de que sepa cual es la pieza en la
-  // mano sin cerrar sobre `selected` o sin leerlo de un ref.
+  // The functional setter is not enough: `setOrientaciones(prev => ...)` receives the
+  // previous `Record` and nothing else. It cannot know the piece in hand unless it
+  // closes over `selected` or reads it from a ref.
   //
-  // Se escribe DONDE se escribe `selected` y no en el cuerpo del render, que es lo obvio y
-  // lo que el linter rechaza («Cannot access refs during render»): un ref leido o escrito
-  // durante el render es estado invisible para React, y con `elegirPieza` como unico
-  // escritor de los dos el ref no se puede desincronizar. El otro camino era un
-  // `useEffect`, y este shell no tiene ninguno.
+  // It is written WHERE `selected` is written and not in the body of the render. The body
+  // is the obvious place, and the linter rejects it ("Cannot access refs during render"):
+  // a ref read or written during the render is state that React cannot see. With
+  // `elegirPieza` as the only writer of the two, the ref cannot go out of sync. The
+  // other way is a `useEffect`, and this shell has none.
   //
-  // El valor inicial sale de `selected` y no de otra `'F'` escrita al lado: dos literales
-  // que tienen que coincidir es exactamente el par que este repo no deja suelto.
+  // The initial value comes from `selected` and not from a second `'F'` written next to
+  // it: two literals that must match are the pair this repo does not leave loose.
   const selectedRef = useRef<PieceKey>(selected);
 
-  /** El unico escritor de la pieza en la mano: el estado que se pinta y el ref que lee la rueda. */
+  /** The only writer of the piece in hand: the state that is drawn and the ref the wheel reads. */
   const elegirPieza = useCallback((pieza: PieceKey) => {
     selectedRef.current = pieza;
     setSelected(pieza);
   }, []);
 
   /**
-   * Escribe la ranura de UNA pieza. Los cuatro gestos de orientacion pasan por aca.
+   * Writes the entry of ONE piece. The four orientation gestures go through here.
    *
-   * `Record` nuevo y objeto nuevo, nunca mutacion: `.claude/rules/ui.md` lo prohibe, y
-   * ademas es lo que hace que la barrera del `memo` de `OrientationPanel` siga midiendo
-   * lo que dice — la identidad del `Record` cambia cuando cambia una orientacion y no
-   * cuando se mueve el cursor.
+   * A new `Record` and a new object, never a mutation: `.agents/rules/ui.md` forbids it.
+   * It also keeps the `memo` barrier of `OrientationPanel` true to what it says: the
+   * identity of the `Record` changes when an orientation changes, and not when the
+   * cursor moves.
    */
   const orientar = useCallback((pieza: PieceKey, cambio: (o: Orientacion) => Orientacion) => {
     setOrientaciones(prev => ({ ...prev, [pieza]: cambio(prev[pieza]) }));
   }, []);
 
-  // El nodo del tablero, para colgarle la rueda. Se crea ACA y viaja a `Board` como una
-  // prop mas: asi el componente no gana ni estado ni efectos.
+  // The node of the board, for the wheel listener. It is created HERE and goes to `Board`
+  // as one more prop: so the component gets no state and no effect.
   const boardRef = useRef<HTMLDivElement | null>(null);
 
-  // El contenedor RAIZ, para colgarle `--cell`. No es `boardRef`, y la diferencia es la
-  // herencia: una custom property baja por el arbol, y los dos paneles flotantes son
-  // `fixed` fuera de `Board`, asi que colgada del tablero sus cajas —medidas en celdas— no
-  // resolverian `var(--cell)`.
+  // The ROOT container, to hold `--cell`. It is not `boardRef`, and the difference is
+  // inheritance: a custom property goes down the tree, and the two floating panels are
+  // `fixed` outside `Board`. Set on the board, their boxes, which are measured in cells,
+  // do not resolve `var(--cell)`.
   //
-  // El efecto que la escribe vive en `board-fit/use-grid.ts` y no aca: desde el spec
-  // 022 este shell **no declara un solo `useEffect`**, y un listener de `resize` es
-  // exactamente el caso que `.claude/rules/ui.md` ya resuelve —el listener global vive en
-  // un hook `use-*.ts`, con el `ref` creado en el shell—. El precedente literal es
-  // `useRuedaRota` recibiendo `boardRef`.
+  // The effect that writes it lives in `board-fit/use-grid.ts` and not here: this shell
+  // **declares no `useEffect`**, and a `resize` listener is the case that
+  // `.agents/rules/ui.md` solves: the global listener lives in a `use-*.ts` hook, with
+  // the `ref` created in the shell. The exact precedent is `useRuedaRota`, which
+  // receives `boardRef`.
   const raizRef = useRef<HTMLDivElement | null>(null);
-  // El hook **contesta** ademas de escribir: cuanto mide el tablero en
-  // celdas sale de la misma medicion que el tamano de celda, y a diferencia de ella no la
-  // puede resolver el CSS —decide cuantos nodos existen—, asi que vuelve como estado. El
-  // hook solo lo cambia cuando cambian los numeros, no en cada pixel del arrastre.
+  // The hook **answers** as well as writes: the dimensions of the board come from the
+  // same measurement as the cell size. CSS cannot resolve the dimensions, because they
+  // decide how many nodes exist, so they come back as state. The hook changes that state
+  // only when the numbers change, not on each pixel of the drag.
   const dims = useGrilla(raizRef);
 
-  // Las piezas que ENTRAN en el tablero de ahora. Achicar la ventana achica la grilla, y
-  // una pieza que queda afuera no se borra: se queda en `placed`, deja de dibujarse y de
-  // sonar, y vuelve entera cuando hay lugar otra vez. El repo no tiene deshacer y
-  // arrastrar el borde de una ventana no es un gesto de edicion.
+  // The pieces that FIT in the current board. A smaller window gives a smaller grid, and
+  // a piece that stays outside is not deleted: it stays in `placed`, it is not drawn and
+  // does not sound, and it comes back whole when there is room again. The repo has no
+  // undo, and a drag of the window edge is not an edit gesture.
   //
-  // El criterio —la pieza ENTERA, y por que— vive en `cabeEn` y no aca: es una pura del
-  // dominio, y este shell no lleva ninguna (`.claude/rules/ui.md`).
+  // The criterion (the WHOLE piece, and why) lives in `cabeEn` and not here: it is a pure
+  // function of the domain, and this shell holds none (`.agents/rules/ui.md`).
   //
-  // **`visibles` es lo que se ve, se toca y suena; `placed` es lo que existe**, y de ahi
-  // sale que de esta linea para abajo cada consulta elija una de las dos. Las que miran el
-  // tablero DIBUJADO —el ocupante de una celda, el gesto de edicion, el circuito— van con
-  // `visibles`, porque una pieza que no se dibuja no puede recibir un click sobre una celda
-  // que se ve vacia. Las que miran la LEGALIDAD van con `placed`: una pieza guardada puede
-  // tener celdas adentro de la grilla nueva —«no entra entera» no es «esta toda afuera»— y
-  // colocar encima dejaria dos solapadas en cuanto la ventana crezca.
+  // **`visibles` is what is seen, touched and heard. `placed` is what exists.** So from
+  // this line down each query chooses one of the two. The queries about the DRAWN board
+  // (the occupant of a cell, the edit gesture, the circuit) use `visibles`, because a
+  // piece that is not drawn cannot receive a click on a cell that looks empty. The
+  // queries about LEGALITY use `placed`: a stored piece can have cells inside the new
+  // grid ("it does not fit whole" is not "it is all outside"), and a placement on top of
+  // them leaves two overlapped pieces when the window grows.
   const visibles = useMemo(() => placed.filter(p => cabeEn(p, dims)), [placed, dims]);
 
-  // Y el mismo corte para el CURSOR, que es el otro estado que la grilla nueva puede dejar
-  // apuntando a una celda que no tiene. `hover` lo escriben el mouse y el foco (spec
-  // 026) y ninguno de los dos se entera de un `resize`: quien mueve el borde de la ventana
-  // —o aprieta `Ctrl`+`=`, que es zoom y por lo tanto viewport— no toca ni el mouse ni el
-  // teclado, asi que el par que quedo guardado puede caer afuera de `dims`.
+  // The same cut for the POINTED CELL, the other state that the new grid can leave on a
+  // cell it does not have. The mouse and the focus write `hover`, and neither hears of a
+  // `resize`: a person who moves the window edge, or presses `Ctrl`+`=` (zoom, so
+  // viewport), touches neither the mouse nor the keyboard. So the pair that is kept can
+  // fall outside `dims`.
   //
-  // Y afuera de `dims` NO es inofensivo, que es lo que lo hace un derivado y no una
-  // prolijidad: `Board` ancla el roving tabindex en esta celda, asi que con el cursor
-  // apuntando a una que no se dibuja **ninguna** celda se queda con `tabIndex={0}` y el
-  // tablero entero sale del orden de tabulacion — el estado que el `?? [0, 0]` de
-  // `Board.tsx` existe para que no pase, y que hasta el 031 era inalcanzable porque las
-  // dimensiones no cambiaban. De paso `previewValid` da `false` con `hover` puesto, o sea
-  // que las celdas quedan todas en `cursor-not-allowed` diciendo "aca no entra" donde la
-  // jugada es perfectamente valida.
+  // Outside `dims` is NOT harmless, and that makes this a derived value and not
+  // tidiness. `Board` puts the anchor of the roving tabindex on this cell. With the
+  // pointed cell on one that is not drawn, **no** cell has `tabIndex={0}` and the whole
+  // board leaves the tab order. The `?? [0, 0]` of `Board.tsx` exists to prevent that
+  // state. Also, `previewValid` gives `false` with `hover` set, so every cell shows
+  // `cursor-not-allowed`, which says "it does not fit here" where the move is valid.
   //
-  // `isValid([hover], [], dims)` y no un predicado nuevo: "esta celda esta adentro del
-  // tablero" es exactamente lo que `isValid` contesta con el tablero vacio, que es el mismo
-  // argumento con el que `cabeEn` se implementa sobre ella en vez de repetir los cuatro
-  // limites.
+  // `isValid([hover], [], dims)` and not a new predicate: "this cell is inside the board"
+  // is what `isValid` answers with an empty board. `cabeEn` is built on it by the same
+  // argument, and does not repeat the four limits.
   const cursor = hover !== null && isValid([hover], [], dims) ? hover : null;
-  // Y con el cursor apagado el foco tampoco esta en una celda: las dos mitades las escribe
-  // `alMoverElFoco` en la misma linea, asi que se caen juntas. Sin esto el anillo de foco
-  // se dibujaria sobre la (0,0) —adonde cae el ancla— sin que el foco del DOM este ahi.
+  // With no pointed cell, the focus is not on a cell either: `alMoverElFoco` writes the
+  // two halves together, so they fall together. Without this, the focus ring is drawn on
+  // (0,0), where the anchor falls, while the DOM focus is not there.
   const focoEnCelda = focoEnTablero && cursor !== null;
 
-  // Los dos flotantes arrancan ABIERTOS: un instrumento que arranca con los controles
-  // escondidos no se descubre. Plegado, cada panel deja solo su encabezado, y cualquier
-  // celda tapada queda a un click. No persiste: recargar los abre, como recargar vacia el
-  // tablero.
+  // The two floating panels start OPEN: an instrument that starts with its controls
+  // hidden is not discovered. Folded, each panel leaves only its header, and each covered
+  // cell is one click away. It does not persist: a reload opens them, as a reload empties
+  // the board.
   const [piezasAbierto, setPiezasAbierto] = useState<boolean>(true);
   const [senalAbierta, setSenalAbierta] = useState<boolean>(true);
 
-  // Si el tap del modificador que esta abajo sigue siendo limpio. Va en un ref y no en
-  // `useState` porque cambia varias veces por gesto y no lo dibuja nadie: meterlo al
-  // estado re-renderizaria el arbol entero por una tecla apretada.
+  // Whether the tap of the modifier that is down is still clean. It is a ref and not
+  // `useState` because it changes several times in one gesture and nothing draws it: as
+  // state, one pressed key re-renders the whole tree.
   const tapLimpio = useRef<boolean>(false);
 
   const transformedShape = useMemo(() => {
@@ -262,170 +255,169 @@ export default function App() {
     return c; // normalized
   }, [selected, rotation, mirror]);
 
-  // El recorrido, calculado UNA vez por tablero y consumido por dos: el motor (por la
-  // proyeccion sin celdas) y la cabeza lectora (por `encolar`). Eran tres mientras
-  // existio la lista lateral, que lo leia por el orden del circuito.
-  // Recalcularlo en cada consumidor abriria la puerta a que dos de ellos miren circuitos
-  // distintos, y lo que se ve y lo que suena no pueden discrepar.
+  // The sequence, computed ONE time for each board and consumed by two: the engine (by
+  // the projection without cells) and the playhead (by `encolar`). To compute it again
+  // in each consumer lets two of them look at different circuits, and what is seen and
+  // what sounds must not differ.
   //
-  // El `regimen` va en las dependencias y no es opcional: es la primera de las tres
-  // cachas de derivacion que AC15 obliga a llevarlo. Sin el, cambiar el regimen no
-  // re-derivaria el tablero y AC7 quedaria falso — que es justo la consecuencia
-  // buscada de que las notas no se guarden en `PlacedPiece`.
+  // `regimen` is in the dependencies, and that is not optional: this is the first of the
+  // three derivations that must carry the regime. Without it, a change of regime does
+  // not re-derive the board. That re-derivation is the intended consequence of notes
+  // that are not kept in `PlacedPiece`.
   const secuencia = useMemo(() => buildSequence(visibles, regimen, dims), [visibles, regimen, dims]);
 
-  // El arpegio de la pieza SELECCIONADA, para el panel y para el click de colocacion.
-  // La derivacion vive en `musical-model/music.ts` y no aca: las piezas ya colocadas la piden
-  // por su cuenta —`buildSequence`, para el motor— y tener dos copias de la regla era
-  // justo lo que hacia falta cuando `PlacedPiece` guardaba sus notas.
+  // The arpeggio of the piece IN HAND, for the panel and for the placement click. The
+  // derivation lives in `musical-model/music.ts` and not here: the placed pieces ask for
+  // it on their own (`buildSequence`, for the engine), and the rule must exist one time.
   const noteSet = useMemo(() => arpeggioFor(selected, rotation, mirror, regimen), [selected, rotation, mirror, regimen]);
 
-  // Los cuatro efectos de reconciliación que mantienen al motor mirando este mismo
-  // tablero viven en `playback/use-engine.ts`, y la llamada va ACÁ y no
-  // arriba con el resto del cableado: `secuencia` es un `const`, así que llamarlo antes
-  // de su `useMemo` la leería en su zona muerta temporal y tiraría un `ReferenceError`
-  // en el primer render. Sigue estando ANTES de los dos hooks de entrada, que es donde
-  // estaban los cuatro efectos, así que el orden de registro no cambia.
+  // The four reconciliation effects that keep the engine on this same board live in
+  // `playback/use-engine.ts`. The call is HERE and not above with the other wiring:
+  // `secuencia` is a `const`, so a call before its `useMemo` reads it in its temporal
+  // dead zone and throws a `ReferenceError` on the first render. It is still BEFORE the
+  // two input hooks, so the four effects register before the input effects.
   //
-  // `visibles` y no `placed`, por lo mismo que arriba: lo que este hook le pasa a la cola
-  // de dibujo es el tablero con el que se cruza la secuencia, y la secuencia sale de
-  // `visibles`. Con el tablero entero le llegaban piezas que la secuencia no nombra —una
-  // pieza que la ventana dejó afuera— y el cruce las ignoraba, que es la clase de dato de
-  // más que un día se lee como si estuviera.
+  // `visibles` and not `placed`, for the same reason as above: this hook gives the draw
+  // queue the board that the sequence is matched against, and the sequence comes from
+  // `visibles`. With the whole board, the queue gets pieces the sequence does not name (a
+  // piece the window left outside). The match ignores them, and that is the kind of
+  // extra data that a later reader takes as present.
   useMotorSincronizado({ secuencia, placed: visibles, tempo, clicks });
 
-  // El tablero se edita EN el tablero: sobre una pieza ya colocada, y solo con
-  // esa misma pieza en la mano, el click la quita y `Alt`+click alterna su muteo. Qué
-  // gesto es lo decide `accionDeClick`, que es una pura y se testea; acá queda el
-  // cableado y las dos consultas al dominio que la pura no puede hacer.
+  // The board is edited ON the board: on a placed piece, and only with that same piece in
+  // hand, the click removes it and `Alt`+click toggles its mute. `accionDeClick` decides
+  // which gesture it is; it is a pure function and has tests. Here stay the wiring and
+  // the two queries to the domain that the pure function cannot make.
   function handleCellClick(x: number, y: number, altKey: boolean) {
-    // `visibles` y no `placed`: la pieza que no entra en la grilla de ahora no se dibuja,
-    // asi que la celda que se ve vacia tiene que COMPORTARSE como vacia. Con el tablero
-    // entero, arrastrar el borde de la ventana dejaba piezas invisibles interceptando
-    // clicks —quitando o muteando algo que no esta en pantalla, y anunciandolo—, que es la
-    // misma discrepancia entre lo que se ve y lo que el modelo hace, dada vuelta.
+    // `visibles` and not `placed`: a piece that does not fit in the current grid is not
+    // drawn, so a cell that looks empty must BEHAVE as empty. With the whole board, a
+    // drag of the window edge leaves invisible pieces that intercept clicks: a click
+    // removes or mutes a piece that is not on screen, and announces it. It is the same
+    // difference between what is seen and what the model does, the other way round.
     //
-    // Lo que queda de la pieza guardada es su LEGALIDAD, y eso lo sigue mirando el
-    // `isValid` de mas abajo con `placed` entero: colocar sobre sus celdas se rechaza igual
-    // —el fantasma ya sale rosa— asi que no se puede pisar lo que no se ve.
+    // What stays of the stored piece is its LEGALITY, and the `isValid` below still
+    // checks it against the whole `placed`: a placement on its cells is refused all the
+    // same (the ghost is already pink), so nothing can cover what is not seen.
     const ocupante = occupantAt(visibles, x, y);
     const accion = accionDeClick(ocupante, selected, altKey);
-    if (accion === null) return;   // celda ocupada por OTRA pieza: nada, como antes
+    if (accion === null) return;   // a cell occupied by ANOTHER piece: nothing happens
 
-    // Las dos ramas de edición van anidadas adentro del `ocupante !== null` y no colgadas
-    // del `accion`: la pura ya garantiza que `quitar` y `mutear` solo salen con ocupante,
-    // y así TypeScript lo sabe sin que haga falta un `!` que afirme lo mismo sin prueba.
+    // The two edit branches are nested inside `ocupante !== null` and do not hang from
+    // `accion`: the pure function guarantees that `quitar` and `mutear` come only with an
+    // occupant. So TypeScript knows it, and no `!` must assert the same with no proof.
     if (ocupante !== null) {
       if (accion === EDICION.quitar) setPlaced(arr => arr.filter(p => p.id !== ocupante.id));
-      // Objeto nuevo y no `p.muted = !p.muted`: nunca mutar lo que ya se entregó a React.
+      // A new object and not `p.muted = !p.muted`: never mutate what React already has.
       else setPlaced(arr => arr.map(p => p.id === ocupante.id ? { ...p, muted: !p.muted } : p));
-      // El anuncio dice el estado en el que la pieza QUEDA, y sale de la misma expresión
-      // que el `setPlaced` de arriba acaba de guardar: así el lector de pantalla no puede
-      // decir un muteo distinto del que el tablero aplicó. `quitar` lo recibe igual —lo
-      // que la frase dice ahí es cuál se fue y de dónde—; el argumento está en el docblock
-      // de `anuncioDeEdicion`.
+      // The announcement says the state the piece is LEFT in, and comes from the same
+      // expression that the `setPlaced` above stores: so the screen reader cannot say a
+      // mute different from the one the board applied. `quitar` receives it too. There
+      // the phrase says which piece left and from where; the argument is in the docblock
+      // of `anuncioDeEdicion`.
       setAnuncio(anuncioDeEdicion(accion, ocupante.piece, x, y, !ocupante.muted));
       return;
     }
 
     const cells = cellsAt(transformedShape, ANCHOR_INDEX[selected], x, y);
     if (!isValid(cells, placed, dims)) return;
-    // El tope de piezas, que con el tablero fijo lo garantizaba el AREA: 60 celdas ÷ 5 daban
-    // 12 y nadie tenia que escribirlo. Con el tablero saliendo del viewport entran 78 en un
-    // escritorio, y el circuito se resuelve con Held-Karp exacto —`O(n²·2ⁿ)`, medido: 12
-    // piezas 3,1 ms y 16 piezas 18,6 ms—. El porque del numero esta en `MAX_PIEZAS`.
+    // The piece limit. The area of the board does not give it: the board comes from the
+    // viewport, and 78 pieces fit on a desktop. The circuit is solved with exact
+    // Held-Karp, `O(n²·2ⁿ)`. Measured: 12 pieces take 3.1 ms and 16 pieces take 18.6 ms.
+    // The reason for the number is in `MAX_PIEZAS`.
     //
-    // Se chequea DESPUES de `isValid` y con el mismo trato: no cambia el tablero. Lo que
-    // agrega es el anuncio, porque es el unico rechazo que no se explica solo — una jugada
-    // invalida se ve (el fantasma sale rosa) y esta no.
+    // It is checked AFTER `isValid` and with the same treatment: the board does not
+    // change. What it adds is the announcement, because it is the only refusal that does
+    // not explain itself: an invalid move is seen (the ghost is pink) and this one is not.
     //
-    // Cuenta `placed` y no `visibles`, que es la unica de las tres consultas de este
-    // handler que mira el tablero entero: el tope existe para acotar el `2ⁿ` del circuito,
-    // y una pieza guardada afuera vuelve a entrar en cuanto la ventana crezca. Contando lo
-    // visible se podrian guardar veinte piezas achicando la ventana entre una y otra, y el
-    // `buildSequence` del primer agrandamiento las recibiria todas juntas.
+    // It counts `placed` and not `visibles`, as the `isValid` above does. The limit
+    // exists to bound the `2ⁿ` of the circuit, and a stored piece comes back when the
+    // window grows. A count of the visible pieces lets the user store twenty pieces with
+    // a smaller window between placements, and the `buildSequence` of the first larger
+    // window receives them all.
     if (placed.length >= MAX_PIEZAS) {
       setAnuncio(`El tablero acepta ${MAX_PIEZAS} piezas y ya tiene ${MAX_PIEZAS}. Quitá una para poder colocar otra.`);
       return;
     }
-    // `Alt` significa "muteado" en los dos lados del gesto: colocar así mete una pieza al
-    // circuito por su ESPACIO y su TIEMPO —mueve el orden de visita y agrega distancia—
-    // sin agregar cinco notas. Es la única forma de componer con silencio.
+    // `Alt` means "muted" on the two sides of the gesture: a placement with it puts a
+    // piece in the circuit for its SPACE and its TIME (it moves the visit order and adds
+    // distance) and adds no five notes. It is the only way to compose with silence.
     const muted = accion === EDICION.colocarMuteada;
     const newPiece: PlacedPiece = {
       id: String(++idRef.current),
       piece: selected, rotation, mirror, cells, muted,
     };
     setPlaced(prev => [...prev, newPiece]);
-    // Después del `isValid`, no antes: una jugada que no entra no cambió el tablero, así
-    // que anunciarla sería contarle a quien no ve la pantalla algo que no pasó.
+    // After the `isValid`, not before: a move that does not fit did not change the board,
+    // so its announcement tells a person who cannot see the screen a thing that did not
+    // happen.
     setAnuncio(anuncioDeEdicion(accion, selected, x, y, muted));
-    // Con el transporte corriendo, disparar acá duplicaría el arpegio: con D5
-    // la pieza nueva ni siquiera entra al recorrido que está sonando
-    // —`setSequence` no interrumpe el ciclo en curso, así que hasta que cierre la
-    // pieza es muda dentro del loop— y el click sigue siendo la única forma
-    // inmediata de escucharla. Con el transporte en pausa pasa lo mismo por otra
-    // razón: no hay reloj corriendo que la vaya a tocar. Sin Web Audio `playing`
-    // nunca llega a true, de modo que el caso degradado cae solo del lado que suena.
+    // The courtesy arpeggio plays only with the transport stopped: no clock runs that
+    // can play the piece, so the click is the only immediate way to hear it. With the
+    // transport running, the loop plays the piece: `setSequence` does not interrupt the
+    // cycle in course, so the piece enters at the cycle boundary, and an arpeggio here
+    // sounds it a second time. Without Web Audio, `playing` never becomes true, so the
+    // degraded case falls on the side that sounds.
     //
-    // Colocar MUTEADA no lo dispara: la pieza se está poniendo justamente para que no
-    // suene, y un arpegio de cortesía contradiría el gesto en el momento de hacerlo.
+    // A MUTED placement does not fire it: the piece is placed so that it does not sound,
+    // and a courtesy arpeggio contradicts the gesture at the moment of the gesture.
     if (!playing && !muted) playNow(noteSet);
   }
 
-  // Reset frena el transporte ADEMÁS de vaciar el tablero, y esa segunda mitad no es
-  // cosmética. Vaciar solo `placed` deja al motor terminando su ciclo activo —la
-  // secuencia nueva, vacía, entra recién al cerrar—, o sea hasta 7,5 s
-  // sonando sobre un tablero que ya está vacío. Reset es una orden explícita de volver
-  // a cero, no una edición del tablero, así que es el único lugar donde saltearse el
-  // empalme al cierre de ciclo es
-  // lo correcto. Lo que queda es la latencia de pausar, que el motor ya documenta: los
-  // 100 ms del lookahead más la cola del arpegio ya agendado.
+  // Reset stops the transport AS WELL AS it empties the board, and that second half is
+  // not cosmetic. To empty only `placed` leaves the engine at work on its active cycle:
+  // the new, empty sequence enters at the cycle boundary. That is up to 7.5 s of sound
+  // on a board that is already empty. Reset is an explicit order to go back to zero, not
+  // an edit of the board, so it is the only place where it is correct to skip the swap
+  // at the cycle boundary. What stays is the latency of a pause, which the engine
+  // documents: the 100 ms of the lookahead plus the tail of the arpeggio already
+  // scheduled.
   //
-  // Y ese párrafo vale para UNA de las dos colas. La otra —la de dibujo, en
-  // `playback/route-source.ts`— avanza sólo cuando el motor cierra un ciclo, o sea
-  // nunca con el reloj parado: sin reiniciarla, el velo de las piezas borradas
-  // se sigue dibujando sobre un tablero vacío hasta el próximo Play. Las
-  // dos se reinician juntas o vuelve el bug, y las dos entran por `use-engine.ts`, que
-  // es el único módulo por el que este shell le habla al motor.
-  // Y lo que NO toca, que hay que decirlo porque la constante está justo
-  // al lado: `↺` **no** vuelve las doce orientaciones a cero. Es una decisión con un costo
-  // escrito —se renuncia al invariante «después de `↺` la app queda como recién abierta»—
-  // y a cambio este botón conserva un alcance único y nombrable, las piezas COLOCADAS, en
-  // vez de hacer dos cosas de dominios distintos. El estado de orientación tiene su propio
-  // botón, el `0°` de la paleta, y ése resetea una sola pieza.
+  // That paragraph is true for ONE of the two queues. The other, the draw queue in
+  // `playback/route-source.ts`, advances only when the engine closes a cycle, so never
+  // with the clock stopped: without a restart, the veil of the deleted pieces is drawn
+  // on an empty board until the next Play. The two restart together or the bug comes
+  // back, and the two go through `use-engine.ts`, the only module by which this shell
+  // reaches the transport of the engine.
+  //
+  // What it does NOT touch must be said, because the constant is next to it: `↺` does
+  // **not** set the twelve orientations back to zero. The decision has a written cost:
+  // the invariant "after `↺` the app is as it was when it opened" is given up. In
+  // exchange this button keeps one scope that has a name, the PLACED pieces, and does
+  // not do two things of different domains. The orientation state has its own button,
+  // the `0°` of the dock, and that one resets one piece.
   function resetBoard() {
     frenarTransporte();
     reiniciarRecorrido();
     setPlaying(false);
-    setPlaced([]); // el efecto de reconciliación se encarga de vaciar la secuencia
+    setPlaced([]); // the reconciliation effect empties the sequence
   }
 
-  // `useCallback` y no una función suelta desde que el atajo de la barra espaciadora
-  // también la llama: el efecto del teclado la tiene en sus dependencias, y
-  // sin memo cambiaría de identidad en cada render y re-suscribiría los dos listeners
-  // por cada tecla. Con `[playing]`, la identidad cambia exactamente cuando cambia el
-  // transporte, que es la dependencia real que el efecto declara.
+  // `useCallback` and not a plain function, because the space bar shortcut also calls
+  // it: the keyboard effect has it in its dependencies, and without the memo it changes
+  // identity on each render and subscribes the two listeners again for each key. With
+  // `[playing]`, the identity changes exactly when the transport changes, which is the
+  // real dependency that the effect declares.
   const togglePlay = useCallback(() => {
-    // La decisión —pedir lo contrario de lo que pasa y creerle al motor y no a lo que se
-    // pidió— vive en `alternarTransporte`, donde tiene test. Acá queda el cableado: el
-    // motor real y el `setState` con lo que el motor contestó.
+    // The decision (ask for the opposite of the current state, and believe the engine
+    // and not the request) lives in `alternarTransporte`, where it has a test. Here stays
+    // the wiring: the real engine and the `setState` with the answer of the engine.
     setPlaying(alternarTransporte(playing, MOTOR));
   }, [playing]);
 
-  // ── Entrada directa ──────────────────────────────────────────────────
-  // Los dos efectos viven en `board-editing/use-input.ts`, y reciben CALLBACKS y no
-  // setters: por eso, cuando la orientación dejó de ser dos `useState` y pasó a ser una
-  // ranura por pieza, lo que cambió fue este bloque y no el hook.
+  // ── Direct input ─────────────────────────────────────────────────────
+  // The two effects live in `board-editing/use-input.ts`, and receive CALLBACKS and not
+  // setters: so a change of the shape of the orientation state changes this block and
+  // not the hook.
   //
-  // `tapLimpio` se queda ACÁ y viaja a los dos: lo lee el teclado y lo escriben los dos,
-  // así que el ref es de quien los compone. Está argumentado en `use-input.ts`.
+  // `tapLimpio` stays HERE and goes to the two: the keyboard reads it and the two write
+  // it, so the ref belongs to the one that composes them. `use-input.ts` has the
+  // argument.
 
-  // Los dos del teclado se memoizan con sus dependencias REALES y no con `[]`. La
-  // dependencia real es UNA —`selected`— y no `rotation` o `mirror`: el
-  // cambio se calcula adentro del setter funcional sobre la ranura anterior, así que el
-  // callback no necesita leer la orientación actual. Con arrows inline el hook se
-  // re-suscribiría por render — peor, y en silencio.
+  // The two keyboard callbacks are memoized with their REAL dependencies and not with
+  // `[]`. The real dependency is ONE, `selected`, and not `rotation` or `mirror`: the
+  // change is computed inside the functional setter on the previous entry, so the
+  // callback does not read the current orientation. With inline arrows the hook
+  // subscribes again on each render, which is worse, and silent.
   const rotarConTecla = useCallback(
     () => orientar(selected, o => ({ ...o, rotation: siguienteRotacion(o.rotation) })),
     [orientar, selected],
@@ -435,32 +427,32 @@ export default function App() {
     [orientar, selected],
   );
 
-  // El botón `0°` de la paleta: devuelve la pieza en la mano —y sólo esa— al arranque.
+  // The `0°` button of the dock: it sets the piece in hand, and only that one, back to
+  // the initial orientation.
   const resetearOrientacion = useCallback(
     () => orientar(selected, () => ORIENTACION_INICIAL),
     [orientar, selected],
   );
 
-  // La letra elige la pieza. Es `elegirPieza` tal cual y no un callback nuevo:
-  // desde el 020 hay UN solo escritor de la pieza en la mano —el que actualiza el estado y
-  // el ref en la misma línea— y darle al hook otro envoltorio sería abrir la puerta a un
-  // segundo escritor que no toque el ref. Su identidad es estable por el `useCallback` de
-  // dependencias vacías de allá arriba, no porque `setSelected` lo sea.
+  // The letter chooses the piece. It is `elegirPieza` as it is and not a new callback:
+  // the piece in hand has ONE writer, which updates the state and the ref together. A
+  // second wrapper for the hook opens the way to a second writer that does not touch the
+  // ref. Its identity is stable because of its `useCallback` with empty dependencies
+  // above, not because `setSelected` is stable.
   //
-  // Que el hook reciba un callback y no el setter es lo que hizo que el cambio de forma
-  // de la ranura de estado —`rotation` y `mirror` pasando a ser una ranura por pieza—
-  // cayera acá y no adentro del hook.
+  // The hook receives a callback and not the setter. So a change of the shape of the
+  // state, with `rotation` and `mirror` as one entry for each piece, lands here and not
+  // inside the hook.
   const seleccionarConTecla = elegirPieza;
 
-  // `useCallback` de dependencias VACÍAS, y no es cosmética: es lo que deja que el
-  // listener de `wheel` se registre una sola vez por montaje. Si
-  // alguna vez gana una dependencia, el listener pasa a re-suscribirse con ella.
+  // `useCallback` with EMPTY dependencies, and it is not cosmetic: it lets the `wheel`
+  // listener register one time for each mount. If it gets a dependency, the listener
+  // subscribes again with it.
   //
-  // Hasta el 019 era posible porque el cuerpo usaba el setter funcional y no leía
-  // `rotation`. Con la memoria por pieza (020) el cuerpo SÍ necesita un dato del render
-  // —cuál es la pieza en la mano— y el setter funcional no se lo puede dar: recibe el
-  // `Record` anterior y nada más. La salida es `selectedRef`, que está argumentado arriba;
-  // agregar `selected` a las dependencias era la otra, y rompe la suscripción única.
+  // The body DOES need a fact of the render, which piece is in hand, and the functional
+  // setter cannot give it: it receives the previous `Record` and nothing else. The way
+  // out is `selectedRef`, argued above. `selected` in the dependencies is the other
+  // way, and it breaks the single subscription.
   const alRotar = useCallback((deltaY: number) => {
     const pieza = selectedRef.current;
     orientar(pieza, o => ({ ...o, rotation: rotacionPorRueda(o.rotation, deltaY) }));
@@ -477,62 +469,59 @@ export default function App() {
   );
   useRuedaRota(boardRef, alRotar, tapLimpio);
 
-  // El menú contextual no se abre NUNCA sobre el tablero —`preventDefault` siempre—,
-  // pero alternar es otra cosa: en macOS `Ctrl`+click llega como `contextmenu` con
-  // `ctrlKey: true` y ahí el que alterna es el `keyup` de `Ctrl`. Contar los dos daría
-  // neto cero y la reflexión no respondería nunca en una laptop de Apple sin mouse.
+  // The context menu NEVER opens on the board (`preventDefault` always), but the toggle
+  // is another matter: on macOS, `Ctrl`+click arrives as `contextmenu` with
+  // `ctrlKey: true`, and there the `keyup` of `Ctrl` toggles. To count the two gives a
+  // net of zero, and the reflection never answers on an Apple laptop with no mouse.
   function handleContextMenu(e: { preventDefault: () => void; ctrlKey: boolean }) {
     e.preventDefault();
-    // Una sola ranura, como los otros tres gestos de orientación: el botón derecho es el
-    // octavo consumidor de la orientación y el único que no pasa por un efecto ni por un
-    // `useMemo`, así que es el que se escapa si se los busca a mano en vez de dejar que
-    // el typecheck los enumere.
+    // One entry, like the other three orientation gestures. The right button is the
+    // eighth consumer of the orientation and the only one that goes through no effect
+    // and no `useMemo`. So a search by hand misses it; let the typecheck list them.
     if (reflejaElContextMenu(e)) orientar(selected, o => ({ ...o, mirror: !o.mirror }));
   }
 
-  // El foco entró a una celda del tablero, o se fue de él (`null`). Las dos mitades en una
-  // función porque son el mismo hecho, y las dos líneas dicen exactamente eso: la celda
-  // enfocada ES el cursor —al entrar lo escribe, al salir lo apaga (lo mismo que hace hoy
-  // `onMouseLeave` con el mouse)— y `focoEnTablero` es «¿llegó una celda?».
+  // The focus entered a cell of the board, or left the board (`null`). The two halves
+  // are in one function because they are the same fact: the focused cell IS the pointed
+  // cell. On entry the function writes it, and on exit it clears it (as `onMouseLeave`
+  // does with the mouse). `focoEnTablero` is "did a cell arrive?".
   function alMoverElFoco(celda: Cell | null) {
     setFocoEnTablero(celda !== null);
     setHover(celda);
   }
 
-  // LA regla de desempate, escrita una sola vez y en un solo lugar: mientras el foco del
-  // DOM esté adentro del tablero, el foco manda sobre el mouse. Sin ella, sacar el mouse de
-  // la grilla apagaría el fantasma de la celda enfocada y el roving tabindex se quedaría
-  // sin ancla — o sea que «la celda enfocada es el hover» sería una promesa que el mouse
-  // rompe. Dos copias de esta condición serían dos formas de que el fantasma parpadee.
+  // THE tie-break rule, written one time and in one place: while the DOM focus is inside
+  // the board, the focus wins over the mouse. Without it, a mouse that leaves the grid
+  // clears the ghost of the focused cell, and the roving tabindex has no anchor. Then
+  // "the focused cell is the hover" is a promise that the mouse breaks. Two copies of
+  // this condition are two ways for the ghost to flicker.
   //
-  // La otra dirección la resuelve el propio evento y no una segunda regla: el `blur` sabe a
-  // quién le pasa el foco, así que `Board` ya distingue «salió del tablero» de «saltó a
-  // otra celda» antes de llamar a `alMoverElFoco(null)`.
+  // The event itself solves the other direction, with no second rule: the `blur` knows
+  // which node gets the focus, so `Board` tells "it left the board" from "it jumped to
+  // another cell" before it calls `alMoverElFoco(null)`.
   function alSalirElMouse() {
     if (!focoEnCelda) setHover(null);
   }
 
-  // Si la celda bajo el cursor está ocupada por la pieza que está en la mano, el click
-  // no coloca: edita. La condición sale de la MISMA pura que decide el click, así que el
-  // cursor no puede prometer una cosa y el gesto hacer otra — y por eso mira `visibles`,
-  // que es lo que `handleCellClick` mira: con `placed` entero, una pieza que la ventana
-  // dejó afuera apagaba el fantasma y prometía una edición sobre una celda vacía.
+  // If the piece in hand occupies the pointed cell, the click does not place: it edits.
+  // The condition comes from the SAME pure function that decides the click, so the
+  // cursor cannot promise one thing while the gesture does another. So it reads
+  // `visibles`, which is what `handleCellClick` reads: with the whole `placed`, a piece
+  // the window left outside turns the ghost off and promises an edit on an empty cell.
   const hoverEdita = esLaPiezaEnLaMano(cursor ? occupantAt(visibles, cursor[0], cursor[1]) : null, selected);
 
-  // Fantasma: dónde caería la pieza desde la celda bajo el cursor. Las celdas
-  // fuera del tablero no se pintan, pero sí cuentan para marcar la jugada
-  // como inválida.
+  // The ghost: where the piece lands from the pointed cell. The cells outside the board
+  // are not drawn, but they do count to mark the move as invalid.
   //
-  // Sobre una celda propia el fantasma NO se pinta, y esa es la decisión que AC20 pide
-  // escrita: ahí la jugada de colocar es inválida —la pieza se choca consigo misma— así
-  // que el fantasma saldría rosa entero, diciendo "acá no entra" sobre la única celda
-  // donde el click sí hace algo. Lo que se ve es la pieza colocada, que es sobre lo que
-  // el gesto va a actuar.
+  // On a cell of an own piece the ghost is NOT drawn. The decision: a placement there is
+  // invalid, because the piece hits itself, so the ghost is all pink and says "it does
+  // not fit here" on the one cell where the click does something. What is seen is the
+  // placed piece, which is what the gesture acts on.
   const previewCells = cursor && !hoverEdita ? cellsAt(transformedShape, ANCHOR_INDEX[selected], cursor[0], cursor[1]) : [];
   const previewValid = cursor && !hoverEdita ? isValid(previewCells, placed, dims) : false;
 
-  // El porque de este `useMemo` —y el numero que lo justifica— esta abajo, al lado del
-  // `<PiecePalette>` que lo consume: es donde estaba escrita la decision contraria.
+  // The reason for this `useMemo`, and the number that justifies it, are below, next to
+  // the `<PiecePalette>` that consumes it.
   const orientacion = useMemo(() => ({
     selected, orientaciones, regimen, noteSet,
     onSelect: elegirPieza,
@@ -540,71 +529,56 @@ export default function App() {
     onResetOrientacion: resetearOrientacion,
   }), [selected, orientaciones, regimen, noteSet, elegirPieza, resetearOrientacion]);
 
-  // El tablero ES la pantalla. Murieron el `min-h-screen … p-4` y el
-  // `max-w-6xl mx-auto grid grid-cols-12 gap-4`: no hay fila de tarjetas que repartir
-  // porque no hay tarjetas. Lo que queda es una caja del tamano exacto del viewport, con
-  // el tablero centrado adentro y los dos paneles flotando encima.
+  // The board IS the screen. No row of cards is laid out, because no card exists. What
+  // stays is a box of the exact size of the viewport, with the board centered inside and
+  // the two panels that float on top.
   //
-  // `100dvh` y no `100vh`: en iOS `100vh` incluye la barra del navegador, asi que el
-  // tablero salta al aparecer y desaparecer. `overflow-hidden` es lo que hace cierta la
-  // primera mitad de la promesa —cero scroll vertical de pagina— y tambien la
-  // otra mitad: el tablero no tiene un `overflow-x-auto` propio donde absorber su
-  // desborde, porque no puede desbordar —`grid-fit.ts` elige las celdas contra ESTA caja—.
-  // O sea que esta clase paso de ser la red a ser la garantia.
+  // `100dvh` and not `100vh`: on iOS, `100vh` includes the browser bar, so the board
+  // jumps when the bar shows and hides. `overflow-hidden` makes the first half of the
+  // promise true: zero vertical scroll of the page. It also makes the other half true:
+  // the board has no `overflow-x-auto` of its own to absorb an overflow, because it
+  // cannot overflow: `grid-fit.ts` chooses the cells against THIS box. So this class is
+  // the guarantee, not the safety net.
   //
-  // `bg-fondo text-slate-900` SOBREVIVEN: este `div` es uno de los cuatro
-  // lugares donde vive el color de fondo, y `__tests__/fondo-sincronizado.test.ts`
-  // existe para que los cuatro no se desincronicen.
+  // `bg-fondo text-slate-900` STAY: this `div` is one of the four places where the
+  // background color lives, and `__tests__/fondo-sincronizado.test.ts` exists so that
+  // the four do not go out of sync.
   return (
     <div ref={raizRef} className="h-dvh w-full overflow-hidden bg-fondo text-slate-900">
-      {/* Aca llego a decir que los dos objetos se armaban INLINE porque
-            memoizarlos "no compra nada": `PiecePalette` no esta memoizado, asi que
-            re-renderiza igual. Era cierto y CIRCULAR —no memoizamos las props porque el
-            componente no esta memoizado— y encima nunca se habia medido: era el unico caso
-            de frecuencia del repo sin numero, en un proyecto donde los otros dos existen
-            porque alguien conto 4 a 10,6 cambios por segundo y 60 fps.
+      {/* `orientacion` is memoized, and `transporte` is built inline. The reason is a
+            measured number, in `__tests__/App.browser.test.tsx`.
 
-            El numero, medido en `__tests__/App.browser.test.tsx`: `hover` vive en este
-            archivo, asi que cruzar diez celdas con el cursor re-renderizaba el arbol diez
-            veces y `OrientationPanel` se ejecutaba las DIEZ, a 337 elementos cada una
-            (1 grilla + 12 x (boton + grilla + 25 celdas + span), con `MINI_BOX = 5`). O sea
-            3.370 elementos reconciliados para llegar al MISMO DOM, porque ninguna prop del
-            panel depende del hover.
+            `hover` lives in this file, so a cursor that crosses ten cells re-renders the
+            tree ten times. Without a barrier, `OrientationPanel` runs the TEN times, at
+            337 elements each (1 grid + 12 x (button + grid + 25 cells + span), with
+            `MINI_BOX = 5`). That is 3370 elements reconciled to reach the SAME DOM,
+            because no prop of the panel depends on the hover.
 
-            Y el que dio vuelta la decision fue el costo, medido con `Profiler` sobre el
-            commit entero de la app: mediana de 4,9 ms por celda cruzada contra 1,9 ms con la
-            barrera puesta. Son 3,0 ms —el 61 %— gastados en el subarbol que no puede haber
-            cambiado, a la frecuencia del MOUSE, que arrastrandose sobre el tablero es una
-            celda por cuadro dibujado. Es el mismo criterio con el que salieron
-            `Spectrum` y `Playhead` de React; a este le alcanza con un `memo`.
+            The cost decided it, measured with `Profiler` on the whole commit of the app:
+            a median of 4.9 ms for each crossed cell without the barrier against 1.9 ms
+            with it. That is 3.0 ms, 61 %, spent in the subtree that cannot have changed,
+            at the frequency of the MOUSE, which on the board is one cell for each drawn
+            frame. `Spectrum` and `Playhead` left React by the same criterion; for this
+            one a `memo` is enough.
 
-            El array de dependencias que el comentario viejo temia no es deuda a mano:
-            `react-hooks/exhaustive-deps` lo verifica en el lint, asi que un campo nuevo en
-            `PropsDeOrientacion` que se olvide de entrar da rojo y no un panel viejo en
-            pantalla.
+            The dependency array is not debt kept by hand: `react-hooks/exhaustive-deps`
+            verifies it in the lint. A new field of `PropsDeOrientacion` that is not in
+            the array gives red, not a stale panel on screen.
 
-            Este numero mide SOLO la mitad del mouse. Hay un segundo
-            escritor de `hover` con la misma frecuencia por pulsacion —la celda enfocada con
-            el teclado ES `hover`, no un estado paralelo—, y su medicion va debajo de esta.
+            `hover` has a second writer: the arrows. Each press moves the focus, the focus
+            writes `hover`, and `hover` re-renders this tree: the same 337 elements of
+            `OrientationPanel`, for the same reason. So the barrier covers the two hands
+            with no new line: the `useMemo` does not look at where the change of `hover`
+            came from.
 
-            Y aca esta: el segundo escritor son las flechas, y cada
-            pulsacion mueve el foco, el foco escribe `hover` y `hover` re-renderiza este
-            arbol — los mismos 337 elementos de `OrientationPanel`, por el mismo motivo (ni
-            una sola prop del panel depende del cursor). O sea que la barrera de arriba
-            cubre las dos manos sin una linea nueva: el `useMemo` no mira de donde vino el
-            cambio de `hover`.
+            The 4.9 ms and the 1.9 ms are measured on the mouse. The keyboard writes the
+            same state at the cadence of the hand, and with auto-repeat at the cadence of
+            the system. It was not measured again: it is the same work for each press
+            against a different clock. So read the number as "for each write of `hover`"
+            and not "for each cell crossed with the mouse".
 
-            Lo que cambia es el ALCANCE de la frase, no el numero. Los 4,9 ms → 1,9 ms
-            siguen medidos sobre el mouse, que arrastrandose cruza una celda por cuadro
-            dibujado; el teclado escribe lo mismo pero a la cadencia de la mano, y con
-            auto-repeat a la del sistema. No se remidio —seria el mismo trabajo por
-            pulsacion contra un reloj distinto—, asi que lo que hay que leer arriba es
-            «por escritura de `hover`» y no «por celda cruzada con el mouse». Desde este
-            merge el numero describe el sistema entero y no la mitad.
-
-            `transporte` se sigue armando inline, y ahora por el numero y no por el
-            argumento circular: nadie lo consume detras de una barrera, asi que memoizarlo no
-            cambiaria un solo render. */}
+            `transporte` is built inline because of the number: nothing consumes it behind
+            a barrier, so a memo changes no render. */}
       <PiecePalette
         orientacion={orientacion}
         transporte={{
@@ -638,19 +612,19 @@ export default function App() {
         boardRef={boardRef}
       />
 
-      {/* La señal que sale por el master, como franja flotante abajo a la izquierda.
-            No recibe props: lee del motor por su cuenta, para que dibujar a 60
-            fps no re-renderice nada de acá.
+      {/* The signal that leaves the master, as a floating panel at the bottom left. It
+            receives no props: it reads from the engine on its own, so that a draw at 60
+            fps re-renders nothing of this file.
 
-            La posición sale de la medición igual que la del dock: `3 × 1` celdas en la
-            esquina inferior izquierda tapan `(0,5)`, `(1,5)` y `(2,5)` y dejan libre
-            `(9,5)`, que es donde arranca la cabeza lectora. Y `(0,0)` queda libre porque la
-            franja está abajo — es la celda donde el circuito cierra.
+            The position comes from the measurement, like the position of the dock:
+            `3 × 1` cells in the bottom left corner cover the first three cells of the last
+            row. They leave free the last cell of that row and `(0,0)`, the two cells that
+            the seam joins.
 
-            El alto es UNA celda y el contenido se acomoda adentro con `flex-col`: el canvas
-            toma lo que queda después del encabezado. Con el `h-24` de 96 px que `Spectrum`
-            tenía, al piso el contenido pedía 132 px contra los 73 de la caja y la franja se
-            comía una segunda fila del tablero. */}
+            The height is ONE cell, and the content fits inside with `flex-col`: the canvas
+            takes what is left after the header. A fixed `h-24` of 96 px on `Spectrum`
+            makes the content ask for 132 px against the 73 px of the box, and the panel
+            takes a second row of the board. */}
       <aside
         className="fixed left-0 bottom-0 z-20 flex flex-col rounded-tr-2xl shadow-lg bg-white/85 backdrop-blur p-2"
         style={{ width: `calc(var(--cell) * 3)`, height: senalAbierta ? `calc(var(--cell) * 1)` : undefined }}
@@ -662,30 +636,31 @@ export default function App() {
           aria-controls="franja-senal"
           className="shrink-0 text-left text-sm font-semibold mb-1"
         >Señal</button>
-        {/* `hidden` y no desmontar: el `ResizeObserver` de `spectrum-loop.ts` redibuja
-              porque su contenedor cambia de TAMAÑO, y si plegar desmontara el `<canvas>` no
-              habría observador que se dispare — se ejecutaría la limpieza de
-              `iniciarEspectro` y al desplegar se montaría un loop nuevo. */}
+        {/* `hidden` and not an unmount: the `ResizeObserver` of `spectrum-loop.ts` draws
+              again because its container changes SIZE. If a fold unmounts the `<canvas>`,
+              no observer fires: the cleanup of `iniciarEspectro` runs, and the unfold
+              mounts a new loop. */}
         <div id="franja-senal" hidden={!senalAbierta} className="min-h-0 flex-1">
           <Spectrum />
         </div>
       </aside>
 
-      {/* La única región `aria-live` de `src/`.
-          Anuncia el resultado de las TRES ediciones —colocar, quitar y mutear— porque son
-          lo único que cambia el tablero y lo único que, sin ver la pantalla, no se puede
-          confirmar de otra forma: el tablero se edita EN el tablero, y quitar
-          no tiene deshacer.
+      {/* The only `aria-live` region of `src/`.
+          It announces the result of the THREE edits (place, remove and mute), because
+          they are the only changes of the board, and the only ones that a person who
+          cannot see the screen cannot confirm another way: the board is edited ON the
+          board, and a removal has no undo.
 
-          Y NADA más. Ni el recorrido, ni la cabeza lectora, ni el espectro: la cabeza pasa
-          de celda en celda entre 4 y 10,6 veces por segundo, y una región que hable a esa
-          frecuencia es hostil —el lector de pantalla nunca termina una frase, y tapa todo
-          lo demás—. Cómo contar el recorrido sin narrarlo sigue sin resolverse.
+          And NOTHING else but the refusal at the piece limit. Not the circuit, not the
+          playhead, not the spectrum: the playhead goes from cell to cell between 4 and
+          10.6 times each second, and a region that speaks at that frequency is hostile.
+          The screen reader never ends a phrase, and it covers all the rest. How to tell
+          the circuit without a narration is an open question.
 
-          `polite` y no `assertive`: la edición la pidió quien la escucha, así que puede
-          esperar a que el lector termine lo que está diciendo. El nodo existe desde el
-          primer render con el texto vacío, que es lo que hace que el primer anuncio se
-          escuche: una región recién insertada en el DOM no se anuncia. */}
+          `polite` and not `assertive`: the person who hears the edit asked for it, so it
+          can wait until the reader ends what it says. The node exists from the first
+          render with empty text, and that makes the first announcement heard: a region
+          just inserted in the DOM is not announced. */}
       <div aria-live="polite" className="sr-only">{anuncio}</div>
 
     </div>

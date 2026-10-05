@@ -4,30 +4,31 @@ import { tools } from './tools/index.ts';
 import { resources } from './resources/index.ts';
 
 /**
- * MCP server de pentomino-games: **ejecuta el dominio** en vez de describirlo.
+ * The MCP server of pentomino-games: it **runs the domain**, it does not describe it.
  *
- * No hay paso de build: node 22.18 corre este `.ts` quitando los tipos, y cada
- * tool importa las funciones puras reales de `src/`. La fuente de verdad es el
- * codigo de HEAD en el momento de la consulta, asi que no hay staleness ni
- * `generatedAt` que sellar.
+ * There is no build step. Node 22.18 runs this `.ts` with the types stripped, and each
+ * tool imports the real pure functions of `src/`. The source of truth is the code of
+ * HEAD at the time of the query, so nothing goes stale and there is no `generatedAt` to
+ * stamp.
  *
- * `find_symbol` es la excepcion parcial y conviene decirla: SI mira el codigo como
- * texto, porque "donde esta X y quien lo usa" no se contesta ejecutando nada. Pero
- * mantiene la propiedad que importa —construye el indice en la consulta y no lo
- * persiste—, asi que sigue sin haber artefacto que alguien tenga que regenerar.
+ * `find_symbol` is the partial exception: it DOES read the code as text, because "where
+ * is X and who uses it" has no answer from a run. But it keeps the property that
+ * matters: it builds the index in the query and does not persist it. So there is still
+ * no artifact that someone must regenerate.
  *
- * Los imports de `src/` llevan `.ts` explicito, y eso NO es cosmetico: node los
- * necesita para resolver. Un import sin extension dentro de `src/` rompe
- * este server y **no** rompe la app, porque Vite resuelve igual — un modo de
- * falla asimetrico que ataja `pnpm mcp:test`.
+ * The imports of `src/` have an explicit `.ts`, and that is NOT cosmetic: Node needs it
+ * to resolve them. An import with no extension inside `src/` breaks this server and does
+ * **not** break the app, because Vite resolves it anyway. `pnpm mcp:test` catches that
+ * asymmetric failure.
  */
 
 serveStdio(() => {
   const server = new McpServer(
     { name: 'pentomino-domain', version: '1.0.0' },
-    // `resources: {}` no es decorativo: las capabilities son lo que el server ANUNCIA en el
-    // handshake, y sin declararlas contesta que no tiene resources — el registro de abajo
-    // corre igual y no lo ve nadie. Falla en silencio y del lado del cliente.
+    // `resources: {}` is not decoration. The capabilities are what the server ANNOUNCES in
+    // the handshake. Without the declaration it answers that it has no resources, the
+    // registration below still runs, and no client sees it. It fails silently, on the
+    // client side.
     { capabilities: { tools: {}, resources: {} } },
   );
   for (const t of tools) {

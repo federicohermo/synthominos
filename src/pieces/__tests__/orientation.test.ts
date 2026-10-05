@@ -3,32 +3,32 @@ import { ROTACION, ORIENTACION_INICIAL, ORIENTACIONES_INICIALES } from '../orien
 import { SHAPES } from '../pieces.ts';
 
 /**
- * La memoria de orientación, en el proyecto `node`: el módulo es puro y no
- * toca el DOM.
+ * The memory of orientation, in the `node` project: the module is pure and does not
+ * touch the DOM.
  *
- * Lo que hay para verificar es la **derivación**. `ORIENTACIONES_INICIALES` sale de
- * `SHAPES` y no de una lista de doce letras escrita a mano, y la diferencia sólo se nota
- * cuando alguien agrega una pieza al modelo: escrita a mano, la ranura que falta es un
- * `undefined` que el tipo promete que no existe y que nada atrapa hasta que el panel
- * intenta dibujar la miniatura. Derivada, la atrapa esto.
+ * What there is to verify is the **derivation**. `ORIENTACIONES_INICIALES` comes from
+ * `SHAPES` and not from a list of twelve letters written by hand. The difference shows
+ * only when a piece is added to the model. Written by hand, the missing slot is an
+ * `undefined` that the type promises does not exist, and nothing catches it until the
+ * panel tries to draw the thumbnail. Derived, this test catches it.
  */
-describe('020 AC6 — las doce arrancan a 0° sin reflejar', () => {
-  it('AC-PCS-018 — hay una ranura por pieza de `SHAPES`, ni una más ni una menos', () => {
+describe('the twelve pieces open at 0°, not reflected', () => {
+  it('AC-PCS-018 — one slot for each piece of `SHAPES`, no more and no less', () => {
     expect(Object.keys(ORIENTACIONES_INICIALES).sort()).toEqual(Object.keys(SHAPES).sort());
     expect(Object.keys(ORIENTACIONES_INICIALES)).toHaveLength(12);
   });
 
-  it('AC-PCS-018 — las doce están en el arranque, y el arranque es 0° sin reflejar', () => {
+  it('AC-PCS-018 — the twelve are at the initial orientation, which is 0° and not reflected', () => {
     expect(ORIENTACION_INICIAL).toEqual({ rotation: ROTACION.cero, mirror: false });
     for (const [pieza, o] of Object.entries(ORIENTACIONES_INICIALES)) {
       expect(o, pieza).toEqual(ORIENTACION_INICIAL);
     }
   });
 
-  it('`ROTACION` son los cuatro índices que `rotateN` cuenta', () => {
-    // Los valores son índices y no grados: `rotateN` cuenta cuartos de vuelta, y el orden
-    // lo fija `rotateN`. Si alguien los cambiara por 0/90/180/270 —que es el error
-    // natural, porque así se llaman las claves— la geometría entera se movería.
+  it('`ROTACION` holds the four indices that `rotateN` counts', () => {
+    // The values are indices and not angles: `rotateN` counts quarter turns, and
+    // `rotateN` sets the order. A change to 0/90/180/270, the natural mistake because the
+    // keys have those names, would move all the geometry.
     expect(Object.values(ROTACION)).toEqual([0, 1, 2, 3]);
   });
 });

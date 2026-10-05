@@ -16,36 +16,34 @@ import type { PlacedPiece } from '../placement.ts';
 import type { Cell } from '../../pieces/transform.ts';
 
 /**
- * El tablero: 60 celdas, cinco tonos y un `title` por celda.
+ * The board: 60 cells, five tones and one `title` per cell.
  *
- * Lo que se verifica es la jerarquia de canales que el archivo argumenta —**el color de
- * pieza es IDENTIDAD y pierde contra cualquier ESTADO**— y las dos mediciones de layout
- * que sostiene un comentario: que la grilla mida `GRID_W × --cell` y que eso no empuje
- * scroll horizontal ni al tablero ni a la PAGINA cuando gana el piso.
+ * The tests check the hierarchy of channels that `Board.tsx` argues, **the piece color is
+ * IDENTITY and loses against any STATE**, and two layout measurements: that the board is
+ * `GRID_W × --cell` wide, and that it scrolls neither the board nor the PAGE.
  *
- * Las dos ultimas necesitan un navegador con viewport: en jsdom no hay ni layout ni
- * scroll, asi que la afirmacion «no empuja scroll a la pagina» seria trivialmente cierta
- * y no verificaria nada.
+ * The last two need a browser with a viewport: jsdom has no layout and no scroll, so the
+ * claim "the page does not scroll" would be trivially true and would check nothing.
  *
- * ## `--cell` la escribe el test, y eso es parte de lo que verifica
+ * ## The test writes `--cell`, and that is part of what it checks
  *
- * El tamano de celda no es una constante: viaja por una custom property
- * que `use-grid.ts` cuelga del contenedor RAIZ de la app. `Board` se monta solo aca, sin
- * ese contenedor, asi que sin un `--cell` puesto `repeat(10, var(--cell))` es invalido y la
- * grilla colapsa a una columna. Escribirla sobre el nodo que monta el test es lo que ademas
- * verifica la HERENCIA: si alguna medida de la baldosa dejara de leer `--cell`, dejaria de
- * seguir a este valor y las aserciones de abajo lo dirian.
+ * The cell size is not a constant: it travels in a custom property that `use-grid.ts`
+ * puts on the ROOT container of the app. `Board` is mounted alone here, without that
+ * container. So with no `--cell`, `repeat(10, var(--cell))` is invalid and the grid
+ * collapses to one column. To write it on the node that the test mounts also checks the
+ * INHERITANCE: if a measure of the tile stops reading `--cell`, it stops following this
+ * value and the assertions below say so.
  */
 
-/** Pone `--cell` sobre el contenedor del render, como hace el shell sobre su raiz. */
+/** Puts `--cell` on the render container, as the shell does on its root. */
 const conCelda = (container: HTMLElement, px: number) => {
   container.style.setProperty('--cell', `${px}px`);
   return container;
 };
-// Estos tests dibujan el tablero de REFERENCIA: sus numeros —las 60 celdas, el ancho de
-// la grilla, la celda (9,5)— describen ese tamano. Que el tablero real salga del viewport
-// lo cubre `grid-fit.test.ts`, y que el componente dibuje lo que le digan, el test de AC1
-// de mas abajo, que lo renderiza con tres tamanos distintos.
+// These tests draw the REFERENCE board: their numbers (the 60 cells, the width of the
+// board, the cell (9,5)) describe that size. `grid-fit.test.ts` covers that the real
+// board comes from the box. The test of AC-FIT-009 below, which renders three different
+// sizes, covers that the component draws what it is told.
 const { w: GRID_W, h: GRID_H } = GRID_DEFAULT;
 
 const colocar = (piece: PieceKey, x: number, y: number, muted = false): PlacedPiece => ({
@@ -81,27 +79,27 @@ const props = (over: Partial<Props> = {}): Props => ({
 });
 
 /**
- * Las 60 celdas exteriores, en orden de indice: `i = y * GRID_W + x`.
+ * The 60 cell boxes, in index order: `i = y * GRID_W + x`.
  *
- * Por ROL y no por estructura: la grilla dejo de ser 60 hijos planos y
- * paso a ser seis `role="row"` de diez, asi que `div.grid > div` devuelve las seis filas.
- * El rol ademas sobrevive a que alguien vuelva a mover el `gridTemplateColumns` de nivel,
- * que es exactamente el cambio que rompio este selector.
+ * By ROLE and not by structure: the grid is six `role="row"` of ten cells, so
+ * `div.grid > div` returns the six rows. The role also survives a move of
+ * `gridTemplateColumns` to another level, which is exactly the change that breaks a
+ * structural selector.
  */
 const celdas = (container: HTMLElement) =>
   [...container.querySelectorAll('[role="gridcell"]')] as HTMLElement[];
 
 const enIndice = (container: HTMLElement, x: number, y: number) => celdas(container)[y * GRID_W + x];
-/** La baldosa de adentro, que es la que lleva el tono y el color. */
+/** The tile inside, which carries the tone and the color. */
 const baldosa = (celda: HTMLElement) => celda.firstElementChild as HTMLElement;
 
 describe('Board', () => {
-  it('AC-FIT-013 — son GRID_W × GRID_H celdas, y cada una mide lo que dice `--cell`', async () => {
+  it('AC-FIT-013 — there are GRID_W × GRID_H cells, and each one has the size that `--cell` says', async () => {
     const { container } = await render(<Board {...props()} />);
     expect(celdas(container).length).toBe(GRID_W * GRID_H);
 
-    // Al piso y al techo: la celda sigue al valor, que es lo que la custom property promete y lo
-    // que una constante no podia decir.
+    // At the target cell size and at 180 px: the cell follows the value, which is what
+    // the custom property promises and what a constant cannot give.
     for (const px of [CELL_PX_OBJETIVO, 180]) {
       conCelda(container, px);
       const c = enIndice(container, 0, 0).getBoundingClientRect();
@@ -110,10 +108,11 @@ describe('Board', () => {
     }
   });
 
-  it('AC-FIT-014 AC-FIT-015 — las medidas de la baldosa son RAZONES: al techo dan las mismas que al piso', async () => {
-    // No solo las dos fuentes. De la reserva, el aire, el redondeo y la posicion del `#N`
-    // depende que la baldosa «se lea como una ficha y no como un casillero»: si crecieran
-    // solo las letras, a celda 180 la nota quedaria apretada contra un aire de 2 px.
+  it('AC-FIT-014 AC-FIT-015 — the measures of the tile are RATIOS: at 180 px they give the same as at the target', async () => {
+    // Not only the two fonts. The space under the note name, the gap, the corner radius
+    // and the position of the `#N` decide that the tile reads as a tile and not as a box
+    // of a table: if only the letters grew, at a cell size of 180 px the note name would
+    // be tight against a gap of 2 px.
     const { container } = await render(<Board {...props({ placed: [colocar('F', 3, 2)] })} />);
     const razones = (px: number) => {
       conCelda(container, px);
@@ -135,22 +134,23 @@ describe('Board', () => {
 
     const alPiso = razones(CELL_PX_OBJETIVO);
     const alTecho = razones(180);
-    // Que el layout exista: en jsdom todo esto seria 0 y las dos serian iguales por vacias.
+    // That the layout exists: in jsdom all of this would be 0 and the two would be equal
+    // because both are empty.
     expect(alPiso.nota).toBeGreaterThan(0);
     for (const clave of Object.keys(alPiso) as (keyof typeof alPiso)[]) {
-      // La tolerancia es de ±0,5 px sobre la celda mas chica, que es el redondeo del
-      // navegador y no una holgura de criterio.
+      // The tolerance is ±0.5 px on the smaller cell, which is the rounding of the
+      // browser and not a slack of the criterion.
       expect(alTecho[clave], clave).toBeCloseTo(alPiso[clave], 2);
     }
-    // Y al piso los px son los de siempre, que es AC4: la nota a 19 y el `#N` a 13.
+    // At the target the px are the measured ones: the note name at 19 and the `#N` at 13.
     expect(alPiso.nota * CELL_PX_OBJETIVO).toBeCloseTo(19, 0);
     expect(alPiso.pasoTamano * CELL_PX_OBJETIVO).toBeCloseTo(13, 0);
   });
 
-  it('AC-FIT-016 — el borde de 1 px NO escala, y sigue separando al techo', async () => {
-    // Es el unico numero fijo que sobrevive: un filete es un delimitador y no un elemento
-    // tipografico, y en `calc()` daria fracciones que el navegador redondea distinto por
-    // arista — sobre 60 celdas adyacentes, un enrejado irregular.
+  it('AC-FIT-016 — the border of 1 px does NOT scale, and it still separates at 180 px', async () => {
+    // It is the only fixed number of the tile: a hairline is a delimiter and not a
+    // typographic element, and in `calc()` it would give fractions that the browser
+    // rounds differently on each edge. On 60 adjacent cells, that is an irregular lattice.
     const { container } = await render(<Board {...props({ placed: [colocar('F', 3, 2)] })} />);
     for (const px of [CELL_PX_OBJETIVO, 180]) {
       conCelda(container, px);
@@ -159,16 +159,14 @@ describe('Board', () => {
     }
   });
 
-  it('AC-FIT-009 — la grilla mide lo que dicen `dims` y `--cell`, y nada scrollea', async () => {
-    // Lo que este test llego a verificar era lo contrario: que el tablero
-    // SCROLLEARA cuando no entraba, para no achicar la celda. Hoy no puede no entrar
-    // —`grillaPara` elige `cols` y `rows` contra la caja, asi que `cols * cell <= vw`— y
-    // lo que hay que fijar es que no quede una sola forma de scrollear: ni el tablero, ni
-    // la pagina, ni con la ventana chica.
+  it('AC-FIT-009 — the board has the size that `dims` and `--cell` say, and nothing scrolls', async () => {
+    // The board always fits: `grillaPara` chooses `cols` and `rows` against the box, so
+    // `cols * cell <= vw`. What the test must fix is that no way to scroll stays: not the
+    // board, not the page, not with a small window.
     await page.viewport(375, 800);
     try {
-      // Tres tableros bien distintos, incluido uno mas ancho que el viewport de 375 px si
-      // la celda no se hubiera achicado: el componente dibuja lo que le dicen.
+      // Three very different boards, one of them wider than the window of 375 px at the
+      // target cell size: the component draws what it is told.
       for (const dims of [GRID_DEFAULT, { w: 5, h: 9 }, { w: 26, h: 15 }]) {
         const { container, unmount } = await render(<Board {...props({ dims })} />);
         const cell = Math.min(375 / dims.w, 800 / dims.h);
@@ -178,10 +176,10 @@ describe('Board', () => {
           .toBe(Math.round(dims.w * cell));
         expect(container.querySelectorAll('[role="gridcell"]').length).toBe(dims.w * dims.h);
 
-        // Ni el tablero scrollea —no hay contenedor que pueda—…
+        // The board does not scroll, because no container can…
         const caja = container.querySelector('div.relative')!;
         expect(caja.scrollWidth, `${dims.w}x${dims.h}`).toBeLessThanOrEqual(caja.clientWidth + 1);
-        // …ni la pagina.
+        // …and the page does not either.
         expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
           document.documentElement.clientWidth + 1,
         );
@@ -192,21 +190,21 @@ describe('Board', () => {
     }
   });
 
-  it('la celda ocupada lleva el color de SU pieza, inline', async () => {
+  it('the occupied cell has the color of ITS piece, inline', async () => {
     const { container } = await render(<Board {...props({ placed: [colocar('F', 2, 2)] })} />);
     const ocupada = colocar('F', 2, 2).cells[0];
     const b = baldosa(enIndice(container, ocupada[0], ocupada[1]));
 
-    // Inline y no una clase: Tailwind escanea el fuente, asi que un `bg-[...]`
-    // interpolado desde `PIECE_COLOR` no se generaria.
+    // Inline and not a class: Tailwind scans the source, so it would not generate a
+    // `bg-[...]` interpolated from `PIECE_COLOR`.
     expect(b.style.background).not.toBe('');
     expect(b.style.color).not.toBe('');
     expect(b.className).toContain('shadow-sm');
   });
 
-  it('AC-BRD-012 — la pieza MUTEADA cae al blanco y conserva su nota y su #N', async () => {
-    // El canal es la AUSENCIA de color, y no uno de los dos obvios: el color es
-    // identidad de pieza y la opacidad la usa `Playhead` para el velo del estreno.
+  it('AC-BRD-012 — the MUTED piece turns white and keeps its note and its #N', async () => {
+    // The channel is the ABSENCE of color, and not one of the two obvious ones: the color
+    // is the identity of the piece, and `Playhead` uses the opacity for the veil.
     const [x, y] = colocar('F', 2, 2).cells[0];
     const { container } = await render(<Board {...props({ placed: [colocar('F', 2, 2, true)] })} />);
     const celda = enIndice(container, x, y);
@@ -214,16 +212,16 @@ describe('Board', () => {
 
     expect(b.className).toContain('bg-white');
     expect(b.style.background).toBe('');
-    // No se confunde con una celda libre porque una libre no tiene texto.
+    // It is not confused with a free cell because a free cell has no text.
     expect(b.textContent).not.toBe('');
     expect(b.querySelector('span')!.textContent).toMatch(/^#\d$/);
-    // La coordenada sale del propio `cells[0]`, que NO es el ancla: el ancla es la
-    // celda de agarre y `cells[0]` es la primera del array, dos cosas distintas.
+    // The coordinate comes from `cells[0]` itself, which is NOT the grip cell: `cells[0]`
+    // is the first cell of the array, a different thing.
     expect(celda.getAttribute('title')).toMatch(new RegExp(`^\\(${x},${y}\\) · .+ · paso \\d$`));
   });
 
-  it('AC-BRD-013 — el choque contra una pieza colocada gana sobre el color', async () => {
-    // El color de pieza es IDENTIDAD y pierde contra cualquier ESTADO.
+  it('AC-BRD-013 — the overlap with a placed piece wins over the color', async () => {
+    // The piece color is IDENTITY and loses against any STATE.
     const pieza = colocar('F', 2, 2);
     const [x, y] = pieza.cells[0];
     const { container } = await render(
@@ -234,26 +232,26 @@ describe('Board', () => {
     expect(b.style.background).toBe('');
   });
 
-  it('AC-BRD-013 — el fantasma es gris cuando entra y rosa cuando no', async () => {
+  it('AC-BRD-013 — the ghost is gray when the placement is legal and pink when it is not', async () => {
     const gris = await render(<Board {...props({ previewCells: [[5, 5] as Cell], previewValid: true })} />);
     expect(baldosa(enIndice(gris.container, 5, 5)).className).toContain('bg-slate-300');
     await gris.unmount();
 
     const rosa = await render(<Board {...props({ previewCells: [[5, 5] as Cell], previewValid: false })} />);
-    // El rosa es el unico canal que dice "aca no entra" ademas del cursor.
+    // The pink is the only channel that says "it does not fit here", apart from the cursor.
     expect(baldosa(enIndice(rosa.container, 5, 5)).className).toContain('bg-rose-300');
   });
 
-  it('una celda libre no tiene texto, y su title dice solo la coordenada', async () => {
+  it('a free cell has no text, and its title says only the coordinate', async () => {
     const { container } = await render(<Board {...props()} />);
     const celda = enIndice(container, 7, 4);
     expect(baldosa(celda).textContent).toBe('');
     expect(celda.getAttribute('title')).toBe('(7,4)');
   });
 
-  it('el fantasma promete la nota que la pieza va a decir, con el regimen que baja', async () => {
-    // Es la mitad visible de AC7 del 017: el mismo `regimen` gobierna las dos llamadas a
-    // `cellTextFor`, la de la pieza colocada y la del fantasma.
+  it('the ghost promises the note that the piece will say, with the regime it receives', async () => {
+    // The same `regimen` governs the two calls to `cellTextFor`, the one of the placed
+    // piece and the one of the ghost.
     const celdasF = colocar('F', 2, 2).cells;
     const escala = await render(
       <Board {...props({ previewCells: celdasF, regimen: REGIMEN.escala })} />,
@@ -270,7 +268,7 @@ describe('Board', () => {
     expect(notaOrden).not.toBe(notaEscala);
   });
 
-  it('el click entrega la celda y el altKey, que es lo que distingue mutear de colocar', async () => {
+  it('the click gives the cell and the altKey, which is what tells mute from place', async () => {
     const onCellClick = vi.fn();
     const { container } = await render(<Board {...props({ onCellClick })} />);
 
@@ -283,7 +281,7 @@ describe('Board', () => {
     expect(onCellClick).toHaveBeenLastCalledWith(3, 1, true);
   });
 
-  it('el hover entra y sale, y el boton derecho llega al handler', async () => {
+  it('the pointer enters and leaves, and the secondary click reaches the handler', async () => {
     const onCellEnter = vi.fn();
     const onMouseLeave = vi.fn();
     const onContextMenu = vi.fn();
@@ -297,17 +295,17 @@ describe('Board', () => {
     container.querySelector('[role="grid"]')!.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
     await vi.waitFor(() => expect(onMouseLeave).toHaveBeenCalled());
 
-    // `contextmenu` NO esta entre los tres eventos que React registra pasivos, asi que
-    // el boton derecho si puede ir por prop.
+    // `contextmenu` is NOT one of the three events that React registers as passive, so
+    // the secondary click can go through a prop.
     container.querySelector('div.relative')!
       .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
     expect(onContextMenu).toHaveBeenCalled();
   });
 
-  it('AC-BRD-015 — el cursor dice "aca no entra" salvo donde el click EDITA', async () => {
-    // Sobre una celda propia la jugada de colocar es invalida —la pieza se choca consigo
-    // misma— pero el click no coloca, borra. Sin `hoverEdita` el cursor diria lo
-    // contrario de lo que pasa justo donde el gesto es destructivo.
+  it('AC-BRD-015 — the cursor says "not allowed" except where the click EDITS', async () => {
+    // On a cell of an own piece the placement is illegal, because the piece overlaps
+    // itself, but the click does not place: it removes. Without `hoverEdita` the cursor
+    // would say the opposite of what occurs, exactly where the gesture is destructive.
     const base = { previewValid: false, hover: [2, 2] as Cell };
 
     const prohibido = await render(<Board {...props({ ...base, hoverEdita: false })} />);
@@ -318,12 +316,12 @@ describe('Board', () => {
     expect(enIndice(edita.container, 0, 0).className).toContain('cursor-pointer');
     await edita.unmount();
 
-    // Y sin hover no hay jugada que prohibir.
+    // With no pointed cell there is no placement to forbid.
     const sinHover = await render(<Board {...props({ previewValid: false, hover: null })} />);
     expect(enIndice(sinHover.container, 0, 0).className).toContain('cursor-pointer');
   });
 
-  it('el ref del tablero queda colgado del nodo que scrollea, que es donde engancha la rueda', async () => {
+  it('the board ref is on the node that wraps the board, where the wheel listener attaches', async () => {
     const boardRef: { current: HTMLDivElement | null } = { current: null };
     const { container } = await render(<Board {...props({ boardRef })} />);
     expect(boardRef.current).toBe(container.querySelector('div.relative'));
@@ -331,12 +329,12 @@ describe('Board', () => {
 });
 
 /**
- * El teclado: el tablero es UNA parada de tabulacion, adentro se mueve con las
- * flechas, y las cuatro acciones salen de la misma pura que el click.
+ * The keyboard: the board is ONE tab stop, the arrows move the focus inside it, and the
+ * four edits come from the same pure function as the click.
  *
- * Necesita navegador de verdad y no jsdom por lo mismo que las mediciones de arriba: lo
- * que se verifica es DONDE quedo el foco del DOM despues de una tecla, y que el anillo no
- * agrande la region scrolleable. Las dos cosas son layout y foco reales.
+ * It needs a real browser and not jsdom, for the same reason as the measurements above:
+ * the tests check WHERE the DOM focus is after a key, and that the focus ring does not
+ * make the scroll area larger. Both are real layout and real focus.
  */
 const tecla = (el: HTMLElement, key: string, init: KeyboardEventInit = {}) => {
   const evento = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
@@ -344,26 +342,26 @@ const tecla = (el: HTMLElement, key: string, init: KeyboardEventInit = {}) => {
   return evento;
 };
 
-describe('Board — el teclado y el foco', () => {
-  it('AC-ACC-012 — es un `grid` de seis filas por diez celdas, con UNA sola parada de tabulacion', async () => {
-    // Filas de verdad y no `display: contents`: `role="grid"` exige `role="row"`, y la
-    // tecnica del envoltorio transparente tiene historial de SACAR el nodo del arbol de
-    // accesibilidad en varios navegadores — o sea fallar en silencio, justo en lo que este
-    // spec viene a arreglar.
+describe('Board: the keyboard and the focus', () => {
+  it('AC-ACC-012 — it is a `grid` of six rows by ten cells, with ONE tab stop', async () => {
+    // Real rows and not `display: contents`: `role="grid"` requires `role="row"`, and the
+    // technique of the transparent wrapper has a record of REMOVING the node from the
+    // accessible tree in several browsers. That is a silent failure, exactly in what the
+    // grid exists to give.
     const { container } = await render(<Board {...props()} />);
     const grilla = container.querySelector('[role="grid"]')!;
     const filas = [...grilla.querySelectorAll('[role="row"]')];
     expect(filas.length).toBe(GRID_H);
     for (const fila of filas) expect(fila.querySelectorAll('[role="gridcell"]').length).toBe(GRID_W);
 
-    // Sesenta paradas convertirian la tarjeta en una trampa de salida: lo que venga detras
-    // del tablero quedaria a sesenta pulsaciones, ida y vuelta.
+    // Sixty tab stops would make the board an exit trap: what comes after the board would
+    // be sixty key presses away, in each direction.
     expect(celdas(container).filter(c => c.tabIndex === 0).length).toBe(1);
   });
 
-  it('AC-ACC-014 — el `0` arranca en la primera celda y viaja con el cursor', async () => {
-    // Con el cursor apagado el ancla es la (0,0), para que `Tab` siga teniendo por donde
-    // entrar; con cursor, el `0` esta donde esta el cursor.
+  it('AC-ACC-014 — the `0` starts on the first cell and travels with the pointed cell', async () => {
+    // With no pointed cell the anchor cell is (0,0), so that `Tab` still has a way in.
+    // With a pointed cell, the `0` is on it.
     const sinCursor = await render(<Board {...props()} />);
     expect(enIndice(sinCursor.container, 0, 0).tabIndex).toBe(0);
     await sinCursor.unmount();
@@ -373,12 +371,12 @@ describe('Board — el teclado y el foco', () => {
     expect(enIndice(conCursor.container, 0, 0).tabIndex).toBe(-1);
   });
 
-  it('AC-ACC-015 — las flechas mueven el foco una celda y frenan el default, sin salirse de la grilla', async () => {
+  it('AC-ACC-015 — the arrows move the focus one cell and block the default, and stay inside the board', async () => {
     const { container } = await render(<Board {...props({ hover: [0, 0] as Cell })} />);
     const origen = enIndice(container, 0, 0);
     origen.focus();
 
-    // Sin `preventDefault` la flecha scrollea la pagina Y el `overflow-x-auto` del tablero.
+    // Without `preventDefault` the arrow scrolls the page.
     expect(tecla(origen, 'ArrowRight').defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(enIndice(container, 1, 0));
     tecla(enIndice(container, 1, 0), 'ArrowDown');
@@ -388,8 +386,8 @@ describe('Board — el teclado y el foco', () => {
     tecla(enIndice(container, 0, 1), 'ArrowUp');
     expect(document.activeElement).toBe(origen);
 
-    // En el borde la flecha no se sale: deja el foco donde estaba, y frena el default
-    // igual —el scroll que hay que evitar es el mismo.
+    // At the edge the arrow does not leave: the focus stays on its cell, and the default
+    // is still blocked, because the scroll to prevent is the same.
     expect(tecla(origen, 'ArrowUp').defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(origen);
     tecla(origen, 'ArrowLeft');
@@ -403,7 +401,7 @@ describe('Board — el teclado y el foco', () => {
     expect(document.activeElement).toBe(ultima);
   });
 
-  it('`Home` y `End` van a los extremos de SU fila, no del tablero', async () => {
+  it('`Home` and `End` go to the ends of THEIR row, not of the board', async () => {
     const { container } = await render(<Board {...props()} />);
     const media = enIndice(container, 5, 3);
     media.focus();
@@ -414,9 +412,9 @@ describe('Board — el teclado y el foco', () => {
     expect(document.activeElement).toBe(enIndice(container, 0, 3));
   });
 
-  it('AC-ACC-018 — una tecla que no es del tablero no frena nada ni mueve el foco', async () => {
-    // `Shift` y `Ctrl` siguen rotando y reflejando con una celda enfocada: el tablero se
-    // queda la barra, el `Enter` y las flechas, y deja pasar todo lo demas.
+  it('AC-ACC-018 — a key that the board does not use blocks nothing and does not move the focus', async () => {
+    // `Shift` and `Ctrl` still rotate and reflect with a cell focused: the board keeps the
+    // space bar, `Enter` and the arrows, and lets everything else pass.
     const { container } = await render(<Board {...props()} />);
     const celda = enIndice(container, 2, 2);
     celda.focus();
@@ -424,9 +422,9 @@ describe('Board — el teclado y el foco', () => {
     expect(document.activeElement).toBe(celda);
   });
 
-  it('AC-ACC-019 — `Enter` y `Espacio` hacen lo que el click, y con `Alt` lo que `Alt`+click', async () => {
-    // Las cuatro salen de `accionDeClick` porque las cuatro entran por el MISMO
-    // `onCellClick` que el `onClick`: la regla no se escribe una segunda vez.
+  it('AC-ACC-019 — `Enter` and `Space` do what the click does, and with `Alt` what `Alt`+click does', async () => {
+    // The four come from `accionDeClick` because the four enter through the SAME
+    // `onCellClick` as the `onClick`: the rule is not written a second time.
     const onCellClick = vi.fn();
     const { container } = await render(<Board {...props({ onCellClick })} />);
     const celda = enIndice(container, 3, 1);
@@ -441,40 +439,40 @@ describe('Board — el teclado y el foco', () => {
     expect(onCellClick).toHaveBeenLastCalledWith(3, 1, true);
   });
 
-  it('AC-ACC-021 — el foco entra a una celda y sale del tablero, y saltar entre celdas NO es salir', async () => {
+  it('AC-ACC-021 — the focus enters a cell and leaves the board, and a move between cells is NOT a departure', async () => {
     const onFoco = vi.fn();
     const { container } = await render(<Board {...props({ onFoco })} />);
     const celda = enIndice(container, 2, 4);
     celda.focus();
     await vi.waitFor(() => expect(onFoco).toHaveBeenLastCalledWith([2, 4]));
 
-    // Mover el foco es siempre un `blur` seguido de un `focus`: sin la pregunta por
-    // `relatedTarget`, cada flecha apagaria el cursor a mitad de camino.
+    // A move of the focus is always a `blur` followed by a `focus`: without the question
+    // about `relatedTarget`, each arrow would clear the pointed cell on the way.
     onFoco.mockClear();
     tecla(celda, 'ArrowRight');
     await vi.waitFor(() => expect(onFoco).toHaveBeenLastCalledWith([3, 4]));
     expect(onFoco).not.toHaveBeenCalledWith(null);
 
-    // Y salir del tablero si lo apaga, que es lo que hace hoy el `onMouseLeave`.
+    // To leave the board does clear it, as the `onMouseLeave` does.
     onFoco.mockClear();
     enIndice(container, 3, 4).blur();
     await vi.waitFor(() => expect(onFoco).toHaveBeenLastCalledWith(null));
   });
 
-  it('AC-ACC-022 — con el tablero enfocado el mouse queda INERTE, y sin foco escribe el cursor', async () => {
-    // AC16 del otro lado: mientras el foco esta adentro, manda el foco. Sin foco el mouse
-    // escribe el cursor como siempre.
+  it('AC-ACC-022 — with the focus in the board the mouse is INERT, and with no focus it sets the pointed cell', async () => {
+    // While the focus is inside, the focus decides. With no focus the mouse sets the
+    // pointed cell.
     const onCellEnter = vi.fn();
     const sinFoco = await render(<Board {...props({ onCellEnter })} />);
     enIndice(sinFoco.container, 4, 2).dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
     await vi.waitFor(() => expect(onCellEnter).toHaveBeenCalledWith([4, 2]));
     await sinFoco.unmount();
 
-    // La version que ARRASTRABA el foco con el mouse se escribio y se cayo medida: el
-    // `mouseenter` no lo dispara solo mover el mouse, tambien lo dispara cualquier scroll
-    // —el navegador recalcula que hay bajo el puntero quieto—, asi que cada `.focus()` de
-    // una flecha que scrollea devolvia el foco a la celda de abajo del mouse. Se afirman
-    // las dos mitades: que el cursor no se mueve Y que el foco no se va a ninguna parte.
+    // A version where the mouse DRAGS the focus fails, and that was measured: not only a
+    // move of the mouse fires `mouseenter`, any scroll also fires it, because the browser
+    // recalculates what is under the still pointer. So each `.focus()` of an arrow that
+    // scrolls returns the focus to the cell under the mouse. The test asserts the two
+    // halves: that the pointed cell does not move AND that the focus goes nowhere.
     onCellEnter.mockClear();
     const conFoco = await render(<Board {...props({ onCellEnter, focoEnTablero: true, hover: [0, 0] as Cell })} />);
     const ancla = enIndice(conFoco.container, 0, 0);
@@ -485,9 +483,9 @@ describe('Board — el teclado y el foco', () => {
     expect(document.activeElement).toBe(ancla);
   });
 
-  it('AC-ACC-024 AC-FIT-017 — el anillo es de TECLADO: se pinta con el foco adentro y no bajo el mouse', async () => {
-    // Dos propiedades y no una: un `outline` de CSS tiene un solo color, y abajo puede
-    // haber el `#FFFF00` de la `V` o el `#0000FF` de la `W`.
+  it('AC-ACC-024 AC-FIT-017 — the focus ring is for the KEYBOARD: it shows with the focus inside and not under the mouse', async () => {
+    // Two properties and not one: a CSS `outline` has one color only, and under it can be
+    // the `#FFFF00` of the `V` or the `#0000FF` of the `W`.
     const conMouse = await render(<Board {...props({ hover: [4, 2] as Cell })} />);
     expect(enIndice(conMouse.container, 4, 2).style.outline).toBe('');
     expect(enIndice(conMouse.container, 4, 2).style.boxShadow).toBe('');
@@ -496,16 +494,18 @@ describe('Board — el teclado y el foco', () => {
     const conFoco = await render(<Board {...props({ hover: [4, 2] as Cell, focoEnTablero: true })} />);
     const enfocada = enIndice(conFoco.container, 4, 2);
     expect(enfocada.style.outline).toContain('calc(');
-    // El anillo es una RAZON de la celda, asi que se lee el COMPUTADO y
-    // no la cadena escrita: comparar el literal ataria el test a la sintaxis del `calc()`
-    // en vez de a lo que el anillo mide. Se verifica al TECHO, que es donde el bug vive: con
-    // los dos anchos clavados en 2 px, a celda 180 el aire mide 4,93 y las dos bandas caen
-    // adentro de el — la clara deja de pisar la baldosa y el anillo queda de un solo tono.
+    // The ring is a RATIO of the cell size, so the test reads the COMPUTED value and not
+    // the written string: a comparison with the literal would tie the test to the syntax
+    // of the `calc()` and not to the size of the ring. It is checked at 180 px, where the
+    // bug lives: with the two widths fixed at 2 px, at a cell size of 180 px the gap is
+    // 4.93 px and the two bands fall inside it. The light band does not reach the tile
+    // and the ring has one tone only.
     conCelda(conFoco.container, 180);
     const cs = getComputedStyle(enfocada);
-    // Chromium redondea `outline-width` y `outline-offset` a pixeles ENTEROS, asi que se
-    // comparan contra el par floor/ceil y no con una igualdad: 4,93 computa a 4. Lo que
-    // importa es que hayan CRECIDO con la celda —a 73 valian 2 y -4— y no el decimal.
+    // Chromium rounds `outline-width` and `outline-offset` to WHOLE pixels, so they are
+    // compared against the floor/ceil pair and not with an equality: 4.93 computes to 4.
+    // What matters is that they GROW with the cell (at 73 px they are 2 and -4), not the
+    // decimal.
     const entre = (valor: number, exacto: number) => {
       expect(valor).toBeGreaterThanOrEqual(Math.floor(exacto));
       expect(valor).toBeLessThanOrEqual(Math.ceil(exacto));
@@ -514,18 +514,19 @@ describe('Board — el teclado y el foco', () => {
     entre(parseFloat(cs.outlineOffset), -180 * (ANILLO_FOCO_OSCURO_RAZON + ANILLO_FOCO_CLARO_RAZON));
     expect(parseFloat(cs.outlineWidth)).toBeGreaterThan(2);
     expect(cs.boxShadow).toContain('inset');
-    // Una sola celda con anillo, como una sola con `tabIndex={0}`.
+    // One cell only has the ring, as one only has `tabIndex={0}`.
     expect(celdas(conFoco.container).filter(c => c.style.outline !== '').length).toBe(1);
   });
 
-  it('AC-ACC-025 — el anillo NO agranda la region scrolleable, que es lo que `scale` haria', async () => {
-    // La medicion que el repo ya pago para la cabeza lectora: `scale` cuenta para el
-    // overflow scrolleable y hace aparecer las dos barras. `outline` y `box-shadow` son
-    // ink overflow, y dibujados hacia adentro ni siquiera asoman de la caja.
-    // Se corre a celda 180 —mucho mas grande que la real— porque es donde el anillo es mas
-    // grande: las dos bandas miden 4,93 px cada una en vez de 2. Que la app no dibuje
-    // celdas de 180 px no le saca sentido: lo que se verifica es que el anillo no asome de
-    // la caja a NINGUN tamano.
+  it('AC-ACC-025 — the focus ring does NOT make the scroll area larger, which is what `scale` would do', async () => {
+    // The measurement that the repo already made for the playhead: `scale` counts for the
+    // scrollable overflow and makes the two scroll bars appear. `outline` and
+    // `box-shadow` are ink overflow, and drawn inward they do not even go outside the
+    // cell box.
+    // It runs at a cell size of 180 px, much larger than the real one, because that is
+    // where the ring is largest: each of the two bands is 4.93 px wide and not 2. The app
+    // draws no cell of 180 px, but the test still has sense: it checks that the ring does
+    // not go outside the cell box at ANY size.
     const esquina = [GRID_W - 1, GRID_H - 1] as Cell;
     const sinFoco = await render(<Board {...props({ hover: esquina })} />);
     conCelda(sinFoco.container, 180);
@@ -539,10 +540,10 @@ describe('Board — el teclado y el foco', () => {
     expect([despues.scrollWidth, despues.scrollHeight]).toEqual(medida);
   });
 
-  it('AC-ACC-026 — cada celda tiene nombre accesible, y el fantasma NO lo cambia', async () => {
-    // El `title` deja de ser el unico texto y pasa a ser el eco del nombre: lo que anuncia
-    // el lector de pantalla es el `aria-label`, con la coordenada en prosa y el total del
-    // paso, que es lo que el `title` no dice.
+  it('AC-ACC-026 — each cell has an accessible name, and the ghost does NOT change it', async () => {
+    // The `title` is the echo of the name: the screen reader announces the `aria-label`,
+    // with the coordinate in prose and the total of the steps, which the `title` does not
+    // say.
     const pieza = colocar('F', 2, 2, true);
     const [x, y] = pieza.cells[0];
     const { container } = await render(
@@ -552,14 +553,14 @@ describe('Board — el teclado y el foco', () => {
     expect(nombre).toMatch(
       new RegExp(`^fila ${y + 1}, columna ${x + 1}, pieza F muteada, nota .+, paso \\d de 4$`),
     );
-    // Y el `title` es el ECO: la misma nota y el mismo paso, sin renumerar, en el canal del
-    // mouse. Si alguno de los dos derivara por su cuenta, esta comparacion se rompe.
+    // The `title` is the ECHO: the same note and the same step, with no renumbering, in
+    // the mouse channel. If one of the two derived them by itself, this comparison breaks.
     const [, nota, paso] = enIndice(container, x, y).getAttribute('title')!.split(' · ');
     expect(nombre).toContain(`nota ${nota},`);
     expect(nombre).toContain(`${paso} de 4`);
 
-    // La celda del fantasma tiene nota y paso pintados, y su nombre dice "libre": el
-    // nombre no puede cambiar con el cursor, porque el foco no se movio.
+    // The ghost cell shows a note and a step, and its name says "libre": the name cannot
+    // change with the pointed cell, because the focus did not move.
     expect(baldosa(enIndice(container, 7, 4)).textContent).not.toBe('');
     expect(enIndice(container, 7, 4).getAttribute('aria-label')).toBe('fila 5, columna 8, libre');
   });

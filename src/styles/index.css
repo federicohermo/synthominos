@@ -1,22 +1,21 @@
 @import "tailwindcss";
 
-/* El color de fondo se declara UNA vez, y de acá salen los dos lugares que lo pintan.
-   Antes vivía dos veces: este `body` con el hex escrito a mano, y el `div` raíz de
-   `App.tsx` con la clase de Tailwind que resuelve a ESE MISMO hex. Los dos lugares tienen
-   que seguir existiendo —el `body` cubre el overscroll, el `div` cubre el layout— pero el
-   valor no. Y la duplicación era invisible incluso para un `grep` del hex: la segunda
-   copia no estaba escrita como color sino como el nombre de una clase.
+/* The background color is declared ONCE, and the two places that paint it read it from
+   here: this `body` and the root `div` of `App.tsx`. The two places must exist, because
+   the `body` covers the overscroll and the `div` covers the layout. The value must not
+   exist twice. A hex written here and a Tailwind class on the `div` that resolves to the
+   SAME hex is a duplicate that a `grep` of the hex cannot see: the second copy is the
+   name of a class, not a color.
 
-   Es la misma clase de daño que la regla «los módulos no declaran constantes» persigue
-   adentro de `src/` —un valor que existe dos veces y nada lo sincroniza—, salvo que acá
-   cruza el borde CSS/TSX, que es donde ningún linter del repo mira. El `@theme` cierra
-   los dos lados de una: Tailwind 4 genera la clase `bg-fondo` para el `div` y deja
-   `var(--color-fondo)` para este `body`.
+   A value that exists twice with nothing to keep the copies equal is the damage this
+   repo refuses inside `src/`. Here it crosses the CSS/TSX edge, where no linter of the
+   repo looks. The `@theme` closes the two sides: Tailwind 4 generates the class
+   `bg-fondo` for the `div` and gives `var(--color-fondo)` to this `body`.
 
-   El hex de abajo es la única aparición del color en `src/`, y eso es verificable: un
-   grep del hex y de la clase vieja acotado a `src/` tiene que devolver esta línea y nada
-   más. Por eso ni este comentario ni el del test los escriben literales — el día que
-   alguien los mencione de nuevo en prosa, la verificación deja de discriminar. */
+   The hex below is the only place where the color is written in `src/`, and that can be
+   verified: a grep of the hex, limited to `src/`, must return this line and nothing
+   else. So this comment and the comment of the test do not write the hex as a literal.
+   If prose names it again, the verification can tell nothing. */
 @theme {
   --color-fondo: #f8fafc;
 }

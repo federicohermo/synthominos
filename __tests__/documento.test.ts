@@ -2,30 +2,28 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 /**
- * El documento que envuelve a la app, leido del disco.
+ * The document that wraps the app, read from the disk.
  *
- * Es el unico archivo del repo que ningun test podia falsear: el proyecto `browser`
- * **sirve su propio documento** y nunca carga este `index.html`, asi que un
- * `lang` equivocado no rompe una sola asercion. Por eso el test vive en el proyecto
- * `node` y lee el archivo como texto.
+ * No browser test can falsify this file: the `browser` project **serves its own document**
+ * and never loads this `index.html`, so a wrong `lang` breaks no assertion there. So the test
+ * lives in the `node` project and reads the file as text.
  *
- * El nombre no es libre: hay OTRO test que lee este mismo
- * archivo del disco —la sincronia del color de fondo entre CSS, manifest y `meta`— y
- * va en `fondo-sincronizado.test.ts`. Si los dos hubieran elegido el nombre obvio
- * (`index-html.test.ts`), el segundo carril en mergear pisaba al primero sin que el
- * merge lo viera: un archivo entero perdido en verde.
+ * The name is not free: ANOTHER test reads this same file from the disk, the sync of the
+ * background color between CSS, manifest and `meta`, and it is `fondo-sincronizado.test.ts`.
+ * With the obvious name for both, the one of `index.html`, the second lane to merge would
+ * overwrite the first and the merge would not see it: a whole file lost in green.
  */
 const HTML = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
 describe('index.html', () => {
-  it('AC-ACC-001 — declara el idioma de la interfaz, que es el que se habla adentro', () => {
-    // Un lector de pantalla usa `lang` para elegir el motor de voz. Con `en`
-    // —la herencia de la plantilla de Create React App— «Reflexión» y «rotación 90°»
-    // se pronunciaban con fonetica inglesa, incluido el `aria-label` de las miniaturas,
-    // escrito en español a proposito. WCAG 2.2 3.1.1, nivel A.
+  it('AC-ACC-001 — declares the language of the interface, which is the one spoken inside', () => {
+    // A screen reader uses `lang` to choose the voice engine. With `en`, the default of the
+    // Create React App template, "Reflexión" and "rotación 90°" are spoken with English
+    // phonetics, and so is the `aria-label` of the thumbnails, written in Spanish on
+    // purpose. WCAG 2.2 3.1.1, level A.
     expect(HTML).toMatch(/<html\s+lang="es"\s*>/);
-    // Y que no quede la vieja en ningun lado del documento: un segundo `lang` mas
-    // adentro ganaria para su subarbol sin que la primera asercion se entere.
+    // And `en` must not stay anywhere in the document: a second `lang` deeper in would win
+    // for its subtree, and the first assertion would not see it.
     expect(HTML).not.toContain('lang="en"');
   });
 });

@@ -1,36 +1,35 @@
 import type { Cell } from '../../src/pieces/transform.ts';
 
 /**
- * Render ASCII de una forma, y lo unico geometrico que el server escribe por su
- * cuenta.
+ * ASCII render of a shape, and the only geometry that the server writes by itself.
  *
- * Que sea lo unico es a proposito: **no es dominio**. Rotar, reflejar, colocar y
- * validar vienen de `src/`; esto solo dibuja lo que aquellas devolvieron.
+ * That it is the only one is on purpose: **it is not domain**. Rotate, reflect, place
+ * and validate come from `src/`. This only draws what they returned.
  *
- * Existe porque una pieza descrita como cinco pares de coordenadas no se ve, y
- * ver la forma es la mitad de lo que la tool responde.
+ * It exists because a piece given as five coordinate pairs cannot be seen, and to see
+ * the shape is half of what the tool answers.
  */
 
-/** Celda ocupada. */
+/** Occupied cell. */
 const CELL = '#';
-/** Celda de agarre: la que queda bajo el cursor al colocar. */
+/** Grip cell: the one under the cursor at placement. */
 const ANCHOR = '@';
-/** Hueco dentro del bounding box. */
+/** Gap inside the bounding box. */
 const EMPTY = '.';
 
 /**
- * Dibuja `cells` en su bounding box poniendo en cada una el caracter que `charAt`
- * elige por INDICE. Los huecos del bounding box quedan en `EMPTY`.
+ * Draws `cells` in their bounding box, with the character that `charAt` selects by
+ * INDEX in each one. The gaps of the bounding box stay as `EMPTY`.
  *
- * Traslada por el minimo en vez de asumir que la forma esta normalizada: asi
- * sirve igual para una forma canonica y para celdas ya en coordenadas de tablero.
+ * It translates by the minimum and does not assume a normalized shape: so it works for
+ * a canonical shape and for cells already in board coordinates.
  *
- * `y` crece hacia ABAJO —son coordenadas de grilla—, asi que la fila 0 del string
- * es la de arriba y el dibujo coincide con lo que se ve en pantalla.
+ * `y` grows DOWN, because these are grid coordinates. So row 0 of the string is the top
+ * row, and the drawing agrees with the screen.
  *
- * El INDICE es lo unico que las dos vistas necesitan del dominio, y por eso alcanza
- * con parametrizar el caracter: el ancla sale por indice y el grado tambien, gracias
- * al invariante del orden del array.
+ * The INDEX is the only thing the two views need from the domain, so a parameter for
+ * the character is enough: the grip cell comes by index and the degree also, because of
+ * the invariant of the array order.
  */
 function draw(cells: readonly Cell[], charAt: (k: number) => string): string {
   if (cells.length === 0) return '';
@@ -48,32 +47,31 @@ function draw(cells: readonly Cell[], charAt: (k: number) => string): string {
   return grid.map(row => row.join('')).join('\n');
 }
 
-/** Dibuja `cells` en su bounding box, marcando la celda `anchorIndex`. */
+/** Draws `cells` in their bounding box and marks the cell `anchorIndex`. */
 export function renderAscii(cells: readonly Cell[], anchorIndex: number): string {
   return draw(cells, k => (k === anchorIndex ? ANCHOR : CELL));
 }
 
 /**
- * El mismo dibujo, pero con el GRADO de cada celda en vez de `#`.
+ * The same drawing, with the number of each cell in place of `#`.
  *
- * Existe porque el ASCII era la unica parte de la respuesta que no habia aprendido el
- * lenguaje del spec 007: desde que cada celda es duena de un grado, `#####` dice menos
- * que el `cellMap` que viaja al lado, y leer el mapeo obligaba a cruzar a mano cinco
- * pares de coordenadas contra el dibujo. Era el seguimiento que el 007 dejo anotado.
+ * Each cell owns a degree, so `#####` says less than the `cellMap` next to it. To read
+ * the mapping from `cellMap` alone, a reader must match five coordinate pairs against
+ * the drawing by hand.
  *
- * Va en un campo APARTE y no reemplazando a `ascii`: los dos dibujos dicen cosas
- * distintas —uno la celda de agarre, el otro el orden en que suenan las celdas— y
- * pisar el primero cambiaria en silencio el contrato de la tool.
+ * It goes in a SEPARATE field and does not replace `ascii`: the two drawings say
+ * different things. One shows the grip cell, the other the order in which the cells
+ * sound. To overwrite the first would silently change the contract of the tool.
  *
- * `values` viene POR INDICE, igual que lo devuelven `degreeByCellIndex` y
- * `playOrderByCellIndex`: el elemento `k` es el numero de `cells[k]`. La firma es
- * generica —numeros por indice y no "grados"— justamente porque hay DOS numeraciones
- * por celda y la tool dibuja la del orden de reproduccion: un nombre que dijera
- * `grados` invitaria a alimentarla con la otra sin que nada se pusiera en rojo.
+ * `values` comes BY INDEX, as `degreeByCellIndex` and `playOrderByCellIndex` return it:
+ * element `k` is the number of `cells[k]`. The signature is generic, numbers by index
+ * and not "degrees", because each cell has TWO numberings and the tool draws the one of
+ * the play order. A name that said `degrees` would invite a caller to feed it the other
+ * one, and nothing would go red.
  *
- * Un numero de dos digitos desalinearia la grilla, asi que cae a `CELL`: con formas de
- * hasta 10 celdas no puede pasar, y si alguna vez pasa es mejor que se vea como un `#`
- * fuera de lugar que como un dibujo torcido.
+ * A number of two digits would misalign the grid, so it falls back to `CELL`. Shapes of
+ * up to 10 cells cannot cause it. If it does occur, a `#` out of place is better than a
+ * crooked drawing.
  */
 export function renderCellNumbers(cells: readonly Cell[], values: readonly number[]): string {
   return draw(cells, k => {
@@ -82,7 +80,7 @@ export function renderCellNumbers(cells: readonly Cell[], values: readonly numbe
   });
 }
 
-/** Ancho y alto del bounding box de una forma. */
+/** Width and height of the bounding box of a shape. */
 export function sizeOf(cells: readonly Cell[]): { width: number; height: number } {
   if (cells.length === 0) return { width: 0, height: 0 };
   return {

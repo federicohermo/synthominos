@@ -11,7 +11,7 @@ import type { PlacedPiece } from '../../board-editing/placement.ts';
  */
 
 /**
- * The whole placement chain, as the app does it: rotate, reflect, bring the anchor to `(x, y)`.
+ * The whole placement chain, as the app does it: rotate, reflect, bring the grip cell to `(x, y)`.
  *
  * The gates are read by index over `cells`, so a shape built another way would check a mapping
  * the app never produces.

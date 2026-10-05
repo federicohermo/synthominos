@@ -9,170 +9,149 @@ import type { Orientacion, MemoriaDeOrientacion } from '../pieces/orientation.ts
 import type { RegimenDeRotacion } from '../musical-model/music.ts';
 
 /**
- * Los dos objetos de props de la tarjeta de piezas, que llegaron a ser
- * dieciséis props planas sobre `PiecePalette`.
+ * The two props objects of the dock, in place of sixteen flat props on `PiecePalette`.
  *
- * Adentro hay dos paneles distintos —la orientación de la pieza en la mano y el
- * transporte del instrumento— y con las props sueltas la firma no decía qué agrupaba con
- * qué: enumeraba en vez de documentar.
+ * The dock holds two different panels: the orientation of the piece in hand and the transport
+ * of the instrument. A list of loose props does not say which prop goes with which panel.
  *
- * Los tres criterios de reparto, que no son obvios y por eso van escritos:
+ * The three criteria of the split are not obvious:
  *
- * - `regimen` va con la ORIENTACIÓN aunque sea global como el tempo, porque gobierna QUÉ
- *   HACE la rotación: con `escala` cambia la fórmula de escala y con `orden`
- *   cambia por dónde arranca el arpegio, así que sin él la orientación no dice qué suena.
- * - `noteSet` va del mismo lado por lo mismo: es el arpegio de la pieza en la mano EN ESA
- *   orientación, y su `useMemo` en el shell ya depende de los cuatro campos de acá.
- * - `onReset` va con el TRANSPORTE y no con la orientación porque `resetBoard` frena el
- *   reloj además de vaciar el tablero, que es la mitad que su propio comentario declara
- *   «no cosmética».
+ * - `regimen` goes with the ORIENTATION although it is global like the tempo, because it
+ *   decides WHAT the rotation DOES: with `escala` the rotation changes the scale formula and
+ *   with `orden` it changes where the arpeggio starts. Without the regime, the orientation
+ *   does not say what sounds.
+ * - `noteSet` goes on the same side for the same reason: it is the arpeggio of the piece in
+ *   hand IN THAT orientation, and its `useMemo` in the shell depends on the piece in hand,
+ *   its orientation and the regime.
+ * - `onReset` goes with the TRANSPORT and not with the orientation, because `resetBoard`
+ *   empties the board and also stops the clock.
  */
 
-/** La pieza en la mano: cuál es, cómo está puesta, y qué hace girarla. */
+/** The piece in hand: which one it is, how it is oriented, and what a rotation does. */
 export interface PropsDeOrientacion {
   selected: PieceKey;
   /**
-   * Las DOCE orientaciones y no la de la seleccionada.
+   * The TWELVE orientations, not only the one of the piece in hand.
    *
-   * Baja entera porque la grilla de miniaturas necesita las doce: cada botón se dibuja en
-   * **su** orientación recordada, que es de lo que trata ese spec. Y los lectores que sólo
-   * quieren la de la pieza en la mano —la línea de texto del 019, el arpegio— la derivan
-   * con `orientaciones[selected]` en vez de recibirla como un par de props sueltas: dos
-   * props para la misma verdad son dos formas de que discrepen.
+   * The whole memory comes down because the slot grid needs the twelve: each thumbnail draws
+   * the remembered orientation of **its own** piece. The readers that need only the one of
+   * the piece in hand (the orientation readout, the arpeggio) derive it with
+   * `orientaciones[selected]` and do not get it as a pair of loose props: two props for one
+   * truth are two ways to disagree.
    *
-   * `Board` es la excepción y sigue recibiendo el par suelto por su prop propia: es el
-   * único consumidor que no necesita las doce.
+   * `Board` is the exception and gets the loose pair through its own prop: it is the only
+   * consumer that does not need the twelve.
    */
   orientaciones: MemoriaDeOrientacion;
-  /**
-   * Que hace la rotacion.
-   *
-   * Hasta el 019 completaba la frase de su propia fila —«Rotacion … cambia escala /
-   * orden»—; al borrarse los cuatro botones de grados la frase se quedo sin sujeto y el
-   * regimen paso a ser la fila.
-   */
+  /** What the rotation does. Its row in the dock is the regime selector. */
   regimen: RegimenDeRotacion;
   noteSet: readonly number[];
   onSelect: (piece: PieceKey) => void;
   onRegimen: (regimen: RegimenDeRotacion) => void;
   /**
-   * El botón `0°`: devuelve la pieza en la mano —y sólo esa— a 0° sin reflejar.
+   * The `0°` button: it returns the piece in hand, and only that one, to 0° without
+   * reflection.
    *
-   * No lleva la pieza como argumento: el shell ya sabe cuál está en la mano, y pasársela
-   * desde el panel sería que el componente decida sobre qué escribe. `PiecePalette` es
-   * presentacional (`.claude/rules/ui.md`): recibe callbacks y no toca estado.
+   * It takes no piece as an argument: the shell knows which piece is in hand, and a piece
+   * passed from the panel would let the component decide what it writes on. `PiecePalette`
+   * is presentational (`.agents/rules/ui.md`): it gets callbacks and touches no state.
    */
   onResetOrientacion: () => void;
 }
 
 /**
- * Las doce miniaturas, cada una en la orientacion actual: elegir la pieza que va a la
- * mano.
+ * The twelve thumbnails, each in the remembered orientation of its piece: they choose the
+ * piece in hand.
  *
- * Presentacional: sin estado, sin efectos. Recibe UN objeto —el de la orientacion— y
- * nada mas.
+ * Presentational: no state, no effects. It gets ONE object, the one of the orientation.
  *
- * Devuelve el mismo `div` de la grilla que tenia `PiecePalette` y no lo envuelve en
- * nada: es un hijo directo de la tarjeta, y agregarle un nodo cambiaria el ritmo
- * vertical con las clases intactas.
+ * It returns the `div` of the slot grid with no wrapper: it is a direct child of the dock,
+ * and one more node would change the vertical rhythm with the classes intact.
  *
- * Va envuelto en `memo`, y el motivo es un numero. `hover` vive en
- * `App.tsx`, asi que cada celda que el cursor cruza re-renderiza el arbol entero — y esto
- * son 337 elementos de los que ninguno depende del hover. Medido con `Profiler`, el commit
- * por celda cruzada pasa de 4,9 ms a 1,9 ms: el 61 % del trabajo era este subarbol
- * reconciliandose para llegar al mismo DOM.
+ * It is wrapped in `memo`, and the reason is a number. `hover` lives in `App.tsx`, so each
+ * cell that the cursor crosses renders the whole tree again, and these are 337 elements of
+ * which none depends on the hover. Measured with `Profiler`, the commit for each crossed
+ * cell goes from 4.9 ms to 1.9 ms: 61 % of the work was this subtree, reconciled to give
+ * the same DOM.
  *
- * La otra mitad de la barrera es el `useMemo` del objeto `orientacion` en `App.tsx`: sin el,
- * la prop tiene identidad nueva por render y la memo no cierra nunca. El argumento entero
- * —incluido por que el que habia antes era circular— esta ahi, que es donde estaba escrita
- * la decision contraria.
+ * The other half of the barrier is the `useMemo` of the object `orientacion` in `App.tsx`:
+ * without it the prop has a new identity on each render and the memo never holds. The full
+ * argument is there.
  */
 export default memo(function OrientationPanel({ orientacion }: { orientacion: PropsDeOrientacion }) {
   const { selected, orientaciones, onSelect } = orientacion;
-  // La MISMA derivacion que la linea visible del panel, en el otro formato. Los
-  // dos textos no se pueden unificar —bajar este al visible le saca el sustantivo
-  // "rotación" y le mete un separador que el lector de pantalla deletrea— pero el CALCULO
-  // si, que era lo que estaba escrito dos veces y desde el 022 ni siquiera en el mismo
-  // archivo.
+  // The SAME derivation as the visible line of the dock, in the other format. The two texts
+  // cannot be one: the visible format here would remove the noun "rotación" and add a
+  // separator that the screen reader spells out. The CALCULATION can be one, and it is.
   //
-  // Se compone DOCE veces y no una: cada boton dice SU orientacion,
-  // no la de la pieza en la mano. Con una orientacion global las doce miniaturas se
-  // dibujaban con el mismo par —medido, 11 de 12 se movian en cada cuarto de vuelta— y
-  // el `aria-label` repetia esa mentira al oido.
+  // It is composed TWELVE times and not once: each slot says the orientation of ITS piece,
+  // not the one of the piece in hand. With one global orientation the twelve thumbnails
+  // would draw the same pair (measured: 11 of 12 moved on each quarter turn) and the
+  // `aria-label` would repeat that falsehood to the ear.
   const hablada = (o: Orientacion) => {
     const { grados, reflejada } = textoDeOrientacion(o.rotation, o.mirror);
     return `rotación ${grados}${reflejada === null ? '' : `, ${reflejada}`}`;
   };
   return (
-    /* El ancho lo gobierna la caja de la miniatura, que mide 5 × `MINI_CELL_PX` = 40 px
-       y **no depende ni de la pieza ni de la orientacion**: el peor caso es el mismo
-       para las doce.
+    /* The box of the thumbnail decides the width. It is 5 × `MINI_CELL_PX` = 40 px and
+       **depends neither on the piece nor on the orientation**: the worst case is the same
+       for the twelve.
 
-       La METRICA a mirar es el **padding efectivo**, `(pista - 42) / 2` con los 40 de la
-       caja mas 2 de borde, y no el scroll: el `1fr` no produce scroll —el contenido se
-       sale del PADDING del boton, que tiene `overflow: visible`— asi que un desborde no
-       se ve como desborde sino como aire que desaparece. Es la metrica que atrapo el bug
-       del esquema anterior.
+       The METRIC to watch is the **effective padding**, `(track - 42) / 2` with the 40 px
+       of the box plus 2 px of border, and not the scroll. The `1fr` makes no scroll: the
+       content leaves the PADDING of the slot, which has `overflow: visible`. So an overflow
+       does not look like an overflow, it looks like space that disappears. It is the metric
+       that caught the bug of a table of breakpoints.
 
-       **La tabla de columnas la resuelve el navegador y no un breakpoint**, y ese es el
-       cambio. Hasta ahi eran cuatro escalones
-       —`grid-cols-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6`— atados al ancho del
-       VIEWPORT, que era una buena aproximacion del ancho de esta caja mientras la caja era
-       una tarjeta de `md:col-span-4`. Con el dock dejaron de ser la misma variable:
-       el dock mide `calc(var(--cell) * 2)` y el viewport puede estar en `xl` igual.
-       Medido: a 1366 x 768 el breakpoint pedia SEIS columnas adentro de una caja de 256 px,
-       y con la celda al piso pedia tres adentro de 146. La celda ronda
-       siempre los 73 px, asi que la caja ronda siempre los 146 y el desacople es total —el
-       ancho del dock no depende del viewport y el del breakpoint si—.
-       A 146 entra una sola columna de miniaturas, y eso sigue sin resolverse.
+       **The browser decides the column count, not a breakpoint.** A breakpoint follows the
+       width of the VIEWPORT, and the width of the dock does not: the dock is
+       `calc(var(--cell) * 2)` wide and the viewport can be at `xl` all the same. Measured:
+       at 1366 x 768 a breakpoint asked for SIX columns inside a box of 256 px, and with the
+       cell at its floor it asked for three inside 146 px. The cell is always near 73 px, so
+       the box is always near 146 px.
+       At 146 px only one column of thumbnails fits, and that is not solved.
 
-       `repeat(auto-fill, minmax(MINI_PISTA_PX, 1fr))` hace la cuenta contra la caja real.
-       `MINI_PISTA_PX` sale de la caja del mini mas el `px-2` del boton mas su borde, o sea
-       de los mismos numeros que dibujan la miniatura y no de uno tipeado al lado. Y el
-       `1fr` reparte lo que sobra, que es lo que deja el padding efectivo simetrico sin
-       tener que calcularlo.
-
-       La METRICA a mirar sigue siendo el padding efectivo y no el scroll, por lo que dice
-       el parrafo de arriba. Lo que cambio es quien la garantiza: antes una tabla medida a
-       mano contra cuatro anchos, ahora el `minmax`. */
+       `repeat(auto-fill, minmax(MINI_PISTA_PX, 1fr))` counts against the real box.
+       `MINI_PISTA_PX` comes from the box of the thumbnail plus the `px-2` of the slot plus
+       its border: the same numbers that draw the thumbnail, not one typed next to them. The
+       `1fr` shares out what is left, which keeps the effective padding symmetric with no
+       calculation. The `minmax` is what guarantees the metric of the second paragraph. */
     <div
       className="grid gap-2"
       style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${MINI_PISTA_PX}px, 1fr))` }}
     >
-      {/* El fondo del boton NO toma el color de pieza: ese fondo es el canal de
-          "seleccionada" y pintarlo dejaria a la paleta sin decir cual esta activa. La
-          identidad entra por la FORMA, pintada del color de la pieza.
+      {/* The background of the slot does NOT take the color of the piece: that background
+          is the channel of "selected", and to paint it would leave the slot grid with no
+          way to say which piece is in hand. The identity comes through the SHAPE, painted
+          in the color of the piece.
 
-          Las celdas de la miniatura llevan borde: varios de los 12 colores (el amarillo
-          de `V`, el lima de `F`) casi no se ven contra el gris claro del boton sin
-          apoyarse, y ademas es el idioma del tablero, donde todas las
-          baldosas tienen borde por el mismo motivo. El color del borde se INVIERTE con el
-          estado, y los numeros estan abajo, en la celda. Antes de la miniatura esto era un
-          punto de color, que no decia la forma.
+          The cells of the thumbnail have a border: some of the 12 colors (the yellow of
+          `V`, the lime of `F`) can hardly be seen against the light gray of the slot
+          without it. It is also the language of the board, where every tile has a border
+          for the same reason. The color of the border is INVERTED with the state, and the
+          numbers are below, at the cell.
 
-          La letra se queda abajo y en chico. No es decoracion: es el vocabulario con
-          el que se habla de las piezas en `describe_piece`, en el `title` del tablero
-          y en `DESIGN.md`, y ademas es el unico nombre accesible que el boton tenia
-          —una forma dibujada con `div`s no tiene ninguno—. El `aria-label` dice
-          tambien la orientacion, para que el lector de pantalla diga lo que el ojo
-          ve: la miniatura muestra la orientacion ACTUAL, no la canonica. */}
+          The letter stays below, in a small size. It is not decoration: it is the
+          vocabulary for the pieces in `describe_piece`, in the `title` of the board and in
+          `DESIGN.md`. A shape drawn with `div`s has no accessible name, so the `aria-label`
+          says the letter and also the orientation: the screen reader says what the eye
+          sees. The thumbnail shows the REMEMBERED orientation, not the canonical one. */}
       {(Object.keys(SHAPES) as PieceKey[]).map(key=> {
-        // La orientacion de ESTA pieza, no la de la que esta en la mano. El
-        // `Record` tiene las doce ranuras garantizadas por su tipo, derivado de `SHAPES`,
-        // asi que este acceso no puede dar `undefined`.
+        // The orientation of THIS piece, not the one of the piece in hand. The type of the
+        // `Record`, derived from `SHAPES`, guarantees its twelve keys, so this access
+        // cannot give `undefined`.
         const suya = orientaciones[key];
         const celdas = miniCells(key, suya.rotation, suya.mirror);
         const ocupada = new Set(celdas.map(([x, y]) => `${x},${y}`));
-        // Una sola copia de "es la que esta en la mano": la leen el fondo del boton,
-        // el borde de la miniatura y el `aria-pressed`, y tienen que invertirse en el
-        // mismo momento.
+        // One copy of "it is the piece in hand": the background of the slot, the border of
+        // the thumbnail and `aria-pressed` read it, and the three must change at the same
+        // moment.
         const activo = selected === key;
-        // `type="button"` y no el default, aca y en los otros cuatro sitios de JSX que
-        // renderizan los 17 botones de la app: hoy no hay un `<form>`,
-        // asi que no hay bug. Pero el default de un `<button>` DENTRO de un formulario es
-        // `submit`, y en esta app eso significa recargar la pagina perdiendo el tablero
-        // entero, y no hay deshacer. Va sin excepcion y sin discutir
-        // caso por caso: un boton de esta app nunca envia nada.
+        // `type="button"` and not the default, here and on every other `<button>` of the
+        // app. There is no `<form>` today, so there is no bug. But the default of a
+        // `<button>` INSIDE a form is `submit`, and in this app that reloads the page and
+        // loses the whole board, with no undo. The rule has no exception: a button of this
+        // app never submits anything.
         return (
           <button
             key={key}
@@ -182,14 +161,14 @@ export default memo(function OrientationPanel({ orientacion }: { orientacion: Pr
             aria-pressed={activo}
             className={`px-2 py-1 rounded-lg border text-sm flex flex-col items-center justify-center gap-1 ${activo? 'bg-slate-900 text-white':'bg-slate-100 hover:bg-slate-200'}`}
           >
-            {/* CINCO pistas fijas y no `min-content` ni `auto`: es lo que hace que el
-                tamano de la caja no dependa de que celdas esten ocupadas, y por lo
-                tanto que rotar no mueva un pixel de la grilla de botones. Con pistas
-                automaticas la `I` sola haria saltar la fila entera entre 5 y 1
-                celdas de ancho, que es el reflow que la caja fija existe para evitar.
-                Va por estilo inline y no por clase porque el numero sale de una
-                constante, y Tailwind escanea el fuente: `grid-cols-[repeat(5,8px)]`
-                interpolado no se generaria. */}
+            {/* FIVE fixed tracks and not `min-content` nor `auto`: so the size of the box
+                does not depend on which cells are occupied, and a rotation does not move a
+                pixel of the slot grid. With automatic tracks the `I` alone would make the
+                whole row jump between 5 cells and 1 cell of width. The fixed box exists to
+                prevent that reflow.
+                It is an inline style and not a class because the number comes from a
+                constant, and Tailwind scans the source: an interpolated
+                `grid-cols-[repeat(5,8px)]` would not be generated. */}
             <div
               className="grid"
               style={{
@@ -200,27 +179,28 @@ export default memo(function OrientationPanel({ orientacion }: { orientacion: Pr
               {Array.from({ length: MINI_BOX * MINI_BOX }, (_, i) => {
                 const x = i % MINI_BOX; const y = Math.floor(i / MINI_BOX);
                 const llena = ocupada.has(`${x},${y}`);
-                // Inline y no `bg-[...]`: una clase interpolada desde `PIECE_COLOR`
-                // no la generaria Tailwind. La celda vacia queda transparente para
-                // que se vea el fondo del boton, que es quien dice "seleccionada".
+                // Inline and not `bg-[...]`: Tailwind would not generate a class
+                // interpolated from `PIECE_COLOR`. The empty cell stays transparent so
+                // that the background of the slot shows, and that one says "selected".
                 //
-                // El BORDE se INVIERTE con el estado del boton, y no es cosmetica:
-                // en cada estado falla un conjunto distinto de piezas, y los dos
-                // conjuntos son DISJUNTOS. Razon WCAG 2.1 medida contra los dos
-                // fondos — aca aplica 1.4.11, objeto grafico con piso 3:1, y no el
-                // APCA con el que `palette.ts` elige el color de TEXTO:
+                // The BORDER is INVERTED with the state of the slot, and not for looks: in
+                // each state a different set of pieces fails, and the two sets are
+                // DISJOINT. The numbers are WCAG 2.1 contrast ratios, measured against the
+                // two backgrounds. The criterion here is 1.4.11, a graphical object with a
+                // floor of 3:1, and not the APCA with which `palette.ts` chooses the TEXT
+                // color:
                 //
-                //   contra `slate-100` (sin seleccionar): 7 de 12 bajo el piso, peor
-                //     `V` con 1,02 — el amarillo sobre el gris claro no se ve
-                //   contra `slate-900` (seleccionado): 1 de 12, `W` con 2,08 — el
-                //     azul puro sobre el casi negro
+                //   against `slate-100` (not selected): 7 of 12 below the floor, the worst
+                //     is `V` with 1.02: the yellow on the light gray cannot be seen
+                //   against `slate-900` (selected): 1 of 12, `W` with 2.08: the pure blue
+                //     on the near black
                 //
-                // `slate-900` da 16,30 sobre el boton claro y rescata a las siete,
-                // pero sobre el seleccionado da 1,00: es el MISMO color del fondo, o
-                // sea que ahi el borde no existe y `W` se queda sola. Invertido a
-                // `slate-400` da 6,96 sobre el oscuro. Un solo color no cubre los dos
-                // estados: fijo en `slate-400` serian 2,34 sobre el claro, o sea las
-                // siete apoyadas en un borde que tampoco llega al piso.
+                // `slate-900` gives 16.30 on the light slot and saves the seven, but on the
+                // selected slot it gives 1.00: it is the SAME color as the background, so
+                // the border does not exist there and `W` has no support. Inverted to
+                // `slate-400` it gives 6.96 on the dark slot. One color does not cover the
+                // two states: fixed at `slate-400` it would give 2.34 on the light slot, so
+                // the seven would lean on a border that is also below the floor.
                 return (
                   <div key={i}
                     className={llena ? (activo ? 'border border-slate-400' : 'border border-slate-900') : ''}

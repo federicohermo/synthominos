@@ -14,28 +14,28 @@ import { offsetAt } from './playhead-offset.ts';
 import { FFT_SIZE, SMOOTHING } from '../spectrum/spectrum-bars.ts';
 
 /**
- * Capa de aplicacion del audio: los singletons y la API que consume la UI.
+ * The application layer of the audio: the singletons and the API that the UI uses.
  *
- * Es la unica de las tres capas que toca el `AudioContext` global. `voice.ts` y
- * `scheduler.ts` lo reciben por parametro y no importan este modulo, asi que la
- * separacion que antes sostenia un comentario ahora la sostiene el grafo de
- * imports — y es lo que permite renderizarlas con un OfflineAudioContext.
+ * It is the only one of the three layers that touches the global `AudioContext`.
+ * `voice.ts` and `scheduler.ts` get it as a parameter and do not import this module.
+ * The import graph holds that separation, and it lets an OfflineAudioContext render
+ * them.
  *
- * NO es un barrel: no re-exporta voice ni scheduler en bloque.
+ * It is NOT a barrel: it does not re-export voice or scheduler as a block.
  */
 
-/** Ganancia del master. */
+/** The gain of the master bus. */
 export const MASTER_GAIN = 0.3;
 
 /**
- * Margen al disparar ya mismo, para no agendar en el pasado.
+ * The margin of an immediate play, so that nothing is scheduled in the past.
  *
- * En SEGUNDOS y no en intervalos, a diferencia de todo lo musical (`NOTE_INTERVALS`,
- * `RELEASE_INTERVALS`, los offsets de la secuencia): esto no es musica sino una latencia
- * de AGENDA — cuanto futuro hace falta para que el evento no llegue tarde. No tiene
- * relacion con el pulso y no debe estirarse con el tempo: a 60 bpm un margen mas grande
- * no serviria de nada y a 160 uno mas chico seguiria sin alcanzar. Es la misma excepcion
- * deliberada que `CLICK_SECONDS`, por otro motivo.
+ * In SECONDS and not in intervals, unlike everything musical (`NOTE_INTERVALS`,
+ * `RELEASE_INTERVALS`, the offsets of the sequence). This is not music. It is a
+ * SCHEDULING latency: how much future an event needs so that it is not late. It has no
+ * relation to the beat and must not scale with the tempo: at 60 bpm a larger margin
+ * gives nothing, and at 160 bpm a smaller one is still not enough. It is the same
+ * deliberate exception as `CLICK_SECONDS`, for another reason.
  */
 export const PLAY_DELAY = 0.02;
 
@@ -44,46 +44,43 @@ let master: GainNode | null = null;
 let analyser: AnalyserNode | null = null;
 
 /**
- * Si construir el grafo ya fallo. Es estado y no configuracion: nace en false y lo
- * sube el `catch` de `audio()`. Por que latchea, en el docblock de abajo.
+ * Whether the build of the graph failed. It is state, not configuration: it starts as
+ * false and the `catch` of `audio()` sets it. The docblock below says why it latches.
  */
 let fallado = false;
 
 /**
- * El AudioContext del modulo: hay uno por pestana y no uno por instancia del
- * componente.
+ * The AudioContext of the module: one for each tab, not one for each component instance.
  *
- * Se crea perezosamente porque los navegadores exigen un gesto del usuario para
- * arrancar el audio.
+ * It is created lazily, because browsers require a user gesture to start audio.
  *
- * Devuelve null si el navegador no soporta Web Audio: la app queda usable pero
- * muda, y cada llamador tiene que chequearlo.
+ * It returns null if the browser has no Web Audio: the app stays usable but silent, and
+ * each caller must check it.
  *
- * ## Un fallo PARCIAL no puede dejar el contexto en pie
+ * ## A PARTIAL failure cannot leave the context alive
  *
- * `ctx` se asigna ANTES de crear el gain y el analizador, asi que cualquier cosa que
- * tire despues de `new AudioContext()` sale por el `catch` devolviendo null pero deja
- * el contexto asignado. Sin bajarlo, la llamada siguiente entra por `if (ctx) return
- * ctx` y contesta un contexto con `master` en null. Desde ahi: `startClock` no salia
- * por su guarda —`audio()` devolvio algo—, arrancaba el `setInterval`, `clockRunning()`
- * pasaba a `true`, `alternarTransporte` le creia y el boton decia «Pausa»... mientras
- * cada vuelta del reloj se plantaba antes de agendar y no sonaba una nota. Es
- * exactamente la falla suave que esta capa obliga a chequear en todo llamador, entrando
- * por la unica puerta que el llamador no puede ver: pregunta si el motor arranco, y el
- * motor le contesta que si.
+ * `ctx` is assigned BEFORE the gain and the analyser are created. So anything that
+ * throws after `new AudioContext()` leaves through the `catch` and returns null, but
+ * the context is already assigned. If the `catch` did not clear it, the next call would
+ * enter through `if (ctx) return ctx` and answer a context with `master` as null. A
+ * caller that checks only the context would take it as healthy: the clock would start,
+ * `clockRunning()` would become `true`, `alternarTransporte` would believe it and the
+ * play button would offer pause, while no note sounds. It is the soft failure that this
+ * layer makes every caller check, and it would enter through the only door the caller
+ * cannot see: the caller asks if the engine started, and the engine answers yes.
  *
- * Por eso el `catch` baja las tres referencias juntas. El contexto a medio construir
- * NO se cierra: `close()` devuelve una promesa y obligaria a colgarle un rechazo vacio
- * que no corre nunca —una funcion sin cubrir contra el umbral 100, y el repo no tiene
- * con que silenciarla—. Queda vivo y sin referencias, igual que antes de este spec.
+ * So the `catch` clears the three references together. The half-built context is NOT
+ * closed: `close()` returns a promise, and that needs an empty rejection handler that
+ * never runs. That is one function without coverage against the threshold of 100, and
+ * the repo has no way to silence it. The context stays alive with no reference.
  *
- * ## La marca LATCHEA, y ese es el precio
+ * ## The flag LATCHES, and that is the price
  *
- * Sin ella cada llamada reintenta el constructor y vuelve a avisar por consola: un
- * click, un warning. Con ella la app queda muda hasta recargar aunque la causa fuera
- * transitoria. Se acepta por dos motivos: el reintento tampoco la desmutea —lo unico
- * que agrega hoy es ese warning por click— y un estado que se recupera solo es un
- * estado que nadie puede reproducir.
+ * Without it, each call tries the constructor again and logs the warning again: one
+ * click, one warning. With it, the app stays silent until a reload, also when the cause
+ * was transient. Two reasons make that acceptable. The retry does not bring the sound
+ * back either: all it adds is that warning for each click. And a state that recovers
+ * alone is a state that nobody can reproduce.
  */
 export function audio(): AudioContext | null {
   if (ctx) return ctx;
@@ -93,62 +90,64 @@ export function audio(): AudioContext | null {
     master = ctx.createGain();
     master.gain.value = MASTER_GAIN;
 
-    // El analizador va ENTRE el master y el destino, no colgado de una rama
-    // paralela: asi ve exactamente la mezcla que sale por los parlantes. Es
-    // transparente al audio —no altera la senal que lo atraviesa—, de modo que
-    // insertarlo no cambia como suena nada.
+    // The analyser goes BETWEEN the master and the destination, not on a parallel
+    // branch: so it sees exactly the mix that goes to the speakers. It is transparent
+    // to the audio, it does not change the signal that passes through it, so it does
+    // not change how anything sounds.
     analyser = ctx.createAnalyser();
     analyser.fftSize = FFT_SIZE;
     analyser.smoothingTimeConstant = SMOOTHING;
     master.connect(analyser);
     analyser.connect(ctx.destination);
   } catch (e) {
-    // Las tres juntas: un `ctx` vivo con `master` en null es el estado degradado que
-    // el docblock describe, y el unico que la UI no puede distinguir de uno sano.
+    // The three together: a live `ctx` with `master` as null is the degraded state
+    // that the docblock describes, and the only one the UI cannot tell from a healthy
+    // one.
     ctx = null;
     master = null;
     analyser = null;
     fallado = true;
-    console.warn('Web Audio no disponible', e);
+    console.warn('Web Audio is not available', e);
     return null;
   }
   return ctx;
 }
 
 /**
- * Buffer de lectura del espectro. Ver la advertencia en readSpectrum().
+ * The read buffer of the spectrum. See the warning in readSpectrum().
  *
- * El `<ArrayBuffer>` va escrito y NO se puede simplificar a `Uint8Array` pelado, aunque
- * el `pnpm typecheck` de hoy lo acepte. Desde TypeScript 5.7 los arrays tipados son
- * genericos en su buffer, y `Uint8Array` a secas significa `Uint8Array<ArrayBufferLike>`,
- * que incluye `SharedArrayBuffer`. El `lib.dom.d.ts` de la 5.8.3 —la version fijada en el
- * repo— todavia declara `getByteFrequencyData(array: Uint8Array)`, asi que compila; las
- * versiones siguientes lo estrecharon a `Uint8Array<ArrayBuffer>` y ahi el pelado pasa a
- * ser un TS2345. Medido: con la 5.8.3 verde y con la 7.0.2 error en esta misma linea, o
- * sea que el editor ya lo marca hoy con el repo en verde.
+ * The `<ArrayBuffer>` is written and CANNOT be simplified to a bare `Uint8Array`,
+ * although today's `pnpm typecheck` accepts it. From TypeScript 5.7 the typed arrays
+ * are generic in their buffer, and a bare `Uint8Array` means
+ * `Uint8Array<ArrayBufferLike>`, which includes `SharedArrayBuffer`. The `lib.dom.d.ts`
+ * of 5.8.3, the version pinned in the repo, still declares
+ * `getByteFrequencyData(array: Uint8Array)`, so it compiles. Later versions narrow it
+ * to `Uint8Array<ArrayBuffer>`, and there the bare form is a TS2345. Measured: green
+ * with 5.8.3 and an error with 7.0.2 on this same line, so an editor can flag it while
+ * the repo is green.
  *
- * Escribirlo no es defensivo: `new Uint8Array(n)` SIEMPRE aloca un `ArrayBuffer`, asi que
- * este es el tipo real del valor y el pelado era el que decia de mas. Es tambien la unica
- * salida que respeta el "cero `any`, cero `@ts-ignore`" del repo.
+ * To write it is not defensive: `new Uint8Array(n)` ALWAYS allocates an `ArrayBuffer`,
+ * so this is the real type of the value, and the bare form says more than is true. It
+ * is also the only way out that keeps the "zero `any`, zero `@ts-ignore`" of the repo.
  *
- * `binsToBars` sigue recibiendo el `Uint8Array` ancho a proposito: solo lee, asi que no
- * tiene por que rechazar un buffer compartido. El estrechamiento es del que llama a la
- * API del navegador, no del que consume los numeros.
+ * `binsToBars` takes the wide `Uint8Array` on purpose: it only reads, so it has no
+ * reason to refuse a shared buffer. The narrowing belongs to the caller of the browser
+ * API, not to the consumer of the numbers.
  */
 let freqBuf: Uint8Array<ArrayBuffer> | null = null;
 
 /**
- * Magnitudes de frecuencia del ultimo bloque procesado, 0-255 por bin.
+ * The frequency magnitudes of the last processed block, 0-255 for each bin.
  *
- * Devuelve null cuando todavia no hay senal que mirar: sin contexto (nadie hizo
- * click aun) o con el contexto suspendido. Es informacion util para el llamador
- * —un array de ceros y "no hay audio" se dibujan distinto— y ademas evita crear
- * el AudioContext desde el loop de dibujo, que correria sin gesto del usuario.
+ * It returns null when there is no signal to look at yet: with no context (nobody
+ * clicked yet) or with the context suspended. That is useful to the caller: an array of
+ * zeros and "there is no audio" are drawn differently. It also avoids creating the
+ * AudioContext from the draw loop, which runs without a user gesture.
  *
- * CUIDADO: el Uint8Array es reusado entre llamadas para no asignar 60 veces por
- * segundo. Quien lo guarde va a ver como le cambia por debajo. El consumidor
- * previsto es un loop de dibujo, que lo lee y lo descarta en el mismo cuadro; si
- * hace falta conservarlo, copiarlo con slice().
+ * CAUTION: the Uint8Array is reused between calls, so that nothing is allocated 60
+ * times a second. A caller that keeps it sees it change underneath. The intended
+ * consumer is a draw loop, which reads it and drops it in the same frame. To keep it,
+ * copy it with slice().
  */
 export function readSpectrum(): Uint8Array<ArrayBuffer> | null {
   if (!analyser || !ctx || ctx.state !== 'running') return null;
@@ -160,44 +159,43 @@ export function readSpectrum(): Uint8Array<ArrayBuffer> | null {
 }
 
 /**
- * Dispara un arpegio contra el singleton, ya mismo.
+ * Plays an arpeggio on the singleton, immediately.
  *
- * NO es el unico camino de nota a sonido: tick() llama a scheduleVoice() directo,
- * porque collectHits ya devolvio los instantes expandidos y volver a pasar por aca
- * significaria recalcular el espaciado que el scheduler ya aplico.
+ * It is NOT the only path from note to sound: tick() calls scheduleVoice() directly,
+ * because collectHits already returned the expanded instants, and a pass through here
+ * would calculate again the spacing that the scheduler already applied.
  *
- * Siguen siendo dos caminos, pero ahora comparten tambien el RITMO, no solo el
- * timbre: el paso del arpegio, la duracion de la nota y su release salen de
- * intervalDuration con el bpm de este modulo, aca y en tick(). Antes tambien coincidian, pero por
- * copiar el mismo numero fijo en segundos —uno leia la constante y el otro la
- * recibia dentro del Job—, y ese numero ignoraba el tempo: eran dos lugares que
- * alguien tenia que mantener iguales. Hoy es una regla sola y sigue al bpm.
+ * The two paths share the RHYTHM, not only the timbre: the step of the arpeggio, the
+ * duration of the note and its release come from intervalDuration with the bpm of this
+ * module, here and in tick(). It is one rule and it follows the bpm. A fixed number of
+ * seconds copied in the two places would ignore the tempo, and somebody would have to
+ * keep the two equal.
  *
- * Lo que sigue SIN unificar es COMO se expande el arpegio: un cambio en la linea
- * de abajo no llega al loop, igual que un cambio en collectHits no llega aca.
- * Cambiar el timbre en DEFAULT_VOICE si alcanza para los dos.
+ * What is NOT unified is HOW the arpeggio is expanded: a change to the line below does
+ * not reach the cycle, and a change to collectHits does not reach here. A change of the
+ * timbre in DEFAULT_VOICE does reach the two.
  */
 export function playNotes(notes: number[]): void {
   const c = audio();
-  // ## Por que la guarda se queda con las dos mitades
+  // ## Why the guard keeps its two halves
   //
-  // La segunda no es alcanzable desde afuera: el `catch` de `audio()` baja `ctx` y
-  // `master` juntos, asi que un contexto vivo implica un master
-  // vivo. Se queda igual porque es lo que impide que un fallo FUTURO —una linea nueva
-  // entre la asignacion de `ctx` y la del master, o un camino que todavia no existe—
-  // llegue a `scheduleVoice` con destino nulo, y porque el estrechamiento del `const`
-  // de abajo sale de ella.
+  // The second half is not reachable from outside: the `catch` of `audio()` clears
+  // `ctx` and `master` together, so a live context implies a live master. It stays
+  // because it stops a FUTURE failure (a new line between the assignment of `ctx` and
+  // that of the master, or a path that does not exist yet) from reaching
+  // `scheduleVoice` with a null destination, and because the narrowing of the `const`
+  // below comes from it.
   //
-  // Va con este comentario y no sin el porque «rama inalcanzable» es justo lo que el
-  // repo pide borrar: esta es la excepcion argumentada. Y se la puede dejar escrita
-  // porque el coverage no la marca: el `return` SI se ejecuta —por la primera mitad,
-  // con Web Audio ausente— y la segunda se evalua en cada arpegio. En `tick()` no
-  // pasaba eso y por eso ahi la guarda se mudo; el argumento esta en su docblock.
+  // It has this comment because an "unreachable branch" is just what the repo asks to
+  // delete: this is the argued exception. It can stay written because coverage does
+  // not flag it: the `return` DOES run, through the first half, with Web Audio absent,
+  // and the second half is evaluated on each arpeggio. In `tick()` that is not so, and
+  // the guard lives in `startClock`: the docblock of `tick()` has the argument.
   if (!c || !master) return;
-  // `bus` en vez de un `!` sobre `master`: el `forEach` de abajo es un closure y ahi
-  // TypeScript pierde el estrechamiento, porque `master` es un `let` de modulo y
-  // cualquier llamada intermedia podria reasignarlo. La const lo congela, y el repo
-  // prohibe la asercion no nula por el mismo motivo que el `any`.
+  // `bus` and not a `!` on `master`: the `forEach` below is a closure, and there
+  // TypeScript loses the narrowing, because `master` is a module `let` and any call in
+  // between could reassign it. The const freezes it, and the repo forbids the non-null
+  // assertion for the same reason as `any`.
   const bus = master;
   const start = c.currentTime + PLAY_DELAY;
   const interval = intervalDuration(bpm);
@@ -206,7 +204,7 @@ export function playNotes(notes: number[]): void {
   notes.forEach((m, i) => scheduleVoice(c, bus, midiToHz(m), start + i * interval, dur, rel));
 }
 
-/** Dispara ya, reanudando el contexto. Debe llamarse desde un gesto del usuario. */
+/** Plays immediately and resumes the context. Call it from a user gesture. */
 export function playNow(notes: number[]): void {
   const c = audio();
   if (!c) return;
@@ -214,13 +212,13 @@ export function playNow(notes: number[]): void {
   playNotes(notes);
 }
 
-// —— reloj ——
+// ## Clock
 
 /**
- * El recorrido que esta sonando y el que va a sonar cuando este cierre su ciclo.
+ * The sounding sequence, and the queued sequence that starts when this cycle ends.
  *
- * Dos y no una: colocar o quitar una pieza no interrumpe lo que suena (D5). El
- * cambio de una por otra lo hace `collectWindow`, al cerrar el ciclo.
+ * Two and not one: to place or to remove a piece does not interrupt what sounds.
+ * `collectWindow` changes one for the other, at the cycle boundary.
  */
 let active: Sequence = { steps: [], clicks: [], length: 0 };
 let pending: Sequence | null = null;
@@ -231,65 +229,64 @@ let bpm = DEFAULT_BPM;
 export const setBpm = (v: number): void => { bpm = v; };
 
 /**
- * Si los clicks MUDOS del recorrido suenan. Es MEZCLA, no modelo.
+ * Whether the clicks of the sequence sound. It is MIX, not model.
  *
- * Vive aca y no en la secuencia por eso: apagarlos no cambia el recorrido —los clicks
- * siguen en la `Sequence` y `collectHits` los sigue emitiendo—, solo deja de
- * cablearlos a sonido en `tick()`. Filtrar antes obligaria a reconstruir la
- * secuencia para algo que no es una decision del tablero, y ademas haria que el
- * ciclo pareciera distinto segun el volumen.
+ * It lives here and not in the sequence for that reason: to switch them off does not
+ * change the sequence. The clicks stay in the `Sequence` and `collectHits` still emits
+ * them; `tick()` only stops wiring them to sound. To filter them before would make the
+ * sequence be built again for something that the board does not decide, and the cycle
+ * would look different with the volume.
  *
- * Es un parametro suelto a proposito: si molesta, se baja o se apaga sin tocar el
- * modelo. Salio de escuchar — los clicks de un salto largo se acumulan y tapan la frase.
+ * It is a loose parameter on purpose: if it disturbs, it goes down or off, and the
+ * model is not touched. It comes from listening: the clicks of a long jump pile up and
+ * cover the phrase.
  *
- * **Solo los mudos.** El cruce por celda ocupada suena la nota de esa
- * celda, y eso es MODELO: es la pieza pisada contestando, no un adorno de mezcla. Por
- * eso `tick()` lo despacha por su propia rama del `kind` y este interruptor no lo toca
- * — apagarlo dejaria el recorrido diciendo que cruzo por el vacio donde cruzo por una
- * pieza. Es tambien la razon por la que `HIT` tiene tres claves y no dos con un campo
- * opcional: sin discriminante, esta funcion no tendria a quien apagar.
+ * **Only the clicks.** A crossing sounds the note of the crossed cell, and that is
+ * MODEL: it is the crossed piece that answers, not a decoration of the mix. So `tick()`
+ * dispatches it through its own branch of `kind` and this switch does not touch it. To
+ * switch it off would make the sequence say that it crossed an empty cell where it
+ * crossed a piece. It is also the reason why `HIT` has three keys and not two with an
+ * optional field: without a discriminant, this function would have nothing to switch
+ * off.
  *
- * **Arranca en `false`**, y este es el segundo lugar donde vive ese
- * default: el otro es el `useState` de `App.tsx`, que `useMotorSincronizado`
- * (`playback/use-engine.ts`) baja al motor en su efecto de montaje.
- * Que se pisen no vuelve inofensivo dejarlos en desacuerdo — es el mismo valor
- * declarado dos veces, exactamente lo que `App.tsx` evita tomando el tempo de
- * `DEFAULT_BPM`. El argumento del cambio esta escrito donde el usuario lo ve, que es
+ * **It starts as `false`**, and this is the second place where that default lives. The
+ * other is the `useState` of `App.tsx`, which `useMotorSincronizado`
+ * (`playback/use-engine.ts`) sends to the engine in its mount effect. That one
+ * overwrites the other does not make a disagreement harmless: it is the same value
+ * declared twice, exactly what `App.tsx` avoids for the tempo when it takes
+ * `DEFAULT_BPM`. The reason for the default is written where the user sees it, in
  * `App.tsx`.
  */
 let clicksAudible = false;
 export const setClicksAudible = (v: boolean): void => { clicksAudible = v; };
 
 /**
- * Encola el recorrido nuevo. NO toca lo que esta sonando: entra en vigencia recien
- * al cerrar el ciclo activo.
+ * Queues the new sequence. It does NOT touch what sounds: the new sequence starts at
+ * the cycle boundary.
  *
- * Esperar al cierre es lo que permite que el circuito se reordene entero sin que el
- * patron salte a mitad de frase (D5).
+ * The wait for the boundary lets the whole circuit change its order, and the pattern
+ * does not jump in the middle of a phrase.
  *
- * El precio esta medido y es la decision mas cara del modelo de recorrido: con 8 piezas a 110
- * bpm el ciclo dura 7,5 s, asi que una pieza recien colocada puede tardar eso en
- * escucharse dentro del loop. Lo que si suena al instante es su arpegio, por el otro
- * camino a sonido (`playNotes`).
+ * The price is measured, and it is the most expensive decision of the circuit model:
+ * with 8 pieces at 110 bpm the cycle lasts 7.5 s, so a piece just placed can take that
+ * long to sound inside the cycle. What sounds at once is its arpeggio, through the
+ * other path to sound (`playNotes`).
  *
- * Solo se guarda la ultima: dos cambios antes del cierre valen por uno, porque lo que
- * se encola es el recorrido COMPLETO y no un delta.
+ * Only the last one is kept: two changes before the boundary count as one, because
+ * what is queued is the WHOLE sequence and not a delta.
  */
 export function setSequence(next: Sequence): void { pending = next; }
 
 /**
- * La secuencia ACTIVA —la que esta sonando— en numeros, expuesta para verificacion
- * manual desde la consola.
+ * The SOUNDING sequence in numbers, exposed for a manual check from the console.
  *
- * Informa la activa y no la pendiente: preguntarle al motor que agendo y que le
- * contesten lo que todavia no agendo seria peor que no tener la funcion. Reemplaza a
- * `jobCount()`, que era la forma de mirar el motor sin oirlo y que este spec borro
- * junto con los jobs.
+ * It reports the sounding sequence and not the queued one: to ask the engine what it
+ * scheduled and get what it has not scheduled yet would be worse than no function.
  */
-// `clicks` y `crosses` por separado: el campo `clicks` de la
-// `Sequence` mezcla las dos cosas, pero el motor las distingue —una se apaga con
-// `setClicksAudible` y la otra no—, y esta funcion existe para mirar el motor sin
-// oirlo. Un solo numero obligaria a oir cual es cual, que es lo que no se puede.
+// `clicks` and `crosses` apart: the `clicks` field of the `Sequence` mixes the two, but
+// the engine tells them apart (`setClicksAudible` switches one off and not the other),
+// and this function exists to look at the engine without hearing it. One number would
+// make the reader listen to know which is which, and that is what cannot be done.
 export const sequenceInfo = (): { steps: number; clicks: number; crosses: number; length: number } => ({
   steps: active.steps.length,
   clicks: active.clicks.filter((c) => c.note === undefined).length,
@@ -300,51 +297,53 @@ export const sequenceInfo = (): { steps: number; clicks: number; crosses: number
 export const clockRunning = (): boolean => timer !== null;
 
 /**
- * Cuantas veces el motor puso en vigencia una secuencia nueva desde que carga el modulo.
+ * How many times the engine started a new sounding sequence since the module loaded.
  *
- * Es lo unico que sabe el INSTANTE exacto en que el ciclo nuevo empezo a sonar. La UI
- * tiene el par activa/pendiente del dominio (`playback/route-source.ts`) pero no puede
- * derivar el borde: el swap lo decide `collectWindow` dentro del lookahead, medio
- * intervalo antes del cierre, y ninguna cuenta sobre `placed` lo ve venir.
+ * It is the only thing that knows the exact INSTANT when the new cycle starts to sound.
+ * The UI has the sounding/queued pair of the circuit (`playback/route-source.ts`) but
+ * cannot derive the boundary: `collectWindow` decides the swap inside the lookahead,
+ * half an interval before the boundary, and no count over `placed` sees it come.
  *
- * Arranca en 0 y NO se resetea en stopClock/startClock: pausar no cambia que ciclo esta
- * en vigencia, asi que resetear haria creer a la UI que hubo un swap que no hubo.
+ * It starts at 0 and stopClock/startClock do NOT reset it: a pause does not change
+ * which cycle is in force, so a reset would make the UI believe in a swap that did not
+ * happen.
  */
 let cycleGen = 0;
 export const cycleGeneration = (): number => cycleGen;
 
 /**
- * En que intervalo del ciclo esta la cabeza lectora, o null si no hay nada que marcar.
+ * The interval of the cycle where the playhead is, or null if there is nothing to mark.
  *
- * Devuelve null en pausa, sin contexto, con el contexto que no esta corriendo, con la
- * secuencia activa vacia y ANTES de que la activa empiece a sonar (ver abajo). Es
- * informacion y no una falla, igual que `readSpectrum()` en reposo: "no hay cabeza" y
- * "la cabeza esta en 0" se dibujan distinto.
+ * It returns null when paused, with no context, with a context that is not running,
+ * with an empty sounding sequence, and BEFORE the sounding sequence starts to sound
+ * (see below). That is information and not a failure, like `readSpectrum()` at rest:
+ * "there is no playhead" and "the playhead is at 0" are drawn differently.
  *
- * Lee `ctx` y no `audio()` por el mismo motivo que readSpectrum: el llamador previsto es
- * un loop de dibujo y crear el AudioContext desde ahi seria hacerlo sin gesto del usuario.
+ * It reads `ctx` and not `audio()` for the same reason as readSpectrum: the intended
+ * caller is a draw loop, and to create the AudioContext from there would be to do it
+ * without a user gesture.
  *
- * Mira la secuencia ACTIVA, no la pendiente: la cabeza tiene que recorrer lo que suena.
- * Que la UI dibuje el circuito correcto abajo es problema de `playback/route-source.ts`.
+ * It looks at the SOUNDING sequence, not the queued one: the playhead must follow what
+ * sounds. `playback/route-source.ts` makes the UI draw the correct circuit under it.
  *
- * ## `now < origin` es "todavia no empezo", y ahi no hay nada que dibujar
+ * ## `now < origin` is "not started yet", and there is nothing to draw there
  *
- * `collectWindow` pone la pendiente en vigencia DENTRO del lookahead y deja `origin` en
- * el borde, que en ese momento es futuro: medido, hasta 82 ms a 110 bpm, mas la latencia
- * de salida. Durante esa ventana la secuencia activa ya es la nueva pero lo que se
- * escucha sigue siendo la cola de la vieja, que quedo agendada hasta medio intervalo
- * antes del borde. Lo mismo pasa en el primer arranque, con los 50 ms de
- * `CLOCK_START_DELAY`.
+ * `collectWindow` starts the queued sequence INSIDE the lookahead and leaves `origin`
+ * on the boundary, which is in the future at that moment: measured, up to 82 ms at 110
+ * bpm, plus the output latency. In that window the sounding sequence is already the
+ * new one, but what is heard is still the tail of the old one, which stays scheduled
+ * up to half an interval before the boundary. The same happens at the first start,
+ * with the 50 ms of `CLOCK_START_DELAY`.
  *
- * Sin este corte, `offsetAt` contesta —correctamente, como funcion total— la COLA del
- * ciclo nuevo, o sea `ciclo - 1`. Y ese numero, que es el MAXIMO posible, destapaba de
- * un saque las cinco celdas del velo de `Playhead.tsx`: el estreno celda por celda no se
- * veia nunca, ni al colocar con el ciclo andando ni al apretar play. Es el bug que el
- * test «el swap deja `origin` en el FUTURO» de `scheduler.test.ts` deja clavado.
+ * Without this cut, `offsetAt` answers the TAIL of the new cycle, `cycle - 1`, which is
+ * correct for a total function. But that number is the MAXIMUM possible, and it takes
+ * the veil off the five cells in `playhead-loop.ts` at once: the cells never lose the
+ * veil one by one, not after a placement with the cycle running and not after play. A
+ * test of `scheduler.test.ts` pins the cause: the swap leaves `origin` in the future.
  *
- * El precio es que la cabeza se apaga esa ventana en cada swap. Es lo correcto: la ruta
- * vieja termino y la nueva todavia no empezo, asi que cualquier celda que se dibujara
- * ahi seria mentira.
+ * The price is that the playhead goes off for that window at each swap. That is
+ * correct: the old sequence ended and the new one has not started, so any cell drawn
+ * there would be a lie.
  */
 export function playheadOffset(): number | null {
   if (timer === null || !ctx || ctx.state !== 'running') return null;
@@ -355,17 +354,19 @@ export function playheadOffset(): number | null {
 }
 
 /**
- * Cuanto tarda en oirse lo que se agenda en `currentTime`. Sin restarlo, la cabeza va
- * sistematicamente adelantada y en un instrumento eso se percibe como que la imagen miente.
+ * How long it takes to hear what is scheduled at `currentTime`. If it is not
+ * subtracted, the playhead is always early, and on an instrument the image seems to lie.
  *
- * La cadena `outputLatency` → `baseLatency` → 0 NO es redundante aunque el tipo diga que
- * si: `lib.dom.d.ts` declara `outputLatency` como `number` no opcional, pero Firefox no lo
- * implementa y ahi la propiedad llega `undefined`. Por eso las dos lecturas se tipan a mano
- * como `number | undefined` en vez de taparse con un `any` o un `@ts-ignore`, que ademas el
- * repo prohibe: el fallback tiene que sobrevivir a que TypeScript lo crea innecesario.
+ * The chain `outputLatency` → `baseLatency` → 0 is NOT redundant, although the type
+ * says so: `lib.dom.d.ts` declares `outputLatency` as a non-optional `number`, but
+ * Firefox does not implement it and there the property is `undefined`. So the two reads
+ * are typed by hand as `number | undefined`, and not hidden with an `any` or a
+ * `@ts-ignore`, which the repo forbids: the fallback must survive a TypeScript that
+ * believes it is not necessary.
  *
- * No tiene test: los tests corren contra node-web-audio-api, donde estos numeros no
- * describen ninguna salida real. Se verifica en el navegador y a oido.
+ * The node tests run on node-web-audio-api, where these numbers describe no real
+ * output. `engine.browser.test.tsx` tests the chain. The size of the latency is
+ * checked in the browser and by ear.
  */
 function outputLatency(c: AudioContext): number {
   const out: number | undefined = c.outputLatency;
@@ -376,73 +377,72 @@ function outputLatency(c: AudioContext): number {
 }
 
 /**
- * El cableado a sonido de una ventana de lookahead.
+ * The wiring to sound of one lookahead window.
  *
- * ## Recibe el destino en vez de leerlo del modulo, y eso NO es cosmetico
+ * ## It gets the destination as a parameter, and that is NOT cosmetic
  *
- * Empezaba con la misma guarda que `playNotes` —`const c = audio();
- * if (!c || !master) return;`— y ese `return` era alcanzable: con el grafo a medio
- * construir `audio()` contestaba un contexto sin master y el reloj arrancaba igual.
- * Bajar `ctx` junto con `master` en el `catch` mato esa entrada, y con ella la unica
- * forma de ejecutar el `return`: el timer solo existe despues de que `audio()` contesto,
- * y desde entonces el par no se puede volver a partir.
+ * A guard like that of `playNotes` (`const c = audio(); if (!c || !master) return;`)
+ * has a `return` that cannot run here. The `catch` of `audio()` clears `ctx` together
+ * with `master`, the timer exists only after `audio()` answered, and from then the pair
+ * cannot split.
  *
- * La guarda no se borro, se MUDO al unico lugar donde sigue siendo alcanzable —
- * `startClock`, que corre con Web Audio ausente—, y aca la reemplaza la firma. Es mas
- * fuerte que la guarda: no hay que acordarse de chequear, no compila sin el par. Y es
- * la salida que el repo pide para una rama inalcanzable: se vuelve alcanzable o se va,
- * nunca se silencia. Medido: dejarla escrita aca daba un statement y una branch
- * descubiertos contra el umbral 100, en las dos formas —el `return` del `if` negado, y
- * el `else` implicito del `if` en positivo—.
+ * The guard lives in the only place where it is reachable: `startClock`, which runs
+ * with Web Audio absent. Here the signature replaces it. The signature is stronger
+ * than the guard: nobody has to remember the check, the call does not compile without
+ * the pair. It is also what the repo asks for an unreachable branch: make it reachable
+ * or delete it, never silence it. Measured: the guard written here gives one statement
+ * and one branch uncovered against the threshold of 100, in its two forms: the `return`
+ * of the negated `if`, and the implicit `else` of the positive `if`.
  */
 function tick(c: AudioContext, bus: GainNode): void {
-  // El bpm no cambia dentro de la vuelta, asi que la duracion y el release salen una
-  // sola vez y todas las notas de esta ventana quedan medidas contra el mismo tempo.
+  // The bpm does not change inside one turn, so the duration and the release are
+  // calculated once, and all the notes of this window are measured against one tempo.
   const interval = intervalDuration(bpm);
   const dur = NOTE_INTERVALS * interval;
   const rel = RELEASE_INTERVALS * interval;
-  // El cruce con altura comparte el release con la nota —lo que lo hace floritura es el
-  // cuerpo mas corto y la amplitud mas baja, no otro timbre—, asi que solo su `dur` es
-  // propio. Ver GRACE_INTERVALS: por debajo de 0,75 la envolvente se desarma al tempo
-  // maximo del instrumento.
+  // The crossing shares the release with the note. What sets it apart is the shorter
+  // body and the lower amplitude, not another timbre, so only its `dur` is its own.
+  // See GRACE_INTERVALS: below 0.75 the envelope breaks at the fastest tempo of the
+  // instrument.
   const grace = GRACE_INTERVALS * interval;
-  // Toda la decision —incluido el swap al cierre del ciclo— vive en el scheduler,
-  // que es testeable; aca queda el cableado a sonido, que sin AudioContext no se
-  // puede correr. Ver el docblock de collectWindow.
+  // All the decision, the swap at the cycle boundary included, lives in the scheduler,
+  // which a test can run. Here stays the wiring to sound, which cannot run without an
+  // AudioContext. See the docblock of collectWindow.
   const w = collectWindow(c.currentTime, LOOKAHEAD, bpm, active, pending, clock);
-  // Identidad de referencia y no comparacion de contenido: `collectWindow` devuelve la
-  // MISMA referencia cuando no hubo swap y la de la pendiente cuando si, asi que un
-  // `!==` cubre sus DOS ramas —la del borde de ciclo y la de `vigente.length <= 0`— sin
-  // que el scheduler tenga que enterarse de que alguien cuenta.
+  // Identity of reference and not a comparison of content: `collectWindow` returns the
+  // SAME reference when there was no swap and that of the queued sequence when there
+  // was one. So one `!==` covers its TWO branches, that of the cycle boundary and that
+  // of `vigente.length <= 0`, and the scheduler does not need to know that somebody
+  // counts.
   //
-  // Que cuente tambien la segunda importa mas de lo que parece: el primer arranque pasa
-  // siempre por ahi —active vacia, reloj recien largado—, y si no subiera, la cabeza no
-  // apareceria en el primer ciclo y si en todos los siguientes. Es un sintoma raro de
-  // diagnosticar despues.
+  // That it counts the second one too matters more than it seems: the first start
+  // always goes through it (an empty sounding sequence, a clock just started). If the
+  // count did not go up there, the playhead would not appear in the first cycle and
+  // would appear in all the next ones. That symptom is hard to diagnose later.
   if (w.active !== active) cycleGen++;
   active = w.active;
   pending = w.pending;
-  // Tres clases y tres ramas. El cruce con altura vuelve a pasar
-  // por `scheduleVoice` y no por una funcion nueva: es una nota, con otros dos numeros.
-  // Y no lo mira `clicksAudible`, que apaga solo la rama muda.
+  // Three kinds and three branches. The crossing goes through `scheduleVoice` and not
+  // through a new function: it is a note, with two other numbers. And `clicksAudible`
+  // does not look at it: it switches off only the branch of the click.
   //
-  // **Y no hay una cuarta rama, ni la va a haber por dos motivos distintos.**
+  // **There is no fourth branch, for two different reasons.**
   //
-  // No hay acento en el primer click del ciclo: todos son identicos
-  // porque el circuito **no tiene un tiempo fuerte**. `buildSequence` fija el arranque
-  // en el indice 0 solo para eliminar las rotaciones equivalentes del mismo recorrido,
-  // asi que el "1" es un punto de partida convencional y no el comienzo de nada.
-  // Acentuarlo le inventaria un principio al circuito, y eso seria una decision del
-  // MODELO y no del timbre — el lugar donde se discutiria es `circuit/sequence.ts`.
+  // The first click of the cycle has no accent: all the clicks are identical, because
+  // the circuit **has no strong beat**. `buildSequence` fixes the start at index 0 only
+  // to remove the equivalent rotations of one circuit, so the "1" is a conventional
+  // starting point and not the start of anything. An accent would invent a beginning
+  // for the circuit, and that would be a decision of the MODEL and not of the timbre.
+  // The place to discuss it is `circuit/sequence.ts`.
   //
-  // Y una pieza muteada no tiene rama propia: sus celdas emiten el mismo `Click` sin
-  // `note` que una celda vacia, asi que pasan por este mismo `clicksAudible`. Con los
-  // clicks apagados eso da **silencio total** sobre una pieza muteada, y esa es la
-  // respuesta buscada y no un caso sin cubrir: mutear una pieza es sacarla del sonido,
-  // y apagar los clicks es sacar del sonido lo que el recorrido dice al pasar por el
-  // vacio — las dos cosas apuntan al silencio, asi que el silencio es lo correcto.
-  // Separar los dos significados costaria un cuarto `HIT` y un discriminante en
-  // `Click`, o sea dos tipos nuevos para distinguir dos maneras de callarse.
+  // And a muted piece has no branch of its own: its cells emit the same `Click` without
+  // `note` as an empty cell, so they go through this same `clicksAudible`. With the
+  // clicks off, that gives **full silence** over a muted piece. That is the intended
+  // answer and not an uncovered case: to mute a piece is to take it out of the sound,
+  // and to switch off the clicks is to take out of the sound what the circuit says
+  // when it crosses an empty cell. The two point to silence, so silence is correct. To
+  // split the two meanings would cost a fourth `HIT` and a discriminant in `Click`:
+  // two new types to tell apart two ways to be silent.
   for (const hit of w.hits) {
     if (hit.kind === HIT.note) scheduleVoice(c, bus, hit.hz, hit.at, dur, rel);
     else if (hit.kind === HIT.cross) scheduleVoice(c, bus, hit.hz, hit.at, grace, rel, GRACE_VELOCITY);
@@ -454,24 +454,23 @@ export function startClock(): void {
   if (timer !== null) return;
   const c = audio();
   const bus = master;
-  // Las dos mitades, y la segunda es la que este spec trajo hasta aca: es la casa nueva
-  // de la guarda que `tick()` tenia adentro. Arrancar el reloj es lo que hace que
-  // `clockRunning()` conteste `true` y que el boton diga «Pausa», asi que es EL lugar
-  // donde no se puede mentir sobre si el motor esta entero. `audio()` no devuelve
-  // un contexto sin master —el `catch` los baja juntos—, pero el que arranca el reloj
-  // tiene que verificarlo igual: es la unica funcion cuya respuesta la UI muestra.
+  // The two halves. The second one is the guard that `tick()` does not have: this is
+  // its home. To start the clock is what makes `clockRunning()` answer `true` and the
+  // play button offer pause, so this is THE place where the engine cannot lie about
+  // being whole. `audio()` does not return a context without a master (the `catch`
+  // clears them together), but the function that starts the clock must check it
+  // anyway: it is the only function whose answer the UI shows.
   if (!c || !bus) return;
   if (c.state === 'suspended') void c.resume();
   clock.origin = c.currentTime + CLOCK_START_DELAY;
-  // Estrictamente ANTES de origin: firstOnsetAfter devuelve el primer onset
-  // POSTERIOR a lo ya emitido, asi que con scheduledUntil = origin el primer onset
-  // del ciclo 0 se saltearia y el primer sonido llegaria un ciclo tarde — que son
-  // 7,5 s con 8 piezas, no un compas. Es la misma trampa que vuelve
-  // a aparecer en el swap de collectWindow.
+  // Strictly BEFORE origin: firstOnsetAfter returns the first onset AFTER what is
+  // already emitted. With scheduledUntil = origin the first onset of cycle 0 would be
+  // skipped, and the first sound would come one cycle late: 7.5 s with 8 pieces, not
+  // one bar. The swap of collectWindow has the same trap.
   clock.scheduledUntil = c.currentTime;
-  // El par viaja en el closure y no se vuelve a leer del modulo en cada vuelta: ya
-  // quedo verificado en la guarda de arriba y no puede cambiar mientras el timer viva. Al
-  // pararlo, el closure se va con el.
+  // The pair travels in the closure and is not read from the module on each turn: the
+  // guard above checked it, and it cannot change while the timer lives. When the timer
+  // stops, the closure goes with it.
   timer = window.setInterval(() => tick(c, bus), TICK_MS);
 }
 

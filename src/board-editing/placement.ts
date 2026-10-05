@@ -13,80 +13,78 @@ import type { PieceKey } from '../pieces/pieces.ts';
  */
 
 /**
- * El tablero mas chico que tiene sentido, en celdas.
+ * The smallest board that makes sense, in cells.
  *
- * El tamano del tablero **no es una constante**: sale del viewport y
- * llega como parametro (`Dims`). Lo que queda fijo son estos dos bordes.
+ * The size of the board **is not a constant**: it comes from the viewport and arrives as a
+ * parameter (`Dims`). What stays fixed is these two bounds.
  *
- * 5 x 5 y no 4 x 4 porque 5 es el lado de la caja mas chica que contiene cualquier
- * pentomino en cualquiera de sus 8 orientaciones —el maximo en un eje lo pone sola la
- * `I`, 5x1 acostada y 1x5 parada—, o sea que abajo de 5 hay piezas que no entran en
- * ninguna posicion. Es el mismo argumento que `MINI_BOX` en `piece-mini.ts`, sobre otro
- * dibujo: aquel es la caja donde se dibuja la miniatura y este es el tablero, y coinciden
- * porque los dos tienen que contener a la `I`.
+ * 5 x 5 and not 4 x 4, because 5 is the side of the smallest box that holds any pentomino in
+ * any of its 8 orientations. The `I` alone sets the maximum on one axis: 5x1 lying down and
+ * 1x5 standing. Below 5, some pieces fit in no position. `MINI_BOX` in `piece-mini.ts` uses
+ * the same argument for another drawing: that one is the box of the thumbnail and this one is
+ * the board, and they agree because both must hold the `I`.
  *
- * Es un piso duro: en un viewport donde 5 celdas de 73 px no entren, la que se achica es
- * la celda. El tablero nunca tiene menos de 5 x 5 — sin eso hay piezas de la paleta que no
- * se podrian colocar en ningun lado, que es peor que una celda chica.
+ * It is a hard floor: in a viewport where 5 cells of 73 px do not fit, the cell is what
+ * shrinks. The board never has fewer than 5 x 5 cells. With fewer, some pieces of the palette
+ * could not be placed anywhere, and that is worse than a small cell.
  */
 export const GRID_MIN: Dims = { w: 5, h: 5 };
 
 /**
- * El tablero de siempre: 10 x 6.
+ * The reference board: 10 x 6.
  *
- * No es lo que la app dibuja —eso lo decide el viewport— pero sigue
- * siendo el tablero de REFERENCIA, y por eso vive acá y no como dos numeros sueltos en
- * cada llamador: lo usan el MCP server cuando la consulta no dice dimensiones y los tests
- * del dominio que no tienen ninguna razon para inventar un tamano. Que sea el mismo par
- * historico es lo que hace que una consulta a `simulate_board` escrita cuando el tablero
- * era fijo siga dando exactamente lo mismo.
+ * It is not what the app draws: the viewport decides that. It is the REFERENCE board, and so
+ * it lives here and not as two loose numbers in each caller. The MCP server uses it when the
+ * query gives no dimensions, and so do the tests of the domain that have no reason to invent
+ * a size. The pair stays 10 x 6 so that a query to `simulate_board` that gives no dimensions
+ * keeps exactly the same answer.
  */
 export const GRID_DEFAULT: Dims = { w: 10, h: 6 };
 
 /**
- * Cuantas piezas acepta el tablero, sea del tamano que sea.
+ * How many pieces the board accepts, at any size.
  *
- * **Es una regla y no una consecuencia del AREA.** En el tablero de referencia el area
- * alcanza para deducirlo —60 celdas y 5 por pentomino son 12— pero con el tablero saliendo
- * del viewport no alcanza: 1920 x 1080 dan 390 celdas, o sea 78 piezas. `shortestCircuit`
- * da 12 por sentadas en su docblock, asi que el limite tiene que estar escrito, y esta
- * escrito aca.
+ * **It is a rule and not a consequence of the AREA.** On the reference board the area is
+ * enough to deduce it: 60 cells and 5 for each pentomino give 12. With a board that comes
+ * from the viewport it is not enough: 1920 x 1080 give 390 cells, which is 78 pieces.
+ * `shortestCircuit` takes 12 for granted in its docblock, so the limit must be written, and
+ * it is written here.
  *
- * Y 78 no es un tablero mas grande: es otro problema. El circuito se resuelve con
- * Held-Karp **exacto**, `O(n^2 * 2^n)`, y eso esta elegido a proposito —el greedy da
- * recorridos +20,1 % en promedio y +79 % en el peor caso, y ademas no es determinista
- * entre tableros iguales—. Medido sobre 26 x 14 = 364 celdas, con la cache de distancias
- * por destino puesta:
+ * And 78 is not a larger board: it is another problem. The circuit is solved with **exact**
+ * Held-Karp, `O(n^2 * 2^n)`, and that is chosen on purpose: the greedy gives circuits 20.1 %
+ * longer on average and 79 % longer in the worst case, and it is not deterministic between
+ * equal boards. Measured on 26 x 14 = 364 cells, with the cache of distances by destination
+ * in place:
  *
  * ```
- * piezas   buildSequence
- *   12        3,1 ms
- *   13        3,7 ms
- *   14        5,6 ms
- *   15        9,7 ms
- *   16       18,6 ms
+ * pieces   buildSequence
+ *   12        3.1 ms
+ *   13        3.7 ms
+ *   14        5.6 ms
+ *   15        9.7 ms
+ *   16       18.6 ms
  * ```
  *
- * Duplica por pieza, que es lo que dice `2^n`. No hay optimizacion que compre 78: son 66
- * duplicaciones.
+ * It doubles for each piece, which is what `2^n` says. No optimization buys 78: that is 66
+ * doublings.
  *
- * Asi que el tope se escribe, y vale **exactamente lo que hoy es cierto**. No recorta
- * ningun tablero que se pueda armar hoy: lo que cambia es quien lo garantiza.
+ * So the limit is written, and its value is **exactly what is true on the reference board**.
+ * It rejects no board that the reference board allows. The rule guarantees the limit, and
+ * not the area.
  */
 export const MAX_PIEZAS = 12;
 
 /**
- * Una pieza ya colocada en el tablero, con sus celdas en coordenadas de tablero.
+ * A placed piece, with its cells in board coordinates.
  *
- * NO lleva las notas. Las llevaba —`notes: number[]`, poblado al colocar— y era un dato
- * DERIVABLE guardado en el estado: `arpeggioFor(piece, rotation, mirror, regimen)` da exactamente
- * lo mismo, asi que el campo solo agregaba la posibilidad de que se contradijeran. Nada
- * impedia construir una pieza con `rotation: 1` y las notas de la rotacion 0, y ahi el
- * tablero —que ya derivaba, ver `Board.tsx`— y el motor —que leia el campo— decian cosas
- * distintas.
+ * It does NOT carry the notes. They are DERIVABLE: `arpeggioFor(piece, rotation, mirror,
+ * regimen)` gives exactly the same. A `notes` field in the state would only add the chance
+ * of a contradiction. Nothing would stop a piece with `rotation: 1` and the notes of
+ * rotation 0, and then the board, which derives (see `Board.tsx`), and the engine, which
+ * would read the field, would say different things.
  *
- * `cells` en cambio NO es derivable de las demas: depende de donde se hizo click, que es
- * informacion que solo existe en el gesto.
+ * `cells` is NOT derivable from the other fields: it depends on where the click was, and
+ * that information exists only in the gesture.
  */
 export interface PlacedPiece {
   id: string;
@@ -95,42 +93,40 @@ export interface PlacedPiece {
   mirror: boolean;
   cells: Cell[];
   /**
-   * La pieza ocupa su lugar y su tiempo en el circuito pero NO suena sus notas.
+   * The piece keeps its place and its time in the circuit but does NOT sound its notes.
    *
-   * Donde habria ido su arpegio van cinco clicks, uno por celda, en los mismos offsets.
-   * El orden de visita, los offsets del resto y el largo del ciclo no cambian.
+   * Five clicks go where its arpeggio would go, one for each cell, at the same offsets. The
+   * order of the visit, the offsets of the other pieces and the length of the cycle do not
+   * change.
    *
-   * Va acá por el mismo argumento que `cells` y no por el que retiró a `notes`: **no es
-   * derivable**. No sale de la pieza, ni de la rotacion, ni de las celdas — sale de un
-   * gesto, que es informacion que solo existe en el click.
+   * It lives here by the same argument as `cells`, and not by the one that keeps `notes`
+   * out: **it is not derivable**. It does not come from the piece, the rotation or the
+   * cells. It comes from a gesture, and that information exists only in the click.
    *
-   * **Obligatorio y no `muted?: boolean`.** Opcional daria dos formas de decir "no
-   * muteada" —`false` y ausente— y este repo ya pago ese error una vez: en `Click.note`
-   * la AUSENCIA del campo significa algo distinto de un `undefined` explicito, y hay un
-   * ternario puesto a proposito en `proyectarAlMotor` (`playback/engine-bridge.ts`) para no
-   * producir el tercer estado — y que tiene test. Acá no hay nada que la
-   * ausencia pueda significar, asi que no se le da la
-   * oportunidad.
+   * **Required, and not `muted?: boolean`.** An optional field would give two ways to say
+   * "not muted": `false` and absent. This repo has that trap in `Click.note`: there the
+   * ABSENCE of the field means something different from an explicit `undefined`, and
+   * `proyectarAlMotor` (`playback/engine-bridge.ts`) has a ternary on purpose so that it
+   * does not produce the third state, and that ternary has a test. Here the absence could
+   * mean nothing, so it gets no chance.
    */
   muted: boolean;
 }
 
 /**
- * Cuánto mide el tablero, en celdas.
+ * The dimensions of the board, in cells.
  *
- * **Es un parámetro y no una constante.** El tablero medía `GRID_W × GRID_H` = 10 × 6 y las
- * funciones del dominio lo leían de una constante; hoy mide lo que entra
- * en la pantalla —26 × 15 en un escritorio de 1920 × 1080— y quien lo sabe es la capa que
- * ve el viewport, que es la UI. El dominio no puede leerlo de ningún lado: se lo
- * tienen que decir.
+ * **They are a parameter and not a constant.** The board has the size that fits the screen,
+ * 26 × 15 on a desktop of 1920 × 1080, and the layer that knows it is the one that sees the
+ * viewport: the UI. The domain cannot read it from anywhere: a caller must give it.
  *
- * Lo reciben las tres funciones que miran el tablero como un todo —`isValid`,
- * `routeBetween` y `buildSequence`— y de ahí baja solo. `music.ts`, `transform.ts` e
- * `invariants.ts` no lo necesitan: una pieza y su arpegio no dependen de dónde termina el
- * tablero.
+ * The three functions that look at the board as a whole receive it: `isValid`,
+ * `routeBetween` and `buildSequence`. From there it goes down. `music.ts`, `transform.ts`
+ * and `invariants.ts` do not need it: a piece and its arpeggio do not depend on where the
+ * board ends.
  *
- * `readonly` en los dos campos por la regla de siempre: nunca mutar lo que ya se entregó a
- * React, y esto viaja como prop.
+ * `readonly` on the two fields: never mutate what React already received, and this travels
+ * as a prop.
  */
 export interface Dims {
   readonly w: number;
@@ -138,15 +134,15 @@ export interface Dims {
 }
 
 /**
- * Celdas que ocuparia `shape` si su celda de agarre cae en `(x, y)`.
+ * The cells that `shape` occupies when its grip cell lands on `(x, y)`.
  *
- * Recibe `shape` ya transformada y `anchorIndex` en vez de calcularlos: quien
- * llama tiene la forma memoizada, asi que no hay que volver a rotar en cada hover.
- * El ancla sale por indice y no por busqueda gracias al invariante del orden del
- * array (ver `transform.ts`).
+ * It receives `shape` already transformed, and `anchorIndex`, and does not compute them: the
+ * caller has the shape memoized, so nothing rotates again on each move of the pointer. The
+ * grip cell comes by index and not by a search, thanks to the invariant of the array order
+ * (see `transform.ts`).
  *
- * `shape` entra `readonly` justamente porque viene memoizada: mutarla seria mutar
- * un valor que React ya entrego.
+ * `shape` comes in `readonly` because it is memoized: to mutate it is to mutate a value
+ * that React already received.
  */
 export function cellsAt(shape: readonly Cell[], anchorIndex: number, x: number, y: number): Cell[] {
   const [ax, ay] = shape[anchorIndex];
@@ -156,13 +152,13 @@ export function cellsAt(shape: readonly Cell[], anchorIndex: number, x: number, 
 }
 
 /**
- * Dentro del tablero y sin solaparse con lo ya colocado.
+ * Inside the board, and with no overlap with a placed piece.
  *
- * **`placed` tiene que ser el tablero ENTERO y no lo que se ve.** El
- * tablero se achica con la ventana y las piezas que dejan de entrar se guardan sin
- * dibujarse; una de esas puede tener celdas adentro de la grilla nueva —«no entra entera»
- * no es «esta toda afuera»— y colocar encima dejaria dos piezas solapadas en cuanto la
- * ventana crezca. El filtro de lo visible es `cabeEn`, aca abajo; esta funcion mira todo.
+ * **`placed` must be the WHOLE board and not what is visible.** The board shrinks with the
+ * window, and the pieces that stop fitting are stored and not drawn. A stored piece can have
+ * cells inside the new grid: "does not fit entirely" is not "is all outside". A placement on
+ * top of it would leave two overlapping pieces when the window grows. The filter of what is
+ * visible is `cabeEn`, below. This function looks at everything.
  */
 export function isValid(cells: Cell[], placed: readonly PlacedPiece[], dims: Dims): boolean {
   if (cells.some(([x, y]) => x < 0 || y < 0 || x >= dims.w || y >= dims.h)) return false;
@@ -174,53 +170,51 @@ export function isValid(cells: Cell[], placed: readonly PlacedPiece[], dims: Dim
 }
 
 /**
- * Si la pieza entra ENTERA en un tablero de `dims`.
+ * Whether the piece fits ENTIRELY in a board of `dims`.
  *
- * Es el otro lado del parrafo de `isValid`, y hace falta porque el tablero
- * cambia de tamano con la ventana: la pieza que deja de entrar no se borra —el repo no
- * tiene deshacer, y arrastrar el borde de una ventana no es un gesto de edicion— sino que
- * se guarda entera y deja de dibujarse, de sonar y de recibir clicks, y vuelve igual
- * cuando hay lugar otra vez.
+ * It is the other side of the paragraph of `isValid`, and it is necessary because the board
+ * changes size with the window. A piece that stops fitting is not deleted: the repo has no
+ * undo, and a drag of the window edge is not an edit gesture. It is stored whole. The board
+ * does not draw it, it does not sound, it takes no click, and it comes back the same when
+ * there is room again.
  *
- * **Entera y no en parte**: una pieza con tres celdas adentro y dos afuera tampoco entra.
- * Media pieza pintada seria una pieza que el tablero muestra y el circuito no visita, y
- * lo que se ve y lo que suena no pueden discrepar.
+ * **Entirely and not in part**: a piece with three cells inside and two outside does not fit
+ * either. Half a painted piece would be a piece that the board shows and the circuit does
+ * not visit, and what the user sees and what sounds cannot disagree.
  *
- * Se implementa sobre `isValid` con el tablero vacio y no repitiendo los cuatro limites:
- * «entra en el tablero» es exactamente la primera mitad de «la jugada es legal», y
- * escribirla dos veces es la forma de que un dia digan cosas distintas. Es tambien lo que
- * `mcp-server/src/tools/simulateBoard.ts` ya hacia para distinguir `fuera-del-tablero` de
- * un choque.
+ * It is built on `isValid` with an empty board, and does not repeat the four limits: "fits
+ * in the board" is exactly the first half of "the placement is legal", and to write it twice
+ * is how the two come to say different things. `mcp-server/src/tools/simulateBoard.ts` does
+ * the same to tell `fuera-del-tablero` from an overlap.
  *
- * Vive en un módulo y no adentro de `App.tsx` por la regla de `.claude/rules/ui.md` —el
- * shell no lleva funciones puras—: aca se testea, y ahi no podria exportarse.
+ * It lives in a module and not inside `App.tsx` by the rule of `.agents/rules/ui.md`, that
+ * the shell carries no pure function: here it has a test, and there it could not be exported.
  */
 export function cabeEn(p: PlacedPiece, dims: Dims): boolean {
   return isValid(p.cells, [], dims);
 }
 
 /**
- * La pieza que ocupa `(x, y)`, o null.
+ * The piece that occupies `(x, y)`, or null.
  *
- * Recorre todas las piezas y todas sus celdas, y eso esta MEDIDO porque hacia falta
- * saber si aguantaba que el tablero se
- * dibujara al ritmo del intervalo: con las 12 piezas colocadas —el maximo, y el peor
- * caso porque no queda ninguna celda vacia que corte antes— un render entero del
- * tablero de referencia son 60 llamadas y **4,1 us** en total (p95 7,4 us), o sea
- * 0,07 us por celda y el 0,02 % de un cuadro de 16,7 ms. A 160 bpm el intervalo mide
- * 93,75 ms: aunque se la llamara una vez por celda y por intervalo, sobraria por cuatro
- * ordenes de magnitud.
+ * It walks every piece and every cell of each one, and that is MEASURED, because the
+ * question was whether it holds when the board draws at the rate of the interval. With the
+ * 12 pieces placed, which is the maximum and so the longest list to walk, a whole render of
+ * the reference board is 60 calls and **4.1 us** in
+ * total (p95 7.4 us). That is 0.07 us for each cell and 0.02 % of a frame of 16.7 ms. At
+ * 160 bpm the interval is 93.75 ms: one call for each cell and each interval would still
+ * leave four orders of magnitude to spare.
  *
- * **El costo es por CELDA, asi que un tablero mas grande lo escala y no lo cambia.** El
- * tope de piezas sigue siendo 12 (`MAX_PIEZAS`), que es lo que fija el peor caso de cada
- * llamada; lo que crece es cuantas veces se llama: 390 celdas en un escritorio de
- * 1920 x 1080 son 6,5 veces las 60 de arriba, o sea ~27 us por render y el 0,16 % del
- * cuadro. Sigue sobrando por tres ordenes.
+ * **The cost is by CELL, so a larger board scales it and does not change it.** The piece
+ * limit is 12 (`MAX_PIEZAS`), and that fixes the worst case of each call. What grows is the
+ * number of calls: 390 cells on a desktop of 1920 x 1080 are 6.5 times the 60 above, so
+ * about 27 us for each render and 0.16 % of the frame. Three orders of magnitude are still
+ * to spare.
  *
- * O sea que un indice por celda no hace falta, y el que dibuja a
- * ritmo de intervalo —la cabeza lectora— igual no la usa: lee la tabla por
- * offset de `playback/route-source.ts`, y no por costo sino porque tiene que dibujar
- * la ruta que suena y no la del tablero de ahora.
+ * So an index by cell is not necessary. And the playhead, which draws at the rate of the
+ * interval, does not use this function: it reads the table by offset of
+ * `playback/route-source.ts`. The reason is not cost: it must draw the route that sounds
+ * and not the route of the current board.
  */
 export function occupantAt(placed: readonly PlacedPiece[], x: number, y: number): PlacedPiece | null {
   for (const p of placed) {
@@ -230,23 +224,20 @@ export function occupantAt(placed: readonly PlacedPiece[], x: number, y: number)
 }
 
 /**
- * Indice de `(x, y)` dentro de `p.cells`, o `-1` si `p` no ocupa esa celda.
+ * The index of `(x, y)` inside `p.cells`, or `-1` if `p` does not occupy that cell.
  *
- * Hermana de `occupantAt` y no un cambio de su firma: `occupantAt` responde QUE
- * pieza, esta responde QUE celda de esa pieza, y separarlas deja intactos a los
- * que solo necesitan lo primero.
+ * A sibling of `occupantAt` and not a change of its signature: `occupantAt` answers WHICH
+ * piece, this one answers WHICH cell of that piece, and the split leaves alone the callers
+ * that need only the first.
  *
- * Existe para que la derivacion celda→nota no viva adentro de `Board.tsx`. El
- * argumento no es de costo —cinco comparaciones por celda es irrelevante, midiera el
- * tablero 60 celdas o 390— sino de cobertura: cuando se escribio,
- * la UI no tenia tests, asi que un `findIndex` ahi adentro dejaba verificado solo
- * por captura el unico paso del que depende lo que se ve, y una captura no distingue un
- * mapeo correcto de uno corrido en uno. Hoy la capa tiene tests,
- * pero la pura sigue siendo mas barata de agotar que un render.
+ * It exists so that the derivation from a cell to its note does not live inside `Board.tsx`.
+ * The argument is not cost: five comparisons for each cell do not matter, on a board of 60
+ * cells or of 390. It is coverage: a pure function is cheaper to exhaust than a render, and
+ * a screenshot cannot tell a correct mapping from one shifted by one.
  *
- * El indice que devuelve sirve directamente contra la forma CANONICA gracias al
- * invariante del orden del array: `cells` se construye con `cellsAt`, que es un
- * `map`, asi que la celda `k` del tablero sigue siendo la celda `k` de `SHAPES`.
+ * The index it returns works directly against the CANONICAL shape, thanks to the invariant
+ * of the array order: `cells` is built with `cellsAt`, which is a `map`, so cell `k` of the
+ * board is still cell `k` of `SHAPES`.
  */
 export function occupantCellIndex(p: PlacedPiece, x: number, y: number): number {
   return p.cells.findIndex(([cx, cy]) => cx === x && cy === y);

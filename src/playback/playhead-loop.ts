@@ -4,155 +4,141 @@ import { AIRE_RAZON, RADIO_RAZON } from '../board-fit/grid-fit.ts';
 import type { CeldaPorEstrenar } from './route-source.ts';
 
 /**
- * El bucle de dibujo de la cabeza lectora y del velo: todo lo que `Playhead.tsx` hacia
- * adentro de su `useEffect`.
+ * The draw loop of the playhead and of the veil: all that `Playhead.tsx` runs from its
+ * `useEffect`.
  *
- * **Vive en un `.ts` y no en el `.tsx` por una regla del repo, no por gusto.**
- * `react-refresh/only-export-components` prohibe que un `.tsx` exporte algo ademas del
- * componente, asi que mientras esto estuviera adentro de `Playhead.tsx` no se podia
- * exportar y, por lo tanto, no se podia testear — que es exactamente el argumento con el
- * que el dominio salio de `App.tsx` y la proyeccion al motor salio a
- * `engine-bridge.ts`. Es el mismo movimiento, aplicado al ultimo lugar donde quedaba
- * logica encerrada en un componente.
+ * **It lives in a `.ts` and not in the `.tsx` for a rule of the repo, not for taste.**
+ * `react-refresh/only-export-components` forbids a `.tsx` to export anything but the
+ * component. Inside `Playhead.tsx` this could not be exported, and so could not be
+ * tested. It is the same argument that puts the projection to the engine in
+ * `engine-bridge.ts`.
  *
- * El componente queda con lo unico que le corresponde: montar los dos contenedores y
- * pasar sus nodos. No hay cambio de comportamiento — el codigo es el mismo, y lo que se
- * mueve son 100 lineas de las que el 60 % son comentario.
+ * The component keeps the only thing that is its own: to mount the two containers and
+ * pass their nodes.
  */
 
 /**
- * Los valores fijos de la cabeza lectora y del velo.
+ * The fixed values of the playhead and of the veil.
  *
- * Viven aca y no en `playhead-loop.ts` por la regla de `CLAUDE.md`: un `.ts` de capa
- * tiene funciones y nada mas. Mientras el bucle estuvo adentro de `Playhead.tsx` la
- * regla no llegaba —un `.tsx` es un componente, no un modulo de capa—; salieron a un
- * `.ts` para poder testearlos, y con eso pasaron a estar donde la regla mira.
- *
- * Es el primer archivo de `constants/` que importa de otro en vez de importar solo
- * tipos, y es a proposito: `BORDE_POR_KIND` empareja los tres grosores con las tres
- * `MarcaKind`, y ese emparejamiento es exactamente el «par de numeros que tiene que
- * coincidir y nada sincroniza» que la regla existe para evitar. Separarlo del grosor
- * que empareja seria dejar el par en dos archivos otra vez.
+ * `BORDE_POR_KIND` pairs the three thicknesses with the three `MarcaKind`, so the table
+ * and the thicknesses stay in one file: apart, they are a pair of numbers that must
+ * match and that nothing keeps in sync.
  */
 
 /**
- * El resaltado: la celda que suena ENGROSA su borde, hacia adentro y hacia afuera.
- * Nada mas — sin relleno, sin cambio de color y sin `scale`.
+ * The highlight: the cell that sounds THICKENS its border, inward and outward.
+ * Nothing more: no fill, no change of color and no `scale`.
  *
- * ## Por que el borde y no un relleno
+ * ## Why the border and not a fill
  *
- * En un secuenciador de fondo oscuro el estandar es ENCENDER el step activo, porque la
- * metafora es un LED. Este tablero es tema claro —panel blanco, celdas vacias blancas—
- * y ahi subir luminancia hace desaparecer la celda: el amarillo de `V` se va a blanco.
- * Un relleno oscuro funciona (medido: al 30 % el peor caso de las 12 piezas, la `W`,
- * da un delta de L* de 8,8 sobre un umbral de ~3) pero tapa la nota que la celda
- * muestra, que es lo que hay que poder leer. El borde marca el limite
- * sin pisar el contenido.
+ * On a sequencer with a dark background the standard is to LIGHT the active step,
+ * because the metaphor is an LED. This board has a light theme, a white panel and white
+ * empty cells, and there more luminance makes the cell disappear: the yellow of `V`
+ * goes to white. A dark fill works (measured: at 30 % the worst case of the 12 pieces,
+ * the `W`, gives a delta of L* of 8.8 over a threshold of ~3) but it covers the note
+ * that the cell shows, which must stay readable. The border marks the limit and does
+ * not cover the content.
  *
- * ## Por que engorda para los DOS lados
+ * ## Why it thickens to the TWO sides
  *
- * Hacia adentro solo no alcanza: TODAS las celdas ya tienen `border-slate-900`, ocupadas o
- * no, asi que engrosarlo es un cambio de grado contra un campo lleno de bordes negros.
- * El anillo exterior es lo que agrega el salto de tamano — la celda se lee mas grande
- * sin que crezca su caja.
+ * Inward alone is not enough: ALL the cells already have `border-slate-900`, occupied
+ * or not, so to thicken it is a change of degree against a field full of black borders.
+ * The outer ring adds the jump in size: the cell reads larger and its box does not
+ * grow.
  *
- * ## Y por que NO se usa `transform: scale`, que es lo obvio
+ * ## And why NOT `transform: scale`, which is the obvious way
  *
- * Porque `scale` AGRANDA la caja a efectos de overflow y `box-shadow` es *ink overflow*:
- * pinta afuera sin agrandar nada. La medicion que lo encontro es del layout viejo —con
- * `CELL_PX` en 63, grilla de 630 x 378, la cabeza en (9,5) y `scale(1.10)`, el
- * `scrollHeight` del entonces `overflow-x-auto` de `Board` pasaba de 378 a 381 y aparecian
- * las dos barras de desplazamiento—, y ese contenedor no scrollea: el desborde lo recorta
- * el `overflow-hidden` del raiz, asi que hoy el sintoma no seria una barra sino una celda
- * cortada en el borde. El MECANISMO no cambio, y es lo que decide.
+ * Because `scale` ENLARGES the box for overflow, and `box-shadow` is *ink overflow*: it
+ * paints outside and enlarges nothing. The measurement that found it is of an older
+ * layout: with the cell at 63 px, a grid of 630 x 378, the playhead at (9,5) and
+ * `scale(1.10)`, the `scrollHeight` of the `overflow-x-auto` container that `Board` had
+ * went from 378 to 381 and the two scroll bars appeared. The container of today does
+ * not scroll: the `overflow-hidden` of the root clips the overflow, so the symptom
+ * would be a cell cut at the edge and not a bar. The MECHANISM is the same, and it
+ * decides.
  *
- * Gris pizarra y no un color: el color es IDENTIDAD —que pieza es— y el estado nunca se
- * comunica con hue. Es la misma regla por la que el fantasma es gris y no verde.
+ * Slate gray and not a color: color is IDENTITY, which piece it is, and state is never
+ * told with hue. It is the same rule that makes the ghost gray and not green.
  */
 export const BORDE_COLOR = '#0f172a';
 
-/** Grosor hacia adentro y hacia afuera, en px. */
+/** The thickness inward and outward, in px. */
 export const NOTA = { dentro: 3, fuera: 2 };
 
 /**
- * El cruce: la cabeza pasa sobre una celda OCUPADA que no es su turno pero que igual suena
- * una floritura (`Click.note`).
+ * The crossing: the playhead passes over an OCCUPIED cell when it is not its turn, and
+ * the cell sounds a note anyway (`Click.note`).
  *
- * Ni la nota propia de una pieza ni el click mudo de siempre, asi que su borde va en el
- * escalon intermedio entre los otros dos. Los tres numeros —3/2, 2/1, 2/0— estan fijados
- * en DESIGN.md.
+ * It is neither the own note of a piece nor the click, so its border is the middle step
+ * between the other two. DESIGN.md fixes the three numbers: 3/2, 2/1, 2/0.
  */
 export const CRUCE = { dentro: 2, fuera: 1 };
 
 /**
- * Nota fuerte, cruce intermedio, click tenue (D7 mas D8 del 011).
+ * A strong note, a middle crossing, a faint click.
  *
- * Si dos de los tres se vieran igual, el recorrido mentiria sobre cual de las tres cosas
- * paso. El click engorda solo hacia adentro y la mitad — se lee como un roce.
+ * If two of the three looked the same, the playhead would lie about which of the three
+ * things happened. The click thickens only inward, and by less: it reads as a light
+ * touch.
  */
 export const CLICK = { dentro: 2, fuera: 0 };
 
-/** Que escalon de borde le toca a cada `MarcaKind` — la tabla de D8 hecha dato. */
+/** The border step of each `MarcaKind`: the table of the three borders, as data. */
 export const BORDE_POR_KIND = { [MARCA.nota]: NOTA, [MARCA.cruce]: CRUCE, [MARCA.click]: CLICK } as const;
 
 /**
- * Las clases del velo van como literales enteros y no armadas por concatenacion:
- * Tailwind escanea el fuente, asi que solo genera lo que aparece escrito completo.
+ * The classes of the veil are whole literals and not built by concatenation: Tailwind
+ * scans the source, so it generates only what is written complete.
  *
- * **La geometria NO esta aca**, y es lo que hay que respetar al tocar estas dos clases: el
- * aire y el radio son razones de `--cell` desde el 021, y una clase de Tailwind no puede
- * interpolar una custom property. Escritos aca, a celda 180 el velo cubriria una baldosa de
- * 4,93 px de aire con un margen de 2 y dejaria un halo. Los escribe `rearmar`, en
- * `playhead-loop.ts`, al lado de las cuatro coordenadas — que es el unico lugar donde ya se
- * hablaba en pixeles.
+ * **The geometry is NOT here**, and that must hold when these two classes change: the
+ * gap and the radius are ratios of `--cell`, and a Tailwind class cannot interpolate a
+ * custom property. Written here with fixed values, at a cell of 180 px the veil would
+ * cover a tile with 4.93 px of gap with a margin of 2 and leave a halo. `rearmar`
+ * writes them, next to the four coordinates: the only place that already speaks in
+ * pixels.
  *
- * Que estas dos clases repitieran el `p-[2px]` y el `rounded-lg` de la baldosa de
- * `Board.tsx`, y por que dejo de valer: spec 021 (issue #83).
- *
- * Lo que queda en la clase es lo que NO depende del tamano: el posicionamiento, el
- * relleno, el color y el filete. El `border-2 border-dashed` se queda fijo por el mismo
- * argumento que el borde de 1 px de la baldosa, escrito en `Board.tsx`: es un delimitador
- * y no un elemento tipografico, y su grosor es un ESCALON medido contra ese filete base.
+ * What stays in the class does NOT depend on the size: the positioning, the fill, the
+ * color and the border line. The `border-2 border-dashed` stays fixed for the same
+ * argument as the 1 px border of the tile, written in `Board.tsx`: it is a delimiter
+ * and not a typographic element, and its thickness is a STEP measured against that
+ * base line.
  */
 export const VELO_CAJA = 'absolute';
 export const VELO_TAPA = 'w-full h-full border-2 border-dashed border-slate-900/50 bg-white/60';
 
 /**
- * Lo que mide `n` celdas, en CSS — la misma funcion que `Board.tsx`, escrita dos veces a
- * proposito.
+ * The size of `n` cells, in CSS. The same function as in `Board.tsx`, written twice on
+ * purpose.
  *
- * Son dos archivos que no se importan entre si y el string es de una linea: compartirla
- * obligaria a un modulo mas para ahorrar veinte caracteres.
+ * They are two files that do not import each other and the string is one line: to share
+ * it would need one more module to save twenty characters.
  *
- * El numero vive en la custom property `--cell`, que escribe `use-grid.ts` sobre el
- * contenedor raiz. Escribir `calc()` y no el producto en pixeles es lo que hace que
- * redimensionar la ventana reubique la cabeza y el velo sin que este bucle escriba nada.
+ * The number lives in the custom property `--cell`, which `use-grid.ts` writes on the
+ * root container. Because this is a `calc()` and not the product in pixels, a resize of
+ * the window moves the playhead and the veil and this loop writes nothing.
  */
 const celdas = (n: number) => `calc(var(--cell) * ${n})`;
 
-/** Lo que devuelve `iniciarCabeza` cuando no hay nodos: una limpieza que no limpia nada. */
+/** What `iniciarCabeza` returns when there are no nodes: a cleanup that cleans nothing. */
 const SIN_CABEZA = (): void => {};
 
 /**
- * El `box-shadow` de un grosor: el anillo de adentro siempre, el de afuera solo si el
- * escalon lo pide.
- *
- * Los tres grosores y su tabla viven en `playhead-loop.ts`; esto es la funcion que
- * los convierte en CSS.
+ * The `box-shadow` of one thickness: the inner ring always, the outer one only if the
+ * step asks for it.
  */
 export const borde = ({ dentro, fuera }: { dentro: number; fuera: number }): string =>
   `inset 0 0 0 ${dentro}px ${BORDE_COLOR}` + (fuera > 0 ? `, 0 0 0 ${fuera}px ${BORDE_COLOR}` : '');
 
-/** Que celda de que pieza. Por pieza y no solo por celda: ver `CeldaPorEstrenar`. */
+/** Which cell of which piece. By piece and not only by cell: see `CeldaPorEstrenar`. */
 const claveDe = (e: CeldaPorEstrenar): string => `${e.id}:${e.cell[0]},${e.cell[1]}`;
 
 /**
- * Arranca el bucle y devuelve su limpieza.
+ * Starts the loop and returns its cleanup.
  *
- * Los tres nodos entran por parametro y pueden ser `null`: es la firma que tiene un
- * `ref.current` recien montado, y el guardia que sigue es la traduccion de eso. Con el
- * bucle adentro del componente ese guardia no lo podia ejercer nadie —React asigna los
- * refs antes de correr los efectos, asi que los tres estan siempre—; aca es una llamada.
+ * The three nodes are parameters and can be `null`: that is the signature of a
+ * `ref.current` just mounted, and the guard below is its translation. Inside a
+ * component nobody can exercise that guard, because React assigns the refs before it
+ * runs the effects, so the three are always there. Here it is one call.
  */
 export function iniciarCabeza(
   capa: HTMLElement | null,
@@ -161,18 +147,18 @@ export function iniciarCabeza(
 ): () => void {
   if (!capa || !el || !resalte) return SIN_CABEZA;
 
-  // Clave de lo ULTIMO escrito, no la marca en si: comparar strings evita comparar
-  // tuplas y deja el caso "oculto" expresado como cadena vacia. Es lo que baja de 60
-  // escrituras por segundo a entre 4 y 11, y lo que hace que en pausa el loop no
-  // toque el DOM ni una vez (AC7).
+  // The key of the LAST thing written, not the mark itself: to compare strings avoids
+  // a comparison of tuples, and "hidden" is the empty string. It takes the writes from
+  // 60 a second down to between 4 and 11, and while paused the loop does not touch the
+  // DOM once.
   let dibujado = '';
   let raf = 0;
 
   let veloVisto: readonly CeldaPorEstrenar[] | null = null;
   let tapas: { entrada: CeldaPorEstrenar; nodo: HTMLElement }[] = [];
-  // El estreno se recuerda ACA y no en `route-source`: es el loop el que ve pasar la
-  // cabeza. Sin esto, colocar una segunda pieza rearmaria el velo y volveria a tapar
-  // celdas que ya se habian estrenado.
+  // The loss of the veil is remembered HERE and not in `route-source`: the loop is what
+  // sees the playhead pass. Without this, a second placed piece would build the veil
+  // again and cover cells that already lost it.
   const estrenadas = new Set<string>();
 
   const rearmar = (v: readonly CeldaPorEstrenar[]) => {
@@ -184,10 +170,10 @@ export function iniciarCabeza(
       nodo.style.top = celdas(entrada.cell[1]);
       nodo.style.width = celdas(1);
       nodo.style.height = celdas(1);
-      // El aire y el radio de la baldosa, que llegaron a ser el `p-[2px]` y el
-      // `rounded-lg` de `VELO_CAJA`/`VELO_TAPA`. Bajaron aca porque pasaron a depender de
-      // `--cell` y una clase de Tailwind no puede interpolarla: son la MISMA caja que la
-      // baldosa de `Board.tsx`, y desalinearlos deja el velo cubriendo medio pixel afuera.
+      // The gap and the radius of the tile. They are here and not in the classes
+      // `VELO_CAJA`/`VELO_TAPA` because they depend on `--cell`, and a Tailwind class
+      // cannot interpolate it. They are the SAME box as the tile of `Board.tsx`: out of
+      // line, the veil covers half a pixel outside.
       nodo.style.padding = celdas(AIRE_RAZON);
       if (estrenadas.has(claveDe(entrada))) nodo.style.display = 'none';
       const tapa = document.createElement('div');
@@ -200,12 +186,12 @@ export function iniciarCabeza(
   };
 
   const draw = () => {
-    // `rutaActiva()` PRIMERO y `playheadOffset()` despues, en ese orden. `rutaActiva`
-    // es quien hace el swap al detectar que el motor cerro el ciclo; leyendo el
-    // offset antes habria un cuadro en que un offset del ciclo NUEVO se dibuja sobre
-    // la tabla del VIEJO, y si el ciclo nuevo es mas corto eso ilumina una celda que
-    // no es. Asi la ventana queda en cero. `velo()` va en el medio por lo mismo: el
-    // swap es lo que lo cambia.
+    // `rutaActiva()` FIRST and `playheadOffset()` after, in that order. `rutaActiva`
+    // makes the swap when it sees that the engine ended the cycle. With the offset read
+    // first, there would be one frame where an offset of the NEW cycle is drawn on the
+    // table of the OLD one, and if the new cycle is shorter that lights a wrong cell.
+    // This order leaves no such frame. `velo()` goes in the middle for the same reason:
+    // the swap is what changes it.
     const marcas = rutaActiva();
     const v = velo();
     if (v !== veloVisto) {
@@ -214,22 +200,21 @@ export function iniciarCabeza(
     }
     const offset = playheadOffset();
 
-    // Una celda se estrena cuando la cabeza la PISA, no cuando arranca el ciclo: es lo
-    // unico que hace visible que el orden de reproduccion no es el de colocacion, y que
-    // a la pieza le toca su turno en un instante concreto. Las de offset `null` son de
-    // una pieza que todavia no entro al ciclo, asi que no hay instante que esperar — se
-    // destapan enteras en el swap, cuando `velo()` cambia.
+    // A cell loses its veil when the playhead REACHES it, not when the cycle starts: it
+    // is the only thing that shows that the play order is not the placement order, and
+    // that the turn of the piece comes at one exact instant. Those with offset `null`
+    // belong to a piece that has not entered the cycle, so there is no instant to wait
+    // for: they are all uncovered at the swap, when `velo()` changes.
     //
-    // `>=` y no `===`: si un cuadro se pierde —la pestana oculta suspende el rAF— el
-    // offset ya avanzo, y con igualdad la celda quedaria tapada hasta la vuelta
-    // siguiente.
+    // `>=` and not `===`: if a frame is lost (a hidden tab suspends rAF) the offset has
+    // already advanced, and with equality the cell would stay covered until the next
+    // cycle.
     //
-    // Que sea `>=` es tambien lo que ata este bucle a la guarda `now < origin` de
-    // `playheadOffset`: el swap se decide DENTRO del lookahead, y si en ese cuadro la
-    // cabeza contestara la cola del ciclo nuevo —el offset MAXIMO— este `for`
-    // destaparia las cinco celdas de un saque, en el mismo cuadro en que se crearon.
-    // Es el bug que el review encontro. Si alguna vez `playheadOffset` deja de
-    // devolver `null` antes del origin, esto vuelve callado.
+    // The `>=` also ties this loop to the guard `now < origin` of `playheadOffset`: the
+    // swap is decided INSIDE the lookahead, and if in that frame the playhead answered
+    // the tail of the new cycle, the MAXIMUM offset, this `for` would uncover the five
+    // cells at once, in the same frame where they were created. If `playheadOffset`
+    // ever stops returning `null` before the origin, this comes back in silence.
     if (offset !== null) {
       for (const { entrada, nodo } of tapas) {
         if (entrada.offset === null || nodo.style.display === 'none') continue;
@@ -240,23 +225,22 @@ export function iniciarCabeza(
     }
 
     const marca = offset === null ? null : marcas[offset] ?? null;
-    // `marca.kind` y no un booleano en la clave: con tres casos, dos marcas en la
-    // misma celda pero de kind distinto (nota vs. cruce, por ejemplo si la ruta
-    // volviera a pasar por ahi en otro offset del mismo cuadro dibujado) no pueden
-    // deduplicarse como si fueran la misma.
+    // `marca.kind` and not a boolean in the key: with three cases, two marks on the
+    // same cell with a different kind (a note and a crossing, for example if the
+    // sequence passed there again at another offset) cannot be deduplicated as one.
     const clave = marca ? `${marca.cell[0]},${marca.cell[1]},${marca.kind}` : '';
     if (clave !== dibujado) {
       dibujado = clave;
       if (!marca) {
         el.style.display = 'none';
       } else {
-        // Inline y no clases de Tailwind: las coordenadas salen de `var(--cell)` y no de
-        // una constante, y esa custom property la resuelve el navegador en cada elemento.
-        // La razon de fondo es
-        // la misma —Tailwind escanea el fuente, una clase interpolada no se generaria— y
-        // se le suma una: con la posicion escrita en `calc()`, redimensionar la ventana
-        // reubica la cabeza sin que este bucle vuelva a escribir nada. Es lo que hace que
-        // siga alineada mientras se arrastra el borde con el transporte corriendo.
+        // Inline and not Tailwind classes: the coordinates come from `var(--cell)` and
+        // not from a constant, and the browser resolves that custom property on each
+        // element. The base reason is the same, Tailwind scans the source and does not
+        // generate an interpolated class, and there is one more: with the position
+        // written in `calc()`, a resize of the window moves the playhead and this loop
+        // writes nothing again. That keeps it aligned while the edge of the window is
+        // dragged with the transport running.
         el.style.display = 'block';
         el.style.transform = `translate(${celdas(marca.cell[0])}, ${celdas(marca.cell[1])})`;
         resalte.style.boxShadow = borde(BORDE_POR_KIND[marca.kind]);

@@ -2,40 +2,31 @@ import { readSpectrum } from '../playback/engine.ts';
 import { binsToBars } from './spectrum-bars.ts';
 
 /**
- * El dibujo del espectro: todo lo que `Spectrum.tsx` hacia adentro de su `useEffect`.
+ * The drawing of the spectrum: the loop that `Spectrum.tsx` starts from its `useEffect`.
  *
- * Vive en un `.ts` por la misma regla que `playhead-loop.ts`:
- * `react-refresh/only-export-components` prohibe que un `.tsx` exporte algo ademas del
- * componente, asi que mientras esto estuviera adentro del componente no se podia
- * exportar y, por lo tanto, no se podia testear. Es el mismo movimiento con el que salio
- * el dominio, aplicado al ultimo componente que todavia guardaba logica.
+ * It is in a `.ts` by the same rule as `playhead-loop.ts`:
+ * `react-refresh/only-export-components` forbids a `.tsx` to export anything but the
+ * component. Inside the component this code could not be exported, so it could not be
+ * tested.
  *
- * El dibujo sigue siendo imperativo y NO pasa por estado: 60 renders por segundo de
- * React para pintar barras competirian con el re-render del tablero sin darle nada a
- * nadie. Lo unico que cruza la frontera es la lectura del motor, que el loop hace por
- * su cuenta.
+ * The drawing is imperative and does NOT go through state: 60 React renders a second to
+ * paint bars would compete with the render of the board and give nothing to anyone. The
+ * only thing that crosses the boundary is the reading from the engine, which the loop
+ * takes on its own.
  */
 
-/**
- * Los valores fijos del dibujo del espectro.
- *
- * Viven aca y no en `spectrum-loop.ts` por la regla de `CLAUDE.md`: un `.ts` de capa
- * tiene funciones y nada mas. Mientras el bucle estuvo adentro de `Spectrum.tsx` la
- * regla no llegaba —un `.tsx` es un componente, no un modulo de capa—; salieron a un
- * `.ts` para poder testearlos, y con eso estos cuatro numeros pasaron a estar donde la
- * regla mira.
- */
+/** The fixed values of the drawing of the spectrum. */
 
-/** Barras dibujadas. Menos que los 128 bins: agrupadas se leen sin ruido visual. */
+/** The bars drawn. Fewer than the 128 bins: grouped, they read without visual noise. */
 export const BAR_COUNT = 48;
 
-/** Separacion entre barras, en px CSS. */
+/** The gap between bars, in CSS px. */
 export const GAP = 2;
 
-/** Altura minima de una barra con senal: por debajo de esto no se ve que hay algo. */
+/** The minimum height of a bar with signal: below this the bar cannot be seen. */
 export const MIN_BAR = 2;
 
-/** Lo que dice el canvas cuando no hay senal que dibujar. */
+/** What the canvas says when there is no signal to draw. */
 export const IDLE_TEXT = 'En reposo — el audio arranca con el primer click';
 
 export function drawBars(
@@ -57,10 +48,10 @@ export function drawBars(
 }
 
 /**
- * Reposo: las ranuras de las barras vacias y un texto que lo dice.
+ * The idle state: every lane as a dim column, and a text that says it.
  *
- * Una linea plana al ras del canvas es ambigua —se lee igual que "el audio esta
- * roto"—, asi que el estado sin contexto se dibuja distinto a proposito.
+ * A flat line at the bottom of the canvas is ambiguous: it reads the same as "the audio is
+ * broken". So the state with no signal is drawn in a different way on purpose.
  */
 export function drawIdle(g: CanvasRenderingContext2D, w: number, h: number): void {
   g.clearRect(0, 0, w, h);
@@ -76,40 +67,36 @@ export function drawIdle(g: CanvasRenderingContext2D, w: number, h: number): voi
   g.fillText(IDLE_TEXT, w / 2, h / 2);
 }
 
-/** Lo que devuelve `iniciarEspectro` cuando no hay canvas ni contexto 2d. */
+/** What `iniciarEspectro` returns when there is no canvas or no 2D context. */
 const SIN_ESPECTRO = (): void => {};
 
 /**
- * Arranca el loop de dibujo sobre el canvas y devuelve su limpieza.
+ * Starts the drawing loop on the canvas and returns its cleanup.
  *
- * El canvas entra por parametro y puede ser `null` —es lo que tiene un `ref.current`
- * recien montado— y su contexto 2d tambien: `getContext('2d')` devuelve null si el
- * navegador no puede darlo. Con el loop adentro del componente ninguna de las dos
- * guardas la podia ejercer nadie; aca son una llamada.
+ * The canvas comes as a parameter and can be `null`, as a `ref.current` is before the mount.
+ * Its 2D context can be `null` too: `getContext('2d')` returns null when the browser cannot
+ * give one. Because this is a function, a test reaches each of the two guards with one call.
  */
 export function iniciarEspectro(canvas: HTMLCanvasElement | null): () => void {
   if (!canvas) return SIN_ESPECTRO;
   const g = canvas.getContext('2d');
   if (!g) return SIN_ESPECTRO;
 
-  // Tamano en px CSS: el canvas se dibuja en estas unidades y el backing store
-  // va aparte, escalado por dpr.
+  // The size in CSS px: the canvas draws in these units, and the drawing surface is
+  // separate, scaled by the pixel density.
   let w = 0;
   let h = 0;
   let fill: string | CanvasGradient = '#34d399';
 
-  // Clave de lo ULTIMO dibujado, no un booleano: la misma forma que `dibujado` en
-  // `playhead-loop.ts`, y por el mismo motivo ahi documentado -- "comparar strings
-  // evita comparar tuplas y deja el caso 'oculto' expresado como cadena vacia. Es lo
-  // que baja de 60 escrituras por segundo a entre 4 y 11, y lo que hace que en pausa
-  // el loop no toque el DOM ni una vez (AC7)". Ese loop ya tenia la guarda; este no
-  // la aplicaba: sin ella, `drawIdle` repetia 55 operaciones de canvas por cuadro
-  // -un `clearRect`, 48 `fillRect`, cinco asignaciones de estilo y un `fillText`-
-  // para pintar la misma imagen, o sea 3.300 por segundo mientras no hay audio. Un
-  // booleano de "ya dibuje el reposo" no alcanza: hace falta distinguir tambien la
-  // transicion senal -> reposo (readSpectrum vuelve a null con el contexto
-  // suspendido, no solo antes del primer click), y esa transicion es la que un
-  // booleano crudo confundiria con "reposo -> reposo".
+  // The key of the LAST thing drawn, not a boolean: the same shape as `dibujado` in
+  // `playhead-loop.ts`, for the same reason. A comparison of strings avoids a comparison of
+  // tuples, and the empty string means that nothing is drawn. Without this guard,
+  // `drawIdle` repeats 55 canvas operations on each frame (one `clearRect`, 48 `fillRect`,
+  // five style assignments and one `fillText`) to paint the same image: 3300 a second
+  // while there is no audio. A boolean "the idle state is drawn" is not enough: the key
+  // must also tell the change from signal to idle (readSpectrum returns null again when the
+  // context is suspended, not only before the first click), and a bare boolean would
+  // confuse that change with "idle to idle".
   let dibujado = '';
 
   const resize = () => {
@@ -119,33 +106,32 @@ export function iniciarEspectro(canvas: HTMLCanvasElement | null): () => void {
     h = rect.height;
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
-    // Sin esta transformacion el canvas dibuja en px fisicos y en pantallas
-    // HiDPI todo sale a escala 1/dpr, o borroso si se estira por CSS.
+    // Without this transform the canvas draws in physical px, and on a screen of high
+    // pixel density all is drawn at a scale of 1/dpr, or blurred if CSS stretches it.
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // El gradiente depende de la altura, asi que se rearma cuando cambia y no
-    // en cada cuadro.
+    // The gradient depends on the height, so it is built again when the height changes and
+    // not on each frame.
     const grad = g.createLinearGradient(0, h, 0, 0);
     grad.addColorStop(0, '#059669');
     grad.addColorStop(1, '#5eead4');
     fill = grad;
-    // Redimensionar borra el canvas (cambiar width/height lo limpia), asi que la
-    // clave se invalida para forzar el proximo `drawIdle` aunque el reposo no haya
-    // cambiado -si no, el canvas quedaria en blanco hasta que llegue senal.
+    // A resize clears the canvas (a change of width or height erases it). So the key is
+    // invalidated to force the next `drawIdle` although the idle state did not change.
+    // Otherwise the canvas would stay blank until a signal comes.
     dibujado = '';
   };
 
-  // Observa el contenedor y no el canvas: cambiarle width/height al canvas
-  // dentro del propio callback puede realimentar al observer.
+  // It observes the container and not the canvas: a change of the width or height of the
+  // canvas inside the callback itself can feed back into the observer.
   const box = canvas.parentElement ?? canvas;
   const ro = new ResizeObserver(resize);
   ro.observe(box);
 
-  // El ResizeObserver NO alcanza para cubrir el dpr: arrastrar la ventana a un
-  // monitor con otra densidad cambia devicePixelRatio sin cambiar un solo pixel
-  // CSS, asi que el observer no dispara y el canvas se queda con el backing
-  // store de la pantalla anterior —o sea, borroso— hasta el proximo resize.
-  // La media query se dispara justo cuando el dpr deja de valer lo que valia, y
-  // por eso hay que re-armarla con el valor nuevo cada vez.
+  // The ResizeObserver does NOT cover the pixel density: a window dragged to a monitor of
+  // another density changes devicePixelRatio and not one CSS pixel. So the observer does
+  // not fire, and the canvas keeps the drawing surface of the earlier screen, which looks
+  // blurred, until the next resize. The media query fires exactly when devicePixelRatio
+  // stops having the value it had, so it must be built again with the new value each time.
   let dprQuery: MediaQueryList | null = null;
   const onDprChange = () => { resize(); watchDpr(); };
   const watchDpr = () => {
@@ -161,9 +147,9 @@ export function iniciarEspectro(canvas: HTMLCanvasElement | null): () => void {
   const draw = () => {
     const bins = readSpectrum();
     if (bins) {
-      // Sin clave: las barras cambian de valor en cada cuadro con senal, que es
-      // todo el punto del espectro. Lo que SI queda registrado es que lo ultimo
-      // dibujado fueron barras, para que la transicion senal -> reposo se detecte.
+      // No key here: the bars change value on each frame with signal, which is the whole
+      // point of the spectrum. What IS recorded is that the last thing drawn was bars, so
+      // that the change from signal to idle is detected.
       drawBars(g, w, h, binsToBars(bins, BAR_COUNT), fill);
       dibujado = 'barras';
     } else if (dibujado !== 'reposo') {

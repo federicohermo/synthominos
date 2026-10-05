@@ -6,76 +6,71 @@ import type { PropsDeOrientacion } from './OrientationPanel.tsx';
 import type { PropsDeTransporte } from './TransportPanel.tsx';
 
 /**
- * El DOCK de piezas: el panel que flota sobre el tablero, pegado al borde derecho.
+ * The DOCK: the panel that floats over the board, against the right edge.
  *
- * Presentacional: sin estado, sin efectos. Recibe TRES objetos en vez de dieciseis props
- * planas —`orientacion`, `transporte` y el del plegado—, y cada panel recibe solo el
- * suyo; el criterio de reparto esta en el docblock de `PropsDeOrientacion`, en `OrientationPanel.tsx`. El del plegado es estado
- * del shell como todo lo demas.
+ * Presentational: no state, no effects. It gets two objects, `orientacion` and `transporte`,
+ * and each panel gets only its own. The criterion of the split is in the docblock of
+ * `PropsDeOrientacion`, in `OrientationPanel.tsx`. The fold state is state of the shell, like
+ * all the rest.
  *
- * ## De tarjeta en una columna a dock flotante
+ * ## The box is measured in cells
  *
- * Hasta el 021 esto era una tarjeta `md:col-span-4` en una fila de dos, y de ahi salia
- * todo: el ancho, el alto de la fila y —por esa via— el tamano de la celda del tablero.
- * Ese razonamiento entero se fue con el `max-w-6xl`. Hoy la caja se mide **en celdas**,
- * `2 x 4`, y flota encima: no le quita un pixel a la grilla.
+ * The box is `2 x 4` **cells** and floats over the board: it takes no pixel from the grid.
  *
- * **Se mide en celdas y no en px, y eso es AC9.** Con medidas fijas la cuenta de «que
- * celdas tapa» vale para un solo viewport: un dock de 640 px de alto centrado entra en la
- * fila 5 a 1366 x 768 y tapa `(9,5)`, que es donde arranca la cabeza lectora. Medido en
- * celdas, tapa `(8,1)`…`(9,4)` en cualquier viewport, porque la caja y la grilla se miden
- * con la misma unidad.
+ * **In cells and not in px.** With fixed sizes, the count of the cells that the dock covers
+ * holds for one viewport only: on the reference board of 10 × 6 cells, a dock 640 px high
+ * and centred enters row 5 at 1366 x 768 and covers `(9,5)`, where the playhead starts.
+ * Measured in cells, it covers `(8,1)`…`(9,4)` of that board in any viewport, because the
+ * box and the grid use the same unit.
  *
- * ## Por que el contenido necesita scroll propio
+ * ## Why the content needs its own scroll
  *
- * Porque la caja dejo de crecer con el contenido. Al piso —`--cell = 73`— el dock mide
- * 146 x 292 px y lo que va adentro medía del orden de 349 x 428. El `overflow-y-auto` es
- * lo que hace que eso entre sin empujar la grilla; el ANCHO lo resuelven en su casa
- * `OrientationPanel` (la tabla de columnas contra el contenedor) y `TransportPanel` (las
- * dos filas que se apilan).
+ * Because the box does not grow with the content. At the floor, `--cell = 73`, the dock is
+ * 146 x 292 px, and its content was measured at about 349 x 428 px. The `overflow-y-auto`
+ * makes that fit and not push the grid. The WIDTH is solved in `OrientationPanel` (the
+ * column count against the container) and in `TransportPanel` (the rows that stack).
  *
- * ## Lo que se queda del layout viejo
+ * ## A wrapper in the middle rows removes a margin
  *
- * El `space-y-2` de las dos filas del medio: compila a
- * `& > :not([hidden]) ~ :not([hidden])`, un selector de HIJO DIRECTO, asi que cualquier
- * envoltorio nuevo convierte dos hijos en uno y se come un margen con las clases intactas
- * y sin que ningun test lo note. Y mover la grilla de miniaturas adentro de ese
- * `space-y-2` la empujaria 16 px hacia abajo por el `mt-4`.
+ * The `space-y-2` of the middle rows compiles to `& > :not([hidden]) ~ :not([hidden])`, a
+ * DIRECT CHILD selector. So any new wrapper turns two children into one and removes a margin
+ * with the classes intact, and no test sees it. And the slot grid inside that `space-y-2`
+ * would move 16 px down because of the `mt-4`.
  */
 
 interface Props {
   orientacion: PropsDeOrientacion;
   transporte: PropsDeTransporte;
-  /** El plegado, que vive en el shell: este componente lo lee y lo pide, no lo guarda. */
+  /** The fold state lives in the shell: this component reads it and asks for a change. */
   abierto: boolean;
   onToggle: () => void;
 }
 
 export default function PiecePalette({ orientacion, transporte, abierto, onToggle }: Props) {
   const { selected, orientaciones, regimen, noteSet, onRegimen, onResetOrientacion } = orientacion;
-  // La de la pieza en la mano, derivada del `Record` y no recibida como dos props sueltas:
-  // dos fuentes de la misma verdad son dos formas de que la linea diga una orientacion y
-  // la miniatura dibuje otra.
+  // The orientation of the piece in hand, derived from the `Record` and not passed as two
+  // loose props: two sources of one truth are two ways for the readout to say one
+  // orientation and for the thumbnail to draw another.
   const { rotation, mirror } = orientaciones[selected];
   const { grados, reflejada } = textoDeOrientacion(rotation, mirror);
-  // La posicion sale de la MEDICION y no de la estetica, y leyendo `fixed right-0 top-1/2`
-  // no se adivina: `2 x 4` celdas pegadas al borde derecho y centradas en vertical tapan
-  // `(8,1)`…`(9,4)` y dejan libres `(0,0)` y `(9,5)`, que son las dos celdas que no se
-  // pueden tapar — ahi es donde el circuito cierra y donde arranca la cabeza
-  // lectora. Arriba se descarto por lo mismo: una barra superior tapa el borde
-  // de arriba entero, `(0,0)` incluida.
+  // The position comes from a MEASUREMENT and not from looks, and `fixed right-0 top-1/2`
+  // does not show it: on the reference board of 10 × 6 cells, `2 x 4` cells against the
+  // right edge and centred vertically cover `(8,1)`…`(9,4)` and leave `(0,0)` and `(9,5)`
+  // free. Those two cells must stay free: the circuit closes at the first and the playhead
+  // starts at the second. The top edge was rejected for the same reason: a top bar covers
+  // the whole top row, `(0,0)` included.
   //
-  // El fondo va semiopaco con `backdrop-blur` y no opaco: abajo hay celdas con nota, y un
-  // panel opaco las esconde mientras uno translucido dice que estan ahi.
+  // The background is half opaque with `backdrop-blur` and not opaque: there are cells with
+  // a note below, and an opaque panel hides them while a translucent one says they are there.
   return (
     <aside
       className="fixed right-0 top-1/2 -translate-y-1/2 z-20 flex flex-col rounded-l-2xl shadow-lg bg-white/85 backdrop-blur p-2 text-sm"
       style={{ width: `calc(var(--cell) * 2)`, maxHeight: `calc(var(--cell) * 4)` }}
     >
-      {/* Un `<button>` y no un `<h2>` con `onClick`: es un control, y como control tiene
-          que existir para el teclado tambien. `aria-expanded` dice si esta plegado y
-          `aria-controls` a que region se refiere. Plegado deja el encabezado y NADA mas —el
-          panel sigue diciendo que es, en vez de convertirse en un icono suelto. */}
+      {/* A `<button>` and not an `<h2>` with `onClick`: it is a control, and a control must
+          exist for the keyboard too. `aria-expanded` says if the dock is folded and
+          `aria-controls` says which region it refers to. Folded, the header stays and
+          NOTHING else: the panel still says what it is, and does not become a loose icon. */}
       <button
         type="button"
         onClick={onToggle}
@@ -83,46 +78,39 @@ export default function PiecePalette({ orientacion, transporte, abierto, onToggl
         aria-controls="dock-piezas"
         className="shrink-0 text-left text-base font-semibold mb-2"
       >Piezas</button>
-      {/* `hidden` y no desmontar, y de eso dependen dos cosas medidas. Una: el
-          `ResizeObserver` del espectro redibuja porque su contenedor CAMBIA DE TAMANO, y
-          eso vale para el otro flotante por el mismo mecanismo. Dos: la barrera del `memo`
-          de `OrientationPanel` — desmontar y remontar le cuesta exactamente las
-          ejecuciones que el memo existe para ahorrar. Con el arbol vivo, las dos siguen
-          valiendo. */}
+      {/* `hidden` and not an unmount, and two measured things depend on it. One: the
+          `ResizeObserver` of the spectrum draws again because its container CHANGES SIZE,
+          and that holds for the other floating panel by the same mechanism. Two: the
+          barrier of the `memo` of `OrientationPanel`. An unmount and a mount cost it
+          exactly the runs that the memo exists to save. With the tree alive, the two
+          hold. */}
       <div id="dock-piezas" hidden={!abierto} className="min-h-0 overflow-y-auto">
       <OrientationPanel orientacion={orientacion} />
       <div className="mt-4 space-y-2">
-        {/* El régimen tiene fila propia, y no es cosmética. Llegó a ser
-            la segunda línea de la fila de Rotación, y estaba escrito así a propósito:
-            sin rotar el régimen no hace nada, así que en vez de abrir una
-            fila completaba una —«Rotación … cambia escala / orden»— y el interruptor no
-            necesitaba glosa. El 019 borra los cuatro botones de grados, o sea que la frase
-            se queda SIN SUJETO: lo que era una segunda línea pasa a ser la fila, con la
-            etiqueta que era de arriba.
+        {/* The regime has a row of its own, and not for looks. Without a rotation the regime
+            does nothing, and the dock has no row for the rotation that could hold it. So
+            the regime is the row, with the label of the rotation.
 
-            Y no se borra, aunque la tentación sea la misma que con los grados. El
-            precedente es el `T070`: propuso borrar el botón de los clicks y el
-            015 lo cerró con un «no» porque era la única forma de encender el recorrido. Acá
-            está peor: la rotación y la reflexión sobreviven al borrado porque tienen dos
-            gestos directos cada una, y el régimen no tiene ninguno. Borrarlo lo dejaría
-            inalcanzable. Es una propiedad del instrumento, como el tempo.
+            And it is not deleted. The precedent is the click switch, which stays because
+            it is the only way to turn the circuit on. Here the case is stronger: the
+            rotation and the reflection need no button because each one has two direct
+            gestures, and the regime has none. Without this row it would be out of reach.
+            It is a property of the instrument, like the tempo.
 
-            El `title` dice la frase entera porque la palabra que la unía —«cambia»— se fue
-            con la fila de arriba, y sin ella `Rotación | escala orden` se puede leer como
-            si la rotación tuviera dos valores.
+            The `title` says the whole sentence: without the word «cambia»,
+            `Rotación | escala orden` can be read as if the rotation had two values.
 
-            Dos botones y no un ON/OFF: los dos valores son simétricos y ninguno es la
-            ausencia del otro. Un ON/OFF diría que hay un régimen y una desviación, que es
-            justo la lectura que D4 rechaza — no son dificultades, son dos reglas. El
-            idioma visual sí es el mismo que el resto de la tarjeta usa para lo activo:
-            fondo oscuro. */}
-        {/* El grupo es `role="group"` y NO `radiogroup`, aunque los dos botones sean un
-            conjunto exclusivo. Un `radiogroup` obliga a un modelo de foco —una sola parada
-            de tabulación para el grupo entero y flechas para moverse adentro— y ese modelo
-            lo fija el modelo de foco del tablero, que es donde esa pregunta se
-            contesta. Decidirlo acá de refilón sería decidirlo dos
-            veces y probablemente distinto: el `aria-pressed` de cada botón ya anuncia el
-            estado sin comprometer el foco. */}
+            Two buttons and not an ON/OFF: the two values are symmetric and neither is the
+            absence of the other. An ON/OFF would say that there is a regime and a
+            deviation, and that reading is wrong: they are not levels of difficulty, they
+            are two rules. The visual language is the one that the rest of the dock uses
+            for the active state: a dark background. */}
+        {/* The group is `role="group"` and NOT `radiogroup`, although the two buttons are an
+            exclusive set. A `radiogroup` forces a focus model: one tab stop for the whole
+            group and the arrows to move inside it. The focus model of the board fixes that
+            model, and that is where the question is answered. To decide it here in passing
+            would be to decide it twice, and probably in two ways. The `aria-pressed` of
+            each button already announces the state and does not commit the focus. */}
         <div className="flex items-center justify-between gap-1">
           <span id="rotacion-etiqueta" className="font-medium">Rotación</span>
           <div
@@ -139,44 +127,41 @@ export default function PiecePalette({ orientacion, transporte, abierto, onToggl
         </div>
         <div className="pt-2 text-sm text-slate-600">
           <p><b>{selected}</b> → tónica {CHROMATIC[BASE_MAP[selected]]}</p>
-          {/* La orientación EN TEXTO, y es lo único que el 019 suma en vez de restar. Al
-              borrar los cuatro botones de grados la orientación queda sólo DERIVABLE: de la
-              miniatura, que es ciega en 6 de las 12 piezas —hay 29 de 96 combinaciones que
-              suenan distinto sin verse distinto, y la `X` rotada cuatro veces da cuatro
-              arpegios y cero cambio en la forma—, o de los cinco nombres de `Notas
-              actuales`, que sí las distingue las ocho pero obliga a deducirla. Lo que
-              faltaba era un lector DIRECTO, que es exactamente la derivación que un panel
-              existe para ahorrar. El argumento entero está en `orientation-text.ts`.
+          {/* The orientation IN TEXT. Without it the orientation can only be DERIVED: from
+              the thumbnail, which is blind for 6 of the 12 pieces (29 of the 96
+              combinations sound different and look the same, and four rotations of the `X`
+              give four arpeggios and no change in the shape), or from the five names of
+              `Notas actuales`, which tell the eight apart but leave the deduction to the
+              reader. What was missing is a DIRECT readout, exactly the derivation that a
+              panel exists to save. The full argument is in `orientation-text.ts`.
 
-              No devuelve un botón —no se puede apretar— así que no deshace el borrado: lo
-              que se fue era el camino lento a rotar, y lo que queda es el lector.
+              It is not a button and cannot be pressed: it informs and does not turn the
+              piece.
 
-              `min-h-[1lh]` por lo mismo que el `2lh` de la línea de abajo: el peor caso
-              (`270° · reflejada`) tiene que tener su alto reservado, para que la línea no
-              mueva todo lo que tiene debajo al cambiar de orientación. Uno y no dos porque
-              entra en un renglón en todo el rango de anchos — medido en el DOM.
+              `min-h-[1lh]` for the same reason as the `2lh` of the line below: the worst
+              case (`270° · reflejada`) must have its height reserved, so that the line
+              does not move all that is below it when the orientation changes. One line and
+              not two because it fits in one line across the whole range of widths,
+              measured in the DOM.
 
-              Dice la de la PIEZA EN LA MANO y cambia al elegir otra, que
-              es lo que hace visible la memoria: volver a la `F` que dejaste a 180° tiene
-              que decir `180°`, o la memoria existe y no se ve. */}
-          {/* El botón `0°` y no un icono: en la misma tarjeta hay un `↺` —en
-              `TransportPanel.tsx`, un componente hermano, así que ni siquiera están en el
-              mismo archivo para compararlos de un vistazo— y dos «volver atrás» tienen que
-              decir cosas distintas. `0°` dice literalmente adónde lleva, recupera el
-              vocabulario de los botones de grados que el 019 borró, y es tipográficamente
-              incompatible con un glifo.
+              It says the orientation of the PIECE IN HAND and changes when another piece
+              is chosen. That makes the memory visible: back at the `F` that was left at
+              180°, it must say `180°`, or the memory exists and cannot be seen. */}
+          {/* The `0°` button and not an icon: the same dock has a `↺`, in
+              `TransportPanel.tsx`, and two "go back" controls must say different things.
+              `0°` says literally where it leads, and it cannot be confused with a glyph.
 
-              Resetea la orientación ENTERA —rotación y reflexión—, no sólo los grados: una
-              `X` reflejada suena distinto y no se ve (29 de las 96 orientaciones, spec
-              019), así que un botón que la dejara «a 0° pero reflejada» dejaría vivo justo
-              el estado invisible. Que la etiqueta diga sólo los grados no engaña, porque la
-              línea de al lado dice las dos cosas y cambia junto con el botón — y el
-              `aria-label`, que es el nombre para quien no la ve, las dice enteras.
+              It resets the WHOLE orientation, rotation and reflection, not only the
+              degrees: a reflected `X` sounds different and looks the same (29 of the 96
+              orientations), so a button that left it "at 0° but reflected" would keep
+              exactly the invisible state. The label says only the degrees and does not
+              mislead, because the readout next to it says the two things and changes with
+              the button. And the `aria-label`, the name for a user who does not see the
+              readout, says the two.
 
-              Y resetea UNA pieza y no las doce: lo que dejaba las doce mal de golpe era
-              precisamente la rotación global que este spec borra. Con memoria por pieza, si
-              la `T` está a 90° es porque rotaste la `T`. Un «resetear las doce» perdió su
-              caso de uso en el mismo movimiento que lo haría posible. */}
+              And it resets ONE piece and not the twelve. Each piece remembers its own
+              orientation: if the `T` is at 90°, it is because the user turned the `T`. A
+              "reset the twelve" has no use case. */}
           <p className="min-h-[1lh] flex items-center gap-2">
             <span>{grados}{reflejada !== null && ` · ${reflejada}`}</span>
             <button
@@ -187,32 +172,28 @@ export default function PiecePalette({ orientacion, transporte, abierto, onToggl
               className="px-1.5 rounded text-xs bg-slate-100 hover:bg-slate-200"
             >0°</button>
           </p>
-          {/* Las dos lineas van RESERVADAS, no dejadas al contenido: el largo de esta
-              linea depende de cuantos sostenidos tenga la escala, que va de 0 a 5
-              sobre las 48 combinaciones de pieza x rotacion, y al envolver movia
-              todo lo que tiene debajo —Tempo y la fila de transporte— 20 px hacia
-              abajo al cambiar de pieza O de rotacion. Un panel de control que se
-              acomoda solo cuando lo tocas es el bug: el boton se corre justo cuando
-              vas a apretarlo.
+          {/* The two lines are RESERVED, not left to the content: the length of this line
+              depends on the number of sharps in the scale, from 0 to 5 over the 48
+              combinations of piece x rotation. When the line wrapped, it moved all that is
+              below it (the tempo and the transport row) 20 px down on a change of piece OR
+              of rotation. A control panel that moves when the user touches it is the bug:
+              the button moves at the moment of the press.
 
-              Dos y no tres, medido sobre el peor string de los 48 (`F#4 · G#4 · A#4 ·
-              C#5 · D#5`, 5 sostenidos: sale en `N` rot1, `U` rot0 y `Z` rot3): ocupa
-              2 lineas desde 148 px de tarjeta —el interior a 768— hasta los 252 de
-              `max-w-6xl` saturado. El salto existia solo en la banda mas ancha, que
-              es la unica donde el mejor caso entra en una.
+              Two and not three, measured on the worst string of the 48 (`F#4 · G#4 · A#4 ·
+              C#5 · D#5`, 5 sharps: it comes from `N` rot1, `U` rot0 and `Z` rot3): it takes
+              2 lines in a container from 148 px to 252 px wide. The jump existed only in
+              the widest band, the only one where the best case fits in one line.
 
-              `2lh` y no `min-h-10`: son los mismos 40 px hoy porque `text-sm` da 20
-              de interlineado, pero atado a la fuente en vez de a un numero que habria
-              que recordar actualizar. */}
+              `2lh` and not `min-h-10`: they are the same 40 px today because `text-sm`
+              gives a line height of 20 px, but `2lh` is tied to the font and not to a
+              number that someone must remember to update. */}
           <p className="min-h-[2lh]">Notas actuales: {noteSet.map(m => midiName(m)).join(" · ")}</p>
         </div>
         <TransportPanel transporte={transporte} />
-        {/* La leyenda de gestos, mudada aca desde el `<footer>` del shell.
-            No se borra: es el UNICO lugar donde los cuatro gestos directos y la letra
-            estan escritos, y sacarla los vuelve invisibles otra vez — el problema que
-            su propio comentario decia haber resuelto. Y no puede quedar debajo del tablero,
-            que es donde estaba: eso le daria scroll vertical a la pagina, que es lo primero
-            que AC1 prohibe. */}
+        {/* The gesture legend. It is not deleted: it is the ONLY place where the four direct
+            gestures and the letter are written, and without it they are invisible. And it
+            cannot go below the board: that would give the page a vertical scroll, and the
+            page must have none. */}
         <p className="mt-4 border-t pt-3 text-xs text-slate-500">
           Rotación cambia la fórmula de escala o el arranque del arpegio, según el régimen; Reflexión invierte el orden (retrógrado).
           {' '}Click en tablero para colocar y escuchar.

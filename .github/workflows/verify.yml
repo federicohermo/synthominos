@@ -1,32 +1,33 @@
-# El nodo de convergencia del repo, corrido por la maquina y no por la memoria de quien commitea.
+# The convergence node of the repo, run by the machine and not by the memory of the person who
+# commits.
 #
-# Por que corre `pnpm verify` entero y NO enumera sus nodos como pasos separados:
+# Why it runs the whole `pnpm verify` and does NOT list its nodes as separate steps:
 #
-#   1. La forma exacta de ese script ya costo dos trampas de la familia «fallar en verde» —el filtro
-#      `{.}`, sin el cual `--parallel` excluye el paquete raiz y reporta exito sin correr nada de la
-#      app, y el `$` del regex, sin el cual el patron engancha `test:watch` y arranca un segundo
-#      vitest—. Enumerar los nodos aca crearia un segundo lugar donde esa forma vive, y el dia que
-#      alguien toque el script la CI seguiria corriendo el viejo.
-#   2. Y no es principio: hay evidencia. El spec 029 le cambio la forma —el nodo `test` paso a ser
-#      `suite`, que es `test && coverage` con umbral 100—. Un workflow que enumerara nodos habria
-#      quedado corriendo `test` a secas, o sea verde sin el gate de coverage, que es exactamente el
-#      modo de falla que este workflow existe para cerrar.
+#   1. The exact form of that script already cost two traps of the "failing green" family: the
+#      `{.}` filter, without which `--parallel` excludes the root package and reports success
+#      with nothing of the app run, and the `$` of the regex, without which the pattern catches
+#      `test:watch` and starts a second vitest. A list of the nodes here would be a second place
+#      where that form lives, and the day someone changes the script, CI would still run the
+#      old one.
+#   2. The form does change. `suite` is the node that gates coverage at 100. A workflow that
+#      lists a bare `test` node is green without the coverage gate, which is exactly the
+#      failure mode this workflow exists to close.
 #
-# Lo que este workflow NO hace, a proposito:
+# What this workflow does NOT do, on purpose:
 #
-#   - No arma matriz de Node (D2 del spec 023). `mcp-server` declara `engines: >=22.18`, asi que una
-#     matriz 20 x 22 haria fallar el nodo del server en 20 por un piso de tooling que ya esta
-#     declarado y decidido. El requisito de Vite (^20.19 || >=22.12) se verifica solo, por el
-#     `engines` del `package.json` raiz.
-#   - No despliega. Vercel ya lo hace, con su propio `buildCommand` en `vercel.json`.
+#   - It builds no Node matrix. `mcp-server` declares `engines: >=22.18`, so a 20 x 22 matrix
+#     would fail the node of the server on 20, for a tooling floor that is already declared and
+#     decided. The requirement of Vite (^20.19 || >=22.12) verifies itself, through the
+#     `engines` of the root `package.json`.
+#   - It does not deploy. Vercel does that, with its own `buildCommand` in `vercel.json`.
 name: verify
 
 on:
   pull_request:
-  # Las DOS ramas, desde que `main` es la rama de release y `staging` la de integracion. `staging`
-  # esta primero porque es donde aterriza el trabajo: es el push que de verdad hay que verificar. El
-  # de `main` se queda porque un PR de promocion mergeado es un push mas, y la rama que se deploya no
-  # puede ser la unica sin corrida propia.
+  # BOTH branches: `main` is the release branch and `staging` the integration branch. `staging`
+  # is first because the work lands there: it is the push that most needs the check. `main`
+  # stays because a merged promotion PR is one more push, and the branch that deploys cannot be
+  # the only one with no run of its own.
   push:
     branches: [staging, main]
 
@@ -39,43 +40,41 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # La version de pnpm sale de `packageManager`. Vercel NO la lee de ahi —deduce pnpm del
-      # `lockfileVersion` salvo con ENABLE_EXPERIMENTAL_COREPACK=1, ver docs/infra/deploy.md—, asi
-      # que este pin vale para la CI y para local, no para el deploy.
-      # Sin `version:` la action la lee de ahi sola, y ese numero sigue viviendo en un solo lugar.
-      # Va ANTES de setup-node porque `cache: pnpm` necesita el binario ya instalado.
+      # The pnpm version comes from `packageManager`. Vercel does NOT read it from there (it
+      # infers pnpm from the `lockfileVersion` unless ENABLE_EXPERIMENTAL_COREPACK=1, see
+      # docs/infra/deploy.md), so this pin holds for CI and for local, not for the deploy.
+      # With no `version:` the action reads it from there by itself, and that number lives in
+      # one place.
+      # It goes BEFORE setup-node because `cache: pnpm` needs the binary already installed.
       - uses: pnpm/action-setup@v4
 
-      # Version EXACTA y no `22` a secas, que resuelve a la ultima 22.x del dia y convierte
-      # al runtime del gate en un blanco movil: el mismo commit puede dar verde hoy y rojo
-      # el mes que viene sin que nadie toque una linea.
+      # An EXACT version and not a bare `22`, which resolves to the latest 22.x of the day and
+      # makes the runtime of the gate a moving target: the same commit can be green today and
+      # red next month with no line changed.
       #
-      # Ese es el UNICO argumento del pin, y hay que decirlo porque se probo otro y salio
-      # mal: se fijo la version sospechando que V8 contaba ramas distinto entre minors y que
-      # eso explicaba el `99.64% branch coverage` de `symbols.ts` en `mcp:test`. Quedo
-      # falsificado — con 22.18.0 fijo el numero es identico—, asi que el pin NO arreglo ese
-      # rojo. Lo arreglo despues el comparador del `sort` de `walk()`, que tenia una rama
-      # cuya cobertura dependia del orden del filesystem; el porque vive en su docblock.
-      # El pin se queda por reproducibilidad, y nunca fue por ese sintoma.
+      # That is the ONLY argument for the pin: reproducibility. The pin fixes no coverage
+      # number. Measured: the branch coverage of `symbols.ts` in `mcp:test` is identical with
+      # 22.18.0 pinned and without the pin. A coverage that depends on the machine is fixed in
+      # the code, not here: see the docblock of `walk()` in `symbols.ts`.
       #
-      # El piso del proyecto sigue siendo el `engines` (^20.19.0 || >=22.12.0): esto no lo
-      # estrecha, elige UNA version adentro de el. Subirla es un cambio deliberado, con
-      # `pnpm verify` corrido en la version nueva antes.
+      # The floor of the project is still the `engines` (^20.19.0 || >=22.12.0): this does not
+      # narrow it, it chooses ONE version inside it. To raise it is a deliberate change, with
+      # `pnpm verify` run on the new version first.
       - uses: actions/setup-node@v5
         with:
           node-version: 22.18.0
           cache: pnpm
 
-      # Congelado: una deriva entre `package.json` y `pnpm-lock.yaml` rompe la CI en vez de
-      # resolverse sola.
+      # Frozen: a drift between `package.json` and `pnpm-lock.yaml` breaks CI and does not
+      # resolve by itself.
       - run: pnpm install --frozen-lockfile
 
-      # Chromium no esta en el lockfile y desde el spec 029 hay tests que corren en uno de verdad
-      # —es la unica forma de cubrir el canvas del espectro y el `AudioContext` del motor—. Un runner
-      # es un clone nuevo en cada corrida, asi que sin este paso el job no llega a ejecutar un test,
-      # y con el job muerto no habria como distinguir un rojo real de un binario que falta.
-      # `--with-deps` porque el runner de Ubuntu no trae las librerias de sistema que Chromium pide:
-      # sin el flag el binario baja y falla igual al lanzarlo.
+      # Chromium is not in the lockfile, and some tests run in a real one: it is the only way
+      # to cover the canvas of the spectrum and the `AudioContext` of the engine. A runner is a
+      # new clone on each run, so without this step the job does not get to run a test, and
+      # with the job dead a real red could not be told from a missing binary.
+      # `--with-deps` because the Ubuntu runner does not bring the system libraries Chromium
+      # asks for: without the flag the binary downloads and still fails on launch.
       - run: pnpm exec playwright install --with-deps chromium
 
       - run: pnpm verify

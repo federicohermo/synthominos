@@ -2,10 +2,10 @@ import type { PieceKey } from '../../src/pieces/pieces.ts';
 import { SHAPES } from '../../src/pieces/pieces.ts';
 
 /**
- * Las 12 letras, sacadas de `SHAPES` y **no escritas de nuevo**: si el dominio
- * agrega una pieza, los schemas de las tools la aceptan sin tocar el server.
+ * The 12 letters, read from `SHAPES` and **not written again**: if the domain adds a
+ * piece, the schemas of the tools accept it with no change to the server.
  *
- * El cast fija la forma de tupla no vacia que `z.enum` necesita para inferir el
- * union type; los valores son los del dominio, no una copia.
+ * The cast gives the non-empty tuple shape that `z.enum` needs to infer the union type.
+ * The values are those of the domain, not a copy.
  */
 export const PIECE_KEYS = Object.keys(SHAPES) as [PieceKey, ...PieceKey[]];

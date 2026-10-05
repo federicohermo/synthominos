@@ -1,35 +1,36 @@
 import type { ReadResourceResult, ResourceMetadata } from '@modelcontextprotocol/server';
 
 /**
- * El contrato de un resource: nombre, URI, metadata y handler COLOCADOS en un solo
- * archivo, igual que `tools/types.ts`.
+ * The contract of a resource: name, URI, metadata and handler TOGETHER in one file, as
+ * in `tools/types.ts`.
  *
- * Agregar un resource es un archivo nuevo mas una linea en `resources/index.ts`; el
- * entrypoint no se toca y no hay ningun `switch`.
+ * A new resource is one new file plus one line in `resources/index.ts`. The entry point
+ * does not change and there is no `switch`.
  *
- * La diferencia con una tool es de INTENCION y no de mecanica: una tool es una pregunta
- * con argumentos y un resource es contenido que el cliente puede traerse entero y adjuntar
- * al contexto. Por eso `read` no recibe argumentos: la URI es fija.
+ * The difference from a tool is one of INTENT, not of mechanics: a tool is a question
+ * with arguments, and a resource is content that the client can fetch whole and attach
+ * to the context. That is why `read` takes no arguments: the URI is fixed.
  */
 
 /**
- * `config` se tipa `ResourceMetadata` PELADO y no `ResourceMetadata & { cacheHint }`, que
- * es lo que acepta `registerResource`.
+ * `config` has the BARE type `ResourceMetadata`, not `ResourceMetadata & { cacheHint }`,
+ * which is what `registerResource` accepts.
  *
- * **No es una omision: es lo que hace que el chequeo de propiedades de mas rechace un
- * `cacheHint` escrito en un resource.**
+ * **This is not an omission: it makes the excess property check reject a `cacheHint`
+ * written in a resource.**
  *
- * El motivo es la propiedad entera de este server: lo que lo vuelve confiable es que nada
- * pueda quedar viejo —no hay build, no hay indice persistido, la respuesta sale del codigo
- * de HEAD en el momento de la consulta—. Una respuesta cacheada es exactamente lo
- * contrario, y ademas fallaria en silencio: el numero contestado seguiria siendo plausible.
- * Si algun dia hiciera falta, el cambio se ve en ESTE tipo y hay que explicarlo.
+ * The reason is the whole property of this server. It is reliable because nothing can go
+ * stale: there is no build, no persisted index, and the answer comes from the code of
+ * HEAD at the time of the query. A cached answer is the exact opposite, and it would
+ * fail silently: the number in the answer would still look plausible. If a cache is ever
+ * needed, the change shows in THIS type and needs an explanation.
  *
- * `read` se declara con un solo parametro y devolviendo `ReadResourceResult` a secas, en vez
- * de reusar el `ReadResourceCallback` del SDK —que ademas recibe un `ServerContext` y admite
- * promesas y `InputRequiredResult`—. Es la misma eleccion que `ToolDef.run`, por el mismo
- * motivo: aca adentro no hay nada asincronico ni nada que preguntarle al cliente, y una
- * firma mas angosta es asignable a la ancha, asi que el registro compila igual.
+ * `read` is declared with one parameter and returns a plain `ReadResourceResult`. It
+ * does not reuse the `ReadResourceCallback` of the SDK, which also takes a
+ * `ServerContext` and allows promises and `InputRequiredResult`. It is the same choice
+ * as `ToolDef.run`, for the same reason: nothing here is asynchronous and nothing asks
+ * the client. A narrower signature is assignable to the wide one, so the registration
+ * compiles.
  */
 export interface ResourceDef {
   name: string;
@@ -39,16 +40,18 @@ export interface ResourceDef {
 }
 
 /**
- * Respuesta normal de un resource: JSON serializado como texto.
+ * The normal answer of a resource: JSON serialized as text.
  *
- * Es el `json` de las tools con el sobre que pide el otro lado del protocolo —un resource
- * contesta `contents` y no `content`, y cada entrada repite la URI que se pidio—.
+ * It is the `json` of the tools in the envelope that the other side of the protocol
+ * asks for: a resource answers `contents` and not `content`, and each entry repeats the
+ * URI of the request.
  *
- * La URI se toma del parametro y no de la constante del resource: es la que el cliente
- * pidio, y devolver otra es contestar sobre algo que nadie pregunto.
+ * The URI comes from the parameter and not from the constant of the resource: it is the
+ * one the client asked for, and to return a different one is to answer a question nobody
+ * asked.
  *
- * Compacto y no indentado por lo mismo que en las tools: el consumidor es un agente y lo
- * que se mide es cuantos tokens cuesta la respuesta.
+ * Compact and not indented, for the same reason as in the tools: the consumer is an
+ * agent, and what is measured is how many tokens the answer costs.
  */
 export const jsonResource = (uri: URL, value: unknown): ReadResourceResult =>
   ({ contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(value) }] });

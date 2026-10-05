@@ -1,50 +1,48 @@
 
 /**
- * Geometria de las piezas: rotacion, reflexion y normalizacion.
+ * The geometry of the pieces: rotation, reflection and normalization.
  *
- * INVARIANTE que no hay que romper: las tres son `map`, asi que **la celda del
- * indice `k` sigue siendo la misma celda logica despues de transformar**.
- * `ANCHOR_INDEX` depende de esto —guarda la celda de agarre como indice, no como
- * coordenada—, y todo lo que resuelva un indice contra `PlacedPiece.cells` tambien.
- * Filtrar, ordenar o reagrupar celdas
- * dentro de estas funciones rompe la colocacion de piezas **sin ningun error
- * visible**.
+ * A RULE that must not break: the three are a `map`, so **the cell at index `k` is the
+ * same logical cell after a transformation**. `ANCHOR_INDEX` depends on it, because it
+ * stores the grip cell as an index and not as a coordinate. So does everything that
+ * resolves an index against `PlacedPiece.cells`. To filter, sort or regroup cells inside
+ * these functions breaks the placement of pieces **with no visible error**.
  *
- * `y` crece hacia ABAJO: son coordenadas de grilla, no cartesianas, asi que el
- * recorrido angular va en sentido horario en pantalla.
+ * `y` grows DOWN: these are grid coordinates, not Cartesian ones, so the angular order
+ * goes clockwise on screen.
  */
 
-/** Celda de la grilla, `[x, y]`. `y` crece hacia ABAJO: son coordenadas de grilla, no cartesianas. */
+/** A cell of the grid, `[x, y]`. `y` grows DOWN: grid coordinates, not Cartesian ones. */
 export type Cell = [number, number];
 
-/** Rotacion de 90°. Produce `-0` cuando `x = 0`; ver `sameCell` en invariants.ts. */
+/** A rotation of 90°. It gives `-0` when `x = 0`: see `sameCell` in invariants.ts. */
 export function rotate90(cells: Cell[]): Cell[] { return cells.map(([x,y]): Cell => [y, -x]); }
 
-/** Traslada la forma para que su esquina superior izquierda quede en (0,0). */
+/** Moves the shape so that its top left corner is at (0,0). */
 export function normalize(cells: Cell[]): Cell[]{
   const minx = Math.min(...cells.map(c=>c[0]));
   const miny = Math.min(...cells.map(c=>c[1]));
   return cells.map(([x,y]) => [x-minx, y-miny]);
 }
 
-/** `n` rotaciones de 90°, normalizando en cada paso. */
+/** `n` rotations of 90°, with a normalization at each one. */
 export function rotateN(cells: Cell[], n: number): Cell[]{ let r = normalize(cells); for(let i=0;i<n;i++) r = normalize(rotate90(r)); return r; }
 
-/** Espejo vertical: `x -> -x`, renormalizado. */
+/** The left-right mirror: `x -> -x`, normalized again. */
 export function reflect(cells: Cell[]): Cell[]{
   const refl: Cell[] = cells.map(([x,y]): Cell => [-x, y]);
   return normalize(refl);
 }
 
 /**
- * Centro de masa de una forma: el promedio de las coordenadas.
+ * The center of mass of a shape: the mean of its coordinates.
  *
- * Promedio y no centro de la bounding box: es lo que hace que el recorrido
- * angular quede repartido alrededor de la MASA de la pieza y no de su caja.
- * En una `L` las dos cosas caen en lugares distintos.
+ * It is the mean and not the center of the bounding box. That spreads the angular order
+ * around the MASS of the piece and not around its box. In an `L` the two are in different
+ * places.
  *
- * Casi nunca da enteros —es un promedio de quintos—, asi que comparar contra
- * el resultado pide epsilon y no `===`.
+ * The result is almost never an integer, because it is a mean of fifths. So a comparison
+ * with it needs an epsilon and not `===`.
  */
 export function centroid(cells: readonly Cell[]): [number, number] {
   let sx = 0, sy = 0;
@@ -53,133 +51,133 @@ export function centroid(cells: readonly Cell[]): [number, number] {
 }
 
 /**
- * Angulo de una celda vista desde el centroide, normalizado a `[0, 2π)`.
+ * The angle of a cell as seen from the centroid, normalized to `[0, 2π)`.
  *
- * `y` crece hacia ABAJO: son coordenadas de grilla, no cartesianas, asi que el
- * angulo crece en sentido HORARIO en pantalla y la celda al SUR del centroide
- * da `π/2` y no `-π/2`. No esta mal — es exactamente la clase de detalle que
- * alguien "arregla" por error, y por eso tiene un test propio.
+ * `y` grows DOWN: these are grid coordinates, not Cartesian ones. So the angle grows
+ * CLOCKWISE on screen, and the cell SOUTH of the centroid gives `π/2` and not `-π/2`.
+ * This is not wrong. It is exactly the kind of detail that someone "fixes" by mistake,
+ * and so it has its own test.
  *
- * La normalizacion a `[0, 2π)` no es cosmetica: `atan2` devuelve `(-π, π]`, que
- * corta el anillo justo al oeste, y ordenar con eso pondria las celdas del
- * noroeste antes que las del norte.
+ * The normalization to `[0, 2π)` is not cosmetic: `atan2` returns `(-π, π]`, which cuts
+ * the ring exactly at the west. A sort on that would put the cells of the northwest
+ * before those of the north.
  */
 export function angleFromCentroid(cell: Cell, cent: readonly [number, number]): number {
   const twoPi = 2 * Math.PI;
   const a = Math.atan2(cell[1] - cent[1], cell[0] - cent[0]);
   if (a >= 0) return a;
 
-  // El intervalo es SEMIABIERTO y la suma sola no lo garantiza: con `a` negativo
-  // mas chico que el ulp de 2π (~8,9e-16) —una celda apenas al norte del este—,
-  // `a + 2π` redondea a exactamente 2π y el resultado se sale del rango.
+  // The interval is HALF-OPEN, and the sum alone does not guarantee it. With a negative
+  // `a` smaller than the ulp of 2π (~8.9e-16), a cell just north of east, `a + 2π` rounds
+  // to exactly 2π and the result leaves the range.
   //
-  // No cambia ningun orden: 2π y 2π-ulp caen los dos al final del anillo, que es
-  // donde va esa celda. Se acota igual porque el rango es el contrato que lee
-  // `degreeByCellIndex`, y esta funcion recibe formas arbitrarias a proposito —
-  // con las 12 de `SHAPES` no puede pasar, porque las coordenadas son enteras y
-  // el centroide es una suma sobre 5, asi que `dy` o es cero exacto o es O(0,1).
+  // It changes no order: 2π and 2π-ulp are both at the end of the ring, where that cell
+  // belongs. The bound is there because the range is the contract that
+  // `degreeByCellIndex` reads, and this function takes arbitrary shapes on purpose. With
+  // the 12 of `SHAPES` it cannot occur: the coordinates are integers and the centroid is
+  // a sum over 5, so `dy` is exactly zero or it is O(0.1).
   const norm = a + twoPi;
   return norm < twoPi ? norm : twoPi * (1 - Number.EPSILON);
 }
 
 /**
- * Distancia Manhattan entre dos celdas: cuantos pasos ortogonales hay de una a la
- * otra. Vale 1 cuando son vecinas por arriba, abajo, izquierda o derecha.
+ * The Manhattan distance between two cells: the count of orthogonal moves from one to
+ * the other. It is 1 when the two share a side.
  *
- * Es la distancia con la que `pathThroughCells` MIDE, no con la que decide si dos
- * celdas se tocan — eso lo dice `seTocan`. La diferencia es lo que hace que la
- * diagonal se tolere pero no se prefiera: vale 2, o sea el doble que un paso recto.
+ * `pathThroughCells` MEASURES with this distance. It does not use it to decide whether
+ * two cells touch: `seTocan` says that. The difference is what makes the diagonal
+ * tolerated but not preferred: it is 2, twice a straight move.
  */
 function manhattan(a: Cell, b: Cell): number { return Math.abs(a[0]-b[0]) + Math.abs(a[1]-b[1]); }
 
 /**
- * Si dos celdas SE TOCAN: comparten un lado o una esquina.
+ * Whether two cells TOUCH: they share a side or a corner.
  *
- * Es la relacion que `pathThroughCells` intenta encadenar, y **es mas laxa que la
- * regla del instrumento a proposito**. El recorrido entre piezas se mueve solo en
- * cruz —`routeBetween` no conoce la diagonal y este spec no la toca—; adentro de la
- * pieza la diagonal se tolera porque cuatro de las doce no admiten recorrido en cruz
- * y la alternativa es peor: la `T` pasaba POR ENCIMA de una celda propia que todavia
- * no habia sonado, para volver a ella dos pasos despues. Un paso en diagonal al menos
- * llega a una celda que se toca con la anterior.
+ * It is the relation that `pathThroughCells` tries to chain, and **it is looser than the
+ * rule of the instrument on purpose**. The circuit between pieces moves only up, down,
+ * left and right: `routeBetween` knows no diagonal. Inside the piece the diagonal is
+ * tolerated, because four of the twelve pieces admit no orthogonal walk and the
+ * alternative is worse: the `T` would pass OVER one of its own cells that has not sounded
+ * yet, and come back to it two moves later. A diagonal move at least reaches a cell that
+ * touches the one before.
  *
- * Con esta relacion las 12 piezas se recorren enteras. Con la ortogonal pura eran 8,
- * y las 4 que faltaban no era por el algoritmo sino por la forma: su grafo de celdas
- * es un arbol con un nodo de 3 o 4 vecinos.
+ * With this relation the walk covers each of the 12 pieces whole. With the pure
+ * orthogonal relation it covers 8. The other 4 fail because of their shape and not
+ * because of the algorithm: their graph of cells is a tree with a node of 3 or 4 links.
  */
 function seTocan(a: Cell, b: Cell): boolean {
   return Math.max(Math.abs(a[0]-b[0]), Math.abs(a[1]-b[1])) === 1;
 }
 
-/** Compara dos secuencias posicion por posicion. Negativo si `a` va antes. */
+/** Compares two sequences position by position. Negative if `a` comes first. */
 function lex(a: readonly number[], b: readonly number[]): number {
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i];
   return 0;
 }
 
 /**
- * El recorrido que visita todas las celdas de una forma moviendose lo mas posible a una
- * celda VECINA.
+ * The walk that visits every cell of a shape and moves to a TOUCHING cell as often as
+ * possible.
  *
- * Devuelve el ORDEN DE VISITA POR POSICION: el elemento `g` es el indice de la celda que
- * el camino pisa en el paso `g`.
+ * It returns the ORDER OF VISIT BY POSITION: element `g` is the index of the cell that
+ * the walk visits at position `g`.
  *
- * Ojo con la direccion de lectura, porque es la inversa de la que devuelve
- * `degreeByCellIndex` —que es "el grado de la celda `k`"— y las dos son permutaciones
- * de `0..n-1`, asi que confundirlas compila y da otra musica. La asimetria es
- * deliberada: un camino es una SECUENCIA de celdas, un mapeo de grados es una TABLA
- * por celda. La vuelta la da `music.ts` en una linea.
+ * Take care with the direction of reading. It is the inverse of what `degreeByCellIndex`
+ * returns, which is "the degree of cell `k`". The two are permutations of `0..n-1`, so to
+ * confuse them compiles and gives other music. The asymmetry is deliberate: a walk is a
+ * SEQUENCE of cells, and a map of degrees is a TABLE by cell. `music.ts` inverts it in
+ * one line.
  *
- * `tiebreak[k]` es el rango de la celda `k` para desempatar, menor gana. Entra por
- * parametro y no se calcula aca porque el criterio es musical —hoy es el orden
- * angular— y `music.ts` esta aguas abajo: esta capa no puede importarlo
- * y no tiene por que saber que existe un grado.
+ * `tiebreak[k]` is the rank of cell `k` for the tie-break, and the smaller wins. It comes
+ * as a parameter and is not computed here because the criterion is musical (today it is
+ * the angular order) and `music.ts` is downstream: this module cannot import it and has
+ * no reason to know that a degree exists.
  *
- * ## Los cuatro criterios, en orden
+ * ## The four criteria, in order
  *
- * 1. **La mayor cantidad de pasos a una celda que SE TOCA con la anterior**
- *    (`seTocan`: lado o esquina). Es el pedido: el arpegio recorre la pieza en vez de
- *    saltar por adentro de su propia forma. Con las 12 piezas se cumple entero.
- * 2. **A igualdad, la menor suma de distancias MANHATTAN.** Las dos metricas juntas
- *    son lo que hace que la diagonal se **tolere sin preferirse**: para el criterio 1
- *    un paso en diagonal es tan bueno como uno recto, pero para el 2 cuesta el doble,
- *    asi que solo se usa donde la forma no da para un paso recto.
- * 3. **A igualdad, los pasos largos LO MAS AL PRINCIPIO posible** (secuencia de
- *    distancias lexicograficamente mayor). Con la diagonal aceptada este criterio ya
- *    no separa "continuo" de "cortado" —todos los pasos llegan a una celda que se
- *    toca— pero **se queda**, y no por inercia: es lo unico que separa las dos
- *    versiones de la `Y`, y la referencia del pedido eligio a mano la que pone el
- *    paso diagonal primero.
- * 4. **A igualdad, el `tiebreak` lexicograficamente menor.** Se ejerce SIEMPRE, y no
- *    es un detalle: un camino y su inverso son igual de buenos en los tres criterios
- *    anteriores, asi que sin este el orden de las notas dependeria de por donde el
- *    `for` empezo a mirar.
+ * 1. **The most moves to a cell that TOUCHES the one before** (`seTocan`: a side or a
+ *    corner). This is the request: the arpeggio walks the piece and does not jump across
+ *    its own shape. The 12 pieces meet it in full.
+ * 2. **On a tie, the smallest sum of MANHATTAN distances.** The two metrics together make
+ *    the diagonal **tolerated but not preferred**: for criterion 1 a diagonal move is as
+ *    good as a straight one, but for criterion 2 it costs twice as much. So it occurs
+ *    only where the shape gives no straight move.
+ * 3. **On a tie, the long moves AS EARLY as possible** (the lexicographically largest
+ *    sequence of distances). With the diagonal accepted, this criterion does not separate
+ *    "continuous" from "cut", because every move reaches a touching cell. **It stays**,
+ *    and not by inertia: it is the only thing that separates the two versions of the `Y`,
+ *    and the reference of the request chose by hand the one that puts the diagonal move
+ *    first.
+ * 4. **On a tie, the lexicographically smallest `tiebreak`.** It ALWAYS applies, and it
+ *    is not a detail: a walk and its reverse are equally good in the three criteria
+ *    before, so without this one the order of the notes would depend on where the `for`
+ *    started to look.
  *
- * Los criterios 1 y 2 se empaquetan en un entero —`(se tocan ? 0 : BASE) + distancia
- * manhattan`— y los resuelve la programacion dinamica, que suma y compara sumas.
- * `BASE` sale de la forma y no es un numero fijo: con `1 + n * maxDistancia` es mayor
- * que cualquier camino posible, asi que el campo de la distancia no puede acarrear al
- * de los saltos. Es la misma tecnica que `claveDeTramo` en `sequence.ts`, con la misma
- * trampa: achicar `BASE` no falla en rojo, reordena las notas en silencio.
+ * Criteria 1 and 2 are packed into one integer, `(touch ? 0 : BASE) + Manhattan
+ * distance`, and the dynamic programming resolves them: it adds, and compares sums.
+ * `BASE` comes from the shape and is not a fixed number: `1 + n * maxDistance` is larger
+ * than any possible walk, so the field of the distance cannot carry into the field of
+ * the jumps. It is the same technique as `claveDeTramo` in `sequence.ts`, with the same
+ * trap: a smaller `BASE` turns no test red. It reorders the notes in silence.
  *
- * Los criterios 3 y 4 no son aditivos —dependen de la POSICION del paso, no solo del
- * paso— asi que se resuelven despues, recorriendo unicamente las ramas que alcanzan
- * el optimo.
+ * Criteria 3 and 4 are not additive: they depend on the POSITION of the move and not only
+ * on the move. So they are resolved after, on the branches that reach the optimum and on
+ * no other.
  *
- * ## Costo
+ * ## Cost
  *
- * Held-Karp de camino abierto, `O(n^2 * 2^n)`: con `n = 5` son 160 estados y 4 µs por
- * llamada, contra 0,57 del orden angular que reemplaza. El recorrido posterior visita
- * solo caminos optimos —72 en el peor caso de las 12 piezas, que es la `X`—. El
- * argumento es el mismo con el que `shortestCircuit` justifica el TSP exacto: `n` esta
- * acotado por las reglas del juego, y aca mas fuerte todavia, porque `CELLS_PER_PIECE`
- * es la definicion de la familia de piezas y no un parametro. Con una forma de 12
- * celdas serian 590 mil operaciones; con 20, no termina.
+ * Held-Karp for an open path, `O(n^2 * 2^n)`: with `n = 5` it is 160 states and 4 µs for
+ * each call, against 0.57 µs for the angular order alone. The pass after it visits only
+ * optimal walks: 72 in the worst case of the 12 pieces, which is the `X`. The argument is
+ * the same one that justifies the exact TSP in `shortestCircuit`: the rules of the
+ * instrument bound `n`. Here it is stronger still, because `CELLS_PER_PIECE` is the
+ * definition of the family of pieces and not a parameter. A shape of 12 cells would take
+ * 590 thousand operations. With 20, it does not end.
  */
 export function pathThroughCells(cells: readonly Cell[], tiebreak: readonly number[]): number[] {
   const n = cells.length;
-  // Con 0, 1 o 2 celdas no hay nada que optimizar y decide el desempate solo. Sale
-  // aparte porque el bucle de abajo asume que hay al menos un paso que elegir.
+  // With 0, 1 or 2 cells there is nothing to optimize and the tie-break alone decides. It
+  // is a separate exit because the loop below assumes at least one move to choose.
   if (n <= 2) return cells.map((_, k) => k).sort((a, b) => tiebreak[a] - tiebreak[b]);
 
   const dist = cells.map(a => cells.map(b => manhattan(a, b)));
@@ -188,10 +186,10 @@ export function pathThroughCells(cells: readonly Cell[], tiebreak: readonly numb
   const BASE = 1 + n * maxDist;
   const costo = cells.map((a, i) => cells.map((b, j) => (seTocan(a, b) ? 0 : BASE) + dist[i][j]));
 
-  // g[j][mask] = costo minimo de arrancar en `j` y visitar todo `mask`, con `j` fuera
-  // de `mask`. Va HACIA ATRAS por el mismo motivo que `shortestCircuit`: asi el camino
-  // se reconstruye hacia ADELANTE y el desempate se puede aplicar en el orden en que
-  // las decisiones se toman, que es lo que los criterios 3 y 4 necesitan.
+  // g[j][mask] = the minimum cost to start at `j` and visit all of `mask`, with `j` not
+  // in `mask`. It runs BACKWARD for the same reason as `shortestCircuit`: the walk is
+  // then rebuilt FORWARD, and the tie-break applies in the order in which the decisions
+  // are made, which criteria 3 and 4 need.
   const size = 1 << n;
   const g = new Array<number>(n * size).fill(0);
   for (let mask = 1; mask < size; mask++) {
@@ -201,8 +199,8 @@ export function pathThroughCells(cells: readonly Cell[], tiebreak: readonly numb
       for (let k = 0; k < n; k++) {
         const bit = 1 << k;
         if (!(mask & bit)) continue;
-        // `mask ^ bit` es menor que `mask`, asi que ya esta calculado. No hace falta
-        // centinela de inalcanzable: el grafo es completo, todo estado tiene camino.
+        // `mask ^ bit` is smaller than `mask`, so it is already computed. No sentinel for
+        // "unreachable" is necessary: the graph is complete, so every state has a walk.
         const c = costo[j][k] + g[k * size + (mask ^ bit)];
         if (c < best) best = c;
       }
@@ -217,10 +215,10 @@ export function pathThroughCells(cells: readonly Cell[], tiebreak: readonly numb
     if (c < optimo) optimo = c;
   }
 
-  // Entre los caminos que alcanzan el optimo gana el de distancias lexicograficamente
-  // MAYORES (criterio 3, los saltos primero) y a igualdad el de `tiebreak` menores
-  // (criterio 4). Solo se baja por las ramas que todavia alcanzan el optimo, asi que
-  // el recorrido no es una fuerza bruta sobre las n! permutaciones.
+  // Among the walks that reach the optimum, the one with the lexicographically LARGEST
+  // distances wins (criterion 3, the jumps first), and on a tie the one with the smallest
+  // `tiebreak` (criterion 4). The descent takes only the branches that still reach the
+  // optimum, so it is not a brute force over the n! permutations.
   let mejor: number[] = [], mejorDist: number[] = [], mejorRango: number[] = [];
   const camino: number[] = [], dists: number[] = [];
 
