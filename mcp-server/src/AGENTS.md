@@ -25,8 +25,8 @@ three lines at most. What the code does is not a comment. A decision with a cost
 | `comment-anchor` | `history` | `previously`, `formerly`, `until recently`, `no longer`, `anymore`, `used to be` |
 | `comment-anchor` | `provenance` | A spec of the old regime: `spec 031`, a bare `031` used as a name, `AC6` |
 
-A run of consecutive `//` lines is **one** comment for both rules. A directive (`eslint`, `ts-`,
-`c8`) is not read.
+A run of consecutive `//` lines on one column is **one** comment for both rules. Two lines of code
+that each end with a `//` are two comments. A directive (`eslint`, `ts-`, `c8`) is not read.
 
 ## A citation must resolve
 
