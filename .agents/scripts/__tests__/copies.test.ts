@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { MODULES_DOC, modulesDoc } from '../modules.ts';
 import { COPIES, GENERATED_MARK, codexAgent, contractSection, differences, planCopies, realDisk, rebaseLinks, ruleFolders, sync, type Disk, type Tree } from '../copies.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -87,6 +88,12 @@ describe('planCopies', () => {
     expect(agents).toContain('`.agents/rules/a.md`, `.agents/rules/b.md`');
     expect(agents.indexOf('# A')).toBeLessThan(agents.indexOf('# B'));
     expect(agents).toContain('> Applies to `src/App.tsx`.\n\n# A');
+  });
+
+  it('writes the module map from the modules of `src/`, with CRLF read as LF', () => {
+    const modules = (eol: string): [string, string][] => [['src/a/a.ts', `import { b } from './b.ts';${eol}`], ['src/a/b.ts', `export const b = 1;${eol}`]];
+    expect(planCopies(new Map([...sources(), ...modules('\r\n')])).files.get(MODULES_DOC)).toBe(modulesDoc(new Map(modules('\n'))));
+    expect(planCopies(new Map(sources())).files.has(MODULES_DOC)).toBe(false);
   });
 
   it('opens the AGENTS.md of a capability folder with its contract, then the rules that cover it', () => {
@@ -251,11 +258,14 @@ describe('realDisk', () => {
     put('.claude/rules/r.md', 'copy');
     put('src/AGENTS.md', 'agents');
     put('node_modules/p/AGENTS.md', 'dependency');
-    put('src/app.ts', 'not read');
+    put('src/app.ts', 'module');
+    put('src/__tests__/app.test.ts', 'not read');
+    put('docs/architecture/modules.md', 'generated');
+    put('docs/architecture/other.md', 'not read');
     put('specs/alpha/alpha.md', 'contract');
     put('specs/alpha/notes.md', 'companion, not read');
     const disk = realDisk(root);
-    expect([...disk.read().keys()].sort()).toEqual(['.agents/rules/r.md', '.claude/rules/r.md', 'specs/alpha/alpha.md', 'src/AGENTS.md']);
+    expect([...disk.read().keys()].sort()).toEqual(['.agents/rules/r.md', '.claude/rules/r.md', 'docs/architecture/modules.md', 'specs/alpha/alpha.md', 'src/AGENTS.md', 'src/app.ts']);
     disk.write('.claude/skills/s/SKILL.md', 'new');
     expect(readFileSync(path.join(root, '.claude/skills/s/SKILL.md'), 'utf8')).toBe('new');
     disk.remove('.claude/rules/r.md');

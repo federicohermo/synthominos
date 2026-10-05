@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { MODULE, MODULES_DOC, modulesDoc } from './modules.ts';
 
 /** A set of text files: POSIX path relative to the root → content. */
 export type Tree = ReadonlyMap<string, string>;
@@ -166,6 +167,8 @@ export function planCopies(canonical: Tree): Plan {
     const header = `${GENERATED_MARK} from ${sources.map(s => `\`${s}\``).join(', ')}. Edit the source. -->\n\n`;
     files.set(`${dir}/AGENTS.md`, header + sections.join('\n'));
   }
+  const modules = modulesDoc(source);
+  if (modules !== null) files.set(MODULES_DOC, modules);
   return { files, problems };
 }
 
@@ -239,6 +242,8 @@ export function realDisk(root: string): Disk {
         ...walk(root, '.agents'), ...walk(root, 'agents'), ...MANAGED_ROOTS.flatMap(r => walk(root, r.slice(0, -1))),
         ...walk(root, '').filter(f => f.endsWith('/AGENTS.md')),
         ...walk(root, 'specs').filter(f => CONTRACT.test(f)),
+        ...walk(root, 'src').filter(f => MODULE.test(f)),
+        ...walk(root, path.posix.dirname(MODULES_DOC)).filter(f => f === MODULES_DOC),
       ];
       return new Map([...new Set(files)].map(f => [f, readFileSync(path.join(root, f), 'utf8')]));
     },
