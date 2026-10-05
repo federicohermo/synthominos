@@ -134,7 +134,9 @@ src/
     │                             #   uno a su formato (spec 019). Fuera del .tsx por lo mismo
     ├── rejilla.ts                # columnasRectangulares: la mayor divisora PROPIA que entre en el
     │                             #   techo, para que la última fila de las doce esté llena — la
-    │                             #   cuenta que repeat(auto-fill, …) no puede hacer (spec 052)
+    │                             #   cuenta que repeat(auto-fill, …) no puede hacer (spec 052) ·
+    │                             #   COLUMNAS_DEL_DOCK y anchoDeRejilla, que leen el panel y la
+    │                             #   posición inicial del dock
     ├── tempo.ts                  # la conversión gesto → bpm del reloj: rueda, flechas y arrastre
     │                             #   vertical, y todo lo que sale ya acotado a TEMPO_MIN/MAX
     ├── input.ts                  # la decisión de cada gesto de entrada: rueda, tecla, menú
@@ -151,9 +153,10 @@ src/
     │                             #   hook para poder testearla sin navegador
     ├── use-grid.ts               # el tercer hook de entrada: mide el contenedor raíz, escribe la
     │                             #   celda en --cell y devuelve las dimensiones como estado
-    ├── drag.ts                   # las dos puras del arrastre: moverPanel —acotado al viewport, y
-    │                             #   asimétrico en los dos ejes— y pasoDeTecla. Fuera del hook por
-    │                             #   lo mismo que grid-fit.ts: así se agotan sus ramas sin navegador
+    ├── drag.ts                   # las puras del arrastre: moverPanel —acotado al viewport, y
+    │                             #   asimétrico en los dos ejes—, pasoDeTecla y dónde arranca cada
+    │                             #   flotante. Fuera del hook por lo mismo que grid-fit.ts: así se
+    │                             #   agotan sus ramas sin navegador
     ├── use-drag.ts               # el cuarto hook de entrada: pointerdown sobre el asa,
     │                             #   pointermove/pointerup/pointercancel sobre window, y la
     │                             #   posición escrita en --panel-x / --panel-y (spec 052)
@@ -164,7 +167,8 @@ src/
     │   │                         #   REJILLA_GAP_PX · REJILLA_ANCHO_TECHO_PX · TEMPO_MIN ·
     │   │                         #   TEMPO_MAX · ARRASTRE_PX_POR_BPM · PASO_TECLADO_PX ·
     │   │                         #   MARGEN_VISIBLE_PX · PANEL_PADDING_PX ·
-    │   │                         #   DOCK_ANCHO_MAXIMO_PX · MARGEN_INICIAL_PX · las dos
+    │   │                         #   DOCK_ANCHO_MAXIMO_PX · MARGEN_INICIAL_PX ·
+    │   │                         #   SENAL_ANCHO_CELDAS y SENAL_ALTO_CELDAS · las dos
     │   │                         #   razones del anillo de foco de la celda (spec 026)
     │   ├── palette.constants.ts  # los 12 colores y su color de texto (ver DESIGN.md)
     │   ├── route.constants.ts    # MARCA: los estados de una celda bajo la cabeza lectora
@@ -201,7 +205,8 @@ src/
         │                         #   celda en los dos ejes, y los dos casos desproporcionados
         │                         #   (spec 031)
         ├── drag.test.ts          # moverPanel contra los cuatro bordes —y contra el viewport que
-        │                         #   no da ni para el margen— y las cinco ramas de pasoDeTecla
+        │                         #   no da ni para el margen—, las cinco ramas de pasoDeTecla y la
+        │                         #   esquina de arranque de los dos flotantes
         ├── rejilla.test.ts       # las columnas de doce iconos contra cada techo, el piso cuando
         │                         #   no entra ninguna, y el primo que devuelve 1
         └── tempo.test.ts         # las cuatro puras del reloj, y que todo lo que sale está

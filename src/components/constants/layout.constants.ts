@@ -145,7 +145,7 @@ export const MINI_BOX = 5;
 export const MINI_CELL_PX = 8;
 
 
-/** Extremos del slider de tempo, en bpm. El valor inicial es DEFAULT_BPM del motor. */
+/** Extremos del reloj de tempo, en bpm. El valor inicial es DEFAULT_BPM del motor. */
 export const TEMPO_MIN = 60;
 export const TEMPO_MAX = 160;
 
@@ -243,9 +243,9 @@ export const REJILLA_GAP_PX = 4;
  * 6 col -> 308 px     12 col -> 620 px
  * ```
  *
- * 220 deja entrar hasta 4 y deja afuera a 6, y de ahi sale el `4 x 3` que el prototipo
- * midio en 220 x 268 px: el mismo alto que el dock de hoy (278), 81 px mas de ancho y el
- * contenido entero visible, contra 1192 px de desborde.
+ * 220 deja entrar hasta 4 y deja afuera a 6, y de ahi sale el `4 x 3`: un dock de 220 px
+ * de ancho —medido en Chromium, 220 x 357 con las filas de abajo— y el contenido entero
+ * visible, contra 1192 px de desborde.
  *
  * **Es la palanca entera**: subirlo a 308 da un dock de `6 x 2` sin tocar una linea de
  * `OrientationPanel`, porque quien elige es `columnasRectangulares` y no el navegador.
@@ -287,7 +287,7 @@ export const MARGEN_VISIBLE_PX = 48;
  */
 export const ARRASTRE_PX_POR_BPM = 2;
 
-/** El `p-2` del chasis, en px. Sale de la clase de Tailwind y esta acá para que la cuenta de abajo lo lea. */
+/** El `p-2` del chasis, en px. Sale de la clase de Tailwind y esta acá para que el ancho del dock de `drag.ts` lo lea. */
 export const PANEL_PADDING_PX = 8;
 
 /**
@@ -309,3 +309,14 @@ export const DOCK_ANCHO_MAXIMO_PX = REJILLA_ANCHO_TECHO_PX + PANEL_PADDING_PX * 
 
 /** La separacion inicial de un flotante contra el borde de la pantalla, en px. */
 export const MARGEN_INICIAL_PX = 8;
+
+/**
+ * La caja de la franja de Senal, en celdas del tablero: tres de ancho y, abierta, una de alto.
+ *
+ * Una sola copia porque la leen dos: la caja que `App.tsx` le pasa al chasis y la posicion
+ * inicial de `drag.ts`, que la apoya sobre el borde de abajo. Escrito dos veces, el alto se
+ * desincroniza sin que nada falle: restar dos celdas en vez de una deja la franja a 84 px
+ * del borde, medido.
+ */
+export const SENAL_ANCHO_CELDAS = 3;
+export const SENAL_ALTO_CELDAS = 1;

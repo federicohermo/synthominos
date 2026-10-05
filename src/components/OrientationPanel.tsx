@@ -1,11 +1,9 @@
 import { memo } from 'react';
 import { SHAPES } from '../domain/constants/pieces.constants.ts';
 import type { PieceKey } from '../domain/types/pieces.types.ts';
-import {
-  CASILLA_PX, MINI_BOX, MINI_CELL_PX, REJILLA_ANCHO_TECHO_PX, REJILLA_GAP_PX,
-} from './constants/layout.constants.ts';
+import { CASILLA_PX, MINI_BOX, MINI_CELL_PX, REJILLA_GAP_PX } from './constants/layout.constants.ts';
 import { PIECE_COLOR } from './constants/palette.constants.ts';
-import { columnasRectangulares } from './rejilla.ts';
+import { COLUMNAS_DEL_DOCK } from './rejilla.ts';
 import { miniCells } from './piece-mini.ts';
 import { textoDeOrientacion } from './orientation-text.ts';
 import type { Orientacion } from './types/orientation.types.ts';
@@ -36,28 +34,6 @@ import type { PropsDeOrientacion } from './types/panel.types.ts';
  * contrario del teselado: casillas iguales, separadas y alineadas.
  */
 
-/**
- * Las columnas de la rejilla, resueltas una vez al cargar el módulo.
- *
- * **Es un valor fijo y no una medición**, y ése es el cambio entero. Hasta acá lo contestaba
- * `repeat(auto-fill, minmax(…, 1fr))`, o sea el navegador contra la caja real, y
- * la caja real medía `calc(var(--cell) * 2)`: 108 px útiles después de la barra de scroll,
- * contra los 124 que piden dos pistas. Faltaban 16 px y el resultado era **1 columna × 12
- * filas**, 875 px de alto adentro de un scroller de 215.
- *
- * Con el chasis arrastrable la caja dejó de medirse en celdas, así que la pregunta se dio
- * vuelta: las columnas son la entrada y el ancho del panel es la salida. Y elegirlas dejó de
- * poder delegarse, porque `auto-fill` devuelve **la mayor cantidad que entre, divida o no**
- * — a un ancho que admita 5 deja 3 huecos en la última fila. El porqué de cada regla está
- * en `rejilla.ts`; la palanca para cambiar la forma del rectángulo es
- * `REJILLA_ANCHO_TECHO_PX` y ningún otro lugar.
- *
- * La cantidad de piezas sale de `SHAPES` y no del `12` escrito: el día que el modelo cambie
- * de pentominós, la rejilla lo sigue sola.
- */
-const PIEZAS = Object.keys(SHAPES).length;
-const COLUMNAS = columnasRectangulares(PIEZAS, REJILLA_ANCHO_TECHO_PX, CASILLA_PX, REJILLA_GAP_PX);
-
 export default memo(function OrientationPanel({ orientacion }: { orientacion: PropsDeOrientacion }) {
   const { selected, orientaciones, onSelect } = orientacion;
   // La MISMA derivacion que hace `PiecePalette` para la pieza en la mano, en el otro
@@ -75,20 +51,21 @@ export default memo(function OrientationPanel({ orientacion }: { orientacion: Pr
   };
   return (
     /* Columnas FIJAS de `CASILLA_PX` y no `1fr`, y las dos mitades importan.
-       Las columnas, porque son las que garantizan que la última fila esté llena: `COLUMNAS`
-       divide a doce por construcción. El ancho fijo, porque un `1fr` volvería a hacer que la
+       Las columnas, porque son las que garantizan que la última fila esté llena:
+       `COLUMNAS_DEL_DOCK` divide a doce por construcción, y el porqué de cada regla está en
+       `rejilla.ts`. El ancho fijo, porque un `1fr` volvería a hacer que la
        casilla cambie de forma con el ancho del contenedor, que es de donde salía el botón de
        107,8 × 65,6 px que esto reemplaza — ancho decidido por el reparto y alto por el
        contenido, o sea una casilla distinta en cada viewport.
 
-       Con la casilla cuadrada la rejilla mide `COLUMNAS × 48 + (COLUMNAS − 1) × 4` y el
-       panel se mide por ella, no al revés. Va por estilo inline y no por clase porque los
+       Con la casilla cuadrada la rejilla mide lo que `anchoDeRejilla` cuenta y el panel se
+       mide por ella, no al revés. Va por estilo inline y no por clase porque los
        números salen de constantes, y Tailwind escanea el fuente: una clase interpolada no se
        generaría. */
     <div
       className="grid"
       style={{
-        gridTemplateColumns: `repeat(${COLUMNAS}, ${CASILLA_PX}px)`,
+        gridTemplateColumns: `repeat(${COLUMNAS_DEL_DOCK}, ${CASILLA_PX}px)`,
         gap: `${REJILLA_GAP_PX}px`,
       }}
     >

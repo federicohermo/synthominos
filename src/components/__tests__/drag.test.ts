@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { moverPanel, pasoDeTecla } from '../drag.ts';
-import { MARGEN_VISIBLE_PX, PASO_TECLADO_PX } from '../constants/layout.constants.ts';
+import { moverPanel, pasoDeTecla, posicionInicialDeLaSenal, posicionInicialDelDock } from '../drag.ts';
+import { MARGEN_INICIAL_PX, MARGEN_VISIBLE_PX, PASO_TECLADO_PX } from '../constants/layout.constants.ts';
 import type { Caja, Posicion } from '../types/panel.types.ts';
 
 /**
@@ -91,5 +91,32 @@ describe('052 AC4 — el arrastre existe para el teclado', () => {
     const destino = moverPanel({ x: 100, y: 100 }, paso ?? { dx: 0, dy: 0 }, VIEWPORT, DOCK);
     expect(destino.x - 100).toBe(PASO_TECLADO_PX);
     expect(destino.y).toBe(100);
+  });
+});
+
+describe('052 — los dos flotantes arrancan a `MARGEN_INICIAL_PX` de los dos bordes de su esquina', () => {
+  it('el dock, arriba a la derecha, con el ancho que mide de verdad', () => {
+    // 220 es el dock de 4 × 3 medido en Chromium: cuatro casillas de 48, tres huecos de 4 y
+    // el `p-2` del chasis. Escrito y no derivado a propósito: derivarlo de las constantes
+    // repetiría la cuenta que este caso verifica.
+    for (const viewport of [VIEWPORT, { ancho: 1920, alto: 1080 }, { ancho: 375, alto: 667 }]) {
+      const dock = posicionInicialDelDock(viewport);
+      expect(dock.y, `${viewport.ancho} px`).toBe(MARGEN_INICIAL_PX);
+      expect(viewport.ancho - (dock.x + 220), `${viewport.ancho} px`).toBe(MARGEN_INICIAL_PX);
+    }
+  });
+
+  it('la señal, abajo a la izquierda, con la celda de ESE viewport', () => {
+    // Tres ventanas con tres celdas distintas —69,5, 72 y 74,1 px, las que `grillaPara`
+    // contesta—: una franja que restara el objetivo de 73 en vez de la suya erraría el
+    // margen en las tres.
+    const casos: [ancho: number, alto: number, celda: number][] = [
+      [1536, 695, 69.5], [1920, 1080, 72], [375, 667, 74.1],
+    ];
+    for (const [ancho, alto, celda] of casos) {
+      const senal = posicionInicialDeLaSenal({ ancho, alto });
+      expect(senal.x, `${ancho} × ${alto}`).toBe(MARGEN_INICIAL_PX);
+      expect(alto - (senal.y + celda), `${ancho} × ${alto}`).toBeCloseTo(MARGEN_INICIAL_PX, 0);
+    }
   });
 });

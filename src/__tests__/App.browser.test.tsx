@@ -7,7 +7,9 @@ import { grillaPara } from '../components/grid-fit.ts';
 import { MAX_PIEZAS } from '../domain/constants/board.constants.ts';
 import { REGIMEN } from '../domain/constants/music.constants.ts';
 import { DEFAULT_BPM } from '../audio/constants/engine.constants.ts';
-import { MARGEN_VISIBLE_PX, PASO_TECLADO_PX } from '../components/constants/layout.constants.ts';
+import {
+  MARGEN_INICIAL_PX, MARGEN_VISIBLE_PX, PASO_TECLADO_PX, SENAL_ALTO_CELDAS, SENAL_ANCHO_CELDAS,
+} from '../components/constants/layout.constants.ts';
 import { arpeggioFor } from '../domain/music.ts';
 import { cellsAt } from '../domain/board.ts';
 import { rotateN, reflect } from '../domain/transform.ts';
@@ -1278,6 +1280,27 @@ const movio = (panel: Element, antes: DOMRect) => {
 };
 
 describe('App — los dos flotantes se arrastran', () => {
+  it('052 — los dos arrancan a `MARGEN_INICIAL_PX` de los dos bordes de su esquina', async () => {
+    // Los CUATRO bordes y no dos: el dock arranca arriba a la derecha y la señal abajo a la
+    // izquierda, y el borde lejano es el que una cota delata. Con el ancho máximo del dock en
+    // vez del suyo arrancaba a 24 px de la derecha, y con `CELL_PX_OBJETIVO` en vez de la
+    // celda real la señal arrancaba entre 7 y 12 px del borde de abajo.
+    await render(<App />);
+    const dock = asaDe('Piezas').closest('aside')!.getBoundingClientRect();
+    const senal = asaDe('Señal').closest('aside')!.getBoundingClientRect();
+
+    expect(dock.top, 'dock, arriba').toBeCloseTo(MARGEN_INICIAL_PX, 0);
+    expect(window.innerWidth - dock.right, 'dock, derecha').toBeCloseTo(MARGEN_INICIAL_PX, 0);
+    expect(senal.left, 'señal, izquierda').toBeCloseTo(MARGEN_INICIAL_PX, 0);
+    expect(window.innerHeight - senal.bottom, 'señal, abajo').toBeCloseTo(MARGEN_INICIAL_PX, 0);
+
+    // Y la señal abierta mide su caja en celdas: la celda es la que la app dibuja en esta
+    // ventana, leída de la misma pura que la calcula.
+    const { cell } = grillaPara(...VIEWPORT);
+    expect(senal.width, 'señal, ancho').toBeCloseTo(SENAL_ANCHO_CELDAS * cell, 0);
+    expect(senal.height, 'señal, alto').toBeCloseTo(SENAL_ALTO_CELDAS * cell, 0);
+  });
+
   it('052 AC3 y AC11 — la señal se arrastra, y sigue ahí después de un re-render', async () => {
     const { container } = await render(<App />);
     const asa = asaDe('Señal');

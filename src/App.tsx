@@ -19,9 +19,8 @@ import Spectrum from "./components/Spectrum.tsx";
 import { alternarTransporte } from "./components/engine-bridge.ts";
 import { MOTOR, frenarTransporte, reiniciarRecorrido, useMotorSincronizado } from "./components/use-engine.ts";
 import { useAtajosDeTeclado, useRuedaRota } from "./components/use-input.ts";
-import {
-  CELL_PX_OBJETIVO, DOCK_ANCHO_MAXIMO_PX, MARGEN_INICIAL_PX,
-} from "./components/constants/layout.constants.ts";
+import { SENAL_ALTO_CELDAS, SENAL_ANCHO_CELDAS } from "./components/constants/layout.constants.ts";
+import { posicionInicialDeLaSenal, posicionInicialDelDock } from "./components/drag.ts";
 import type { Posicion } from "./components/types/panel.types.ts";
 import { useGrilla } from "./components/use-grid.ts";
 import {
@@ -267,17 +266,13 @@ export default function App() {
   // que ahora eso es una posicion INICIAL y no una propiedad fija del diseno: si la pieza
   // que interesa cae debajo, el panel se corre.
   //
-  // `DOCK_ANCHO_MAXIMO_PX` es una COTA y no la medida exacta, y por que esta escrito ahi.
-  const [posicionPiezas, setPosicionPiezas] = useState<Posicion>(() => ({
-    x: window.innerWidth - DOCK_ANCHO_MAXIMO_PX - MARGEN_INICIAL_PX,
-    y: MARGEN_INICIAL_PX,
-  }));
-  // La franja mide UNA celda de alto —es lo que `caja` le pasa al chasis—, asi que se resta
-  // una y no dos. Con dos arrancaba a 84 px del borde de abajo en vez de a 8, medido.
-  const [posicionSenal, setPosicionSenal] = useState<Posicion>(() => ({
-    x: MARGEN_INICIAL_PX,
-    y: window.innerHeight - CELL_PX_OBJETIVO - MARGEN_INICIAL_PX,
-  }));
+  // Cada uno arranca a `MARGEN_INICIAL_PX` de los dos bordes de su esquina, y la cuenta es
+  // de `drag.ts`: el borde lejano pide el ancho del dock y el alto de la franja, y los dos
+  // salen de la misma fuente que los dibuja.
+  const [posicionPiezas, setPosicionPiezas] = useState<Posicion>(() =>
+    posicionInicialDelDock({ ancho: window.innerWidth, alto: window.innerHeight }));
+  const [posicionSenal, setPosicionSenal] = useState<Posicion>(() =>
+    posicionInicialDeLaSenal({ ancho: window.innerWidth, alto: window.innerHeight }));
 
   // Si el tap del modificador que esta abajo sigue siendo limpio. Va en un ref y no en
   // `useState` porque cambia varias veces por gesto y no lo dibuja nadie: meterlo al
@@ -691,7 +686,10 @@ export default function App() {
         onToggle={() => setSenalAbierta(v => !v)}
         posicion={posicionSenal}
         onMover={setPosicionSenal}
-        caja={{ width: `calc(var(--cell) * 3)`, height: senalAbierta ? `calc(var(--cell) * 1)` : undefined }}
+        caja={{
+          width: `calc(var(--cell) * ${SENAL_ANCHO_CELDAS})`,
+          height: senalAbierta ? `calc(var(--cell) * ${SENAL_ALTO_CELDAS})` : undefined,
+        }}
       >
         {/* `hidden` y no desmontar lo resuelve el chasis, y de eso depende el
             `ResizeObserver` de `spectrum-loop.ts`: redibuja porque su contenedor cambia de

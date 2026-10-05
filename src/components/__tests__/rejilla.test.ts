@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { columnasRectangulares } from '../rejilla.ts';
+import { anchoDeRejilla, columnasRectangulares, COLUMNAS_DEL_DOCK } from '../rejilla.ts';
 import { CASILLA_PX, REJILLA_ANCHO_TECHO_PX, REJILLA_GAP_PX } from '../constants/layout.constants.ts';
 
-/** Lo que ocupan `c` columnas: `c` pistas con `c - 1` separaciones entre ellas. */
-const anchoDe = (c: number) => c * CASILLA_PX + (c - 1) * REJILLA_GAP_PX;
+/** Lo que ocupan `c` columnas de casilla, por la misma cuenta que usa el módulo. */
+const anchoDe = (c: number) => anchoDeRejilla(c, CASILLA_PX, REJILLA_GAP_PX);
 
 /**
  * AC1 sin navegador: que la respuesta divida a doce siempre.
@@ -58,6 +58,8 @@ describe('052 AC1 — las doce forman un rectángulo lleno', () => {
 
   it('el techo del repo cae en 4 columnas, que es el default medido', () => {
     expect(columnasRectangulares(12, REJILLA_ANCHO_TECHO_PX, CASILLA_PX, REJILLA_GAP_PX)).toBe(4);
+    // Y es la que el dock dibuja: la constante que leen el panel y la posición inicial.
+    expect(COLUMNAS_DEL_DOCK).toBe(4);
     // Y la palanca funciona: subir el techo a lo que piden 6 columnas da un dock de 6 × 2
     // sin tocar el componente.
     expect(columnasRectangulares(12, anchoDe(6), CASILLA_PX, REJILLA_GAP_PX)).toBe(6);

@@ -1,8 +1,13 @@
-import { MARGEN_VISIBLE_PX, PASO_TECLADO_PX } from './constants/layout.constants.ts';
+import {
+  CASILLA_PX, MARGEN_INICIAL_PX, MARGEN_VISIBLE_PX, PANEL_PADDING_PX, PASO_TECLADO_PX,
+  REJILLA_GAP_PX, SENAL_ALTO_CELDAS,
+} from './constants/layout.constants.ts';
+import { grillaPara } from './grid-fit.ts';
+import { anchoDeRejilla, COLUMNAS_DEL_DOCK } from './rejilla.ts';
 import type { Caja, Delta, Posicion } from './types/panel.types.ts';
 
 /**
- * Las dos decisiones del arrastre de un flotante, sin DOM: adónde va el panel y qué
+ * Las decisiones del arrastre de un flotante, sin DOM: dónde arranca, adónde va y qué
  * desplazamiento pide una tecla.
  *
  * Vive acá y no en `use-drag.ts` por el motivo de siempre —el mismo reparto que
@@ -77,4 +82,32 @@ export function pasoDeTecla(key: string): Delta | null {
   if (key === 'ArrowUp') return { dx: 0, dy: -PASO_TECLADO_PX };
   if (key === 'ArrowDown') return { dx: 0, dy: PASO_TECLADO_PX };
   return null;
+}
+
+/**
+ * Dónde aparece el dock al cargar: a `MARGEN_INICIAL_PX` del borde de arriba y del de la
+ * derecha.
+ *
+ * El borde derecho pide el ancho EXACTO del dock, y ése es su rejilla más el `p-2` del
+ * chasis: la rejilla es la fila más ancha del panel por construcción, y las otras se apilan
+ * debajo. Con una cota en vez del ancho, el dock arranca 16 px más adentro de lo que dice
+ * su margen, medido en Chromium.
+ */
+export function posicionInicialDelDock(viewport: Caja): Posicion {
+  const ancho = anchoDeRejilla(COLUMNAS_DEL_DOCK, CASILLA_PX, REJILLA_GAP_PX) + PANEL_PADDING_PX * 2;
+  return { x: viewport.ancho - ancho - MARGEN_INICIAL_PX, y: MARGEN_INICIAL_PX };
+}
+
+/**
+ * Dónde aparece la franja de Señal al cargar: a `MARGEN_INICIAL_PX` del borde de abajo y
+ * del de la izquierda.
+ *
+ * El borde de abajo pide el alto de la franja, que se mide en celdas, y la celda es la que
+ * `grillaPara` contesta para ESTE viewport —la misma pura con la que `use-grid.ts` escribe
+ * `--cell`—, no `CELL_PX_OBJETIVO`: la celda real va de 64 a 74,1 px según la ventana, y con
+ * el objetivo la franja arranca entre 7 y 12 px del borde en vez de a 8.
+ */
+export function posicionInicialDeLaSenal(viewport: Caja): Posicion {
+  const { cell } = grillaPara(viewport.ancho, viewport.alto);
+  return { x: MARGEN_INICIAL_PX, y: viewport.alto - cell * SENAL_ALTO_CELDAS - MARGEN_INICIAL_PX };
 }
