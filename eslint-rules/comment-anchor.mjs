@@ -10,7 +10,8 @@ const CITATION = /[\w@./-]*[\w-]\.(?:tsx?|css|mjs|cjs|json|md|yml|yaml)\b/g;
 // The libraries of TypeScript have the shape of a file and are not in this tree.
 const OUTSIDE = /^lib\.[\w.]+\.d\.ts$/;
 
-const SKIPPED_DIRS = new Set(['node_modules', '.git', 'dist', 'coverage', '.stryker-tmp']);
+// `worktrees`: `.claude/worktrees/` holds full checkouts of other branches.
+const SKIPPED_DIRS = new Set(['node_modules', '.git', 'dist', 'coverage', '.stryker-tmp', 'worktrees']);
 
 // `used to` alone and `before` are out: most of their matches are not history.
 const HISTORY = [
@@ -29,7 +30,6 @@ export const PROVENANCE = [
 ];
 
 /**
-/**
  * The first provenance form in `text`, or `null`. The gate over the `.md` files uses it too.
  *
  * @param {string} text
@@ -43,7 +43,7 @@ export function provenanceIn(text) {
   return null;
 }
 
-/** One index for each root, built **once in a process**: see `resolves`. */
+/** One index for each root, built **once in a process**. */
 const indexes = new Map();
 
 function buildIndex(root) {
