@@ -67,7 +67,7 @@ No comment skips it.
 
 **If a rule cannot be tested without React, Web Audio or the DOM, it is in the wrong file.** Move
 it to a pure `.ts` module of its capability. That is the conversation coverage forces, and it keeps the
-instrument testable. The dependency direction is in `CLAUDE.md`, and the linter enforces it.
+instrument testable.
 
 **The test project follows the suffix.** `*.browser.test.tsx` runs in Chromium; everything else
 runs in `node`. A change you can see is measured in the DOM of a browser test
