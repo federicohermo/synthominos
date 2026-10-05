@@ -1,9 +1,9 @@
 import path from 'node:path';
 
-/** What a proof does to one element: the part of a Playwright locator it uses. */
 /** The cell the playhead marks. `outer` is false when it draws nothing outside the cell: a click. */
 export interface Mark { readonly cell: string; readonly outer: boolean }
 
+/** What a proof does to one element: the part of a Playwright locator it uses. */
 export interface Spot {
   click(options?: { modifiers?: 'Alt'[]; button?: 'right' }): Promise<void>;
   hover(): Promise<void>;
