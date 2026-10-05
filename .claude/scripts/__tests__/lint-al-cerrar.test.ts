@@ -12,7 +12,8 @@ const AQUI = dirname(fileURLToPath(import.meta.url));
 const HOOK_REAL = resolve(AQUI, '../lint-al-cerrar.mjs');
 const NODE_MODULES_REAL = resolve(AQUI, '../../../node_modules');
 
-const LOCK = join(tmpdir(), 'pentomino-lint-al-cerrar.lock');
+// Its own lock: the default one belongs to the stop hook of every session on the machine.
+const LOCK = join(tmpdir(), `pentomino-lint-al-cerrar-test-${process.pid}.lock`);
 
 const CONFIG = [
   "import tseslint from 'typescript-eslint'",
@@ -33,7 +34,7 @@ interface Salida { code: number; stdout: string; stderr: string }
 function correr(donde: string, entrada = '{"hook_event_name":"Stop"}'): Salida {
   try {
     const stdout = execFileSync(process.execPath, [join(donde, '.claude/scripts/lint-al-cerrar.mjs')], {
-      input: entrada, encoding: 'utf8', cwd: donde, stdio: ['pipe', 'pipe', 'pipe'],
+      input: entrada, encoding: 'utf8', cwd: donde, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, LINT_AL_CERRAR_LOCK: LOCK },
     });
     return { code: 0, stdout, stderr: '' };
   } catch (e) {
