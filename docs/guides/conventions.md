@@ -13,11 +13,12 @@ names those in one line, and gives in full the directives that no tool enforces.
 2. Put a constant, a type or a helper in the module that defines or produces it. If two modules
    read it, it belongs to the module whose rule it states, and the other module imports it. No
    tool checks the owner.
-3. Put no value that another file reads in `playback/engine.ts`. Only the browser project runs
-   that module, and the coverage gate fails when the node project loads it. See
-   [the decision](../architecture/decisions/2026-10-04-package-by-capability.md).
-4. Put a decision that a test must reach in a `.ts` module. A `.tsx` exports only its component
-   (`react-refresh/only-export-components`) and declares no effect (`no-restricted-syntax`).
+3. Put no value that a file of the `node` project reads in `playback/engine.ts`. Only the
+   browser project runs that module, and the coverage gate fails when the node project loads it.
+   See [the decision](../architecture/decisions/2026-10-04-package-by-capability.md).
+4. Put a decision that a test must reach in a `.ts` module. A `.tsx` exports no value but its
+   component (`react-refresh/only-export-components`) and declares no effect
+   (`no-restricted-syntax`).
 5. Put a hook that wires a module next to that module, as `use-<module>.ts`. The decision lives in
    the file without `use-`. The wiring lives in the file with it.
 6. End each local import with its extension: `./transform.ts`. The linter checks it. Use no path

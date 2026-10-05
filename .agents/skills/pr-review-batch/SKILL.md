@@ -19,8 +19,9 @@ owns that (step 5).
 
 The method of each agent is [findings.md](findings.md).
 
-`gh` is not on PATH on this machine. Run it as `"/c/Program Files/GitHub CLI/gh.exe"`; this skill
-writes it as `gh`.
+On Windows `gh` may be outside PATH: run it as `"/c/Program Files/GitHub CLI/gh.exe"` where this
+skill writes `gh`. In a cloud session GraphQL answers 403, so `gh pr` and `gh issue` fail: use the
+REST API, for example `gh api 'repos/<owner>/<repo>/pulls?state=open'`.
 
 ## Step 0: The PR map and the chain of bases
 
@@ -53,7 +54,9 @@ gh pr list --state open --json number,headRefName,baseRefName,author,title
    the whole batch, silently. Named variables such as `$n` travel intact.
 6. **Compare against `staging`.** If `staging` moved over files of the batch, the lowest PR may lag.
    Report it; do not update from here.
-7. **An author other than `git config user.name` makes that PR `--dry`**, that PR alone.
+7. **An author other than you makes that PR `--dry`**, that PR alone. You are the login that
+   `gh api user --jq .login` answers: compare it with the PR's `author.login`.
+   `git config user.name` is not a login, and in a cloud session it is `Claude`.
 
 With `--dry`, write nothing in any PR. Run to the report and stop.
 
@@ -82,8 +85,9 @@ Five clauses. They go **verbatim** in the preamble:
    worse one, or skip it. Step 6 pays the conflict.
 5. **Every finding is discharged, and no discharge is an issue.** Inside your PR's scope, into your
    PR. Outside it, into its own PR from `staging`, opened by you in this run. A fix that conflicts
-   with an AC is discharged by correcting the AC in the spec. The only things you return unapplied
-   are a `BELONGS-TO-PR-<N>` and a `BLOCKED`.
+   with an AC is discharged by correcting the AC in the spec, once the person approves the old and
+   the new text (`.agents/rules/truth-layer.md`): return both as a `DECISION`. The only things you
+   return unapplied are a `BELONGS-TO-PR-<N>`, a `BLOCKED` and a `DECISION`.
 
 No agent rebases, uses `--force`, or merges. Each agent pushes with
 `git push origin HEAD:refs/heads/<headRefName>`.
@@ -133,9 +137,9 @@ differences:
    Chromium needs no reinstall: its cache belongs to the machine.
 3. **It materializes the diff with
    `node .claude/skills/pr-review-batch/scripts/pr-diff.ts <baseRefName> <temp-dir>`.**
-4. **The five clauses of step 0b sit above the triage policy.** Two change what `pr-review` would
-   do alone: a line that is not `+` goes back as `BELONGS-TO-PR-<N>`, and hot-list hunks stay
-   small.
+4. **The five clauses of step 0b sit above the triage policy.** Three change what `pr-review` would
+   do alone: a line that is not `+` goes back as `BELONGS-TO-PR-<N>`, hot-list hunks stay
+   small, and an AC to correct goes back as a `DECISION`: no person is in the agent's session.
 5. **The domain MCP reads the main checkout, not the worktree.** Inside the worktree, `rg` is the
    truth.
 6. **It writes the commit message to a file and commits with `-F`.** No heredoc.
@@ -144,8 +148,8 @@ differences:
 8. **Its report goes to the parent**, in 30 to 50 lines: the verdict first, blockers with
    `file:line`, `BLOCKED` items with who blocked them, `BELONGS-TO-PR-<N>` items, whether
    `pnpm verify` passed first or second, **the exact list of files it touched**, and **the SHA it
-   pushed**. Each finding returned unapplied is a `BELONGS-TO-PR-<N>` or a `BLOCKED`. There is no
-   third box.
+   pushed**. Each finding returned unapplied is a `BELONGS-TO-PR-<N>`, a `BLOCKED` or a
+   `DECISION` with the old and the new text of the AC. There is no fourth box.
 9. **It does not claim which other PRs touch its files.** It cannot know.
 
 ## Step 4: The contention protocol
@@ -184,6 +188,8 @@ The parent does not audit again. It crosses.
   runs in the main checkout with permissions an agent lacks:
   - Apply each `BLOCKED` yourself. If the hook blocked it, check the branch name first. What you
     cannot apply either makes the run fail.
+  - Ask the person each `DECISION` in one round, then apply the text the person approves in the
+    PR that found it.
   - Apply a fix the review exposed in a skill or in the repo, not in a PR. It is discharge 3 of
     `no-debt.md`, and the easiest to skip.
 - **With `--comment`**, one general comment per PR, headed by the SHA: blockers fixed, improvements
@@ -271,7 +277,7 @@ In this order, in about 40 lines plus the table:
 4. **The new PRs this run opened**, with numbers and their merge order.
 5. **What forced a contract correction**, and **which `SKILL.md` this run fixed**, with which rule.
 6. **The stack after step 6**: which chain is up to date against which, with which SHA, and each
-   conflict with the criterion that resolved it. Next to it, the check: `git log <lower>..<upper>`
+   conflict with the criterion that resolved it. Next to it, the check: `git log <upper>..<lower>`
    is empty for each chain, and no new remote ref appeared.
 7. **What remains between independent chains, with the resolved text.** And the merge order, bottom
    up. Merge commits only: a squash forces a rebase of the PR above.

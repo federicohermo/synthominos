@@ -13,8 +13,9 @@ control exposes is in the contract `specs/accessibility/accessibility.md`. What 
 
 ## Rules
 
-- **The shell holds no pure function and no literal of the instrument.** A `.tsx` exports only its
-  component, so a decision written there has no test. Put it in a `.ts` module of the capability.
+- **The shell holds no pure function and no literal of the instrument.** A `.tsx` exports no value
+  but its component, so a decision written there has no test. Put it in a `.ts` module of the
+  capability.
 - **A component is presentational**: props in, no state and no effect of its own. `Spectrum.tsx`
   and `Playhead.tsx` are the exception: they read the engine and draw by hand.
 - **The rate of a value decides where it lives.** A value that changes many times in a second, or

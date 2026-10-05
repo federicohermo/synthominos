@@ -26,7 +26,7 @@ generated `AGENTS.md` points there. A new file goes in the capability whose rule
 `src/App.tsx` is the shell. `mcp-server/` imports from `src/`, never the reverse.
 
 A rule of the instrument goes in a `.ts` module, which the `node` test project runs. A `.tsx`
-exports only its component.
+exports no value but its component.
 
 ## The rules that are broken most
 

@@ -95,14 +95,17 @@ You must not:
 
 ## Commit and handoff
 
-1. Check the scope of your own diff, with the policy of the target:
+1. Commit in your worktree, in one commit whose message says what changed and why. Never push.
+2. Check the scope of that commit, with the policy of the target. The diff `<base_sha>..HEAD`
+   holds only committed work, so the check comes after the commit:
 
    ```bash
    git diff --name-status -z --find-renames --find-copies <base_sha>..HEAD > <run folder>/general-changes.z
    node .spec-anchored/spec-anchored.ts validate-scope --manifest <run folder>/scope-manifest.json --changes <run folder>/general-changes.z --nul --profile <policy>
    ```
 
-2. Commit in your worktree, in one commit whose message says what changed and why. Never push.
+   If it refuses a path you changed, take that change out with `git commit --amend` and check
+   again. If the fix needs the path, return `SCOPE_EXPANSION_REQUIRED`.
 3. Write `<run folder>/general-handoff.json`, in the shape of `handoffs.md`: the status, the input
    and output commits, every changed path, each change with its reason, the impact on behavior,
    each command with its exit code, and the risks that remain.

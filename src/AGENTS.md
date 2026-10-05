@@ -98,6 +98,7 @@ The floor for every test of the product. `package.json` declares what `pnpm veri
    - Pure logic: a `node` test, by example or by property.
    - The Web Audio graph, a canvas, the DOM or a layout: a browser test, `*.browser.test.tsx`.
    - A tool of the MCP server: a `node --test` file in `mcp-server/`.
+   - A time budget: a `*.budget.test.ts`. `verify` runs it alone, never under coverage.
 3. **A bug fix keeps a regression test**, at the boundary where the defect is.
 4. **Do not mock the boundary you prove.** A test of the engine runs a real `AudioContext`. A test
    of the shell may replace the engine, because its subject is the shell.
@@ -124,8 +125,9 @@ control exposes is in the contract `specs/accessibility/accessibility.md`. What 
 
 ## Rules
 
-- **The shell holds no pure function and no literal of the instrument.** A `.tsx` exports only its
-  component, so a decision written there has no test. Put it in a `.ts` module of the capability.
+- **The shell holds no pure function and no literal of the instrument.** A `.tsx` exports no value
+  but its component, so a decision written there has no test. Put it in a `.ts` module of the
+  capability.
 - **A component is presentational**: props in, no state and no effect of its own. `Spectrum.tsx`
   and `Playhead.tsx` are the exception: they read the engine and draw by hand.
 - **The rate of a value decides where it lives.** A value that changes many times in a second, or
