@@ -3,11 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-/**
- * The two entrypoints. They are imported in-process with mocked edges, because v8 does not
- * measure a subprocess. They also run ONCE for real, the way each harness runs them: only that
- * proves the hook path and arguments work.
- */
+/** v8 does not measure a subprocess: the entrypoints are imported in-process, and run once for real. */
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const HOOK = path.resolve(HERE, '../hook.ts');

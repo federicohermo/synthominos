@@ -29,7 +29,7 @@ board can be done and confirmed from the keyboard.
 | **Cell** | one square of the board, as the accessible tree exposes it | square, gridcell |
 | **Pointed cell** | the cell that the ghost follows; the mouse or the keyboard focus sets it | cursor, hover |
 | **Slot** | the button of one piece in the dock, with its thumbnail | thumbnail, tile |
- | the one cell of the board that Tab reaches | entry cell |
+| **Anchor cell** | the one cell of the board that Tab reaches | entry cell |
 | **Focus ring** | the mark that shows which cell has keyboard focus | outline, highlight |
 | **Edit** | a change of the board: place, place muted, remove, mute or unmute | action, move |
 | **Announcement** | text that the live region gives to the screen reader after an edit | message, alert |
@@ -381,7 +381,8 @@ panel. GIVEN the handle of the signal panel THEN its accessible name contains «
 - **OQ-ACC-003 — What does Enter or Space do on a continuous control?**
   - Why it is still open: a draggable panel handle and a tempo dial are continuous controls. A
     button with no discrete action announces a button that does nothing when activated.
-  - Decides: the repository owner, with the panels capability.  - Blocks: nothing. It can add a role or an activation to the handle and to the tempo clock
+  - Decides: the repository owner, with the panels capability.
+  - Blocks: nothing. It can add a role or an activation to the handle and to the tempo clock
     (#172).
 - **OQ-ACC-004 — How does a listener follow the sequence without narration?**
   - Why it is still open: the playhead moves several times per second. Announcing it would never

@@ -1,12 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-/**
- * Each module of the kernel loads. This file imports them INSIDE a test, and it must stay so.
- *
- * The kernel builds its tables when it loads. A defect there throws at import, and a test file
- * that imports the kernel at its top then has no test to fail: Vitest reports a file that could
- * not load, and Stryker reads that as a mutant no test noticed. Here the import is the test.
- */
+/** The import is inside the test: a defect at load then fails a test, and Stryker sees the mutant killed. */
 
 describe('the kernel loads', () => {
   it.each(['../pyjson.ts', '../kernel.ts', '../cli.ts'])('%s', async module => {

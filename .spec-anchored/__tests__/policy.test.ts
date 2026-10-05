@@ -5,12 +5,6 @@ import path from 'node:path';
 import { PROFILES, hashJson, resolvePolicy, validateScope } from '../kernel.ts';
 import { json, strictJsonLoads } from '../pyjson.ts';
 
-/**
- * `policy/` holds the profiles as files, and the kernel holds them in `PROFILES`. The kernel is
- * the authority. This gate keeps the files equal to it: two copies that can differ are two
- * authorities.
- */
-
 const POLICY = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../policy');
 const read = (file: string) => readFileSync(path.join(POLICY, file), 'utf8');
 const fileOf = (profile: string) => `profiles/${profile.replace('/', '-')}.json`;

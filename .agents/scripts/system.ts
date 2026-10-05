@@ -4,15 +4,12 @@ import path, { type PlatformPath } from 'node:path';
 import type { Git } from './policy.ts';
 import type { Response } from './protocol.ts';
 
-/** The hooks' edge with the system: real git, stdin and stdout. Decisions live in `policy.ts` and `protocol.ts`. */
-
-/** How git is run. Injected so tests cover the `null` case without breaking a repo. */
 export type RunGit = (args: readonly string[], cwd: string) => string;
 
 const runGit: RunGit = (args, cwd) =>
   execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 });
 
-/** The nearest existing folder: a path about to be CREATED does not exist yet. */
+/** A path about to be created does not exist yet. */
 function nearestExistingDir(paths: PlatformPath, target: string): string | null {
   let current = target;
   while (!existsSync(current)) {
@@ -23,7 +20,6 @@ function nearestExistingDir(paths: PlatformPath, target: string): string | null 
   return statSync(current).isDirectory() ? current : paths.dirname(current);
 }
 
-/** The real `Git`, anchored in the repo the hook lives in. */
 export function realGit(hookDir: string, platform: NodeJS.Platform = process.platform, run: RunGit = runGit): Git {
   const paths = platform === 'win32' ? path.win32 : path.posix;
   const git = (args: readonly string[], cwd: string): string | null => {
@@ -37,7 +33,6 @@ export function realGit(hookDir: string, platform: NodeJS.Platform = process.pla
     const common = git(['rev-parse', '--path-format=absolute', '--git-common-dir'], dir);
     return common === null ? null : paths.dirname(paths.resolve(common));
   };
-  // Lazy and computed once: an `ls` does not pay for a git query.
   let own: string | null | undefined;
   return {
     paths,
@@ -63,12 +58,10 @@ export function realGit(hookDir: string, platform: NodeJS.Platform = process.pla
   };
 }
 
-/** All of stdin at once: a hook payload is a single JSON document. */
 export function readInput(fd: number | string = 0): string {
   return readFileSync(fd, 'utf8');
 }
 
-/** Writes the response. The exit code is always 0: a denial travels in the JSON. */
 export function respond(r: Response): void {
   if (r.stdout !== '') process.stdout.write(r.stdout);
   if (r.stderr !== '') process.stderr.write(r.stderr);

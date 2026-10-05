@@ -1,58 +1,48 @@
 # AGENTS.md
 
-What a file cannot tell you about this repo. Detail lives in `docs/`; the rules of each subject live in
-`.agents/rules/` and load on their own; the contract of each capability lives in `specs/`.
+Pointers and traps: what a file cannot tell you about this repo. The contract of each capability
+lives in `specs/`. The rules of each folder live in `.agents/rules/` and load on their own.
 
 ## What it is
 
 A **musical instrument**, not a game. The user places pentominoes on a board sized to the screen,
-and each piece fires a five-note arpeggio. A closed tour visits the pieces: order and silence come
-from geometry. There is no score and no win. Judge a feature by one question: does it make the
+and each piece fires a five-note arpeggio. A closed circuit visits the pieces: order and silence
+come from geometry. There is no score and no win. Judge a feature by one question: does it make the
 instrument more expressive?
-
-**Stack:** Vite 7 · React 19 · TypeScript 5.8 · Tailwind CSS 4 · Web Audio (no audio library).
 
 ## Commands
 
-- **`pnpm verify` is the convergence node.** Run it before every PR; CI runs the same script. It
-  runs `lint ‖ typecheck ‖ suite ‖ mcp:test`, then the time budgets alone. `suite` gates
-  coverage at **100** on all four metrics, with zero exceptions. Detail:
-  [verification](./docs/guides/verification.md).
-- **The verdict comes from the exit code**, never from a grep of the output.
-- **pnpm, not npm.** `node_modules` is strict: importing a transitive dependency fails on purpose.
+- **`pnpm verify` is the gate.** Run it before every PR. `package.json` declares its steps, and CI
+  runs the same script. Read its verdict from the exit code, never from a grep of the output.
+- **pnpm, not npm.** `node_modules` is strict: an import of a transitive dependency fails.
 - **Chromium is not in the lockfile**: a fresh clone needs `pnpm exec playwright install chromium`.
-- **Node ≥ 22.18** runs the harness scripts and the MCP server as TypeScript without a build.
+- **Node ≥ 22.18** runs the harness scripts and the MCP server as TypeScript, with no build.
+- `gh` may be outside PATH on Windows: `"/c/Program Files/GitHub CLI/gh.exe"`.
 
-## Architecture
-
-```text
-src/<capability>/        one flat folder per contract in specs/, tests in __tests__/
-src/App.tsx, main.tsx    the shell; mcp-server/ imports from src/, never the reverse
-```
+## Where a file goes
 
 **The folder is the capability.** `src/circuit/` is the code of `specs/circuit/circuit.md`, and its
-generated `AGENTS.md` points there. A new file goes in the capability whose rule it implements. A
-constant or a type lives in the module that owns it. There is no layer rule: a `.tsx` exports no value
-but its component, so logic goes in a `.ts` module, which the `node` project tests. Detail:
-[directory structure](./docs/architecture/directory-structure.md) · [constitution](./docs/architecture/constitution.md).
+generated `AGENTS.md` points there. A new file goes in the capability whose rule it implements.
+`src/App.tsx` is the shell. `mcp-server/` imports from `src/`, never the reverse.
 
-## Rules, and who verifies each
+A rule of the instrument goes in a `.ts` module, which the `node` test project runs. A `.tsx`
+exports no value but its component.
 
-- **Dependency direction is forbidden by path** — `import-x/no-restricted-paths`.
-- **No barrels, explicit extensions, no aliases** — every local import ends in `.ts`/`.tsx`; lint.
-- **Zero `enum`, zero `any`, zero `@ts-ignore`, no `eslint-disable`** — `erasableSyntaxOnly`,
-  lint, `noInlineConfig`. A real exception is a per-file override in `eslint.config.js`.
-- **No `.only`, no `.skip`, no test without an assertion** — `@vitest/eslint-plugin`.
-- **A comment cites what resolves** — `local/comment-anchor`, `local/comment-shape`.
-- **Every criterion of a `ratified` spec is cited by a test title** — `specs/__tests__/specs.test.ts`.
-- **Each folder under `src/` is a contract, and it is flat** — the same gate.
-- **No `*.constants.ts`, `*.types.ts`, `constants/` or `types/` under `src/`** — lint.
-- **The branch prefix decides who writes `src/` and `mcp-server/src/`** — the hook
-  `.agents/scripts/hook.ts`. Prefixes and hotfixes: [branches](./docs/infra/branches.md).
-- **A worktree of this repo opens only under `.claude/worktrees/`** — the same hook.
-- **Generated harness copies match their source** — `node .agents/scripts/sync.ts --check`, in `suite`.
-- **No global state**: no Context, Redux or Zustand. **Deletions go in their own commit.**
-- **Everything written into the repo is English**, in the style of ASD-STE100.
+## The rules that are broken most
+
+The linter, the typecheck and the gates state the rest, each with its reason.
+
+- **A test title cites the criterion it verifies**: `AC-<COD>-###`.
+- **A test picks its project by its suffix**: `*.browser.test.tsx` runs in Chromium,
+  `*.budget.test.ts` runs alone, the rest runs in `node`.
+- **No node test imports `playback/engine.ts`.** The coverage of the two projects cannot merge it.
+- **Deletions go in their own commit.**
+- **Everything written into the repo is English**, in the style of ASD-STE100. The player reads
+  Spanish: the strings of the instrument are behavior.
+- **Document nothing that a reader can infer from the code**, a config or a contract. A decision
+  with a cost goes in a decision record, a trap in the troubleshooting guide.
+- **Write no comment by default.** A comment is one fact that the code cannot say, in three lines
+  at most: a trap, a constraint from outside the file, the reason for a choice that looks wrong.
 
 ## Before a change
 
@@ -61,28 +51,25 @@ but its component, so logic goes in a `.ts` module, which the `node` project tes
 durable contract of a capability. An issue touches a spec only if it changes what the instrument
 does.
 
-1. **Interview** when anything is assumed — skill `shape`. It writes nothing.
-2. **Write the issue** — skill `to-issue`.
-3. **Write the spec** only when the change creates, modifies or deletes behavior — skill
-   `to-spec`. It is the first commit of the `feature/` branch, or `bugfix/` if the bug was an
-   unwritten rule.
-4. **Implement** — skill `implement-feature`, test first, through the phases of the
-   [implementation protocol](./.agents/protocols/implementation-protocol.md). The PR states
-   `AC-<COD>-### → test → result` for each criterion it touches.
+1. **Interview** when anything is assumed: skill `shape`. It writes nothing.
+2. **Write the issue**: skill `to-issue`.
+3. **Write the spec** only when the change creates, modifies or deletes behavior: skill `to-spec`.
+   It is the first commit of the `feature/` branch, or `bugfix/` if the bug was an unwritten rule.
+4. **Implement**: skill `implement-feature`, test first, through the phases of the
+   [implementation protocol](./.agents/protocols/implementation-protocol.md).
 
 - **The code answers to the spec.** If the code fails a criterion, fix the code. If the criterion
   no longer describes the instrument, a person decides.
-- **No spec needed for:** a refactor, a bug that changes no rule, or a UI, art, audio or
-  performance improvement. Nor for anything outside `src/`.
+- **The branch prefix decides who writes `src/` and `mcp-server/src/`**, and a worktree opens only
+  under `.claude/worktrees/`. The hook says so when it stops you:
+  [branches](./docs/infra/branches.md).
 - **A run leaves no written work for later.** Doctrine: `.agents/skills/to-spec/no-debt.md`.
 
 ## Ask the domain instead of simulating it
 
 The `pentomino-domain` MCP server (`.mcp.json`) runs the real pure functions, with no build. Ask it
-before you derive a rotation by hand (`describe_piece`), walk the lookahead (`simulate_board`),
-touch geometry or the musical model (`check_invariants`), or grep for a symbol (`find_symbol`).
-`mcp-server/` imports symbols of `src/`: changing a signature there can break a tool, and
-`pnpm verify` typechecks across that edge. Detail: [MCP](./docs/guides/mcp-domain.md).
+before you derive a rotation by hand, walk the lookahead, touch geometry or the musical model, or
+grep for a symbol. Which tool answers which question: [MCP](./docs/guides/mcp-domain.md).
 
 ## The harness
 
@@ -94,13 +81,13 @@ protocol never edits `.agents/`, `agents/`, `policy/` or `.spec-anchored/`: that
 
 | Document | When to read it |
 |---|---|
-| [Overview](./docs/architecture/overview.md) · [Directory structure](./docs/architecture/directory-structure.md) | The capabilities and the shell; where each thing goes |
-| [Musical model](./docs/architecture/modelo-musical.md) · [Audio](./docs/architecture/audio.md) | Piece → tonic, rotation → scale or order; the Web Audio graph and the scheduler |
-| [DESIGN.md](./DESIGN.md) | The visual language: the 12 colors and what a cell shows |
-| [Constitution](./docs/architecture/constitution.md) · [Decisions](./docs/architecture/decisions/) | Non-negotiable principles, and why each big choice was made |
-| [Quickstart](./docs/guides/quickstart.md) · [Verification](./docs/guides/verification.md) | Setup; what `verify` runs and why |
-| [Conventions](./docs/guides/conventions.md) · [Troubleshooting](./docs/guides/troubleshooting.md) | How code and docs are written; traps already hit |
-| [Deploy](./docs/infra/deploy.md) · [Branches](./docs/infra/branches.md) | Where the deploy lives; the two-branch model |
+| [Constitution](./docs/architecture/constitution.md) | The principles that do not bend |
+| [Capabilities](./docs/architecture/capabilities.md) | What passes between two capabilities, and which one owns a rule |
+| [Decisions](./docs/architecture/decisions/) | Why a big choice was made, and what it cost |
+| [Conventions](./docs/guides/conventions.md) | The directives, the writing rules and the glossary |
+| [Troubleshooting](./docs/guides/troubleshooting.md) | A trap someone already hit |
+| [DESIGN.md](./DESIGN.md) | The visual language |
+| [Deploy](./docs/infra/deploy.md) · [Branches](./docs/infra/branches.md) | What lives outside the repo: the hosting, the ruleset |
 
-**Debt without a plan lives in [GitHub Issues](https://github.com/federicohermo/pentomino-games/issues)**,
-not in a file. `gh` may be outside PATH on Windows: `"/c/Program Files/GitHub CLI/gh.exe"`.
+Work without a plan lives in [GitHub Issues](https://github.com/federicohermo/synthominos/issues),
+not in a file.

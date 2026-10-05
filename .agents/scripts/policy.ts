@@ -1,23 +1,10 @@
 import type { PlatformPath } from 'node:path';
 import { isValidWorktreeTarget } from './worktrees.ts';
 
-/**
- * The repo's rules on WHAT can be written from WHERE. The core of the hooks: it knows nothing
- * about Claude, Codex, shells or how to run git. It takes an `Intent` and a `Git` port.
- *
- * 1. The branch prefix decides whether the product can be written. `src/` and `mcp-server/src/`
- *    are written from a branch that says what kind of change it is, or from `staging` for a
- *    `hotfix:`. Only the NAME is checked: the PR checks that a `feature/` starts from a spec.
- * 2. A worktree of this repo opens only under `.claude/worktrees/`. See `worktrees.ts`.
- *
- * It fails open, and says so: it protects a convention, not a secret. Each rule runs in
- * isolation, so one rule's error does not switch off the other.
- */
+// It fails open, and says so: it protects a convention, not a secret.
 
-/** What one tool call is going to do, as absolute paths. */
 export interface Intent {
   readonly writes: readonly string[];
-  /** `gitDir` is the directory git runs from for `git worktree add` (the cwd, or its `-C`). */
   readonly worktrees: readonly { readonly gitDir: string; readonly target: string }[];
 }
 
@@ -26,17 +13,11 @@ export type Verdict =
   | { readonly kind: 'deny'; readonly reason: string }
   | { readonly kind: 'warn'; readonly reason: string };
 
-/** All the core knows about git. Real in `system.ts`, fake in tests. */
 export interface Git {
-  /** `path.win32` or `path.posix`: the two-drive case is tested on any platform. */
   readonly paths: PlatformPath;
-  /** The main checkout of the repo this harness lives in. `null` if git did not answer. */
   ownCheckout(): string | null;
-  /** The toplevel of the tree that holds `target`, walking up to the nearest existing folder. */
   treeOf(target: string): string | null;
-  /** The branch of the tree. During a rebase, the branch being rebased. */
   branchOf(tree: string): string | null;
-  /** The main checkout of the repo of `dir`: the parent of its `--git-common-dir`. */
   mainCheckoutOf(dir: string): string | null;
 }
 
@@ -54,19 +35,11 @@ const WAY_OUT =
   `is named by what it touches: ${list(NON_PRODUCT_PREFIXES)}. A hotfix is a \`hotfix:\` commit ` +
   `straight on \`${INTEGRATION_BRANCH}\`. See \`docs/infra/branches.md\`.`;
 
-/** The comparison the OS makes: Windows ignores case. */
 function same(paths: PlatformPath, a: string, b: string): boolean {
   return paths.sep === '\\' ? a.toLowerCase() === b.toLowerCase() : a === b;
 }
 
-/**
- * Whether `target` falls inside a protected folder of the tree `tree`.
- *
- * It compares RESOLVED paths, so `src/../src/x.ts` lands where it lands. The folder itself
- * counts as inside: `rm -rf src` is the delete that matters most. "Leaves" means `..` exactly or
- * `../…`, so a sibling named `..notes` does not leave. Across two Windows drives `relative`
- * returns the other drive's absolute path, which is outside.
- */
+/** The folder itself counts as inside: `rm -rf src` is the delete that matters most. */
 export function isProtected(paths: PlatformPath, tree: string, target: string): boolean {
   return PROTECTED.some(dir => {
     const relative = paths.relative(paths.join(tree, dir), target);
@@ -75,7 +48,6 @@ export function isProtected(paths: PlatformPath, tree: string, target: string): 
   });
 }
 
-/** Why `branch` cannot write the product, or `null` if it can. */
 export function branchDenial(branch: string, target: string): string | null {
   if (branch === INTEGRATION_BRANCH || PRODUCT_PREFIXES.some(p => branch.startsWith(p))) return null;
   if (branch === RELEASE_BRANCH) {
@@ -84,7 +56,6 @@ export function branchDenial(branch: string, target: string): string | null {
   return `The branch \`${branch}\` does not say what kind of change it is, and \`${target}\` is product code. ${WAY_OUT}`;
 }
 
-/** The main checkout of `dir` if it is THIS repo, or `null` if it is another repo or none. */
 function ourMainCheckout(git: Git, dir: string): string | null {
   const main = git.mainCheckoutOf(dir);
   const own = git.ownCheckout();
@@ -125,7 +96,6 @@ function branchRule(intent: Intent, git: Git): Verdict {
   return { kind: 'no-opinion' };
 }
 
-/** Runs one rule without letting its error switch off the other. */
 function isolated(name: string, rule: () => Verdict): Verdict {
   try {
     return rule();
@@ -134,7 +104,6 @@ function isolated(name: string, rule: () => Verdict): Verdict {
   }
 }
 
-/** The verdict of both rules: the first denial wins; otherwise the first warning. */
 export function decide(intent: Intent, git: Git): Verdict {
   const verdicts = [
     isolated('worktree gate', () => worktreeRule(intent, git)),

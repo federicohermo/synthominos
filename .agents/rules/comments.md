@@ -4,88 +4,60 @@ paths:
   - "mcp-server/src/**/*.ts"
 ---
 
-# Comentarios
+# Comments
 
-Estos son los dos árboles que lintean `local/comment-shape` y `local/comment-anchor` (spec 051), o sea
-que esta regla se carga justo cuando se está escribiendo el comentario y no cuando se está haciendo
-cualquier otra cosa. El porqué de cada cláusula está en
-[docs/guides/conventions.md](../../docs/guides/conventions.md) § Comments; acá está lo operable.
+These two trees are linted by `local/comment-shape` and `local/comment-anchor`. The reason for
+each check is next to its code, in `eslint-rules/`.
 
-**El comentario explica el porqué, no el qué**: una decisión, una restricción, un bug evitado. La forma
-más rápida de contestarlo, y la que este repo adopta, es la de Ousterhout: **el comentario tiene que
-estar en un nivel de abstracción DISTINTO del código**. «¿Esto es un porqué?» se contesta que sí casi
-siempre; «¿esto está en otro nivel que el código?» se contesta mirando, y `// normalized` arriba de
-`return c` la falla sin discusión. En español, igual que los commits y los specs.
+**Delete by default.** A comment survives only if a reader of the code, its names, its types, its
+tests and the contract would break the code or misread it without the comment: a trap, a
+constraint from outside the file, the reason for a choice that looks wrong. It is one fact, in
+three lines at most. What the code does is not a comment. A decision with a cost is a
+[decision record](../../docs/architecture/decisions/2026-10-04-a-comment-is-one-fact-in-three-lines.md).
 
-## Qué caza cada `messageId`
+## What each `messageId` catches
 
-| Regla | `messageId` | Dispara con |
+| Rule | `messageId` | It fires on |
 |---|---|---|
-| `comment-shape` | `vacio` | Un comentario sin cuerpo, o sólo asteriscos |
-| `comment-shape` | `codigo` | Código archivado en un comentario — lo guarda git, con la fecha y el motivo |
-| `comment-shape` | `etiqueta` | Un comentario JSX de ≤6 palabras sin conjunción causal: lo dice el marcado, y miente en cuanto cambie |
-| `comment-shape` | `resumen` | Un docblock cuyo **primer párrafo** pasa de 2 líneas |
-| `comment-anchor` | `muerta` | Una cita con forma de archivo que **no resuelve** contra el árbol |
-| `comment-anchor` | `historia` | Narrativa histórica: `ya no`, `anteriormente`, `previamente`, `solía`, `hasta hace`, y `antes` + verbo en pasado |
+| `comment-shape` | `empty` | A comment with no body |
+| `comment-shape` | `code` | Code archived in a comment. Git keeps it, with the date and the reason. |
+| `comment-shape` | `label` | A JSX comment of six words or less with no reason word. The markup says it. |
+| `comment-shape` | `long` | A comment of more than 3 lines. Blank lines and JSDoc tag lines do not count. |
+| `comment-anchor` | `dead` | A citation with the shape of a file that does not resolve against the tree |
+| `comment-anchor` | `history` | `previously`, `formerly`, `until recently`, `no longer`, `anymore`, `used to be` |
+| `comment-anchor` | `provenance` | A spec of the old regime: `spec 031`, a bare `031` used as a name, `AC6` |
 
-Una corrida de `//` consecutivos es **un** comentario para las dos reglas, y las directivas
-(`eslint`, `ts-`, `c8`…) no se miran.
+A run of consecutive `//` lines on one column is **one** comment for both rules. Two lines of code
+that each end with a `//` are two comments. A directive (`eslint`, `ts-`, `c8`) is not read.
 
-## El primer párrafo de un docblock: ≤2 líneas
+## A citation must resolve
 
-El resumen es **el primer párrafo — hasta la primera línea en blanco —**, y ahí va *qué es esto*. Lo que
-sigue **no tiene tope**: ahí va *por qué es así*, con toda la extensión que haga falta.
+To name a file in a comment is good. What is not good is a name that stops resolving and nobody
+notices.
 
-No es una regla de longitud disfrazada. Es para que quien explora el repo bajo presupuesto de líneas
-—una persona apurada, o un agente— sepa con la primera línea si el archivo le sirve. El repo ya escribía
-así antes de que la regla existiera: el 84 % de sus 617 docblocks abría con ≤2 líneas.
+- The citation matches **by basename**, not by full path: `// see circuit/sequence.ts` passes when
+  some `sequence.ts` exists. The check catches the deleted or renamed file.
+- If the citation cannot resolve (a file outside the repo, a one-time script that is gone),
+  describe the role and not the place.
 
-`@remarks` **se acepta y no se exige**: este repo no usa tags TSDoc y pedirlos sería importar una
-convención en vez de codificar la que ya tiene.
+## A constraint of today, not a chronicle
 
-**A las corridas de `//` no se les pide resumen.** Serían 516 ediciones para inventar una convención que
-el repo nunca tuvo, y nada dice que estructurar un comentario de línea sirva.
+For a `history` finding, ask one question: does this describe a constraint that makes the code be
+so TODAY, or does it tell how the code got here?
 
-## Una cita tiene que resolver
+- **A constraint of today** stays, written without the historical form. Keep the argument and
+  remove the time axis.
+- **A chronicle** is deleted. Git and the PR keep the history.
+- **If a paragraph mixes the two, split it.**
 
-Nombrar un archivo en un comentario **está bien y se fomenta**: de las 315 citas que había cuando la
-regla entró, 309 resolvían. Lo que no está bien es que una deje de resolver sin que nadie se entere —el
-caso que motivó el spec fue `log.md`, citado siete veces después de que la mudanza a Issues lo borrara—.
+## A rule has a name, not a number
 
-- La cita se empareja **por basename**, no por ruta completa: `// ver circuit/sequence.ts` pasa
-  con que exista algún `sequence.ts`. Lo que el chequeo caza es **el archivo borrado o
-  renombrado**, y exigir la ruta exacta convertiría las 309 citas vivas en un problema de formato.
-- **`lib.*.d.ts` y los cuatro archivos de un spec** (`spec.md`, `research.md`, `plan.md`, `tasks.md`) no
-  se verifican: los primeros son de TypeScript y los segundos viven en una caché gitignoreada que en la
-  CI está vacía. Citarlos como fuente de un número medido sigue siendo la convención del repo.
-- Si la cita no puede resolver —un archivo de afuera, un script de un solo uso ya borrado—, la salida es
-  **describir el rol y no la ubicación**, o citar el issue de su spec.
+Until 2026-10-04 a spec was a numbered issue, and comments named it: "spec 031", "since the 011",
+"AC6". Those numbers resolve to nothing in the tree. Name the rule itself. If a criterion of a
+contract fits, cite it with its capability code: `AC-CIR-006`. The one table from an old number to
+its issue is in
+[the decision](../../docs/architecture/decisions/2026-10-04-contract-per-capability.md).
 
-## El eje del tiempo: restricción vigente contra crónica
+## What is not checked
 
-Es la regla del spec 035, y `historia` la marca sin decidirla. Ante un hallazgo, la pregunta es una:
-**¿esto describe una restricción que HOY hace que el código tenga que ser así, o cuenta cómo se llegó?**
-
-- **Restricción vigente** → se queda, **reescrita sin la forma histórica**. No se borra el argumento: se
-  le saca el eje temporal.
-- **Crónica** → se muda al [issue de su spec](https://github.com/federicohermo/pentomino-games/issues)
-  como nota de revisión, y en su lugar queda un puntero de una línea. The issue number of a numbered
-  spec comes from the frozen table in
-  `docs/architecture/decisions/2026-10-04-contract-per-capability.md`: spec 001 is issue #63.
-- **Ante la duda, se queda.** Un comentario de más cuesta una lectura; uno de menos cuesta el argumento.
-- **Si un párrafo mezcla las dos cosas, se parte.**
-
-## Lo que NO se verifica, y se evaluó
-
-Que no aparezcan de nuevo como propuesta:
-
-- **Longitud y densidad.** Se midieron —302 y 49 hallazgos— y se rechazaron. Chocan con «sin objetivo
-  numérico» y con la evidencia: sacarle los comentarios a un modelo le degrada la refinación de código
-  hasta un 90 %. **Ningún comentario de este repo se acorta por ser largo.**
-- **El comentario al final de la línea.** Se permite, y es decisión explícita del dueño del repo: ancla
-  la explicación al token exacto sin gastar una línea. `no-inline-comments` del core hace justo eso, y
-  además está congelada con la deprecación aceptada.
-- **Prohibir citar un archivo.** Es lo que hace el repo del que se portaron las reglas; acá se invirtió.
-
-El criterio que ordena las tres: **lo que se verifica es la exactitud, no la longitud.** Un comentario
-largo y verdadero es barato; uno corto y podrido es caro.
+A comment at the end of a line is allowed: it anchors the reason to the exact token.

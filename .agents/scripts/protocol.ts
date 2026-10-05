@@ -1,20 +1,8 @@
 import type { PlatformPath } from 'node:path';
 import { decide, type Git, type Intent, type Verdict } from './policy.ts';
 
-/**
- * How both harnesses talk to a `PreToolUse` hook, and how their payload becomes an `Intent`.
- * The single door of the repo's hooks: `hook.ts` passes stdin in and writes what comes out.
- *
- * Measured on 2026-10-04 with Codex CLI 0.160 and Claude Code:
- *
- * - Both send `{ tool_name, tool_input, cwd }`. Codex sends `Bash` with `tool_input.command` as
- *   a string (PowerShell on Windows, despite the name), and `apply_patch` with the whole patch
- *   in `tool_input.command`, paths relative to `cwd`.
- * - Both honor a JSON `permissionDecision: "deny"`. Codex treats exit code 2 as a broken hook
- *   and lets the call through. So there is one encoding for a denial.
- * - `allow` is never emitted. In Claude Code it skips the permission system. No opinion means
- *   exiting silently.
- */
+// Codex treats exit code 2 as a broken hook and lets the call through: a denial is JSON only.
+// `allow` is never emitted: in Claude Code it skips the permission system.
 
 export type Agent = 'claude' | 'codex';
 export interface Response { readonly stdout: string; readonly stderr: string }
@@ -30,15 +18,11 @@ function native(paths: PlatformPath, target: string): string {
 
 const resolveFrom = (paths: PlatformPath, cwd: string, target: string) => paths.resolve(cwd, native(paths, target));
 
-// The shell: DETECTION, not a parser. It knows the write forms that occur in practice
-// (redirection, `sed -i`, `tee`, `cp`/`mv`/`rm`, writing cmdlets, `git worktree add`) and is not
-// exhaustive: a `python -c` that opens the file gets through. A gate that tries to parse shell
-// fails in the expensive direction, blocking what it should not. POSIX and PowerShell syntax are
-// always checked together, whatever the tool name.
+// Detection, not a parser: a gate that parses shell blocks what it should not.
+// Codex sends PowerShell under the tool name `Bash`: both syntaxes are always checked.
 
 export interface Word { readonly text: string; readonly redirect: boolean }
 
-/** Splits a command into segments of words, honoring quotes. A redirection marks the word after it. */
 export function segments(command: string): Word[][] {
   const result: Word[][] = [];
   let current: Word[] = [];
@@ -75,7 +59,6 @@ export function segments(command: string): Word[][] {
       continue;
     }
     if (c === '>') {
-      // A digit glued in front (`2>`) is a descriptor, not a word of the command.
       if (inWord && /^\d$/.test(word)) inWord = false;
       closeWord();
       if (command[i + 1] === '>') i++;
@@ -89,7 +72,6 @@ export function segments(command: string): Word[][] {
       continue;
     }
     if (c === ';' || c === '\n' || c === '|' || c === '&') {
-      // `&&`, `||`, `|`, `;`, newline and `&` all end the segment.
       closeSegment();
       continue;
     }
@@ -104,10 +86,8 @@ export function segments(command: string): Word[][] {
   return result;
 }
 
-/** The program name: no folder, no `.exe`, lower case (PowerShell ignores case). */
 const programName = (word: string) => word.replace(/^.*[/\\]/, '').replace(/\.exe$/i, '').toLowerCase();
 
-/** What POSIX commands write, given their non-flag arguments. */
 const WRITERS: Readonly<Record<string, (args: readonly string[], flags: readonly string[]) => readonly string[]>> = {
   tee: args => args,
   cp: args => args.slice(-1),
@@ -120,7 +100,6 @@ const WRITERS: Readonly<Record<string, (args: readonly string[], flags: readonly
   sed: (args, flags) => (flags.some(f => f.startsWith('-i')) ? args : []),
 };
 
-/** Writing cmdlets: the target's position among positionals, and the parameters that name it. */
 const CMDLETS: Readonly<Record<string, readonly [number, readonly string[]]>> = {
   'set-content': [0, ['-path', '-literalpath']],
   'add-content': [0, ['-path', '-literalpath']],
@@ -138,25 +117,17 @@ const ALIASES: Readonly<Record<string, string>> = {
   mi: 'move-item', move: 'move-item', rni: 'rename-item', ren: 'rename-item',
 };
 
-/**
- * A cmdlet's targets. Without a named parameter it returns ALL positionals from its position.
- * Picking "the Nth" requires knowing which parameters are switches, and a mistake there fails
- * the expensive way: `Remove-Item -Force src` would lose the `src`. Extra candidates cost
- * nothing: a candidate that is not a protected path is dropped.
- */
+/** Every positional is a candidate: to pick one, the switches of each cmdlet must be known. */
 function cmdletTargets(rest: readonly string[], position: number, params: readonly string[]): readonly string[] {
   const named = rest.findIndex(t => params.includes(t.toLowerCase()));
   if (named !== -1 && named + 1 < rest.length) return [rest[named + 1]];
   return rest.filter(t => !t.startsWith('-')).slice(position);
 }
 
-/** Sinks: redirecting there writes no file. */
 const SINKS = new Set(['/dev/null', '$null', 'nul']);
 const CHANGE_DIR = new Set(['cd', 'pushd', 'chdir', 'set-location', 'sl']);
-/** `git worktree add` options that take the next word as their value. */
 const TAKES_VALUE = new Set(['-b', '-B', '--reason']);
 
-/** The `git worktree add` of a segment, if any: where git runs from and where it opens. */
 function worktreeOpening(words: readonly string[], cwd: string, paths: PlatformPath): { gitDir: string; target: string } | null {
   let dir = cwd;
   let i = 1;
@@ -173,7 +144,6 @@ function worktreeOpening(words: readonly string[], cwd: string, paths: PlatformP
   return null;
 }
 
-/** What a shell command writes and which worktrees it opens, following each `cd`. */
 export function commandIntent(command: string, cwd: string, paths: PlatformPath): Intent {
   const writes: string[] = [];
   const worktrees: { gitDir: string; target: string }[] = [];
@@ -206,17 +176,13 @@ export function commandIntent(command: string, cwd: string, paths: PlatformPath)
   return { writes, worktrees };
 }
 
-/** The paths an `apply_patch` patch touches: added, updated, deleted or moved. */
 export function patchPaths(patch: string): string[] {
   return [...patch.matchAll(/^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+?)\s*$/gm)].map(m => m[1]);
 }
 
 const isRecord = (v: unknown): v is Readonly<Record<string, unknown>> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-/**
- * The `Intent` of a payload, or `null` if it could not be read. `null` is not "writes nothing"
- * (`[]`): the first one is warned about, the second one passes silently.
- */
+/** `null` is not "writes nothing": the first is warned about, the second passes silently. */
 export function readIntent(raw: string, paths: PlatformPath): Intent | null {
   let payload: unknown;
   try {
@@ -248,7 +214,6 @@ export function readIntent(raw: string, paths: PlatformPath): Intent | null {
   return { writes, worktrees };
 }
 
-/** Encodes a verdict for the calling harness. */
 export function encode(verdict: Verdict, agent: Agent): Response {
   if (verdict.kind === 'deny') {
     const output = { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: verdict.reason } };
@@ -261,7 +226,6 @@ export function encode(verdict: Verdict, agent: Agent): Response {
   return { stdout: '', stderr: '' };
 }
 
-/** The single door of the hooks, for both harnesses. It never throws. */
 export function handle(args: readonly string[], raw: string, git: Git): Response {
   const agent: Agent = args[0] === 'codex' ? 'codex' : 'claude';
   try {

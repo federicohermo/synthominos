@@ -3,8 +3,6 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { audit, readCorpus } from '../../.agents/scripts/specs.ts';
 
-/** The spec gate on the real repo. The logic and its cases live in `.agents/scripts/specs.ts`. */
-
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 describe('specs/: the contract of each capability', () => {

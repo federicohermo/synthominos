@@ -2,26 +2,8 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-/**
- * Materializes the diff of ONE pull request and measures which review axes apply. The
- * entrypoint is `pr-diff.ts`; this module holds the logic, with git and the disk injected.
- *
- * It runs at the head of the PR: in the main checkout when `pr-review` calls it, or inside
- * the agent's worktree in a batch review. The optional head argument lets a parent measure a
- * PR without a checkout, and size the fan-out from that.
- *
- * **The base is the PR's `baseRefName`, NOT `staging`**, so it has no default: in a stacked
- * batch, a diff against `staging` brings in the commits of the PR below, and the review fills
- * with findings that belong to another PR.
- *
- * ## The axis thresholds
- *
- * They are **declared, not measured**: they come from the repo this harness was ported from,
- * where they were counted on real runs. Here no run has measured them yet. The first run
- * that contradicts one moves it, and then it is measured, with its date.
- *
- * This file imports only `node:*`: the `pr-review` skill carries a byte-for-byte copy.
- */
+// The base has no default: in a stacked batch, a diff against `staging` brings in the PR below.
+// Imports only `node:*`: the `pr-review` skills carry a byte-for-byte copy of this file.
 
 export const USAGE = [
   'usage: node pr-diff.ts <base-branch> <out-dir> [<head>]',
@@ -29,44 +11,21 @@ export const USAGE = [
   '  staging brings in the commits of the PR below. The head defaults to HEAD.',
 ].join('\n');
 
-/**
- * Generated files: they leave the diff and cost nothing. A PR that updates a lockfile is
- * reviewed by reading `package.json`, not the lockfile line by line. Without `glob` magic,
- * the `*` of a pathspec also matches `/`, so this reaches `mcp-server/pnpm-lock.yaml` too.
- */
+/** Without `glob` magic, the `*` of a pathspec also matches `/`: this reaches `mcp-server/pnpm-lock.yaml` too. */
 export const EXCLUDED = [':(exclude)*pnpm-lock.yaml', ':(exclude)dist/*', ':(exclude)coverage/*'] as const;
 
-/** A diff above this many lines is triaged from the stat, not read whole. */
 export const LARGE_DIFF = 1500;
-/** The numeric claims printed; the rest are counted. */
 export const MAX_CLAIMS = 60;
 
 const PROSE = /\.(?:md|txt)$/;
-/** A capability contract: `specs/<cap>/<cap>.md`. The `_template` folder is not one. */
 const CONTRACT = /^specs\/(?!_)([^/]+)\/\1\.md$/;
-/** A comment line in TypeScript and JavaScript: `//`, `/*`, and the ` * ` of a doc block. */
 const COMMENT = /^\s*(?:\/\/|\/\*|\*(?:\s|\/|$))/;
-/** A line with nothing to claim: blanks, table rules, heading marks. */
 const EMPTY = /^[\s|:#-]*$/;
 
-/**
- * The STRUCTURAL numbering of this repo, which is never a falsifiable claim about the tree:
- * a contract ID, an issue number, a numbered spec of the old regime, a numbered step, an
- * identifier with a digit inside (`win32`, `utf8`), an ordered-list marker, also inside a
- * comment, and a numbered heading. It is removed from the line BEFORE asking whether
- * any digit remains.
- *
- * **It is the only filter, and it works on the repo's documented vocabulary, not on the
- * meaning of the sentence.** In the source repo it cut 375 candidate lines to 112 on a real
- * PR: a block that is 70 % noise is not read, and an unread block is an axis turned off.
- * What remains still has noise on purpose: it is a list of candidates, not a verdict.
- */
 const STRUCTURAL =
   /\b(?:BR|AC|OQ)-[^\s-]+-\d+\b|#\d+|\b[Ss]tep\s?\d+|\bspecs?\/?\s?\d{3}\b|\b\d{3}-[a-z]|\b[A-Za-z_]+\d\w*|^\s*(?:\/\/|\*)?\s*\d+[.)]\s|^\s*#+\s+\d+\s*[·.)-]|\[0-9\]/g;
 
-/** Error branches in TypeScript. A diff that adds error paths without any of these is what the axis looks for. */
 const ERRORS = /\bthrow\b|\bcatch\b|console\.(?:error|warn)|process\.exitCode|\belse\b/g;
-/** Declarations whose types the types axis reviews. */
 const SIGNATURES = /^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function|interface|class|type)\s+\w/gm;
 
 const THRESHOLD = { errors: 3, signatures: 2, comments: 5 } as const;
@@ -77,7 +36,6 @@ export interface GitResult {
   readonly stderr: string;
 }
 
-/** What the script needs from the machine. Real in `realDiffSystem`, fake in the tests. */
 export interface DiffSystem {
   git(args: readonly string[]): GitResult;
   /** Creates the parent folders. */
@@ -86,7 +44,6 @@ export interface DiffSystem {
   err(line: string): void;
 }
 
-/** One added line, with the file it belongs to: a `#` is a heading in Markdown and nothing in TypeScript. */
 export interface AddedLine {
   readonly file: string;
   readonly body: string;
@@ -102,7 +59,6 @@ export function addedLines(diff: string): AddedLine[] {
   return added;
 }
 
-/** Prose lines and comment lines that keep a digit once the structural numbering is gone. */
 export function numericClaims(added: readonly AddedLine[]): string[] {
   return added
     .filter(({ file, body }) => (PROSE.test(file) || COMMENT.test(body)) && !EMPTY.test(body))
@@ -116,7 +72,6 @@ function count(pattern: RegExp, text: string): number {
 
 const yes = (on: boolean): string => (on ? 'YES' : 'no');
 
-/** Prints the axes, the contracts, the claims and the stat. Every line goes to `out`. */
 function report(sys: DiffSystem, added: readonly AddedLine[], docs: readonly string[], contracts: readonly string[], stat: string): void {
   const text = added.map(a => a.body).join('\n');
   const errors = count(ERRORS, text);
@@ -141,8 +96,6 @@ function report(sys: DiffSystem, added: readonly AddedLine[], docs: readonly str
 
   sys.out('');
   sys.out('== numeric claims the diff ADDS ==');
-  // A prose or comment line with a number is a falsifiable claim. This block does not say
-  // which one is wrong: it says which ones to cross-check against the tree and the contract.
   const claims = numericClaims(added);
   if (claims.length === 0) sys.out('  (none)');
   for (const claim of claims.slice(0, MAX_CLAIMS)) sys.out(claim);
@@ -153,7 +106,6 @@ function report(sys: DiffSystem, added: readonly AddedLine[], docs: readonly str
   sys.out(stat.replace(/\n$/, ''));
 }
 
-/** Runs the measurement. Returns the exit code: 0 done, 1 aborted, 2 bad usage. */
 export function prDiff(args: readonly string[], sys: DiffSystem): 0 | 1 | 2 {
   if (args.length < 2) {
     sys.err(USAGE);
@@ -219,7 +171,6 @@ export function prDiff(args: readonly string[], sys: DiffSystem): 0 | 1 | 2 {
   }
 }
 
-/** The real machine, with git run in `cwd`. */
 export function realDiffSystem(cwd: string = process.cwd()): DiffSystem {
   return {
     git(args) {

@@ -1,67 +1,51 @@
 # Branches
 
-This repo has **two shared branches with distinct roles**, and work branches whose prefix says
-what kind of change they are. This file says what each one does, what protects it, and what to
-do when the hook stops you.
+The repo has two shared branches with distinct roles, and work branches whose prefix says what kind
+of change they are.
+[The decision](../architecture/decisions/2026-10-04-two-branches-and-staging-is-the-default.md)
+says why the branches are two, and why the default is `staging`.
 
 ## The two roles
 
 | Branch | Role | Who writes to it |
 |---|---|---|
 | `staging` | **Integration**, and the repo **default** | each PR from a work branch, and `hotfix:` commits |
-| `main` | **Release**: the deploy's production branch | only a promotion PR from `staging` |
+| `main` | **Release**: the production branch of the [deploy](./deploy.md) | only a promotion PR from `staging` |
 
-The deploy provider's production branch is set **explicitly** to `main`; it is not inherited from
-the default. The build configuration lives in [`deploy.md`](./deploy.md).
+Merge each PR with a merge commit. A squash leaves on `main` a commit that is not on `staging`, and
+the next promotion shows the whole history again as conflicts.
 
-PRs merge with a merge commit. A squash leaves a commit on `main` that is not on `staging`, and
-the next promotion proposes everything again as conflicts.
+A hotfix is not a branch. It is a commit straight on `staging` whose message starts with `hotfix:`.
 
 ## Work branches
 
-A work branch leaves `staging` and returns to `staging` through a PR. Its prefix says what kind of
-change it is, and the prefix is all the hook checks:
+A work branch leaves `staging` and returns to it through a PR. `.agents/scripts/policy.ts` lists
+the prefixes that can write `src/` and `mcp-server/src/`. This table says what each prefix means:
 
-| Prefix | What changes | Touches `src/` |
-|---|---|---|
-| `feature/` | what the instrument does: creates or modifies a capability; its spec is the first commit | yes |
-| `bugfix/` | a bug; it carries a spec only if the bug was an unwritten rule | yes |
-| `refactor/` | the shape of the code, not what it does | yes |
-| `improvement/` | UI, art, audio or performance, without changing a rule | yes |
-| `harness/` | the harness: hooks, skills, rules, CI | no |
-| `docs/` | documentation | no |
-
-**A hotfix is not a branch**: it is a commit straight on `staging` whose message starts with
-`hotfix:`. That is why the hook lets `staging` write the product.
-
-## The ruleset
-
-`main` is protected by a ruleset (`main-solo-por-pr-verde`, **id 21477023**) with exactly these
-rules:
-
-| Rule | Value |
+| Prefix | The change |
 |---|---|
-| `pull_request` | on: nobody pushes to `main` directly |
-| `required_status_checks` | `[verify]` |
-| `bypass_actors` | `[]`: **nobody**, not even the owner |
+| `feature/` | what the instrument does: a capability is created or changed, and its spec is the first commit |
+| `bugfix/` | a bug; it carries a spec only if the bug was an unwritten rule |
+| `refactor/` | the shape of the code, not what it does |
+| `improvement/` | UI, art, audio or performance, with no change of a rule |
+| `harness/` | the harness: hooks, skills, rules, CI |
+| `docs/` | documentation |
 
-The id is here because it is what you need to remove it
-(`gh api -X DELETE repos/federicohermo/pentomino-games/rulesets/21477023`).
+## The rulesets of `main`
 
-`staging` **has no ruleset**: it receives `hotfix:` commits, and a bypass for any actor other than
-the owner does not exist in a personal repo (the API answers `422`, measured on 2026-08-26).
+They live in the settings of the GitHub repository, not in the tree.
 
-### Why the default branch is `staging`
+| Ruleset | Id | Rules | Who can bypass it |
+|---|---|---|---|
+| `main-solo-por-pr-verde` | 21477023 | `pull_request`, and `required_status_checks: [verify]` | nobody, not the owner |
+| `avoid-deletion` | 21071322 | `deletion` and `non_fast_forward` | the admin role |
 
-The GitHub default is not production: it is the **preselected** base of each new PR, what a fresh
-`clone` gets, and the branch the deploy provider takes as production if nobody sets one.
+`staging` has no ruleset. The id is what a call needs, to read a ruleset or to remove it:
 
-The argument is asymmetric:
-
-- With `main` as default, the error is **silent and serious**: a work branch lands straight on the
-  release branch. The ruleset does not stop it: it requires a green `verify`, not a source branch.
-- With `staging` as default, the error is **visible and harmless**: a promotion PR aimed at
-  `staging` breaks nothing and is retargeted in two clicks.
+```bash
+gh api repos/federicohermo/synthominos/rulesets/21477023
+gh api -X DELETE repos/federicohermo/synthominos/rulesets/21477023
+```
 
 ## The two copies the machinery keeps of the model
 
@@ -70,42 +54,20 @@ The argument is asymmetric:
 | `.github/workflows/verify.yml` | `on.push.branches` | `staging`, `main` |
 | `.agents/scripts/policy.ts` | `INTEGRATION_BRANCH` and `RELEASE_BRANCH` | `staging`, `main` |
 
-`verify` runs on both because the published branch cannot be the only one without its own run.
-The hook names both because both receive work from others: **it is the same set**. A shared
-branch without its own run is the hole this model closes.
-
-[`__tests__/branches-in-sync.test.ts`](../../__tests__/branches-in-sync.test.ts) checks that both
-copies say what this document says. It reads from disk, compares text, and needs no network.
-
-## When the hook stops you
-
-`.agents/scripts/hook.ts` runs before each edit, in Claude Code and in Codex. It blocks writing
-`src/` or `mcp-server/src/` from a branch without one of the four product prefixes, and from
-`main`. The message names the problem. There are two ways out:
-
-```bash
-git switch staging && git pull
-git switch -c feature/<kebab-description>   # or bugfix/, refactor/, improvement/
-```
-
-or, for a one-line fix that does not deserve a branch, commit it on `staging` as `hotfix:`.
-
-The same hook rejects opening a worktree of this repo outside `.claude/worktrees/`, the only
-folder `node .agents/scripts/clean-worktrees.ts` sweeps. The Codex app keeps its worktrees in
-`~/.codex/worktrees/` and cleans them itself: the hook does not see them and the cleaner does not
-touch them.
-
-If the hook cannot read something (git does not answer, the payload does not parse), it lets the
-call through and warns. It protects a convention, not a secret.
+[`__tests__/branches-in-sync.test.ts`](../../__tests__/branches-in-sync.test.ts) reads the two files
+and this table. It fails when they name different branches, or when a shared branch has no run of
+`verify` of its own.
 
 ## What nobody verifies
 
-**That the ruleset is still on.** It lives in the GitHub configuration, not in the repo, and
-reading it takes a network call. The repo tests run without network on purpose. The gate checks
-the copies in the tree and **states** that it does not check this one.
+The repo tests run with no network, so they read no setting of GitHub. Nothing in the tree turns
+red when one of these changes:
 
-If someone deletes the ruleset, nothing in the repo turns red. Checking takes one call:
+- **That the rulesets are still on.** The first call above checks one.
+- **That a PR into `main` comes from `staging`.** The ruleset asks for a green `verify`, not for a
+  source branch.
+- **The merge method.** The repository and the ruleset allow a squash and a rebase.
+- **That `staging` is the default branch**, and that `main` is the production branch of the deploy.
 
-```bash
-gh api repos/federicohermo/pentomino-games/rulesets/21477023
-```
+One copy in the tree is also outside the gate: `.github/workflows/hardening.yml` names the same two
+branches, and the test does not read it.

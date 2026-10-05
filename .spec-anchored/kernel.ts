@@ -4,24 +4,8 @@ import {
   type Json, type JsonObject,
 } from './pyjson.ts';
 
-/**
- * The executable contracts of the implementation protocol: approval fingerprint, scope, result.
- *
- * A TypeScript port of `scripts/spec-anchored` from spec-anchored-agentic-development at commit
- * `4f8a13e`. It is a fork: a change upstream is carried over by hand. The fixtures of
- * `__tests__/` hold the outputs of the Python kernel, so the port answers every case as the
- * original does, to the byte.
- *
- * Tool-neutral, deterministic, **fail-closed**:
- *
- * - Every parser refuses what it does not fully understand. An unreadable diff line is a
- *   violation, not zero changes.
- * - `denied_paths` is absolute. No policy, truth type or expansion makes a denied path allowed.
- * - Truth is typed: spec semantics, golden oracle and metrics baseline each need their own grant.
- * - An artifact never carries the hash of an object that depends on it.
- * - These functions prove that an artifact is well formed and consistent. They do not prove
- *   that a PR, a commit or a review exists.
- */
+// A port of `scripts/spec-anchored` from spec-anchored-agentic-development at commit `4f8a13e`.
+// It is a fork: a change upstream is carried over by hand.
 
 export const SCHEMA_VERSION = 1n;
 export const CANON_ALGO = 'sa-canon/1';
@@ -54,52 +38,33 @@ const PERMISSION_TRIGGERS: readonly (readonly [string, readonly string[]])[] = [
     '**/backfill_*.py']],
 ];
 
-/**
- * What a run can never edit: the contracts, policies and gates that judge it.
- *
- * These are SURFACES, not a list of today's files: a new validator or a doctrine edit is covered
- * with no change here. `scripts/**` stays reserved so a new gate there is covered; the tests of
- * the product are not captured, only the suites of the harness.
- */
-// The operator at the start of `**/AGENTS.md` also matches no folder, so that pattern covers the
-// root file. The Python original lists the root spelling too. Here this table and the three above
-// keep one spelling for each file.
+// Surfaces, not a list of today's files: `scripts/**` stays reserved so a new gate there is covered.
+// The Python original also lists the root spelling of `**/AGENTS.md`. Here the operator also matches no folder.
 const GOVERNANCE_FLOOR: readonly string[] = [
-  // harness code and gates
   'scripts/**', '.spec-anchored/**', 'tests/_harness.py', 'tests/test_kernel*.py', 'tests/test_corpus*.py',
   'tests/test-mutants.py',
-  // policy
   'policy/**',
-  // agent definitions
   '.claude/**', '.agents/**', 'agents/**', '.codex/**', '.cursor/**', 'reviewer-system/**', 'protocols/**', 'rules/**',
   'routines/**', 'implement-*/**', 'adaptations/**',
-  // CI and automation
   '.github/**', '.gitlab-ci.yml', 'azure-pipelines.yml',
-  // spec templates
   'spec-templates/**',
-  // doctrine
   'GUIDELINE*.md', 'AUTONOMY-PLAYBOOK.md', 'INSTALL.md', 'REVIEW-FINDINGS.md', 'sources-and-learnings.md',
-  // operational context: a run that edits its own instructions works under the new ones
+  // a run that edits its own instructions works under the new ones
   '**/AGENTS.md', '**/CLAUDE.md', '**/CLAUDE-*.md', '.cursorrules',
   'architecture/**/constitution*.md', '**/constitution.md',
-  // eval definitions
   'EVALS*.md', 'evals/spec-anchored/**', 'eval-results/spec-anchored/**',
-  // transient run state
   '.agent-runs/**',
 ];
 
-/** A profile, completed with the limits that depend on its execution mode. */
 function profile(fields: Record<string, unknown>): JsonObject {
   const mode = fields.execution_mode;
   const supervised = mode === 'supervised';
   const unowned = mode === 'autonomous' || mode === 'unattended';
   return json({
-    // The manifest may only go BELOW these ceilings: a worker does not grant itself a permission.
     permission_ceiling: {
       dependency_change: supervised, schema_change: supervised, data_migration: supervised, external_side_effect: supervised,
     },
     denied_path_patterns: [],
-    // An autonomous or unattended run needs roots issued outside the run.
     requires_scope_roots: unowned,
     max_scope_roots: unowned ? 4 : null,
     max_recursive_scope_patterns: unowned ? 4 : null,
@@ -117,7 +82,6 @@ function profile(fields: Record<string, unknown>): JsonObject {
 
 const HUMAN_ONLY = { golden_oracle: 'human-only', metrics_baseline: 'human-only', governance: 'deny' };
 
-/** The policy floor. The launcher or a human issues it, never the worker. */
 export const PROFILES: ReadonlyMap<string, JsonObject> = new Map([
   ['supervised-local/v1', profile({
     execution_mode: 'supervised', adapters: ['implement-feature'], spec_semantics: 'gated', ...HUMAN_ONLY })],
@@ -127,11 +91,10 @@ export const PROFILES: ReadonlyMap<string, JsonObject> = new Map([
     execution_mode: 'autonomous', adapters: ['implement-orchestrated'], spec_semantics: 'proposal-only', ...HUMAN_ONLY })],
   ['unattended/v1', profile({
     execution_mode: 'unattended', adapters: ['implement-backlog'], spec_semantics: 'proposal-only', ...HUMAN_ONLY,
-    // An unattended run may not claim the whole tree as its surface.
     forbidden_path_patterns: ['**', '*', 'src/**', '**/*'] })],
 ]);
 
-/** Ceilings, from most authority to least. An overlay moves a ceiling DOWN this list, never up. */
+/** From most authority to least: an overlay moves a ceiling down this list, never up. */
 const CEILING_ORDER = ['gated', 'proposal-only', 'human-only'];
 const IMMUTABLE_POLICY_KEYS = ['profile_id', 'execution_mode', 'adapters', 'governance'];
 const TRUTH_PROFILE_KEYS = ['spec_semantics', 'golden_oracle', 'metrics_baseline'];
@@ -154,7 +117,6 @@ const RUN_ID = rx(`^RUN-[${W}.\\-]{1,64}`);
 const PR_URL = rx(`^https://[${W}.\\-]+/[${W}.\\-]+/[${W}.\\-]+/pull/${D}+`);
 const STABLE_ID = rx(`^(BR|AC|INV|CTR|OR|QC|OBS|OQ)-[A-Z][A-Z0-9]*-${D}{3,}`);
 const DRIVE = /^[A-Za-z]:/;
-/** A Markdown hard break: a character that is not whitespace, then two or more spaces, at the end. */
 function endsInHardBreak(line: string): boolean {
   const cps = codePoints(line);
   let spaces = 0;
@@ -163,10 +125,7 @@ function endsInHardBreak(line: string): boolean {
   return spaces >= 2 && spaces < cps.length && !isPySpace(cps[cps.length - 1 - spaces]);
 }
 
-/**
- * The operators the matcher implements, longest token first so `**` is never read as two `*`.
- * The parser refuses anything else: a policy cannot state a restriction the matcher will not apply.
- */
+/** Longest token first, so `**` is never read as two `*`. */
 export const OPERATORS: readonly (readonly [string, string])[] = [
   ['**/', '(?:[^\\n]*/)?'], // zero or more path segments
   ['**', '[^\\n]*'], // crosses slashes
@@ -174,7 +133,6 @@ export const OPERATORS: readonly (readonly [string, string])[] = [
   ['?', '[^/]'], // exactly one non-slash character
 ];
 const GLOB_CHARS = '*?';
-/** Punctuation that is an operator in other glob dialects. A PATTERN refuses it; a literal path keeps it. */
 const PATTERN_LOOKALIKE_CHARS = '[]{}!^@+';
 
 const hasAny = (value: string, chars: string) => codePoints(value).some(ch => chars.includes(ch));
@@ -200,18 +158,10 @@ export function match(path: string, pattern: string): boolean {
   return new RegExp(`^(?:${source})$`, 'u').test(path);
 }
 
-/** A string is a glob expression only when it carries a real operator. */
 export const isPattern = (value: string): boolean => hasAny(value, GLOB_CHARS);
 
 export type PathKind = 'path' | 'exact' | 'pattern';
 
-/**
- * THE definition of a canonical repository path or pattern. One parser for every surface.
- *
- * - `path`: a literal path from the file system or a diff. Any character a repository can hold.
- * - `exact`: a literal path used as a GRANT. The operators of the matcher are refused.
- * - `pattern`: a glob expression. Only the implemented operators, and no look-alike punctuation.
- */
 export function canonicalViolation(value: Json, kind: PathKind): string | null {
   if (!isStr(value)) return 'not a string';
   if (value === '' || value !== strip(value)) return 'empty or padded';
@@ -228,7 +178,6 @@ export function canonicalViolation(value: Json, kind: PathKind): string | null {
   return KIND_CHECKS[kind](value, segments);
 }
 
-/** What each kind adds to the checks every path passes. A kind this table lacks is a crash, not a pass. */
 const KIND_CHECKS: Record<PathKind, (value: string, segments: readonly string[]) => string | null> = {
   path: () => null,
   exact(value) {
@@ -251,7 +200,6 @@ const KIND_CHECKS: Record<PathKind, (value: string, segments: readonly string[])
 
 const pathMode = (value: string): PathKind => (isPattern(value) ? 'pattern' : 'exact');
 
-/** Why this `allowed_paths` entry is not admissible under the grammar of the profile. */
 export function patternViolation(pattern: string, grammar: JsonObject): string | null {
   const bad = canonicalViolation(pattern, pathMode(pattern));
   if (bad !== null) return bad;
@@ -279,10 +227,7 @@ function strList(value: Json, field: string): string[] {
   return value as string[];
 }
 
-/**
- * Canonical validation for every path of a POLICY. A malformed authority artifact must not be
- * accepted and then apply less than its issuer meant: `"src/pay/secret/** "` matches nothing.
- */
+/** A malformed policy path must not apply less than its issuer meant: `"src/pay/secret/** "` matches nothing. */
 function policyPath(value: string, field: string, allowGlob: boolean): void {
   const bad = canonicalViolation(value, allowGlob ? pathMode(value) : 'exact');
   if (bad !== null) throw new ContractViolation(`${field}: ${repr(value)} — ${bad}`);
@@ -292,7 +237,6 @@ const reprList = (items: Iterable<string>) => repr(sortedStrings(items));
 const difference = (a: readonly string[], b: readonly string[]) => a.filter(x => !b.includes(x));
 const stringsOf = (value: Json): string[] => (isList(value) ? (value as string[]) : []);
 
-/** A limit of an overlay: a non-negative integer that only goes down. */
 function narrowedLimit(key: string, value: Json, existing: Json): bigint {
   if (!isInt(value) || value < 0n) throw new ContractViolation(`${key} must be a non-negative int`);
   if (isInt(existing) && value > existing) {
@@ -301,15 +245,8 @@ function narrowedLimit(key: string, value: Json, existing: Json): bigint {
   return value;
 }
 
-/**
- * The effective policy, whose authority is a SUBSET of the base's. Each key merges by its own
- * restrictive rule: an overlay adds a restriction and never removes one.
- *
- * The base is always a profile of `PROFILES`. A profile declares forbidden patterns, limits and
- * ceilings, and declares no operations, no protected classes, no denies and no roots. So an
- * overlay can only drop a forbidden pattern, raise a limit or raise a ceiling; for the other
- * keys there is nothing in the base to remove. The Python original checks those drops too.
- */
+// The base is a profile of `PROFILES`: it declares no operations, no classes, no denies and no roots.
+// The Python original checks a drop of those too. Here there is nothing to drop.
 function monotonicMerge(base: JsonObject, overlay: JsonObject): JsonObject {
   const effective = new Map(base);
   for (const [key, value] of overlay) {
@@ -379,11 +316,7 @@ function monotonicMerge(base: JsonObject, overlay: JsonObject): JsonObject {
 
 const withId = (base: JsonObject, id: string): JsonObject => new Map<string, Json>(base).set('profile_id', id);
 
-/**
- * Resolves a policy reference into the EFFECTIVE policy. It accepts a known profile id, or
- * `{base_profile, overlay}`. A raw object passes only when it is byte-identical to the canonical
- * resolution of the profile it names: a policy is issued, never self-declared.
- */
+/** A raw object passes only when it is byte-identical to the canonical resolution of the profile it names. */
 export function resolvePolicy(spec: Json | ResolvedPolicy): ResolvedPolicy {
   if (spec instanceof ResolvedPolicy) return spec;
   if (isStr(spec)) {
@@ -420,10 +353,7 @@ export function resolvePolicy(spec: Json | ResolvedPolicy): ResolvedPolicy {
 
 export const canonicalJsonBytes = (value: Json): Buffer => utf8(canonicalJson(value));
 
-/**
- * CRLF to LF, trailing whitespace stripped, blank edges removed. In strict mode a Markdown hard
- * break is REFUSED: normalizing it away lets two plans that render differently share one hash.
- */
+/** Strict mode refuses a Markdown hard break: without it, two plans that render differently share one hash. */
 export function canonicalTextBytes(text: string, strict: boolean): Buffer {
   let lines = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n').split('\n');
   if (strict) {
@@ -444,14 +374,13 @@ export function canonicalTextBytes(text: string, strict: boolean): Buffer {
 export const hashJson = (value: Json): string => sha256Hex(canonicalJsonBytes(value));
 export const hashText = (text: string, strict = true): string => sha256Hex(canonicalTextBytes(text, strict));
 
-/** EVERY truth class a path belongs to. `specs/pay/golden/cases.json` is spec semantics AND the oracle. */
+/** Every truth class of a path: `specs/pay/golden/cases.json` is spec semantics and the oracle. */
 export function truthClasses(path: string): string[] {
   return TRUTH_ROOTS.filter(([, patterns]) => patterns.some(p => match(path, p))).map(([kind]) => kind);
 }
 
 const BUNDLE_FIELDS: Record<string, 'int' | 'str' | 'str-or-null'> = {
   schema_version: 'int', run_id: 'str',
-  // What authorized this run: the human approves a mode, not only a diff.
   adapter: 'str', execution_mode: 'str', policy_profile: 'str', policy_sha256: 'str',
   ticket_ref: 'str', ticket_body_sha256: 'str', base_sha: 'str',
   spec_entrypoint: 'str', spec_pinned_commit: 'str', spec_corpus_sha256: 'str',
@@ -466,11 +395,9 @@ const FIELD_FORMATS: readonly (readonly [string, RegExp])[] = [
 
 export interface ApprovalOptions {
   readonly policy?: Json | ResolvedPolicy;
-  /** Shape validation only, with no claim about the policy. */
   readonly shapeOnly?: boolean;
 }
 
-/** Returns the canonical bundle and its APPROVAL-FINGERPRINT. Fails closed. */
 export function buildApproval(parts: Json, options: ApprovalOptions = {}): [JsonObject, string] {
   if (!isDict(parts)) throw new ContractViolation('approval bundle is not an object');
   const known = Object.keys(BUNDLE_FIELDS);
@@ -558,14 +485,10 @@ function isRealInstant(stamp: string): boolean {
   if (year < 1 || month < 1 || month > 12) return false;
   if (day < 1 || day > DAYS[month - 1] + (month === 2 && leap ? 1 : 0)) return false;
   if (hour > 23 || minute > 59 || second > 59) return false;
-  // An offset of a whole day or more is not an offset.
   return m[7] === undefined || Number(m[7]) * 60 + Number(m[8]) < 24 * 60;
 }
 
-/**
- * The record proves the approval EVENT; the bundle proves the content. It takes the bundle and
- * not only its fingerprint: a record that names another run or repository is a replay.
- */
+/** It takes the bundle, not only its fingerprint: a record that names another run or repository is a replay. */
 export function verifyApproval(record: Json, bundle: Json, policy?: Json | ResolvedPolicy): string[] {
   if (!isDict(bundle)) {
     throw new ContractViolation('verify_approval needs the approval bundle, not a fingerprint: without '
@@ -623,8 +546,7 @@ export function verifyApproval(record: Json, bundle: Json, policy?: Json | Resol
   return v;
 }
 
-// `approved_expansions` is absent on purpose: an expansion changes the manifest, so its hash, so
-// the approval bundle. That is a new human approval.
+// `approved_expansions` is not a key: an expansion changes the manifest, so its hash, so the approval bundle.
 const MANIFEST_KEYS = ['schema_version', 'run_id', 'capability', 'adapter', 'execution_mode', 'policy_profile',
   'semantic_scope', 'mechanical_scope', 'truth_change'];
 const SEMANTIC_KEYS = ['implements', 'verifies', 'non_goals'];
@@ -765,10 +687,7 @@ export function validateManifest(m: Json): string[] {
 
 export type Change = readonly [status: string, path: string];
 
-/**
- * `git diff --name-status` to a list of changes. Fails closed. The NUL form (`-z`) is the only
- * unambiguous one when a file name can hold a space, a quote or a tab.
- */
+/** The NUL form (`-z`) is the only unambiguous one when a file name can hold a space, a quote or a tab. */
 export function parseNameStatus(text: string, nul: boolean): Change[] {
   const out: Change[] = [];
   const paired = (status: string) => 'RC'.includes(status[0]);
@@ -813,7 +732,6 @@ export function parseNameStatus(text: string, nul: boolean): Change[] {
   return out;
 }
 
-/** The violations of the proposed surface against the authorized roots and the limits of the policy. */
 function surfaceViolations(allowed: readonly string[], policy: ResolvedPolicy): string[] {
   const v: string[] = [];
   const roots = get(policy, 'authorized_scope_roots');
@@ -855,7 +773,7 @@ function surfaceViolations(allowed: readonly string[], policy: ResolvedPolicy): 
   return v;
 }
 
-/** One changed path against the manifest and the policy. The order of the checks is the contract. */
+/** The order of the checks is the contract. */
 function changeViolations(
   [status, path]: Change, manifest: JsonObject, policy: ResolvedPolicy, operations: readonly string[] | null,
 ): string[] {
@@ -866,20 +784,15 @@ function changeViolations(
   const permissions = get(mech, 'permissions') as JsonObject;
   const matches = (patterns: Json) => stringsOf(patterns).some(p => match(path, p));
 
-  // 1. The governance floor: no run edits the contracts of the machine, whatever the manifest says.
-  //    Every profile says `governance: deny`, and no overlay may touch that key.
   if (GOVERNANCE_FLOOR.some(g => match(path, g))) {
     return [`${path}: governance floor (the run cannot rewrite the contracts, policies, or gates that judge it - `
       + 'use the harness-hardening flow)'];
   }
-  // 1b. A deny of the policy binds every CHANGED PATH, not only the spellings of the manifest.
   if (matches(get(policy, 'denied_path_patterns'))) return [`${path}: denied by the authorized policy (denied_path_patterns)`];
-  // 2. Deny is absolute.
   if (matches(get(mech, 'denied_paths'))) {
     return [`${path}: denied_paths is absolute (deny wins over every policy, truth type, and expansion)`];
   }
   const v: string[] = [];
-  // 3. A permission binds wherever the path lands. A profile may add `protected_path_classes`.
   const triggers = new Map<string, readonly string[]>(PERMISSION_TRIGGERS);
   const extra = get(policy, 'protected_path_classes');
   if (isDict(extra)) {
@@ -893,11 +806,9 @@ function changeViolations(
       v.push(`${path}: touches ${permission} which the manifest declares false`);
     }
   }
-  // 3b. The declared operations, when the manifest or the policy narrows them.
   if (operations !== null && !operations.includes(status) && !operations.includes(status[0])) {
     v.push(`${path}: operation ${repr(status)} is outside allowed_operations ${repr([...operations])}`);
   }
-  // 4. Typed truth: EVERY class of the path needs a ceiling of the profile and an exact grant.
   const kinds = truthClasses(path);
   if (kinds.length > 0) {
     for (const kind of sortedStrings(kinds)) {
@@ -916,17 +827,11 @@ function changeViolations(
     }
     return v;
   }
-  // 5. Ordinary code must be inside the approved surface.
   if (!matches(get(mech, 'allowed_paths'))) v.push(`${path}: outside allowed_paths`);
   return v;
 }
 
-/**
- * The violations of a diff against a scope manifest. An empty list means every path is authorized.
- *
- * `profile` is the policy floor, issued OUTSIDE the run. It is mandatory: a manifest is a
- * proposal, and a worker that declares its own authorization is not authorized.
- */
+/** `profile` is the policy floor, issued outside the run: a manifest is a proposal, not an authorization. */
 export function validateScope(manifest: Json, changes: readonly Change[], profile?: Json | ResolvedPolicy): string[] {
   const malformed = validateManifest(manifest);
   if (malformed.length > 0) return ['manifest is not schema-valid; refusing to judge the diff', ...malformed];
@@ -956,7 +861,6 @@ export function validateScope(manifest: Json, changes: readonly Change[], profil
       + 'instance carrying authorized_scope_roots, issued by the launcher (a base profile constrains form, never surface)'];
   }
   v.push(...surfaceViolations(get(mech, 'allowed_paths') as string[], policy));
-  // The ceiling of the permissions: the manifest may narrow, never widen.
   const ceiling = get(policy, 'permission_ceiling');
   for (const [permission, granted] of get(mech, 'permissions') as JsonObject) {
     if (granted === true && isDict(ceiling) && get(ceiling, permission) === false) {
@@ -964,7 +868,6 @@ export function validateScope(manifest: Json, changes: readonly Change[], profil
         + 'runs is false — a run does not widen its own permissions');
     }
   }
-  // Operations: profile ∩ manifest, and the manifest may not add one.
   const allowedByPolicy = get(policy, 'allowed_operations');
   let operations = mech.has('allowed_operations') ? (get(mech, 'allowed_operations') as string[]) : null;
   if (isList(allowedByPolicy)) {
@@ -1049,7 +952,6 @@ function noChangeViolations(result: JsonObject): string[] {
   return v;
 }
 
-/** A run's `result.json` against the terminal contract: a strict union, with no free field. */
 export function validateResult(result: Json): string[] {
   if (!isDict(result)) return ['result is not an object'];
   const terminal = get(result, 'terminal');

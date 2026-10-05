@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "`mutate` is the eligible target of the implementation protocol: every module that the node test project covers alone, and the kernel. The six modules of src/ it leaves out by name are covered only in Chromium, and Stryker cannot run the browser project. mcp-server/ is out because its tests run with node --test. Do not add an exclusion to make a mutant go away.",
+  "_comment": "The six modules of src/ that `mutate` leaves out by name are covered only in Chromium, and Stryker cannot run the browser project. Do not add an exclusion to make a mutant go away.",
   "packageManager": "pnpm",
   "testRunner": "vitest",
   "plugins": ["@stryker-mutator/vitest-runner"],

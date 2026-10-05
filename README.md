@@ -1,18 +1,15 @@
 # Synthominos
 
-A prototype of a **musical instrument**, not a game with rules to solve. The user places
-pentominoes on a board sized to the screen, and each piece fires a five-note arpeggio. A muted piece
-keeps its place and its time but does not sound. The board is a **tour**, not a bar: a closed circuit
-visits the pieces, and order and silence come from geometry. There is no score and no win. Judge a
-feature by one question: does it make the instrument more expressive?
+A **musical instrument**, not a game. You place pentominoes on a board sized to the screen, and
+each piece fires a five-note arpeggio. A closed circuit visits the pieces, so order and silence
+come from geometry. A muted piece keeps its place and its time, and does not sound. There is no
+score and no win.
 
-Vite 7 · React 19 · TypeScript 5.8 · Tailwind CSS 4 · Web Audio (no audio library).
+Play it at <https://synthominos.vercel.app>.
+
+Vite 7 · React 19 · TypeScript 5.8 · Tailwind CSS 4 · Web Audio, with no audio library.
 
 ## Run it
-
-Vite 7 needs Node ≥ 20.19 or ≥ 22.12. The harness scripts and `mcp:test` need Node ≥ 22.18, because
-they run TypeScript without a build. The package manager is **pnpm**, pinned in `packageManager`. npm
-leaves a `package-lock.json`, and the deploy can prefer it.
 
 ```sh
 pnpm install
@@ -21,19 +18,20 @@ pnpm dev
 pnpm verify                             # the gate before a PR
 ```
 
-Chromium is not in the lockfile, and the `browser` project of Vitest needs it. Without the second line,
-the first `verify` of a fresh clone fails. `verify` runs `lint ‖ typecheck ‖ suite ‖ mcp:test`, then
-the time budgets alone, and
-`suite` gates coverage at 100 on all four metrics. The other scripts are in `package.json`.
+- **Use Node 22.18 or later.** The app needs less. The harness scripts and the MCP server run
+  TypeScript with no build, and they need it.
+- **Use pnpm.** `packageManager` pins the version.
+- **Install Chromium once.** It is not in the lockfile, and the browser tests need it. Without the
+  second command, the first `pnpm verify` of a fresh clone fails.
 
 ## Where to go
 
-| For | File |
+| For | Read |
 |---|---|
-| The full technical docs: architecture, guides, infra | [docs/README.md](./docs/README.md) |
-| The visual language: the 12 colors and their tonic | [DESIGN.md](./DESIGN.md) |
-| Work in the repo: commands, capabilities, rules | [AGENTS.md](./AGENTS.md) |
-| The contract of each capability | [specs/](./specs/AGENTS.md) |
-
-Each of those files is the only source of its subject. This README links and does not repeat, so it
-is not one more place where information goes stale.
+| Work in the repo: the commands, the architecture, the rules | [AGENTS.md](./AGENTS.md) |
+| What the instrument does | [capabilities](./docs/architecture/capabilities.md), and the contracts in [specs/](./specs/) |
+| The principles, and why each big choice was made | [constitution](./docs/architecture/constitution.md) · [decisions](./docs/architecture/decisions/) |
+| The visual language: the 12 colors and what a cell shows | [DESIGN.md](./DESIGN.md) |
+| How code and documents are written | [conventions](./docs/guides/conventions.md) |
+| A trap that someone already hit | [troubleshooting](./docs/guides/troubleshooting.md) |
+| The hosting and the branches | [deploy](./docs/infra/deploy.md) · [branches](./docs/infra/branches.md) |

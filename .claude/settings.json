@@ -12,7 +12,7 @@
               "claude"
             ],
             "timeout": 10,
-            "statusMessage": "Verificando la rama y los worktrees…"
+            "statusMessage": "Checking the branch and the worktrees…"
           }
         ]
       }
@@ -27,7 +27,7 @@
               ".claude/scripts/lint-al-cerrar.mjs"
             ],
             "timeout": 30,
-            "statusMessage": "Linteando lo que cambió…"
+            "statusMessage": "Linting what changed…"
           }
         ]
       }
@@ -42,7 +42,7 @@
               ".claude/scripts/lint-al-cerrar.mjs"
             ],
             "timeout": 30,
-            "statusMessage": "Linteando lo que cambió…"
+            "statusMessage": "Linting what changed…"
           }
         ]
       }

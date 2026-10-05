@@ -3,10 +3,7 @@ import path from 'node:path';
 import type { Git } from '../policy.ts';
 import { commandIntent, encode, handle, patchPaths, readIntent, segments } from '../protocol.ts';
 
-/**
- * The payloads below are the ones the harnesses really send. Codex's were captured with a spy
- * hook on 2026-10-04 (Codex CLI 0.160, Windows). Claude's come from its hooks documentation.
- */
+/** The Codex payloads were captured from Codex CLI 0.160 on Windows. Claude's come from its hooks documentation. */
 
 const CWD = 'D:\\repo';
 const w = path.win32;

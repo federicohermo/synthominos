@@ -4,23 +4,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { audit, citedIds, readCorpus, type SourceFile } from '../specs.ts';
 
-/** A minimal valid spec, with the given status and headings. */
 function spec(folder: string, code: string, status: string, body: string): SourceFile {
   const text = `---\nschema_version: 1\ncapability_id: CAP-${code}\nstatus: ${status}\nowner: x\nprovenance: x\n---\n\n${body}`;
   return { path: `specs/${folder}/${folder}.md`, text };
 }
 const BASE = '### BR-ABC-001 — a rule\n\n### AC-ABC-001 — a criterion *(verifies BR-ABC-001)*\n';
-/** A test file with a single title. */
 const testFile = (title: string): SourceFile => ({ path: 'src/__tests__/x.test.ts', text: `it('${title}', () => {});` });
-/**
- * An ID built at run time. Written literally in a title, the real gate would read it as a
- * citation from this file to a criterion that does not exist.
- */
+/** Built at run time: the real gate would read a literal ID in a title as a citation from this file. */
 const ac = (n: number) => ['AC', 'ABC', String(n).padStart(3, '0')].join('-');
-/**
- * The audit with one module of code for each contract, so a case about something else sees every
- * folder link intact.
- */
 const run = (specs: readonly SourceFile[], tests: readonly SourceFile[]) =>
   audit(specs, tests, specs.flatMap(s => /^specs\/([^_/][^/]*)\/\1\.md$/.exec(s.path)?.slice(1).map(c => `src/${c}/x.ts`) ?? []));
 

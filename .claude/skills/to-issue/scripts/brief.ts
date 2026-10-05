@@ -1,24 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-/**
- * Starts an issue draft from the task-brief template, and checks it before it is published.
- * The entrypoint is `task-brief.ts`; this module holds the logic, with its I/O injected.
- *
- * `check` exists because writing the issue from memory LOOKS THE SAME as copying the
- * template: a missing section or an invented one goes unseen until someone reads the
- * published issue.
- *
- * The sections, fields and placeholders are read from the template on every run. A list
- * written here would drift from the template the day someone edits it.
- *
- * This file imports only `node:*`: the `to-issue` skill carries a byte-for-byte copy.
- */
+// Imports only `node:*`: the `to-issue` skill carries a byte-for-byte copy of this file.
 
-/** The template, relative to the repo root. */
 export const TEMPLATE = ['.github', 'ISSUE_TEMPLATE', 'task-brief.md'] as const;
 
-/** The placeholder for the issue number. It is the only one `check` tolerates: the number does not exist yet. */
 export const NUMBER = '<issue>';
 
 export const USAGE = [
@@ -28,14 +14,11 @@ export const USAGE = [
 ].join('\n');
 
 const COMMENT = /<!--[\s\S]*?-->/g;
-// A placeholder is `<something>` on one line. `<!--` does not count: comments go first.
 const PLACEHOLDER = /<[^<>\n!][^<>\n]*>/g;
 const SECTION = /^## (.+)$/gm;
 const TITLE = /^# (.+)$/gm;
-// A context field: `- **Type:** ...`. Copied as is, it is the prompt and not the answer.
 const FIELD = /^- \*\*[^*]+:\*\*.*$/gm;
 
-/** What the script needs from the machine. Real in `realDraftSystem`, fake in the tests. */
 export interface DraftSystem {
   isDir(target: string): boolean;
   exists(target: string): boolean;
@@ -46,10 +29,7 @@ export interface DraftSystem {
   err(line: string): void;
 }
 
-/**
- * The template, searched upwards from `start`. A fixed depth would tie the script to one
- * folder, and the skill copy lives at another depth than the canonical.
- */
+/** Searched upwards: the skill copy lives at another depth than the canonical. */
 export function findTemplate(start: string, isDir: (target: string) => boolean): string | null {
   let current = path.resolve(start);
   for (;;) {
@@ -60,7 +40,6 @@ export function findTemplate(start: string, isDir: (target: string) => boolean):
   }
 }
 
-/** The template without its `---` block: GitHub uses it to list the template, the issue does not carry it. */
 export function stripFrontMatter(text: string): string {
   if (!text.startsWith('---')) return text;
   const end = text.indexOf('\n---', 3);
@@ -81,10 +60,6 @@ export function fillNumber(draft: string, issue: number): string {
   return draft.replaceAll(NUMBER, String(issue));
 }
 
-/**
- * What the draft lacks to follow the template. Empty when it is ready. With
- * `published = false` it lets the number placeholder through.
- */
 export function problems(draft: string, template: string, published = true): string[] {
   const visible = withoutComments(draft);
   const bare = withoutComments(template);
@@ -125,7 +100,6 @@ function readText(sys: DraftSystem, file: string): string {
   return sys.read(file).replaceAll('\r\n', '\n');
 }
 
-/** Runs one subcommand. Returns the exit code: 0 ready, 1 problems, 2 bad usage or no template. */
 export function run(args: readonly string[], start: string, sys: DraftSystem): 0 | 1 | 2 {
   if (!validUsage(args)) {
     sys.err(USAGE);
@@ -165,7 +139,6 @@ export function run(args: readonly string[], start: string, sys: DraftSystem): 0
   return 0;
 }
 
-/** The real machine. */
 export function realDraftSystem(): DraftSystem {
   return {
     isDir: target => existsSync(target) && statSync(target).isDirectory(),

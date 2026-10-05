@@ -4,12 +4,6 @@ import {
 } from '../kernel.ts';
 import { ContractViolation, PyFloat, json, repr, strictJsonLoads, type JsonObject } from '../pyjson.ts';
 
-/**
- * What the Python fixtures cannot hold: the part of the API that only TypeScript has, and the
- * rules of the kernel a reader should be able to find by name. The exact outputs are pinned by
- * `python-kernel.test.ts`.
- */
-
 const policySha = hashJson(resolvePolicy('supervised-local/v1'));
 const BUNDLE = {
   schema_version: 1, run_id: 'RUN-001', adapter: 'implement-feature', execution_mode: 'supervised',

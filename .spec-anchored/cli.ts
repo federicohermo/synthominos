@@ -5,24 +5,9 @@ import {
 } from './kernel.ts';
 import { ContractViolation, InputError, json, prettyJson, sha256Hex, strictJsonLoads } from './pyjson.ts';
 
-/**
- * The command line of the kernel: `node .spec-anchored/spec-anchored.ts <command>`.
- *
- *   canonicalize <file> [--kind json|text] [--emit hash|bytes] [--allow-hard-breaks]
- *   build-approval <file> --policy <profile|file>
- *   verify-approval <record> --bundle <file> --policy <profile|file>
- *   validate-scope --manifest <file> --changes <file> [--nul] --profile <profile|file>
- *   validate-result <file>
- *   resolve-policy <profile|file>
- *
- * `resolve-policy` is not in the Python original. It prints the effective policy and the
- * `policy_sha256` that an approval bundle must carry: a policy file with an overlay does not hash
- * to its own bytes.
- *
- * A file named `-` is the standard input. Exit 0 is acceptance, 1 is a refusal, 2 is a wrong call.
- */
+// `resolve-policy` is not in the Python original: a policy file with an overlay does not hash to its own bytes.
+// Exit 0 is acceptance, 1 is a refusal, 2 is a wrong call.
 
-/** The outside of the command: files, the standard input, and the two streams. */
 export interface Io {
   /** The text of a file, or of the standard input for `-`. It throws `InputError` when it cannot. */
   read(path: string): string;
@@ -30,7 +15,6 @@ export interface Io {
   err(text: string): void;
 }
 
-/** Which options each command takes, and whether each one carries a value. */
 const COMMANDS: Record<string, { readonly positional: number; readonly options: Record<string, boolean>; readonly required: readonly string[] }> = {
   'canonicalize': { positional: 1, options: { '--kind': true, '--emit': true, '--allow-hard-breaks': false }, required: [] },
   'build-approval': { positional: 1, options: { '--policy': true }, required: ['--policy'] },
@@ -46,7 +30,6 @@ const CHOICES: Record<string, readonly string[]> = { '--kind': ['json', 'text'],
 
 class UsageError extends Error {}
 
-/** `options` holds each option that carries a value, and `flags` each one that does not. */
 interface Call {
   readonly command: string;
   readonly files: readonly string[];
@@ -55,8 +38,7 @@ interface Call {
 }
 
 function parse(argv: readonly string[]): Call {
-  // `Object.hasOwn`, and not `in` or a plain lookup: `toString` is a key of every object. With no
-  // argument at all the command is `undefined`, which is no key either.
+  // `Object.hasOwn`, not `in`: `toString` is a key of every object.
   const [command, ...rest] = argv;
   if (!Object.hasOwn(COMMANDS, command)) throw new UsageError(`expected one of: ${Object.keys(COMMANDS).join(', ')}`);
   const spec = COMMANDS[command];
@@ -85,7 +67,6 @@ function parse(argv: readonly string[]): Call {
   return { command, files, options, flags };
 }
 
-/** Prints the violations, or the message of acceptance. */
 function report(io: Io, violations: readonly string[], accepted: string): number {
   if (violations.length === 0) {
     io.out(`${accepted}\n`);
@@ -98,7 +79,6 @@ function report(io: Io, violations: readonly string[], accepted: string): number
 function run({ command, files, options, flags }: Call, io: Io): number {
   const document = (path: string) => strictJsonLoads(io.read(path));
   const option = (name: string) => options.get(name) as string;
-  // A policy is a profile id, or the artifact a launcher issued. It is resolved exactly once.
   const resolve = (reference: string): ResolvedPolicy =>
     resolvePolicy(PROFILES.has(reference) ? reference : document(reference));
   const policy = (name: string) => resolve(option(name));
@@ -138,7 +118,6 @@ function run({ command, files, options, flags }: Call, io: Io): number {
   return report(io, validateResult(document(files[0])), 'OK - result satisfies the terminal contract');
 }
 
-/** The command. It returns the exit code and never throws on a bad input. */
 export function main(argv: readonly string[], io: Io): number {
   try {
     return run(parse(argv), io);
@@ -164,7 +143,6 @@ function decode(bytes: Buffer, path: string): string {
   }
 }
 
-/** The real files and streams. */
 export function realIo(): Io {
   return {
     read(path) {

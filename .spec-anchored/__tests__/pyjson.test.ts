@@ -5,12 +5,6 @@ import {
   pyEq, repr, rstrip, strictJsonLoads, strip, truthy, typeName, utf8, type Json,
 } from '../pyjson.ts';
 
-/**
- * The JSON model, rule by rule. `python-kernel.test.ts` pins what the port answers on recorded
- * inputs. This file pins the edges those inputs do not reach, so that a change to one of these
- * rules fails a test with its name.
- */
-
 const char = (code: number) => String.fromCodePoint(code);
 
 describe('the two kinds of refusal carry their name', () => {

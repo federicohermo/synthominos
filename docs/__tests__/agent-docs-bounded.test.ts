@@ -3,12 +3,6 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname, resolve } from 'node:path';
 
-/**
- * The always-loaded agent documents stay within budget. Each harness loads them whole at the
- * start of a session and keeps them in every request, so each extra line is paid on every turn.
- * Reference material goes to `docs/` or to a rule with `paths:`.
- */
-
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const lines = (file: string) => readFileSync(join(ROOT, file), 'utf8').split(/\r?\n/).length;
 

@@ -5,12 +5,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { rawBase, realScreenshotSystem, run, USAGE, type ScreenshotSystem } from '../screenshots.ts';
 
-/**
- * The upload against a fake git for the usage and the failures, and against a fabricated repo
- * with a bare `origin` for the plumbing: only real git proves that a second run keeps the
- * files of the first.
- */
-
 function fakeSystem(git: (args: readonly string[]) => string = () => '') {
   const out: string[] = [];
   const err: string[] = [];
@@ -106,8 +100,7 @@ describe('realScreenshotSystem', () => {
     expect(git(origin, 'log', '--format=%s', 'screenshots/7').split('\n')).toEqual(['screenshots of #7', 'screenshots of #7']);
     log.mockRestore();
     rmSync(root, { recursive: true, force: true });
-    // About fifteen real git processes. On Windows, with the suite running in parallel, they
-    // pass the 5 s default with nothing wrong.
+    // About fifteen real git processes: on Windows, in a parallel suite, they pass the 5 s default.
   }, 30_000);
 
   it('a failing git throws, isDir tells folders apart, and err writes to stderr', () => {
