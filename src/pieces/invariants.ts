@@ -248,8 +248,8 @@ export function checkLetters(): CheckResult {
     if (tiene !== esperada) {
       const enRealidad = PIECES.find(otra => canonicalKey(PENTOMINOS_CANONICOS[otra]) === tiene);
       failures.push(
-        `${p}: is not the pentomino ${p}, ` +
-        (enRealidad === undefined ? 'and no other of the 12' : `it is the ${enRealidad}`),
+        `${p}: is not the pentomino ${p}` +
+        (enRealidad === undefined ? ' or any other of the 12' : `, it is the ${enRealidad}`),
       );
     }
   }

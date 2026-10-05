@@ -174,7 +174,7 @@ describe('the checks detect a regression', () => {
     conFormaMutada('Z', [[0,0],[1,0],[2,0],[3,0],[9,9]], () => {
       const r = checkLetters();
       expect(r.ok).toBe(false);
-      expect(r.failures).toEqual(['Z: is not the pentomino Z, and no other of the 12']);
+      expect(r.failures).toEqual(['Z: is not the pentomino Z or any other of the 12']);
     });
   });
 
