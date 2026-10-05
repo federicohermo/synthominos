@@ -39,6 +39,19 @@ A pinned Node version did not change the number.
 **Fix:** write the comparator with no branch: `Number(a > b) - Number(a < b)`. In general, no branch
 can depend on an order that the environment gives.
 
+### The `mutation` job fails on a PR that changed one line
+
+`Final mutation score … under breaking threshold 100`, and the surviving mutants are in code the
+PR did not touch.
+
+**Cause:** the job judges each changed file whole. A file that was never mutated brings all its
+old mutants to the first PR that touches it:
+[the decision](../architecture/decisions/2026-10-04-mutation-judges-a-changed-file-whole.md).
+
+**Fix:** before the push, run `node .agents/scripts/mutation-target.ts origin/staging --report` on
+the committed branch, then `pnpm mutation --mutate <the eligible files>`. Kill each survivor with a
+test or with simpler code, in the same PR.
+
 ### `Failed to delete stryker temp directory`, and `node` processes that stay alive
 
 On Windows, `pnpm mutation` copies the repo to `.stryker-tmp/`.
@@ -80,6 +93,18 @@ one cycle: 7.5 s with 8 pieces at 110 bpm.
 **Fix:** wait one cycle before you look for a bug. If the old sound lasts more than one cycle,
 something gives a sequence to the engine outside `playback/use-engine.ts`. The effects of that file
 hold the only calls to `setSequence`.
+
+## Board
+
+### A cell shows `undefinedNaN`
+
+The text is in place of a note name. Nothing throws.
+
+**Cause:** the cell read a note that does not exist, and `midiName(undefined)` returns that string.
+Either a rotation is outside 0 to 3, or a scale formula has fewer than five notes.
+
+**Fix:** run `check_invariants`: its `notes` check reports a formula of the wrong length. If it
+passes, find the value that reached a rotation without the type `Rotacion`.
 
 ## MCP server
 
