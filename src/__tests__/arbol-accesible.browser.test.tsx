@@ -165,9 +165,9 @@ describe('El arbol de accesibilidad de la app entera', () => {
     const controles = [...container.querySelectorAll(CONTROLES)];
 
     // Un recorrido vacío pasaría en verde sin haber verificado nada, que es el modo de
-    // falla que este repo ya se comió dos veces. El piso son los 20 botones que
-    // `App.browser.test.tsx` cuenta, así que cualquier número por debajo dice que el
-    // selector dejó de encontrar la app y no que la app dejó de tener controles.
+    // falla que este repo ya se comió dos veces. El piso de 20 queda por debajo de los 23
+    // botones que `App.browser.test.tsx` cuenta, así que cualquier número por debajo dice que
+    // el selector dejó de encontrar la app y no que la app dejó de tener controles.
     expect(controles.length).toBeGreaterThan(20);
 
     for (const control of controles) {

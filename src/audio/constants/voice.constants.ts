@@ -211,7 +211,7 @@ export const CLICK_MIDI = 96;
  * 160 TEMPO_MAX   93,8 ms    53 %             31 %
  * ```
  *
- * En el peor caso —160 bpm, el tope del slider— quedan 64 ms de aire entre la caida y
+ * En el peor caso —160 bpm, el tope del tempo— quedan 64 ms de aire entre la caida y
  * el evento siguiente. Con 80 ms la campana ocuparia el 85 % del intervalo a ese tempo
  * y caeria 40 dB recien a la mitad: dos clicks consecutivos se encimarian de forma
  * audible.

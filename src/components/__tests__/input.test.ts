@@ -114,7 +114,7 @@ describe('AC7 y AC8 — la barra espaciadora', () => {
   });
 
   it('la guarda del control también apaga a los modificadores', () => {
-    // Escribir en el slider de tempo con Shift no tiene por qué rotar la pieza.
+    // Teclear sobre el reloj de tempo con Shift no tiene por qué rotar la pieza.
     expect(accionDeTecla(tecla({ key: 'Shift', tipo: 'keyup', targetEsControl: true }))).toBeNull();
     expect(accionDeTecla(tecla({ key: 'Control', tipo: 'keyup', targetEsControl: true }))).toBeNull();
   });

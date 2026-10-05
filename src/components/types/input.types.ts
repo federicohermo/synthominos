@@ -45,7 +45,7 @@ export interface EventoDeTecla {
   /**
    * El foco está sobre un `<button>` o un `<input>`: el navegador se queda **todo**.
    *
-   * Todas las teclas, sin excepción: escribir en el slider de tempo no rota la pieza y la
+   * Todas las teclas, sin excepción: teclear sobre el reloj de tempo no rota la pieza y la
    * barra activa el control armado por la vía nativa, sin un `blur()` a mano.
    */
   targetEsControl: boolean;

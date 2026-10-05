@@ -27,7 +27,7 @@ salieron a `playhead-loop.ts` y `spectrum-loop.ts` sin cambiar una línea de com
 
 Desde ese spec `components/` tiene **dos clases de test y las dos corren con `pnpm test`**: los `.ts`
 puros en el proyecto `node` —toda decisión extraída de un `.tsx`, de `input.ts`, `cell-text.ts` y los
-dos `-loop.ts` a `drag.ts` y `rejilla.ts`, que sumó el 052— y los
+dos `-loop.ts` a `drag.ts`, `rejilla.ts` y `tempo.ts`, que sumó el 052— y los
 `*.browser.test.tsx` en un
 Chromium de verdad, que es donde se verifican los componentes, `App.tsx` y los hooks. El
 discriminante es el **sufijo**, no la carpeta. Y el umbral es 100 en las cuatro métricas: lo que se
@@ -300,7 +300,9 @@ El spec 013 fue el primero que agregó uno —hasta ahí el único `addEventList
 - **El listener global vive en un hook de `components/`, en un efecto propio** —`use-input.ts` desde
   el spec 022—, y el componente sobre el que escucha no gana ni estado ni efectos. El shell es quien
   tiene los setters, así que el hook recibe **callbacks y no setters**: así cambiar la forma del estado
-  es cambiar el shell y no el hook.
+  es cambiar el shell y no el hook. **La excepción es `use-drag.ts`** (spec 052): lo monta el chasis
+  `FloatingPanel.tsx` y no el shell, porque lo comparten los dos flotantes; la posición sigue en el
+  shell y entra por callback.
 - **Las dependencias del efecto son las reales.** Un `[]` con un ref del estado para suscribir una sola
   vez es la optimización que este repo no necesita —son dos `addEventListener` sobre `window`— y
   esconde de dónde sale cada valor. Si el handler no lee ningún valor (setter funcional), ahí sí `[]`.

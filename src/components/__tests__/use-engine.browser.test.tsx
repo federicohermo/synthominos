@@ -80,7 +80,7 @@ describe('useMotorSincronizado — los cuatro efectos', () => {
   it('cambiar el tempo NO vuelve a encolar la secuencia', async () => {
     // Cada efecto con su array, que es de lo que hablan la mitad de los docblocks del
     // archivo: una dependencia de mas aca significa reencolar el circuito entero cada
-    // vez que alguien arrastra el slider de tempo.
+    // vez que alguien arrastra el reloj de tempo.
     const p = props(UNA, 110);
     const { rerender } = await renderHook((q?: typeof p) => useMotorSincronizado(q ?? p), { initialProps: p });
     expect(colaDeDibujo.encolar).toHaveBeenCalledTimes(1);

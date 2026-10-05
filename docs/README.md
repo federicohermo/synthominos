@@ -59,7 +59,7 @@ Vitest corre en **dos proyectos y un solo comando** (spec 029): los `*.test.ts` 
 contra `node-web-audio-api`, y los `*.browser.test.tsx` en un Chromium de verdad por Playwright. **En
 jsdom no corre ninguno**, y no es una pendiente: jsdom no implementa Web Audio ni da canvas 2D,
 `ResizeObserver` o `matchMedia`, así que cubrir `Spectrum.tsx` con él exigiría mockear justo el código
-que se quiere cubrir. Los seis componentes, `App.tsx` y los dos hooks tienen test — ver
+que se quiere cubrir. Los siete componentes, `App.tsx` y los cuatro hooks tienen test — ver
 [la sección de tests](./architecture/directory-structure.md#tests).
 
 ---

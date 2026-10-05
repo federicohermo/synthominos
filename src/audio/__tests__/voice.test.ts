@@ -197,7 +197,7 @@ describe('el release en intervalos (cierre del seguimiento del 008)', () => {
     // La propiedad que el numero en segundos rompia. Voces simultaneas =
     // `(NOTE_INTERVALS * intervalo + release) / intervalo`, o sea `1 + RELEASE_INTERVALS`
     // — un numero SIN bpm adentro. Se mide como cola: cuanto sobrevive la nota despues
-    // de `dur`, en intervalos, tiene que dar lo mismo a los dos extremos del slider.
+    // de `dur`, en intervalos, tiene que dar lo mismo a los dos extremos del tempo.
     const at = 0.1;
     for (const bpm of [60, 160]) {
       const iv = intervalDuration(bpm);

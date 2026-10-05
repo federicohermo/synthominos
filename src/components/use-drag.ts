@@ -12,8 +12,11 @@ import type { Caja, Posicion } from './types/panel.types.ts';
  *
  * Es el cuarto hook de entrada de `components/`, junto a los dos de `use-input.ts` y el de
  * `use-grid.ts`, y está acá por la misma regla: **el listener global vive en un hook de
- * `components/`, en un efecto propio**, con el `ref` creado en el shell. `App.tsx` no
- * declara un solo `useEffect` desde el 022 y este spec no lo cambia.
+ * `components/`, en un efecto propio**. `App.tsx` no declara un solo `useEffect` desde el
+ * 022 y este spec no lo cambia. Lo que NO comparte con aquellos es quién lo monta: no el
+ * shell sino el chasis, `FloatingPanel.tsx`, que crea el `ref` de su propio nodo —lo usan
+ * dos flotantes, y montarlo en el shell sería cablear el mismo hook dos veces—. La
+ * posición sigue en el shell y entra por callback.
  *
  * ## La posición va por custom property, no por `transform` directo
  *

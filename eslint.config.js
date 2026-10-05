@@ -289,7 +289,7 @@ const REGLA_CONSTANTES = {
 /**
  * "Un `.tsx` no declara la logica de un efecto." Hasta el spec 049 esta regla vivio solo en
  * `docs/guides/conventions.md` y estaba escrita mal en las dos mitades: decia que
- * los efectos eran seis —son nueve, contando el `useLayoutEffect` de `use-grid.ts` que
+ * los efectos eran seis —eran nueve, contando el `useLayoutEffect` de `use-grid.ts` que
  * aparecio al implementar esta regla— y que ninguno vivia en un `.tsx` —viven dos—.
  *
  * El motivo no es estetico: `react-refresh/only-export-components` prohibe que un `.tsx`

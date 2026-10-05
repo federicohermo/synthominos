@@ -352,8 +352,8 @@ notes.forEach((m, i) =>
   scheduleVoice(c, master, midiToHz(m), start + i * iv, NOTE_INTERVALS * iv, RELEASE_INTERVALS * iv));
 ```
 
-- **Un intervalo entre notas** (`intervalDuration(bpm)`, la semicorchea del compás), así que el slider
-  de BPM sí afecta al arpegio de colocación: a 100 bpm el intervalo da 0,15 s, y el arpegio completo
+- **Un intervalo entre notas** (`intervalDuration(bpm)`, la semicorchea del compás), así que el reloj
+  de tempo sí afecta al arpegio de colocación: a 100 bpm el intervalo da 0,15 s, y el arpegio completo
   (`4 × intervalo`) mide 0,375 s a 160 bpm contra 1,000 s a 60 bpm.
 - **Duración de nota en intervalos** (`NOTE_INTERVALS = 1`, o sea exactamente un intervalo; 0,150 s a
   100 bpm), `0.8` de velocity, más el release. Un intervalo y no dos: la nota termina justo

@@ -244,8 +244,9 @@ grep -rq "App.css" src --include="*.tsx" --include="*.ts" --include="*.css"
 `pnpm test` corre Vitest en **dos proyectos y un solo comando** (spec 029). El corte no es por capa sino
 por lo que el test necesita:
 
-- **`node`** — `environment: 'node'` contra `node-web-audio-api`, sobre **cinco** raíces. Son 36
-  archivos: 23 en `src/`, 4 en la raíz, 3 en `docs/`, 2 en `specs/` y 4 en `.claude/scripts/`. El
+- **`node`** — `environment: 'node'` contra `node-web-audio-api`, sobre **seis** raíces. Son 38
+  archivos: 23 en `src/`, 4 en la raíz, 3 en `docs/`, 2 en `specs/`, 4 en `.claude/scripts/` y 2 en
+  `eslint-rules/`. El
   dominio es puro y el audio tiene una implementación nativa de Web Audio, así que corren ahí sin
   adaptación. Los que **no** son el test de un módulo leen un archivo **del disco**, porque el proyecto
   de navegador sirve su propio documento y nunca carga esos archivos, y **cada uno vive al lado del
