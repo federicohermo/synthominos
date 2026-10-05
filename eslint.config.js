@@ -8,6 +8,7 @@ import tseslint from 'typescript-eslint'
 import vitest from '@vitest/eslint-plugin'
 import importX from 'eslint-plugin-import-x'
 import tailwind from 'eslint-plugin-better-tailwindcss'
+import { getDefaultSelectors } from 'eslint-plugin-better-tailwindcss/defaults'
 import { globalIgnores } from 'eslint/config'
 import commentShape from './eslint-rules/comment-shape.mjs'
 import commentAnchor from './eslint-rules/comment-anchor.mjs'
@@ -196,9 +197,15 @@ export default tseslint.config([
 
   {
     // The editor suggests these, and no gate read them. Order and wrapping are not checked.
-    files: ['src/**/*.tsx'],
+    // In a `.ts` module the plugin finds a class string only by the name of its constant.
+    files: ['src/**/*.{ts,tsx}'],
     plugins: { 'better-tailwindcss': tailwind },
-    settings: { 'better-tailwindcss': { entryPoint: 'src/styles/index.css' } },
+    settings: {
+      'better-tailwindcss': {
+        entryPoint: 'src/styles/index.css',
+        selectors: [...getDefaultSelectors(), { kind: 'variable', name: '^VELO_[A-Z_]+$', match: [{ type: 'strings' }] }],
+      },
+    },
     rules: {
       ...tailwind.configs.correctness.rules,
       'better-tailwindcss/enforce-canonical-classes': 'error',

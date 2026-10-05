@@ -16,7 +16,7 @@ export const BORDE_POR_KIND = { [MARCA.nota]: NOTA, [MARCA.cruce]: CRUCE, [MARCA
 
 /** Whole literals: Tailwind scans the source and generates no concatenated class. */
 export const VELO_CAJA = 'absolute';
-export const VELO_TAPA = 'w-full h-full border-2 border-dashed border-slate-900/50 bg-white/60';
+export const VELO_TAPA = 'size-full border-2 border-dashed border-slate-900/50 bg-white/60';
 
 /** A `calc()` over `--cell`: a resize moves the playhead and the veil with no write. */
 const celdas = (n: number) => `calc(var(--cell) * ${n})`;
