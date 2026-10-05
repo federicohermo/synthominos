@@ -13,6 +13,8 @@ afterEach(() => {
   vi.doUnmock('../system.ts');
   vi.doUnmock('../worktrees.ts');
   vi.doUnmock('../copies.ts');
+  vi.doUnmock('../proofs.ts');
+  vi.doUnmock('../browser.ts');
   process.exitCode = undefined;
 });
 
@@ -49,5 +51,24 @@ describe('sync.ts', () => {
     vi.doMock('../copies.ts', () => ({ sync: () => 1, realDisk: () => ({}) }));
     await import('../sync.ts');
     expect(process.exitCode).toBe(1);
+  });
+});
+
+describe('prove.ts and doctor.ts', () => {
+  const mock = () => {
+    vi.doMock('../proofs.ts', () => ({ prove: () => Promise.resolve(1), doctor: () => Promise.resolve(2) }));
+    vi.doMock('../browser.ts', () => ({ realProveSystem: () => ({}) }));
+  };
+
+  it('prove.ts returns the exit code of the proof', async () => {
+    mock();
+    await import('../prove.ts');
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('doctor.ts returns the exit code of the doctor', async () => {
+    mock();
+    await import('../doctor.ts');
+    expect(process.exitCode).toBe(2);
   });
 });

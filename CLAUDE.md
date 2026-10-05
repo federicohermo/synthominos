@@ -4,8 +4,8 @@
 
 - **Skills** are invoked as `/shape`, `/to-issue`, `/to-spec`, `/implement-feature`,
   `/implement-batch`, `/pr-review`, `/pr-review-batch`, `/review-spec-drift`,
-  `/ticket-readiness-review`, `/orchestrate`, `/explain` and `/prep`. Their source is
-  `.agents/skills/`; `.claude/skills/` is a generated copy.
+  `/ticket-readiness-review`, `/orchestrate`, `/explain`, `/prep` and `/verify-synthominos`.
+  Their source is `.agents/skills/`; `.claude/skills/` is a generated copy.
 - **The two hardening agents** are `general-code-reviewer` and `mutation-hardener`. Call them
   with `Agent`, only from a run of the implementation protocol. Their source is `agents/`.
 - **Hooks** (`.claude/settings.json`): `PreToolUse` runs `.agents/scripts/hook.ts claude` on every
