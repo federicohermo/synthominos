@@ -145,6 +145,12 @@ No `--force` and no rebase: a rebase rewrites commits the author already read.
 **Verify the push landed**: `git fetch origin`, then compare `origin/<headRefName>` with your
 SHA. A "pushed" with a remote that did not move is the last silent failure.
 
+**Correct a false PR description.** It is false when no command shows what it states: an AC that
+does not exist, a file the PR deleted, a count the head does not give. A fix of this review can
+make it false too. Change only the false lines, and keep `Closes #N`. Write the description to a
+file, and run `gh api -X PATCH repos/<owner>/<repo>/pulls/<N> -F body=@<file>`. The description
+is the PR's own claim, not a comment: it needs no `--comment`. With `--dry`, report it instead.
+
 With `--comment`, post one general comment on the PR, headed by the SHA, with four sections:
 blockers fixed, improvements applied, what went to its own PR (with the number), and what forced
 a spec correction. Do not post inline comments on a PR you already fixed.
@@ -165,6 +171,7 @@ The report, in about 30 lines:
 6. **What stayed `BLOCKED`**, who blocked it, and the exact fix on one line.
 7. **Which `SKILL.md` this run fixed**, and with which rule.
 8. **The SHA**, and whether the base was another open PR.
+9. **The corrected PR description**: each false line, and its new text.
 
 The report cannot say "pending". If that word appears, a finding was not discharged: go back to
 the table in `findings.md`.

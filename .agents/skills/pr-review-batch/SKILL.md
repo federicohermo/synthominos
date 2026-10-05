@@ -151,6 +151,8 @@ differences:
    pushed**. Each finding returned unapplied is a `BELONGS-TO-PR-<N>`, a `BLOCKED` or a
    `DECISION` with the old and the new text of the AC. There is no fourth box.
 9. **It does not claim which other PRs touch its files.** It cannot know.
+10. **It corrects the description of its own PR** by step 7 of `pr-review`, and its report gives
+    each line it changed.
 
 ## Step 4: The contention protocol
 
@@ -182,6 +184,8 @@ The parent does not audit again. It crosses.
   diff is contained in another, close it with the measured reason.
 - **The counts the batch moves are yours** (clause 2). Sweep the numeric claims about the tree,
   head by head, with a narrow pathspec, and send each owner the measured number.
+- **After step 6, read each PR description again against its final head.** The merges move
+  counts and SHAs. Correct each false line by step 7 of `pr-review`.
 - **Verify the dismissals, not only the findings.** The expensive case reads like a good finding: a
   🟡 that was not true. Correct it before it ships. If it already became a PR, close that PR.
 - **The batch is not closed while a finding is not discharged**, except with `--dry`. The parent
