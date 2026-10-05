@@ -74,7 +74,9 @@ grep for a symbol. Which tool answers which question: [MCP](./docs/guides/mcp-do
 ## The harness
 
 `.agents/` is canonical for both Claude Code and Codex. After you edit it or `agents/`, run
-`node .agents/scripts/sync.ts` and commit the copies it writes. A run of the implementation
+`node .agents/scripts/sync.ts` and commit the copies it writes. It also writes
+[the module map](./docs/architecture/modules.md) from the imports of `src/`: a change that adds,
+moves or deletes a file of `src/`, or changes an import, runs it too. A run of the implementation
 protocol never edits `.agents/`, `agents/`, `policy/` or `.spec-anchored/`: that is a `harness/` PR.
 
 ## Documentation
